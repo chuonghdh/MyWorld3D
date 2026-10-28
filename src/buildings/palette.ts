@@ -55,6 +55,6 @@ export const AWNING_COLORS: readonly string[] = ['#2f6b4f', '#b03a2e', '#24395c'
 /** Painted shopfront and fascia colours. */
 export const SHOPFRONT_COLORS: readonly string[] = ['#1f3b2f', '#5a1f1d', '#1d2a44', '#262626', '#6b4a1f', '#2e5560', '#7a2e2a'];
 /** Front door colours (painted wood). */
-export const DOOR_COLORS: readonly string[] = ['#3b2a1e', '#1f3b2f', '#5a1f1d', '#1d2a44', '#2a2a2a', '#6b4a2f'];
+export const DOOR_COLORS: readonly string[] = ['#5b4030', '#2f5a47', '#7a2c28', '#2f4a78', '#46505a', '#7b5636'];
 /** Curtain and blind tones seen through the glass. */
 export const CURTAIN_COLORS: readonly string[] = ['#d9cdb5', '#c7b08a', '#e6dfd2', '#b88e7a', '#a8b5a0', '#9fb0c2'];

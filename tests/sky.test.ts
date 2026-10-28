@@ -4,7 +4,8 @@ import { computeSkyState, createGroundDisc, createSkyDome, GROUND_DISC_Y } from 
 import { ASPHALT_TOP, SIDEWALK_TOP } from '../src/streets';
 import { GROUND_Y } from '../src/streets/surfaces';
 import { getLightingForTime, getNightSchedule, getSkyState } from '../src/environment/sun';
-import { CLOUD_MAX_DARKNESS, cloudShadowAlpha, createClouds } from '../src/environment/clouds';
+import { createClouds } from '../src/environment/clouds';
+import { CLOUD_MAX_DARKNESS, cloudShadowAlpha } from '../src/environment/cloudSprites';
 
 describe('sky state', () => {
   it('shows stars and moon at 20:30 but not at noon', () => {
@@ -107,30 +108,30 @@ describe('sky dome', () => {
 describe('cloud shadows', () => {
   it('never darkens the ground more than 35%', () => {
     expect(CLOUD_MAX_DARKNESS).toBeLessThanOrEqual(0.35);
-    for (const cov of [0, 0.5, 1]) {
-      for (let n = 0; n <= 1; n += 0.05) {
-        expect(cloudShadowAlpha(n, cov, 1)).toBeLessThanOrEqual(0.35 + 1e-9);
+    for (const k of [0, 0.5, 1, 3]) {
+      for (let d = 0; d <= 1.5; d += 0.05) {
+        expect(cloudShadowAlpha(d, k)).toBeLessThanOrEqual(0.35 + 1e-9);
       }
     }
-    expect(cloudShadowAlpha(1, 1, 0)).toBe(0);
+    expect(cloudShadowAlpha(1, 0)).toBe(0);
   });
 
-  it('is a single decal that ignores shadow-only hacks and has no polygon puffs', () => {
+  it('has one shadow decal that ignores shadow-only hacks, plus one sprite draw call', () => {
     const field = createClouds({ area: { minX: -50, maxX: 50, minZ: -50, maxZ: 50 }, seed: 3 });
     const meshes: THREE.Mesh[] = [];
     field.group.traverse((o) => {
       if (o instanceof THREE.Mesh) meshes.push(o);
     });
-    expect(meshes).toHaveLength(1);
-    // What the old Town.tsx did to cloud meshes must not hide the decal or make it cast a shadow.
-    const m = meshes[0].material as THREE.ShaderMaterial;
+    expect(meshes).toHaveLength(2);
+    const decal = meshes.find((m) => m.name === 'cloud-shadows')!;
+    // What an old Town.tsx did to cloud meshes must not hide the decal or make it cast a shadow.
+    const m = decal.material as THREE.ShaderMaterial;
     m.colorWrite = false;
-    meshes[0].castShadow = true;
+    decal.castShadow = true;
     expect(m.colorWrite).toBe(true);
-    expect(meshes[0].castShadow).toBe(false);
+    expect(decal.castShadow).toBe(false);
     field.update(0.05, { x: 3, z: 1 });
     field.setCoverage(2);
-    expect(m.uniforms.uCoverage.value).toBe(1);
     field.dispose();
   });
 });

@@ -35,7 +35,7 @@ const HORN_MAX_CONCURRENT = 4;
 const EMITTER_HEIGHT = 1;
 const FADE_TC = 0.07;
 /** Level of the air-brake hiss relative to the first version (turned down to 70 %). */
-export const AIR_BRAKE_LEVEL = 0.7;
+export const AIR_BRAKE_LEVEL = 0.4;
 
 /** Seconds a released voice keeps running (while fading to silence) before its nodes are torn down. */
 const FADE_OUT_S = 0.5;

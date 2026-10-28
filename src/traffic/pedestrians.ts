@@ -144,6 +144,7 @@ const N_HIDE = 3;
 const DENSITY_CURVE: readonly (readonly [number, number])[] = [
   [0, 0.08],
   [5, 0.08],
+  [6, 0.22],
   [7, 0.45],
   [8.5, 1],
   [9.5, 0.7],
@@ -152,8 +153,9 @@ const DENSITY_CURVE: readonly (readonly [number, number])[] = [
   [16.5, 0.8],
   [17.5, 1],
   [19, 0.95],
-  [21, 0.4],
-  [23, 0.12],
+  [21, 0.85],
+  [22, 0.7],
+  [23, 0.1],
   [24, 0.08],
 ];
 

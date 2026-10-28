@@ -14,10 +14,13 @@ import {
 import {
   GLASS_FRAGMENT_COMMON,
   GLASS_FRAGMENT_END,
+  GLASS_FRAGMENT_SCHEDULE,
   GLASS_VERTEX_COMMON,
   GLASS_VERTEX_MAIN,
 } from './shaders/glass';
 import { attachWeather, patchWeather, weatherUniforms } from './shaders/weather';
+import { WIND_VERTEX_COMMON, WIND_VERTEX_MAIN_BODY, setBuildingWind, tickBuildingWind, windUniforms } from './shaders/wind';
+import { nightClock } from './facade/polish';
 
 let body: THREE.MeshStandardMaterial | null = null;
 let glass: THREE.MeshStandardMaterial | null = null;
@@ -31,14 +34,19 @@ export const glassUniforms = {
   uSkyColor: { value: new THREE.Color('#9cc4e8') },
   uSunDir: { value: new THREE.Vector3(0.4, 0.8, 0.3).normalize() },
   uSunColor: { value: new THREE.Color('#fff2d6') },
+  /** Night clock in hours since noon for the window light schedule; negative = schedule off (all lit windows on). */
+  uClock: { value: -1 },
 };
 
 type ShaderLike = { uniforms: Record<string, { value: unknown }>; vertexShader: string; fragmentShader: string };
 
 function patchBody(shader: ShaderLike): void {
+  shader.uniforms.uWTime = windUniforms.uWTime;
+  shader.uniforms.uWWind = windUniforms.uWWind;
+  shader.uniforms.uWGust = windUniforms.uWGust;
   shader.vertexShader = shader.vertexShader
-    .replace('#include <common>', `#include <common>\n${SURFACE_VERTEX_COMMON}`)
-    .replace('#include <begin_vertex>', `#include <begin_vertex>\n${SURFACE_VERTEX_MAIN}`);
+    .replace('#include <common>', `#include <common>\n${SURFACE_VERTEX_COMMON}\n${WIND_VERTEX_COMMON}`)
+    .replace('#include <begin_vertex>', `#include <begin_vertex>\n${SURFACE_VERTEX_MAIN}\n${WIND_VERTEX_MAIN_BODY}`);
   shader.fragmentShader = shader.fragmentShader
     .replace('#include <common>', `#include <common>\n${SURFACE_FRAGMENT_COMMON}`)
     .replace('#include <color_fragment>', SURFACE_FRAGMENT_COLOR)
@@ -50,11 +58,14 @@ function patchGlass(shader: ShaderLike): void {
   shader.uniforms.uSkyColor = glassUniforms.uSkyColor;
   shader.uniforms.uSunDir = glassUniforms.uSunDir;
   shader.uniforms.uSunColor = glassUniforms.uSunColor;
+  shader.uniforms.uClock = glassUniforms.uClock;
   shader.vertexShader = shader.vertexShader
     .replace('#include <common>', `#include <common>\n${GLASS_VERTEX_COMMON}`)
     .replace('#include <begin_vertex>', `#include <begin_vertex>\n${GLASS_VERTEX_MAIN}`);
   shader.fragmentShader = shader.fragmentShader
     .replace('#include <common>', `#include <common>\n${GLASS_FRAGMENT_COMMON}`)
+    .replace('#include <emissivemap_fragment>', `#include <emissivemap_fragment>
+${GLASS_FRAGMENT_SCHEDULE}`)
     .replace('#include <opaque_fragment>', GLASS_FRAGMENT_END);
 }
 
@@ -64,7 +75,8 @@ export function getBodyMaterial(): THREE.MeshStandardMaterial {
     body = new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.85, metalness: 0 });
     body.name = 'building-body';
     body.onBeforeCompile = (shader) => patchBody(shader as unknown as ShaderLike);
-    body.customProgramCacheKey = () => 'building-body-v2';
+    body.onBeforeRender = tickBuildingWind;
+    body.customProgramCacheKey = () => 'building-body-v3';
   }
   return body;
 }
@@ -75,7 +87,7 @@ export function getGlassMaterial(): THREE.MeshStandardMaterial {
     glass = new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.15, metalness: 0.3 });
     glass.name = 'building-glass';
     glass.onBeforeCompile = (shader) => patchGlass(shader as unknown as ShaderLike);
-    glass.customProgramCacheKey = () => 'building-glass-v1';
+    glass.customProgramCacheKey = () => 'building-glass-v2';
   }
   return glass;
 }
@@ -92,7 +104,7 @@ export function getGlassLitMaterial(): THREE.MeshStandardMaterial {
     });
     glassLit.name = 'building-glass-lit';
     glassLit.onBeforeCompile = (shader) => patchGlass(shader as unknown as ShaderLike);
-    glassLit.customProgramCacheKey = () => 'building-glass-v1';
+    glassLit.customProgramCacheKey = () => 'building-glass-v2';
   }
   return glassLit;
 }
@@ -114,6 +126,18 @@ export function setNightLights(on: boolean, intensity = NIGHT_EMISSIVE): void {
   getGlassLitMaterial().emissiveIntensity = on ? intensity : 0;
   setSignNight(on);
 }
+
+/**
+ * Sets the wall-clock hour (0..24) for the evening window schedule: about 70% of the windows are lit at
+ * 20:00 and 85% from 21:00 to 22:00, falling to 30% at midnight until the lights go out at 06:00-07:00. Pass a negative hour to turn the
+ * schedule off (every lit window glows whenever the night lights are on).
+ */
+export function setNightClock(hour: number): void {
+  glassUniforms.uClock.value = hour < 0 || !Number.isFinite(hour) ? -1 : nightClock(hour);
+}
+
+/** Drives the wind motion of flags, laundry, awnings, blade signs and window boxes. Call every frame. */
+export { setBuildingWind };
 
 /** Shared weather uniforms (uWet, uSnow, uWetSky) and the helper that hooks street/ground materials to them. */
 export { attachWeather, weatherUniforms };

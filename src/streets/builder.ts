@@ -125,6 +125,56 @@ export class MeshBuilder {
     return this;
   }
 
+  /** One triangle with a flat normal (winding decides the facing; counter-clockwise seen from the front). */
+  tri(a: P3, b: P3, c: P3, color: THREE.ColorRepresentation): this {
+    tmpColor.set(color);
+    const ux = b[0] - a[0], uy = b[1] - a[1], uz = b[2] - a[2];
+    const vx = c[0] - a[0], vy = c[1] - a[1], vz = c[2] - a[2];
+    const nx = uy * vz - uz * vy, ny = uz * vx - ux * vz, nz = ux * vy - uy * vx;
+    const len = Math.hypot(nx, ny, nz) || 1;
+    const n: P3 = [nx / len, ny / len, nz / len];
+    this.push(a, n, tmpColor); this.push(b, n, tmpColor); this.push(c, n, tmpColor);
+    return this;
+  }
+
+  /** Upward-facing sector of an annulus (r0 may be 0) between angles a0 and a1, centred on (cx, cz). */
+  annulusSector(cx: number, y: number, cz: number, r0: number, r1: number, a0: number, a1: number, color: THREE.ColorRepresentation, segments = 4): this {
+    const p = (r: number, a: number): P3 => [cx + Math.cos(a) * r, y, cz + Math.sin(a) * r];
+    for (let i = 0; i < segments; i++) {
+      const s0 = a0 + ((a1 - a0) * i) / segments;
+      const s1 = a0 + ((a1 - a0) * (i + 1)) / segments;
+      if (r0 <= 1e-6) {
+        this.tri(p(r1, s1), p(r1, s0), [cx, y, cz], color);
+      } else {
+        this.tri(p(r1, s1), p(r1, s0), p(r0, s0), color);
+        this.tri(p(r1, s1), p(r0, s0), p(r0, s1), color);
+      }
+    }
+    return this;
+  }
+
+  /** Full upward-facing annulus or disc. */
+  annulus(cx: number, y: number, cz: number, r0: number, r1: number, color: THREE.ColorRepresentation, segments = 16): this {
+    return this.annulusSector(cx, y, cz, r0, r1, 0, Math.PI * 2, color, segments);
+  }
+
+  /**
+   * Frustum side wall around a vertical axis, from radius r0 at y0 to r1 at y1. `inward` flips the faces so a
+   * hollow basin shows its inner wall. Optionally closes the top with a disc.
+   */
+  frustum(cx: number, cz: number, y0: number, y1: number, r0: number, r1: number, color: THREE.ColorRepresentation, segments = 16, inward = false, cap = false): this {
+    const p = (r: number, y: number, a: number): P3 => [cx + Math.cos(a) * r, y, cz + Math.sin(a) * r];
+    for (let i = 0; i < segments; i++) {
+      const a0 = (i / segments) * Math.PI * 2;
+      const a1 = ((i + 1) / segments) * Math.PI * 2;
+      const b0 = p(r0, y0, a0), b1 = p(r0, y0, a1), t0 = p(r1, y1, a0), t1 = p(r1, y1, a1);
+      if (inward) this.quad(b0, b1, t1, t0, color);
+      else this.quad(b1, b0, t0, t1, color);
+      if (cap) this.tri(p(r1, y1, a1), p(r1, y1, a0), [cx, y1, cz], color);
+    }
+    return this;
+  }
+
   /** Merged geometry, or null when nothing was added. */
   build(): THREE.BufferGeometry | null {
     if (this.pos.length === 0) return null;

@@ -3,6 +3,7 @@
 // Glass towers and Bauhaus ribbons have their own builders.
 
 import { NN, NU, NY, PU, PY, col, scale } from './mesh';
+import { WIND, anchorWeight } from './polish';
 import { extAt, type Segment } from './layout';
 import {
   band,
@@ -140,11 +141,14 @@ export function windowUnit(ctx: Ctx, u0: number, u1: number, y0: number, y1: num
   if (look.flowerBoxes && !o.balconyFloor && !o.smallBalcony && !closed && chance(rng, 0.3)) {
     m.b(scale(c.pot, 0.9), u0 + 0.02, u1 - 0.02, y0 + 0.02, y0 + 0.2, 0.02, 0.24, NY);
     const bloom = pick(rng, [col('#d9465f'), col('#f2c14e'), col('#c84a8a'), col('#e8e1f0')]);
-    m.b(c.green, u0 + 0.04, u1 - 0.04, y0 + 0.2, y0 + 0.33, 0.0, 0.27, NY);
-    for (let k = 0; k < 3; k++) {
-      const uu = u0 + 0.15 + ((w - 0.3) * k) / 2;
-      m.b(bloom, uu - 0.07, uu + 0.07, y0 + 0.3, y0 + 0.38, 0.06, 0.2, NY);
-    }
+    // Foliage and blooms nod in the wind; the pot stays still.
+    m.withWind(WIND.PLANT, (_u, y) => anchorWeight(y, y0 + 0.2, y0 + 0.38), () => {
+      m.b(c.green, u0 + 0.04, u1 - 0.04, y0 + 0.2, y0 + 0.33, 0.0, 0.27, NY);
+      for (let k = 0; k < 3; k++) {
+        const uu = u0 + 0.15 + ((w - 0.3) * k) / 2;
+        m.b(bloom, uu - 0.07, uu + 0.07, y0 + 0.3, y0 + 0.38, 0.06, 0.2, NY);
+      }
+    });
   }
 }
 

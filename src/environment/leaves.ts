@@ -1,11 +1,13 @@
 // Falling leaves and the leaf devil (a swirling vortex that lifts leaves off the road).
-// One InstancedMesh holds every leaf, so the draw call count stays at 1.
+// One InstancedMesh holds every particle, so the draw call count stays at 1. The particle kind
+// follows the season (see seasons.ts): spring petals, summer pollen motes, autumn leaves, none in winter.
 // The number of live leaves is bounded by leafAmount (percent of MAX_LEAVES).
 // leafSize is a multiplier on the leaf quad (1 = default size).
 
 import * as THREE from 'three';
 import { createRng } from '../core/rng';
 import type { Season } from '../core/types';
+import { particleProfile, type ParticleProfile } from './seasons';
 
 /** Hard cap on the number of leaf instances. */
 export const MAX_LEAVES = 600;
@@ -13,13 +15,10 @@ export const MAX_LEAVES = 600;
 const LEAF_NEAR_FADE = 10;
 
 const GROUND_Y = 0.05;
-const FALL_SPEED = 0.8; // m/s, terminal fall speed
 const WIND_DRAG = 0.5; // 1/s, how fast a leaf adopts the wind velocity
-const GROUND_LIFETIME_S = 25;
 const DEVIL_RADIUS = 5; // m
 const DEVIL_HEIGHT = 9; // m, top of the vortex
 const DEVIL_SPEED = 2.2; // m/s, roaming speed of the vortex centre
-const LEAF_COLORS = ['#c8552a', '#d4862a', '#e0b23a', '#a8452a', '#b9a02e'];
 
 export interface LeafBounds {
   minX: number;
@@ -90,12 +89,15 @@ export class LeafSystem {
   private limit = 0;
   private size = 1;
   private season: Season = 'autumn';
+  private profile: ParticleProfile = particleProfile('autumn');
+  private readonly colorRng: () => number;
   private spawnAcc = 0;
   private time = 0;
 
   constructor(opts: LeafSystemOptions) {
     this.bounds = opts.bounds;
     this.rng = createRng(opts.seed ?? 1337);
+    this.colorRng = createRng((opts.seed ?? 1337) + 99);
 
     const geometry = new THREE.PlaneGeometry(0.5, 0.35);
     const material = new THREE.MeshStandardMaterial({
@@ -137,10 +139,23 @@ export class LeafSystem {
         orbitR: 0,
         captor: null,
       });
-      this.color.set(LEAF_COLORS[Math.floor(this.rng() * LEAF_COLORS.length)]);
+    }
+    this.paint();
+  }
+
+  /** Gives every instance a colour from the current season's palette. */
+  private paint(): void {
+    const colors = this.profile.colors;
+    for (let i = 0; i < MAX_LEAVES; i++) {
+      this.color.set(colors[Math.floor(this.colorRng() * colors.length)]);
       this.mesh.setColorAt(i, this.color);
     }
     if (this.mesh.instanceColor) this.mesh.instanceColor.needsUpdate = true;
+  }
+
+  /** Current particle kind: 'petal', 'pollen', 'leaf' or 'none'. */
+  particleKind(): ParticleProfile['kind'] {
+    return this.profile.kind;
   }
 
   /** Tree positions on the ground. Autumn leaves fall from these points. */
@@ -203,14 +218,24 @@ export class LeafSystem {
         this.limit = Math.floor((MAX_LEAVES * pct) / 100);
       }
       if (settings.leafSize !== undefined) this.size = Math.max(0.05, settings.leafSize);
-      if (settings.season !== undefined) this.season = settings.season;
+      if (settings.season !== undefined && settings.season !== this.season) {
+        this.season = settings.season;
+        this.profile = particleProfile(this.season);
+        // Particles of the old season do not carry over: clear them and repaint the palette.
+        for (const leaf of this.leaves) {
+          leaf.state = INACTIVE;
+          leaf.captor = null;
+        }
+        this.spawnAcc = 0;
+        this.paint();
+      }
     }
 
     const windSpeed = Math.hypot(wind.x, wind.z);
 
-    // In autumn, spawn falling leaves from trees at a rate that fills the limit in about 12s.
-    if (this.season === 'autumn' && this.trees.length > 0) {
-      this.spawnAcc += step * (this.limit / 12);
+    // Spawn particles from trees at a rate that fills the seasonal share of the limit in about 12s.
+    if (this.profile.density > 0 && this.trees.length > 0) {
+      this.spawnAcc += step * ((this.limit * this.profile.density) / 12);
       while (this.spawnAcc >= 1) {
         this.spawnAcc -= 1;
         this.spawnFromTree();
@@ -238,23 +263,25 @@ export class LeafSystem {
   }
 
   private spawnFromTree(): void {
+    const p = this.profile;
     let leaf: Leaf | undefined;
+    let live = 0;
     for (let i = 0; i < this.limit; i++) {
-      if (this.leaves[i].state === INACTIVE) {
-        leaf = this.leaves[i];
-        break;
-      }
+      if (this.leaves[i].state === INACTIVE) leaf ??= this.leaves[i];
+      else live++;
     }
-    if (!leaf) return;
+    if (!leaf || live >= Math.floor(this.limit * p.density)) return;
     const tree = this.trees[Math.floor(this.rng() * this.trees.length)];
+    const spread = p.kind === 'pollen' ? 7 : 4;
     leaf.state = FALLING;
-    leaf.x = tree.x + (this.rng() - 0.5) * 4;
-    leaf.z = tree.z + (this.rng() - 0.5) * 4;
-    leaf.y = 6 + this.rng() * 6;
+    leaf.x = tree.x + (this.rng() - 0.5) * spread;
+    leaf.z = tree.z + (this.rng() - 0.5) * spread;
+    leaf.y = p.spawnLow + this.rng() * (p.spawnHigh - p.spawnLow);
     leaf.vx = 0;
-    leaf.vy = -FALL_SPEED;
+    leaf.vy = -p.fallSpeed;
     leaf.vz = 0;
     leaf.rot = this.rng() * Math.PI * 2;
+    leaf.timer = p.airLife;
   }
 
   private stepLeaf(leaf: Leaf, dt: number, wind: { x: number; z: number }, windSpeed: number): void {
@@ -265,16 +292,28 @@ export class LeafSystem {
       const k = Math.min(1, WIND_DRAG * dt);
       leaf.vx += (wind.x * 0.4 - leaf.vx) * k;
       leaf.vz += (wind.z * 0.4 - leaf.vz) * k;
-      leaf.vy += (-FALL_SPEED - leaf.vy) * Math.min(1, dt * 2);
-      const flutter = Math.sin(this.time * 2.3 + leaf.phase) * 0.4;
+      const p = this.profile;
+      leaf.vy += (-p.fallSpeed - leaf.vy) * Math.min(1, dt * 2);
+      const flutter = Math.sin(this.time * 2.3 + leaf.phase) * p.flutter;
+      if (p.airLife > 0) {
+        leaf.timer -= dt;
+        if (leaf.timer <= 0) {
+          leaf.state = INACTIVE;
+          return;
+        }
+      }
       leaf.x += (leaf.vx + flutter) * dt;
       leaf.z += (leaf.vz + flutter * 0.5) * dt;
       leaf.y += leaf.vy * dt;
       leaf.rot += dt * (1 + windSpeed * 0.2);
       if (leaf.y <= GROUND_Y) {
         leaf.y = GROUND_Y;
-        leaf.state = GROUND;
-        leaf.timer = GROUND_LIFETIME_S * (0.7 + 0.6 * this.rng());
+        if (p.groundLifetime > 0) {
+          leaf.state = GROUND;
+          leaf.timer = p.groundLifetime * (0.7 + 0.6 * this.rng());
+        } else {
+          leaf.state = INACTIVE;
+        }
       }
       this.keepInBounds(leaf);
       return;
@@ -346,6 +385,7 @@ export class LeafSystem {
       leaf.vx = -Math.sin(leaf.orbitAngle) * 3;
       leaf.vz = Math.cos(leaf.orbitAngle) * 3;
       leaf.vy = 0.5;
+      leaf.timer = this.profile.airLife;
       return;
     }
     leaf.orbitAngle += (3.5 / Math.max(leaf.orbitR, 1)) * dt * 2;
@@ -377,7 +417,7 @@ export class LeafSystem {
       } else {
         d.position.set(leaf.x, leaf.y, leaf.z);
         d.rotation.set(-Math.PI / 2 + Math.sin(leaf.rot) * 0.5, leaf.rot, 0);
-        d.scale.setScalar(this.size);
+        d.scale.setScalar(this.size * this.profile.sizeScale);
       }
       d.updateMatrix();
       this.mesh.setMatrixAt(i, d.matrix);

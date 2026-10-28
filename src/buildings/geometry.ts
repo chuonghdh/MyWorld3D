@@ -11,6 +11,7 @@ export type V3 = readonly [number, number, number];
 export type Tri = readonly [V3, V3, V3];
 
 import { getBodyMaterial, getGlassLitMaterial, getGlassMaterial } from './materials';
+import { paneSeed } from './facade/polish';
 
 const KEPT_ATTRIBUTES = ['position', 'normal', 'uv'];
 
@@ -84,6 +85,12 @@ export type ColorTarget = 'body' | 'glass' | 'glassLit';
 export class ColorBatch {
   private readonly parts: Record<ColorTarget, THREE.BufferGeometry[]> = { body: [], glass: [], glassLit: [] };
   private readonly color = new THREE.Color();
+  private panes = 0;
+  /**
+   * Per-vertex wind data (id, anchor weight) for the next body piece added, or null (rigid, the default).
+   * The caller sets it right before add() and add() consumes it, so only pieces that ask are flexible.
+   */
+  windUv: Float32Array | null = null;
 
   /** Adds a geometry with one flat vertex colour, positioned by pos, XYZ Euler rot and scale. */
   add(
@@ -102,6 +109,14 @@ export class ColorBatch {
     const g = normalizeGeometry(geo).applyMatrix4(m);
     this.color.set(color);
     const count = g.getAttribute('position').count;
+    // The body shader reads uv as (wind id, anchor weight) and lit glass reads uv.x as its window seed, so
+    // texture coordinates must not leak through (a box uv of 1 would make monument walls flutter like flags).
+    const seed = target === 'glassLit' ? paneSeed(this.panes++) : 0;
+    const wind = target === 'body' ? this.windUv : null;
+    this.windUv = null;
+    const uv = wind && wind.length === count * 2 ? wind : new Float32Array(count * 2);
+    if (seed > 0) for (let i = 0; i < count; i++) uv[i * 2] = seed;
+    g.setAttribute('uv', new THREE.Float32BufferAttribute(uv, 2));
     const colors = new Float32Array(count * 3);
     for (let i = 0; i < count; i++) {
       colors[i * 3] = this.color.r;

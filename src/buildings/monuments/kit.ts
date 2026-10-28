@@ -5,6 +5,7 @@
 import * as THREE from 'three';
 import { ColorBatch, frustum, gable, type ColorTarget, type V3 } from '../geometry';
 import { createRng } from '../../core/rng';
+import { WIND, anchorWeight } from '../facade/polish';
 
 export type C = THREE.ColorRepresentation;
 
@@ -73,11 +74,46 @@ export class Kit {
     return this;
   }
 
-  /** Adds a geometry transformed by the current frame and the local matrix. */
+  /**
+   * Adds a geometry transformed by the current frame and the local matrix. Body pieces are rigid (wind id 0)
+   * unless emitted inside withWind().
+   */
   put(target: ColorTarget, geo: THREE.BufferGeometry, color: C, local?: THREE.Matrix4): this {
-    const m = local ? this.m.clone().multiply(local) : this.m;
-    geo.applyMatrix4(m);
+    if (local) geo.applyMatrix4(local);
+    if (this.windCode !== 0 && this.windWeight && target === 'body') {
+      // Weights are evaluated in the current frame (before the frame matrix), like the facade code does.
+      const p = geo.getAttribute('position');
+      const uv = new Float32Array(p.count * 2);
+      for (let i = 0; i < p.count; i++) {
+        uv[i * 2] = this.windCode;
+        uv[i * 2 + 1] = this.windWeight(p.getX(i), p.getY(i), p.getZ(i));
+      }
+      this.batch.windUv = uv;
+    }
+    geo.applyMatrix4(this.m);
     this.batch.add(target, geo, color);
+    return this;
+  }
+
+  private windCode = 0;
+  private windWeight: ((x: number, y: number, z: number) => number) | null = null;
+
+  /**
+   * Runs fn so that the body pieces it emits are flexible: wind behaviour `code` (WIND.*) with an anchor weight
+   * (0 where fixed, 1 at the free edge) computed from the vertex position in the current frame.
+   * Everything outside such a call stays rigid, so stone, metal, towers, domes and statues never move.
+   */
+  withWind(code: number, weight: (x: number, y: number, z: number) => number, fn: () => void): this {
+    const pc = this.windCode;
+    const pw = this.windWeight;
+    this.windCode = code;
+    this.windWeight = weight;
+    try {
+      fn();
+    } finally {
+      this.windCode = pc;
+      this.windWeight = pw;
+    }
     return this;
   }
 
@@ -458,9 +494,12 @@ export function tree(k: Kit, x: number, z: number, h = 6.5): void {
   k.cyl('#6b4a2e', 0.13, 0.2, h * 0.45, x, 0, z, 5);
   const r = h * 0.22;
   const g = k.pick(GREENS);
-  k.blob(g, r, x, h * 0.62, z, 1.1, 0.9, 1.1);
-  k.blob(k.jit(g, 0.05), r * 0.75, x + r * 0.5, h * 0.72, z - r * 0.3);
-  k.blob(k.jit(g, 0.06), r * 0.7, x - r * 0.45, h * 0.78, z + r * 0.35);
+  // The crown nods in the wind (the trunk above stays rigid).
+  k.withWind(WIND.PLANT, (_x, y) => anchorWeight(y, h * 0.45, h * 0.95), () => {
+    k.blob(g, r, x, h * 0.62, z, 1.1, 0.9, 1.1);
+    k.blob(k.jit(g, 0.05), r * 0.75, x + r * 0.5, h * 0.72, z - r * 0.3);
+    k.blob(k.jit(g, 0.06), r * 0.7, x - r * 0.45, h * 0.78, z + r * 0.35);
+  });
 }
 
 /** A slim Mediterranean cypress. */
@@ -473,22 +512,28 @@ export function cypress(k: Kit, x: number, z: number, h = 8): void {
 export function planter(k: Kit, x: number, z: number, w = 1.4, d = w, flowers = false): void {
   k.box('#cbbfa8', w, 0.55, d, x, 0, z);
   k.box('#5a4030', w - 0.2, 0.06, d - 0.2, x, 0.55, z);
-  if (flowers) {
-    k.blob('#4f7d3a', w * 0.42, x, 0.75, z, 1, 0.55, d / w);
-    const fc = k.pick(['#d9534f', '#f2c14e', '#e8b4a8', '#efeee8', '#9b59b6']);
-    k.blob(fc, w * 0.18, x - w * 0.15, 0.95, z + 0.1, 1, 0.6, 1);
-    k.blob(fc, w * 0.16, x + w * 0.18, 0.93, z - 0.12, 1, 0.6, 1);
-  } else {
-    k.blob(k.pick(GREENS), w * 0.45, x, 0.95, z, 1, 0.8, d / w);
-  }
+  // Only the foliage and blooms nod; the stone trough and soil stay rigid.
+  k.withWind(WIND.PLANT, (_x, y) => anchorWeight(y, 0.58, 1.2), () => {
+    if (flowers) {
+      k.blob('#4f7d3a', w * 0.42, x, 0.75, z, 1, 0.55, d / w);
+      const fc = k.pick(['#d9534f', '#f2c14e', '#e8b4a8', '#efeee8', '#9b59b6']);
+      k.blob(fc, w * 0.18, x - w * 0.15, 0.95, z + 0.1, 1, 0.6, 1);
+      k.blob(fc, w * 0.16, x + w * 0.18, 0.93, z - 0.12, 1, 0.6, 1);
+    } else {
+      k.blob(k.pick(GREENS), w * 0.45, x, 0.95, z, 1, 0.8, d / w);
+    }
+  });
 }
 
 /** Flagpole with a flag flying towards local +x. */
 export function flagpole(k: Kit, x: number, z: number, h: number, flag: C, flag2?: C): void {
   k.cyl('#d8d8d4', 0.05, 0.08, h, x, 0, z, 6);
   k.blob('#e2b66c', 0.1, x, h + 0.05, z);
-  k.box(flag, 1.5, flag2 ? 0.5 : 1.0, 0.04, x + 0.78, h - 1.1, z);
-  if (flag2) k.box(flag2, 1.5, 0.5, 0.04, x + 0.78, h - 0.6, z);
+  // Only the cloth streams; the pole and finial are rigid.
+  k.withWind(WIND.FLAG, (px) => anchorWeight(px, x + 0.03, x + 1.53), () => {
+    k.box(flag, 1.5, flag2 ? 0.5 : 1.0, 0.04, x + 0.78, h - 1.1, z);
+    if (flag2) k.box(flag2, 1.5, 0.5, 0.04, x + 0.78, h - 0.6, z);
+  });
 }
 
 /** Classic street lamp, 4.5 m, with a lantern that glows at night. */
@@ -524,7 +569,11 @@ export function bunting(k: Kit, a: V3, b: V3, colors: readonly C[], sag = 0.6, n
     const q = pts[i + 1];
     const m: V3 = [(p[0] + q[0]) / 2, (p[1] + q[1]) / 2, (p[2] + q[2]) / 2];
     // downward-pointing flat pennant
-    k.add('body', new THREE.ConeGeometry(0.22, 0.42, 3), colors[i % colors.length], [m[0], m[1] - 0.24, m[2]], [Math.PI, ry, 0], [1, 1, 0.25]);
+    // The rope is rigid; the pennant hangs from it and flutters.
+    const top = m[1] - 0.03;
+    k.withWind(WIND.LAUNDRY, (_x, y) => anchorWeight(y, top, top - 0.42), () => {
+      k.add('body', new THREE.ConeGeometry(0.22, 0.42, 3), colors[i % colors.length], [m[0], m[1] - 0.24, m[2]], [Math.PI, ry, 0], [1, 1, 0.25]);
+    });
   }
 }
 

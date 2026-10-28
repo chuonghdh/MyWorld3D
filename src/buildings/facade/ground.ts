@@ -7,6 +7,7 @@ import { bayColumns, frameBars, pane, railN, railU, skin, type Ctx } from './par
 import { windowUnit } from './upper';
 import { chance, int, pick, range } from './rng';
 import { SIGNS, pickSign, signUv } from '../signs';
+import { WIND, anchorWeight } from './polish';
 
 /** Fascia board front and the lettering quad 3.5 cm in front of it (no shared plane). */
 const SIGN_BOARD_N = 0.12;
@@ -54,6 +55,8 @@ export function awning(ctx: Ctx, a: number, b: number, yTop: number, depth: numb
   const dir: P3 = [0, -drop / slopeLen, (depth - 0.05) / slopeLen];
   const nrm: P3 = [0, (depth - 0.05) / slopeLen, drop / slopeLen];
   const white = col('#f1ece0');
+  // The fabric flutters in the wind: fixed at the wall (n = 0.05), free at the front edge.
+  m.withWind(WIND.AWNING, (_u, _y, n) => anchorWeight(n, 0.05, depth), () => {
   for (let k = 0; k < count; k++) {
     const s0 = a + k * sw;
     const c = striped && k % 2 === 1 ? white : color;
@@ -62,6 +65,7 @@ export function awning(ctx: Ctx, a: number, b: number, yTop: number, depth: numb
     // Valance.
     m.b(c, s0, s0 + sw, yb - 0.24, yb, depth - 0.025, depth + 0.005, PY);
   }
+  });
   // Folding arms.
   const iron = ctx.c.iron;
   m.bar(iron, [a + 0.15, yTop - 0.95, 0.02], [a + 0.15, yb - 0.02, depth - 0.1], 0.035);
@@ -187,14 +191,17 @@ function bladeSign(ctx: Ctx, seg: Segment, pa: number, pb: number, signIdx: numb
   const white = col('#ffffff');
   m.bar(iron, [ub, y0 + bh + 0.22, 0.0], [ub, y0 + bh + 0.22, nFar + 0.05], 0.04);
   // Rods hang from the underside of the arm (they stop at its bottom face, not inside it).
-  m.bar(iron, [ub, y0 + bh + 0.2, nFar - 0.1], [ub, y0 + bh, nFar - 0.1], 0.015);
-  m.bar(iron, [ub, y0 + bh + 0.2, nNear + 0.1], [ub, y0 + bh, nNear + 0.1], 0.015);
-  m.b(scale(iron, 1.2), ub - 0.025, ub + 0.025, y0, y0 + bh, nNear, nFar, 0);
   const t = 0.05;
   const nm = (nNear + nFar) / 2;
   const yc = y0 + bh / 2;
+  // Rods, board and both sign faces swing together: fixed under the arm, free at the bottom edge.
+  m.withWind(WIND.BLADE, (_u, y) => anchorWeight(y, y0 + bh + 0.2, y0), () => {
+  m.bar(iron, [ub, y0 + bh + 0.2, nFar - 0.1], [ub, y0 + bh, nFar - 0.1], 0.015);
+  m.bar(iron, [ub, y0 + bh + 0.2, nNear + 0.1], [ub, y0 + bh, nNear + 0.1], 0.015);
+  m.b(scale(iron, 1.2), ub - 0.025, ub + 0.025, y0, y0 + bh, nNear, nFar, 0);
   m.uvQuad('sign', [ub + t, y0, nFar], [ub + t, y0, nNear], [ub + t, y0 + bh, nNear], [ub + t, y0 + bh, nFar], white, uv.u0, uv.v0, uv.u1, uv.v1, [ub - 1, yc, nm]);
   m.uvQuad('sign', [ub - t, y0, nNear], [ub - t, y0, nFar], [ub - t, y0 + bh, nFar], [ub - t, y0 + bh, nNear], white, uv.u0, uv.v0, uv.u1, uv.v1, [ub + 1, yc, nm]);
+  });
 }
 
 /** Shopfront ground floor; with `terrace`, a cafe with tables on the sidewalk. */

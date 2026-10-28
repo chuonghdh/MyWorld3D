@@ -52,7 +52,7 @@ float cellFade(float cell, float px) {
   return smoothstep(1.5, 3.0, cell / max(px, 1e-5));
 }
 
-// Running-bond brick 0.215 x 0.065 m, 10 mm joints.
+// Running-bond brick 0.215 x 0.065 m, 8 mm joints, low-contrast mortar (fine joints read at 5 m).
 vec3 patBrick(vec3 c, vec2 p, float px, out float h) {
   vec2 sz = vec2(0.215, 0.065);
   float row = floor(p.y / sz.y);
@@ -72,12 +72,12 @@ vec3 patBrick(vec3 c, vec2 p, float px, out float h) {
     float mag = 0.001 + 0.002 * fract(hs * 33.3);
     sh = vec2(sg * mag, -sg * mag * 0.6);
   }
-  float dx = min(lm.x - (0.005 + sh.x), (sz.x - 0.005 + sh.x) - lm.x);
-  float dy = min(lm.y - (0.005 + sh.y), (sz.y - 0.005 + sh.y) - lm.y);
+  float dx = min(lm.x - (0.004 + sh.x), (sz.x - 0.004 + sh.x) - lm.x);
+  float dy = min(lm.y - (0.004 + sh.y), (sz.y - 0.004 + sh.y) - lm.y);
   float m = aaStep(dx, px) * aaStep(dy, px);
-  vec3 jc = mix(c * 1.02, vec3(0.78, 0.74, 0.67), 0.35);
+  vec3 jc = mix(c * 1.02, vec3(0.78, 0.74, 0.67), 0.24);
   vec3 full = mix(jc, b, m);
-  vec3 avg = mix(jc, c * 0.94, 0.81);
+  vec3 avg = mix(jc, c * 0.94, 0.845);
   float f = cellFade(sz.y, px);
   h = (m - 1.0) * 0.004 * f;
   return mix(avg, full, f);

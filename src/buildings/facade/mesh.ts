@@ -14,6 +14,8 @@ import * as THREE from 'three';
 import { getBodyMaterial, getGlassLitMaterial, getGlassMaterial } from '../materials';
 import { SURFACE, SURFACE_ATTRIBUTE } from '../surface';
 import { getSignMaterial } from '../signs';
+import { paneSeed, type WindCode } from './polish';
+import { WIND_ATTRIBUTE } from '../shaders/wind';
 import { fixedFace, resolveLayers, type LayerBox, type LayerLimits, type Solid } from './layers';
 
 export type Target = 'body' | 'glass' | 'glassLit' | 'sign';
@@ -160,8 +162,14 @@ interface Buf {
   s: FBuf | null;
   /** Shadow-caster flags, one float per vertex (body only). */
   k: FBuf | null;
-  /** Texture coordinates, two floats per vertex (sign only). */
+  /**
+   * Second texture channel pair. Body: (wind id, anchor weight). Glass that glows (glassLit): (pane seed, 0).
+   * Sign: atlas coordinates. Other meshes: none (zeros are written at build time).
+   */
   uv: FBuf | null;
+  /** Wind attribute (id, weight), sign only: its uv holds the atlas cell. */
+  w: FBuf | null;
+  t: Target;
 }
 
 function newBuf(t: Target): Buf {
@@ -171,7 +179,9 @@ function newBuf(t: Target): Buf {
     c: new FBuf(),
     s: t === 'body' ? new FBuf() : null,
     k: t === 'body' ? new FBuf() : null,
-    uv: t === 'sign' ? new FBuf() : null,
+    uv: t === 'sign' || t === 'body' || t === 'glassLit' ? new FBuf() : null,
+    w: t === 'sign' ? new FBuf() : null,
+    t,
   };
 }
 
@@ -181,8 +191,13 @@ interface PendingBox extends LayerBox {
   top: Col;
   surface: number;
   caster: boolean;
+  windCode: number;
+  windWeight: WindWeight | null;
   src: string;
 }
+
+/** Anchor weight 0..1 of a vertex given in frame coordinates (u, y, n). */
+export type WindWeight = (u: number, y: number, n: number) => number;
 
 export class HouseMesh {
   frame: Frame = HOUSE_FRAME;
@@ -203,6 +218,40 @@ export class HouseMesh {
   /** Where equally facing faces may be pushed to (set by the house: its lot plus allowed projections). */
   limits: LayerLimits | null = null;
 
+  /** Wind behaviour id (WIND.*) written for body and sign vertices emitted from now on; 0 = none. */
+  windCode: number = 0;
+  /** Anchor weight of the current wind behaviour; null = weight 1 everywhere. */
+  windWeight: WindWeight | null = null;
+  /** Running index of glowing panes (seeds the evening light schedule). */
+  private paneCount = 0;
+  /** Seed shared by every piece of one window (curtain quads, glass), or null for one seed per polygon. */
+  private fixedSeed: number | null = null;
+
+  /** Runs fn with wind behaviour `code` and anchor weight `weight` (frame coordinates), then restores. */
+  withWind(code: WindCode, weight: WindWeight | null, fn: () => void): void {
+    const pc = this.windCode;
+    const pw = this.windWeight;
+    this.windCode = code;
+    this.windWeight = weight;
+    try {
+      fn();
+    } finally {
+      this.windCode = pc;
+      this.windWeight = pw;
+    }
+  }
+
+  /** Runs fn so that all glowing glass in it shares one schedule seed (one window). */
+  paneGroup(fn: () => void): void {
+    const prev = this.fixedSeed;
+    this.fixedSeed = prev ?? paneSeed(this.paneCount++);
+    try {
+      fn();
+    } finally {
+      this.fixedSeed = prev;
+    }
+  }
+
   /** Runs fn with the given body surface id, then restores the previous one. */
   withSurface(id: number, fn: () => void): void {
     const prev = this.surface;
@@ -217,11 +266,27 @@ export class HouseMesh {
   /** Caster flag written for the box being emitted. */
   private caster = true;
 
-  /** Appends the per-vertex extras (surface id, caster flag, uv) for `count` vertices that have no uv. */
-  private extras(buf: Buf, count: number): void {
-    if (buf.s) for (let i = 0; i < count; i++) buf.s.push1(this.surface);
-    if (buf.k) for (let i = 0; i < count; i++) buf.k.push1(this.caster ? 1 : 0);
-    if (buf.uv) for (let i = 0; i < count; i++) buf.uv.push2(0, 0);
+  /** Frame of the box being emitted (box() defers emission, so this.frame may have moved on). */
+  private emitFrame: Frame = HOUSE_FRAME;
+
+  /** Appends the per-vertex extras of one box vertex at house coordinates (x, y, z): surface, caster, wind. */
+  private extraAt(buf: Buf, x: number, y: number, z: number): void {
+    if (buf.s) buf.s.push1(this.surface);
+    if (buf.k) buf.k.push1(this.caster ? 1 : 0);
+    let id = 0;
+    let wt = 0;
+    if (this.windCode !== 0 && (buf.t === 'body' || buf.t === 'sign')) {
+      id = this.windCode;
+      if (this.windWeight) {
+        const f = this.emitFrame;
+        const dx = x - f.ox;
+        const dz = z - f.oz;
+        wt = this.windWeight(dx * f.ux + dz * f.uz, y, dx * f.nx + dz * f.nz);
+      } else wt = 1;
+    }
+    if (buf.t === 'body') buf.uv?.push2(id, wt);
+    else if (buf.uv) buf.uv.push2(0, 0);
+    if (buf.w) buf.w.push2(id, wt);
   }
 
   /** Triangle count so far. */
@@ -290,6 +355,8 @@ export class HouseMesh {
     const perVertex = Array.isArray(c[0]);
     const polyCasts = len * 0.5 >= POLY_CAST_AREA ? 1 : 0;
     const buf = this.bufs[t];
+    const seed = t === 'glassLit' ? (this.fixedSeed ?? paneSeed(this.paneCount++)) : 0;
+    const wcode = t === 'body' || t === 'sign' ? this.windCode : 0;
     const traceStart = trace.on ? buf.p.len / 9 : 0;
     const push = (i: number): void => {
       buf.p.push3(w[i * 3], w[i * 3 + 1], w[i * 3 + 2]);
@@ -298,10 +365,16 @@ export class HouseMesh {
       buf.c.push3(cc[0], cc[1], cc[2]);
       if (buf.s) buf.s.push1(this.surface);
       if (buf.k) buf.k.push1(polyCasts);
+      const pi = pts[i];
+      const wt = wcode === 0 ? 0 : this.windWeight ? this.windWeight(pi[0], pi[1], pi[2]) : 1;
       if (buf.uv) {
-        const uv = uvs ? uvs[i] : null;
-        buf.uv.push2(uv ? uv[0] : 0, uv ? uv[1] : 0);
+        if (t === 'sign') {
+          const uv = uvs ? uvs[i] : null;
+          buf.uv.push2(uv ? uv[0] : 0, uv ? uv[1] : 0);
+        } else if (t === 'body') buf.uv.push2(wcode, wt);
+        else buf.uv.push2(seed, 0);
       }
+      if (buf.w) buf.w.push2(wcode, wt);
     };
     for (let k = 1; k < n - 1; k++) {
       const b = flip ? k + 1 : k;
@@ -357,6 +430,8 @@ export class HouseMesh {
       top: top ?? c,
       surface: this.surface,
       caster: boxCasts(u1 - u0, y1 - y0, n1 - n0),
+      windCode: this.windCode,
+      windWeight: this.windWeight,
       f: this.frame,
       u0,
       u1,
@@ -401,8 +476,13 @@ export class HouseMesh {
   private emitBox(buf: Buf, bx: PendingBox): void {
     const { f, u0, u1, y0, y1, n0, n1, skip, c, top } = bx;
     const prevSurface = this.surface;
+    const prevWind = this.windCode;
+    const prevWeight = this.windWeight;
     this.surface = bx.surface;
     this.caster = bx.caster;
+    this.windCode = bx.windCode;
+    this.windWeight = bx.windWeight;
+    this.emitFrame = f;
     // World x/z of the four (u, n) corners; y is shared.
     const X = (u: number, n: number): number => f.ox + u * f.ux + n * f.nx;
     const Z = (u: number, n: number): number => f.oz + u * f.uz + n * f.nz;
@@ -429,7 +509,13 @@ export class HouseMesh {
         buf.n.push3(nx, ny, nz);
         buf.c.push3(col[0], col[1], col[2]);
       }
-      this.extras(buf, 6);
+      // Vertex order of the two triangles: a b c a c d.
+      this.extraAt(buf, ax, ay, az);
+      this.extraAt(buf, bx2, by, bz);
+      this.extraAt(buf, cx, cy, cz);
+      this.extraAt(buf, ax, ay, az);
+      this.extraAt(buf, cx, cy, cz);
+      this.extraAt(buf, dx, dy, dz);
     };
     // +n face: (u0,y0,n1) (u1,y0,n1) (u1,y1,n1) (u0,y1,n1)
     if (!(skip & PN)) quad(x01, y0, z01, x11, y0, z11, x11, y1, z11, x01, y1, z01, f.nx, 0, f.nz, c);
@@ -439,6 +525,8 @@ export class HouseMesh {
     if (!(skip & PY)) quad(x01, y1, z01, x11, y1, z11, x10, y1, z10, x00, y1, z00, 0, 1, 0, top);
     if (!(skip & NY)) quad(x00, y0, z00, x10, y0, z10, x11, y0, z11, x01, y0, z01, 0, -1, 0, c);
     this.surface = prevSurface;
+    this.windCode = prevWind;
+    this.windWeight = prevWeight;
   }
 
   /** Body box shorthand. */
@@ -580,6 +668,7 @@ export class HouseMesh {
         'uv',
         new THREE.BufferAttribute(buf.uv ? buf.uv.take() : new Float32Array((buf.p.len / 3) * 2), 2),
       );
+      if (buf.w) g.setAttribute(WIND_ATTRIBUTE, new THREE.BufferAttribute(buf.w.take(), 2));
       g.setAttribute('color', new THREE.BufferAttribute(buf.c.take(), 3));
       if (buf.s) g.setAttribute(SURFACE_ATTRIBUTE, new THREE.BufferAttribute(buf.s.take(), 1));
       if (buf.k) g.setAttribute(CASTER_ATTRIBUTE, new THREE.BufferAttribute(buf.k.take(), 1));

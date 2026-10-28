@@ -211,7 +211,34 @@
 
 .mw-select {
   width: 100%;
-  padding: 7px 8px;
+  padding: 7px 28px 7px 8px;
+  /* The drop-down list is drawn by the browser from the select's own colours, so they must be opaque. */
+  color-scheme: dark;
+  background-color: #2a2420;
+  color: var(--mw-fg);
+  appearance: none;
+  -webkit-appearance: none;
+  background-image:
+    linear-gradient(45deg, transparent 50%, var(--mw-muted) 50%),
+    linear-gradient(135deg, var(--mw-muted) 50%, transparent 50%);
+  background-position: calc(100% - 15px) 50%, calc(100% - 10px) 50%;
+  background-size: 5px 5px, 5px 5px;
+  background-repeat: no-repeat;
+}
+
+.mw-select:hover {
+  border-color: var(--mw-accent);
+}
+
+.mw-select option,
+.mw-select optgroup {
+  background-color: #2a2420;
+  color: var(--mw-fg);
+}
+
+.mw-select option:checked {
+  background-color: #4a3526;
+  color: #fff;
 }
 
 .mw-swatches {

@@ -7,6 +7,7 @@
 // within 1.2 m of the lot edge.
 
 import { NN, NY, PY, col, scale, type Col } from './mesh';
+import { WIND, anchorWeight, liftColor } from './polish';
 import type { Segment } from './layout';
 import { bayColumns, frameBars, pane, railN, railU, type Ctx } from './parts';
 import { chance, int, pick, range } from './rng';
@@ -90,11 +91,31 @@ export function rearElevation(ctx: Ctx, seg: Segment): void {
     const dh = 2.15;
     const a = doorU - dw / 2;
     const b = doorU + dw / 2;
-    const door = c.door;
-    m.b(scale(door, 0.8), a - 0.08, b + 0.08, 0, dh + 0.08, WALL_N, 0.06, NN | NY);
+    // Never a black void: the leaf is lifted to a readable wood or paint tone, set in a light casing,
+    // with a glazed upper panel that glows on some houses at night (its own schedule seed).
+    const door = liftColor(c.door, 0.06);
+    const casing = liftColor(scale(c.trim, 0.9), 0.2);
+    m.b(casing, a - 0.08, b + 0.08, 0, dh + 0.08, WALL_N, 0.06, NN | NY);
     m.b(door, a, b, 0, dh, 0.06, 0.1, NN | NY);
-    m.b(scale(door, 1.2), a + 0.1, b - 0.1, 0.3, dh - 0.3, 0.1, 0.12, NN | NY);
-    m.b(scale(c.trim, 0.9), a - 0.2, b + 0.2, dh + 0.08, dh + 0.2, WALL_N, 0.35, NN);
+    m.b(scale(door, 1.25), a + 0.1, b - 0.1, 0.25, 1.05, 0.1, 0.12, NN | NY);
+    const gy0 = 1.25;
+    const gy1 = dh - 0.2;
+    // Lit or dark by a position hash, so the rear streams keep their draw order (determinism).
+    const litDoor = Math.abs(Math.sin(doorU * 12.9898 + L * 78.233 + ctx.floors * 3.1)) * 43758.5453 % 1 < 0.5;
+    m.paneGroup(() => {
+      m.quad(
+        litDoor ? 'glassLit' : 'glass',
+        [a + 0.12, gy0, 0.104],
+        [b - 0.12, gy0, 0.104],
+        [b - 0.12, gy1, 0.104],
+        [a + 0.12, gy1, 0.104],
+        [c.glassBottom, c.glassBottom, c.glassTop, c.glassTop],
+      );
+    });
+    frameBars(ctx, 'casement', a + 0.12, b - 0.12, gy0, gy1, 0.104, scale(door, 1.3));
+    const brass = col('#c9a54a');
+    m.b(brass, b - 0.2, b - 0.12, 1.0, 1.1, 0.1, 0.16, NN | NY);
+    m.b(casing, a - 0.2, b + 0.2, dh + 0.08, dh + 0.2, WALL_N, 0.35, NN);
     m.withSurface(SURFACE.STONE, () => m.b(c.base, a - 0.2, b + 0.2, 0, 0.16, 0.1, 0.55, NN));
   }
 
@@ -207,7 +228,10 @@ export function rearElevation(ctx: Ctx, seg: Segment): void {
       for (let k = 0; k < n; k++) {
         const cu = a + ((b - a) * (k + 0.6)) / (n + 0.2);
         const clr = col(pick(rng, ['#e8e4da', '#c8553d', '#2f5d8a', '#e0b13a', '#f1ece0']));
-        m.b(clr, cu - 0.17, cu + 0.17, y - 0.52, y - 0.04, 0.485, 0.505, 0);
+        // Garments hang from the line and swing in the wind.
+        m.withWind(WIND.LAUNDRY, (_u, yy) => anchorWeight(yy, y - 0.04, y - 0.52), () => {
+          m.b(clr, cu - 0.17, cu + 0.17, y - 0.52, y - 0.04, 0.485, 0.505, 0);
+        });
       }
     }
   }

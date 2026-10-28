@@ -109,6 +109,9 @@ describe('crowd density', () => {
     expect(crowdDensityAt(17.5)).toBeGreaterThan(0.9);
     expect(crowdDensityAt(3)).toBeLessThan(0.15);
     expect(crowdDensityAt(12)).toBeGreaterThan(crowdDensityAt(3) * 4);
+    expect(crowdDensityAt(22)).toBeGreaterThan(0.6); // the evening crowd holds until 22:00
+    expect(crowdDensityAt(23)).toBeLessThan(0.15); // and has thinned to a few by 23:00
+    expect(crowdDensityAt(6)).toBeGreaterThan(crowdDensityAt(5)); // the morning build-up starts at 05:00
     expect(crowdDensityAt(-1)).toBeCloseTo(crowdDensityAt(23), 6);
   });
 

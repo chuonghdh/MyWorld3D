@@ -128,7 +128,8 @@ void main() {
     vec3 cloudCol = mix(uHorizon, vec3(1.0), 0.55 * (1.0 - uNight)) * (0.55 + 0.45 * light);
     cloudCol = mix(cloudCol, cloudCol * vec3(0.62, 0.65, 0.72), uCloud * 0.7);
     cloudCol += uSunColor * pow(sd, 6.0) * 0.25 * uSunVis;
-    col = mix(col, cloudCol, dens * 0.85);
+    // Only a faint high haze: the real clouds are the lit puffs of environment/cloudSprites.ts.
+    col = mix(col, cloudCol, dens * 0.45);
   }
 
   // Overcast: desaturate toward grey.

@@ -5,7 +5,9 @@
 import * as THREE from 'three';
 import type { Rect } from '../city/layout';
 import { createRng } from '../core/rng';
+import type { Season } from '../core/types';
 import { TriBuilder, makeWarp } from './forest';
+import { TAG_BLOOM, TAG_FIXED, TAG_FOLIAGE, applySeasonPaint, createPaintState, type PaintState } from './seasonalPaint';
 
 const HEDGE_WIDTH = 0.7;
 const HEDGE_INSET = 0.5;
@@ -43,7 +45,7 @@ function shaded(base: THREE.Color, normal: THREE.Vector3, rng: () => number, out
   return out.copy(base).multiplyScalar(k);
 }
 
-function addHedge(
+export function addHedge(
   b: TriBuilder,
   rng: () => number,
   x0: number,
@@ -68,6 +70,7 @@ function addHedge(
   const tone = HEDGE_TONES[Math.floor(rng() * HEDGE_TONES.length)];
   const c = new THREE.Color();
   const warp = makeWarp(seed, 0.09);
+  b.tag = TAG_FOLIAGE;
   b.add(
     geo,
     m,
@@ -83,7 +86,7 @@ function addHedge(
   geo.dispose();
 }
 
-function addFlowerBed(
+export function addFlowerBed(
   b: TriBuilder,
   rng: () => number,
   cx: number,
@@ -92,6 +95,7 @@ function addFlowerBed(
   d: number,
 ): void {
   const c = new THREE.Color();
+  b.tag = TAG_FIXED;
   // Stone border, then the soil slightly raised inside it.
   b.add(BOX, boxMatrix(cx, 0.07, cz, w + 0.3, 0.14, d + 0.3), (_f, _c, n) => shaded(STONE, n, rng, c));
   b.add(BOX, boxMatrix(cx, 0.1, cz, w, 0.2, d), (_f, _c, n) => shaded(SOIL, n, rng, c));
@@ -107,12 +111,14 @@ function addFlowerBed(
       const z = cz - d / 2 + (j + 0.5) * (d / nz) + range(rng, -0.08, 0.08);
       const lr = range(rng, 0.14, 0.2);
       q.setFromEuler(e.set(0, rng() * Math.PI, 0));
+      b.tag = TAG_FOLIAGE;
       const lm = new THREE.Matrix4().compose(new THREE.Vector3(x, 0.27, z), q, new THREE.Vector3(lr, lr * 0.8, lr));
       b.add(LEAVES, lm, (_f, _c, n) => shaded(LEAF, n, rng, c));
       // Bands of colour across the bed with some mixing, like a planted bed.
       const band = Math.floor((i / nx) * palette.length);
       const tone = rng() < 0.75 ? palette[band] : palette[Math.floor(rng() * palette.length)];
       const br = range(rng, 0.08, 0.12);
+      b.tag = TAG_BLOOM;
       const bm = new THREE.Matrix4().compose(
         new THREE.Vector3(x + range(rng, -0.04, 0.04), 0.4 + range(rng, -0.04, 0.05), z),
         q,
@@ -128,6 +134,7 @@ function addBush(b: TriBuilder, rng: () => number, x: number, z: number, seed: n
   const tone = BUSH_TONES[Math.floor(rng() * BUSH_TONES.length)];
   const c = new THREE.Color();
   const size = range(rng, 0.55, 0.85);
+  b.tag = TAG_FOLIAGE;
   for (let i = 0; i < n; i++) {
     const r = size * (i === 0 ? 1 : range(rng, 0.6, 0.8));
     const ox = i === 0 ? 0 : range(rng, -0.5, 0.5) * size;
@@ -250,6 +257,7 @@ export function createCourtyardGreenery(courtyards: readonly Rect[], seed: numbe
   });
 
   const material = new THREE.MeshStandardMaterial({ vertexColors: true, flatShading: true, roughness: 0.9 });
+  const states = new Map<THREE.Mesh, PaintState>();
   const parts: [TriBuilder, string][] = [
     [hedges, 'greenery-hedges'],
     [beds, 'greenery-beds'],
@@ -262,6 +270,16 @@ export function createCourtyardGreenery(courtyards: readonly Rect[], seed: numbe
     mesh.castShadow = true;
     mesh.receiveShadow = true;
     group.add(mesh);
+    states.set(mesh, createPaintState(mesh.geometry, new Float32Array(builder.tags)));
   }
+  /** Recolours hedges, bush leaves and blooms for a season (summer is the built-in look). */
+  group.userData.setSeason = (season: Season) => {
+    for (const [mesh, state] of states) applySeasonPaint(mesh.geometry, state, season);
+  };
   return group;
+}
+
+/** Seasonal recolour of a group made by createCourtyardGreenery. */
+export function setGreenerySeason(group: THREE.Group, season: Season): void {
+  (group.userData.setSeason as ((s: Season) => void) | undefined)?.(season);
 }

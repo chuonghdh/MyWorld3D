@@ -15,6 +15,7 @@ import {
 } from './layout';
 import { bayColumns, consoleBracket, frameBars, glassRail, pane, railU, type Ctx } from './parts';
 import { chance, int, pick, range } from './rng';
+import { WIND, anchorWeight } from './polish';
 import { SURFACE } from '../surface';
 import type { Edge } from './layout';
 
@@ -267,6 +268,7 @@ function flatRoof(ctx: Ctx, h: number): void {
   const placed: Rect[] = [];
   if (kind === 'tower') placed.push(plantRoom(ctx));
   rooftopItems(ctx, ctx.wallTop, roofRect(ctx, 0.75), int(ctx.rng, 2, 5), placed);
+  rooftopExtras(ctx, ctx.wallTop, roofRect(ctx, 0.75), placed);
 }
 
 function corniceRoof(ctx: Ctx): void {
@@ -294,7 +296,9 @@ function corniceRoof(ctx: Ctx): void {
     }
   }
   m.frame = HOUSE_FRAME;
-  rooftopItems(ctx, wallTop, roofRect(ctx, 0.75), int(ctx.rng, 2, 5), []);
+  const placed: Rect[] = [];
+  rooftopItems(ctx, wallTop, roofRect(ctx, 0.75), int(ctx.rng, 2, 5), placed);
+  rooftopExtras(ctx, wallTop, roofRect(ctx, 0.75), placed);
 }
 
 function terraceRoof(ctx: Ctx): void {
@@ -340,6 +344,7 @@ function terraceRoof(ctx: Ctx): void {
     }
   }
   rooftopItems(ctx, itemsY, itemsRect, int(rng, 2, 3), placed);
+  rooftopExtras(ctx, itemsY, itemsRect, placed);
 }
 
 function parasol(ctx: Ctx, x: number, y: number, z: number): void {
@@ -355,7 +360,10 @@ function parasol(ctx: Ctx, x: number, y: number, z: number): void {
     rim.push([x + Math.cos(a) * rimR, y + 1.95, z + Math.sin(a) * rimR]);
     tip.push([x + Math.cos(a) * 0.04, y + 2.35, z + Math.sin(a) * 0.04]);
   }
-  m.loft('body', cloth, rim, tip, scale(cloth, 0.7), cloth);
+  // The canopy rim flutters in a gust; the apex and pole stay put.
+  m.withWind(WIND.PARASOL, (_u, yy) => anchorWeight(yy, y + 2.35, y + 1.95), () => {
+    m.loft('body', cloth, rim, tip, scale(cloth, 0.7), cloth);
+  });
 }
 
 /** Tower plant room with louvre bands. */
@@ -425,6 +433,103 @@ function rooftopItems(ctx: Ctx, y: number, rect: Rect, count: number, placed: Re
     placed.push(r);
     item(ctx, k, x, y, z, sx, sz);
     done++;
+  }
+}
+
+/**
+ * Round 6 roof features on flat roofs, drawn from the separate detail stream: a flagpole with a flag,
+ * a laundry line, a roof terrace with a parasol and a table, a small green roof bed and a large
+ * skylight. Each is placed in free space (rects already taken are in `placed`).
+ */
+function rooftopExtras(ctx: Ctx, y: number, rect: Rect, placed: Rect[]): void {
+  const { m, c } = ctx;
+  const r = ctx.rngDetail;
+  const pad = 0.25;
+  const free = (sx: number, sz: number): { x: number; z: number } | null => {
+    if (sx > rect.x1 - rect.x0 || sz > rect.z1 - rect.z0) return null;
+    for (let attempt = 0; attempt < 6; attempt++) {
+      const x = range(r, rect.x0 + sx / 2, rect.x1 - sx / 2);
+      const z = range(r, rect.z0 + sz / 2, rect.z1 - sz / 2);
+      const box: Rect = { x0: x - sx / 2 - pad, x1: x + sx / 2 + pad, z0: z - sz / 2 - pad, z1: z + sz / 2 + pad };
+      if (placed.some((p) => overlaps(p, box))) continue;
+      placed.push(box);
+      return { x, z };
+    }
+    return null;
+  };
+  const iron = col('#55595d');
+  // Flagpole with a flag, free edge streaming downwind.
+  if (chance(r, 0.3)) {
+    const spot = free(1.5, 0.6);
+    if (spot) {
+      const px = spot.x - 0.6;
+      m.bar(iron, [px, y, spot.z], [px, y + 3.4, spot.z], 0.06);
+      const flag = col(pick(r, ['#c8453d', '#2f5d8a', '#e8e4da', '#3f7a52', '#e0b13a']));
+      const stripe = col(pick(r, ['#f1ece0', '#222a38', '#c8453d']));
+      m.withWind(WIND.FLAG, (u) => anchorWeight(u, px + 0.03, px + 1.15), () => {
+        m.b(flag, px + 0.03, px + 1.15, y + 2.75, y + 3.1, spot.z - 0.01, spot.z + 0.01, 0);
+        m.b(stripe, px + 0.03, px + 1.15, y + 3.1, y + 3.38, spot.z - 0.01, spot.z + 0.01, 0);
+      });
+    }
+  }
+  // Laundry line between two posts.
+  if (chance(r, 0.35)) {
+    const spot = free(3.2, 0.6);
+    if (spot) {
+      const x0 = spot.x - 1.5;
+      const x1 = spot.x + 1.5;
+      const post = col('#6e6a64');
+      m.bar(post, [x0, y, spot.z], [x0, y + 2.1, spot.z], 0.06);
+      m.bar(post, [x1, y, spot.z], [x1, y + 2.1, spot.z], 0.06);
+      m.bar(col('#2b2d30'), [x0, y + 2.05, spot.z], [x1, y + 2.0, spot.z], 0.02);
+      const n = int(r, 3, 5);
+      for (let k = 0; k < n; k++) {
+        const cu = x0 + 0.3 + ((x1 - x0 - 0.6) * (k + 0.5)) / n;
+        const clr = col(pick(r, ['#e8e4da', '#c8553d', '#2f5d8a', '#e0b13a', '#f1ece0', '#6a9a5b']));
+        const hw = range(r, 0.16, 0.3);
+        const hh = range(r, 0.45, 0.8);
+        m.withWind(WIND.LAUNDRY, (_u, yy) => anchorWeight(yy, y + 1.98, y + 1.98 - hh), () => {
+          m.b(clr, cu - hw, cu + hw, y + 1.98 - hh, y + 1.98, spot.z - 0.012, spot.z + 0.012, 0);
+        });
+      }
+    }
+  }
+  // Roof terrace: parasol over a small table with two chairs.
+  if (chance(r, 0.25)) {
+    const spot = free(2.4, 2.4);
+    if (spot) {
+      const deckTop = y + 0.06;
+      m.b(scale(c.deck, 1.05), spot.x - 1.2, spot.x + 1.2, y, deckTop, spot.z - 1.2, spot.z + 1.2, NY);
+      parasol(ctx, spot.x, deckTop, spot.z);
+      m.b(scale(c.white, 0.9), spot.x - 0.4, spot.x + 0.4, deckTop + 0.72, deckTop + 0.76, spot.z - 0.4, spot.z + 0.4, 0);
+      for (const sx of [-0.85, 0.85]) {
+        m.b(scale(c.accent, 0.9), spot.x + sx - 0.2, spot.x + sx + 0.2, deckTop + 0.42, deckTop + 0.46, spot.z - 0.2, spot.z + 0.2, 0);
+        m.b(iron, spot.x + sx - 0.2, spot.x + sx - 0.17, deckTop, deckTop + 0.42, spot.z - 0.2, spot.z - 0.17, 0);
+        m.b(iron, spot.x + sx + 0.17, spot.x + sx + 0.2, deckTop, deckTop + 0.42, spot.z + 0.17, spot.z + 0.2, 0);
+      }
+    }
+  }
+  // Green roof bed with shrubs.
+  if (chance(r, 0.22)) {
+    const spot = free(3.0, 2.0);
+    if (spot) {
+      m.b(scale(c.pot, 0.8), spot.x - 1.5, spot.x + 1.5, y, y + 0.22, spot.z - 1.0, spot.z + 1.0, NY);
+      m.b(scale(c.green, 0.8), spot.x - 1.4, spot.x + 1.4, y + 0.22, y + 0.3, spot.z - 0.9, spot.z + 0.9, NY);
+      const bloom = col(pick(r, ['#d9465f', '#f2c14e', '#e8e1f0']));
+      for (let k = 0; k < 4; k++) {
+        const bx = spot.x - 1.0 + k * 0.67;
+        const bz = spot.z + range(r, -0.4, 0.4);
+        const hgt = range(r, 0.3, 0.55);
+        m.withWind(WIND.PLANT, (_u, yy) => anchorWeight(yy, y + 0.3, y + 0.3 + hgt), () => {
+          m.b(k % 2 === 0 ? c.green : bloom, bx - 0.2, bx + 0.2, y + 0.3, y + 0.3 + hgt, bz - 0.2, bz + 0.2, NY);
+        });
+      }
+    }
+  }
+  // A large skylight over the stairwell.
+  if (chance(r, 0.2)) {
+    const spot = free(2.6, 1.6);
+    if (spot) item(ctx, 'skylight', spot.x, y, spot.z, 2.6, 1.6);
   }
 }
 
@@ -907,7 +1012,20 @@ function chimneys(ctx: Ctx, surface: SurfaceFn): void {
       const u = u0 + ((u1 - u0) * (p + 0.5)) / pots;
       const ph = range(rng, 0.28, 0.5);
       if (!best || Math.abs(u - uc) < Math.abs(best.u - uc)) best = { u, y: yTop + 0.1 + ph };
-      m.box('body', potCol, u - 0.09, u + 0.09, yTop + 0.1, yTop + 0.1 + ph, -depth / 2 - 0.09, -depth / 2 + 0.09, NY, potTop);
+      // Pot variety from a position hash (no random draws, so the other streams do not shift).
+      const variant = Math.floor(Math.abs(Math.sin(u * 91.7 + yTop * 13.3 + p * 7.1)) * 3.0) % 3;
+      if (variant === 0) {
+        m.box('body', potCol, u - 0.09, u + 0.09, yTop + 0.1, yTop + 0.1 + ph, -depth / 2 - 0.09, -depth / 2 + 0.09, NY, potTop);
+      } else if (variant === 1) {
+        // Tall pot with a flared collar.
+        const tall = ph + 0.18;
+        m.box('body', scale(potCol, 0.88), u - 0.08, u + 0.08, yTop + 0.1, yTop + 0.1 + tall, -depth / 2 - 0.08, -depth / 2 + 0.08, NY, potTop);
+        m.box('body', scale(potCol, 0.8), u - 0.12, u + 0.12, yTop + 0.1 + tall, yTop + 0.18 + tall, -depth / 2 - 0.12, -depth / 2 + 0.12, 0, potTop);
+      } else {
+        // Squat pot under a rain cap.
+        m.box('body', scale(c.chimney, 0.8), u - 0.11, u + 0.11, yTop + 0.1, yTop + 0.1 + ph * 0.7, -depth / 2 - 0.11, -depth / 2 + 0.11, NY, potTop);
+        m.box('body', scale(potCol, 0.7), u - 0.15, u + 0.15, yTop + 0.1 + ph * 0.7, yTop + 0.18 + ph * 0.7, -depth / 2 - 0.15, -depth / 2 + 0.15, 0, potTop);
+      }
     }
     // Flue breast on a side party wall face below: 3 cm proud of the core wall, behind the lot line.
     // (Not on the rear wall: windows and pipes live there.)

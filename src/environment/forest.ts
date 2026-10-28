@@ -14,6 +14,14 @@ import * as THREE from 'three';
 import { createRng } from '../core/rng';
 import type { Season, TreeSpecies, Vec2 } from '../core/types';
 import { TREE_SPECIES, applyWindSway, createFoliageMaterial, type WindUniforms } from './trees';
+import {
+  blossomShare,
+  chooseVariant,
+  treeTint,
+  treeVariation,
+  type BlossomColor,
+  type TreeVariation,
+} from './seasons';
 
 export interface TreeFieldItem {
   id: string;
@@ -46,6 +54,9 @@ export const CROWN_VARIANTS = 2;
 export class TriBuilder {
   readonly positions: number[] = [];
   readonly colors: number[] = [];
+  /** Per-vertex tag (see seasonalPaint); set `tag` before calling add(). */
+  readonly tags: number[] = [];
+  tag = 0;
 
   get triangleCount(): number {
     return this.positions.length / 9;
@@ -86,6 +97,7 @@ export class TriBuilder {
       for (const v of [a, b, c]) {
         this.positions.push(v.x, v.y, v.z);
         this.colors.push(col.r, col.g, col.b);
+        this.tags.push(this.tag);
       }
     }
     if (src !== geo) src.dispose();
@@ -310,28 +322,36 @@ const SHAPES: Record<TreeSpecies, SpeciesShape> = {
 // ---------------------------------------------------------------------------
 
 const TONES: Record<TreeSpecies, Record<Exclude<Season, 'winter'>, string[]>> = {
+  // Maple: mid green with a warm cast in summer, flame red in autumn.
   maple: {
     spring: ['#9ccc5a', '#b6da72', '#86bd4a'],
-    summer: ['#2f6b2a', '#3e7f33', '#275a24'],
+    summer: ['#37722c', '#468a36', '#2d6126'],
     autumn: ['#d23a26', '#e8622a', '#f2a52e'],
   },
+  // Oak: the darkest, bluish-olive summer crown, rusty brown in autumn.
   oak: {
     spring: ['#a6c86b', '#93b85a', '#bcd67f'],
-    summer: ['#3d6b2e', '#4b7c36', '#325a27'],
-    autumn: ['#c0782a', '#a5512a', '#d9a03c'],
+    summer: ['#2c5a30', '#356838', '#244d29'],
+    autumn: ['#b8702a', '#964a28', '#d09838'],
   },
+  // Birch: light, yellow-green all year, pale gold in autumn.
   birch: {
-    spring: ['#b8e07a', '#a6d266', '#cbea90'],
-    summer: ['#6fa84a', '#5d953e', '#84ba5c'],
+    spring: ['#c4e886', '#b0d872', '#d4f09a'],
+    summer: ['#82bc50', '#6fa842', '#94cc62'],
     autumn: ['#e6c63a', '#f2d65a', '#d29a2a'],
   },
+  // Ginkgo: a clean emerald, vivid yellow in autumn.
   ginkgo: {
     spring: ['#8fd16a', '#7cc058', '#a6de82'],
-    summer: ['#4f8f3a', '#5fa046', '#427c31'],
+    summer: ['#3f9a52', '#4cab5e', '#348646'],
     autumn: ['#f2c21e', '#f7d84a', '#e3a116'],
   },
 };
-const BLOSSOM = [new THREE.Color('#f4b6c8'), new THREE.Color('#fbeef2')];
+const BLOSSOM: Record<BlossomColor, THREE.Color[]> = {
+  pink: [new THREE.Color('#f4a8c0'), new THREE.Color('#fbeef2')],
+  white: [new THREE.Color('#fbfaf4'), new THREE.Color('#eef4e6')],
+  cream: [new THREE.Color('#f3ecc0'), new THREE.Color('#fbf6dc')],
+};
 
 const toneCache = new Map<string, THREE.Color[]>();
 function tonesFor(species: TreeSpecies, season: Exclude<Season, 'winter'>): THREE.Color[] {
@@ -395,7 +415,7 @@ function buildCrown(species: TreeSpecies, rng: () => number, warpSeed: number): 
 function recolorCrown(crown: CrownGeometry, species: TreeSpecies, season: Season): void {
   if (season === 'winter') return; // crowns are hidden
   const tones = tonesFor(species, season);
-  const blossoms = season === 'spring' && species === 'maple';
+  const blossoms = blossomShare(species, season);
   const attr = crown.geometry.getAttribute('color') as THREE.BufferAttribute;
   const arr = attr.array as Float32Array;
   const d = crown.data;
@@ -408,8 +428,8 @@ function recolorCrown(crown: CrownGeometry, species: TreeSpecies, season: Season
     let idx = Math.floor(blobRand * tones.length) % tones.length;
     if (faceRand > 0.65) idx = Math.floor(((faceRand - 0.65) / 0.35) * tones.length) % tones.length;
     c.copy(tones[idx]);
-    if (blossoms && (blobRand * 7.31) % 1 < 0.3 && faceRand > 0.45) {
-      c.copy(BLOSSOM[faceRand > 0.8 ? 1 : 0]);
+    if (blossoms && (blobRand * 7.31) % 1 < blossoms.blobShare && faceRand > blossoms.faceMin) {
+      c.copy(BLOSSOM[blossoms.color][faceRand > 0.8 ? 1 : 0]);
       arr[v * 3] = c.r * Math.min(1.15, shade + 0.15);
       arr[v * 3 + 1] = c.g * Math.min(1.15, shade + 0.15);
       arr[v * 3 + 2] = c.b * Math.min(1.15, shade + 0.15);
@@ -422,7 +442,16 @@ function recolorCrown(crown: CrownGeometry, species: TreeSpecies, season: Season
   attr.needsUpdate = true;
 }
 
+/** Radius in metres of the root flare at the foot of a tree of the given scale. */
+export function trunkFootRadius(species: TreeSpecies, scale: number): number {
+  return SHAPES[species].trunkRadius * TRUNK_THICKNESS * 1.9 * scale;
+}
+
 const TRUNK = new THREE.CylinderGeometry(0.62, 1, 1, 6, 6, true);
+/** Root flare: widens the trunk foot; its top ring sits a hair outside the trunk (no coplanar faces). */
+const FLARE = new THREE.CylinderGeometry(1.1, 1.9, 1, 6, 1, true);
+/** Trunks and limbs are thicker than the raw species radius so they read next to the crowns. */
+export const TRUNK_THICKNESS = 1.35;
 const LIMB = new THREE.CylinderGeometry(0.6, 1, 1, 5, 1, true);
 
 function barkColorer(lightHex: string, darkHex: string, rng: () => number, birch: boolean) {
@@ -445,10 +474,11 @@ function buildTrunk(species: TreeSpecies, rng: () => number): THREE.BufferGeomet
   const s = SHAPES[species];
   const b = new TriBuilder();
   const color = barkColorer(s.bark, s.barkDark, rng, species === 'birch');
+  const tr = s.trunkRadius * TRUNK_THICKNESS;
   const m = new THREE.Matrix4().compose(
     new THREE.Vector3(0, s.trunkHeight / 2, 0),
     new THREE.Quaternion(),
-    new THREE.Vector3(s.trunkRadius, s.trunkHeight, s.trunkRadius),
+    new THREE.Vector3(tr, s.trunkHeight, tr),
   );
   b.add(TRUNK, m, color);
   const n = 2 + Math.floor(rng() * 2);
@@ -460,8 +490,15 @@ function buildTrunk(species: TreeSpecies, rng: () => number): THREE.BufferGeomet
     const from = new THREE.Vector3(0, y0, 0);
     const dir = new THREE.Vector3(Math.cos(az) * Math.sin(tilt), Math.cos(tilt), Math.sin(az) * Math.sin(tilt));
     const to = from.clone().addScaledVector(dir, len);
-    b.add(LIMB, limbMatrix(from, to, s.trunkRadius * 0.5), color);
+    b.add(LIMB, limbMatrix(from, to, tr * 0.5), color);
   }
+  // Root flare last, so the colour stream of the trunk and limbs is unchanged.
+  const flareH = 0.55;
+  b.add(
+    FLARE,
+    new THREE.Matrix4().compose(new THREE.Vector3(0, flareH / 2, 0), new THREE.Quaternion(), new THREE.Vector3(tr, flareH, tr)),
+    species === 'birch' ? barkColorer(s.barkDark, s.barkDark, rng, false) : color,
+  );
   return b.build();
 }
 
@@ -479,6 +516,7 @@ function buildBareBranches(species: TreeSpecies, rng: () => number): THREE.Buffe
     return normal.y > 0.45 ? c.copy(base).lerp(snow, 0.55) : c.copy(base);
   };
   const crownMid = (s.crownBottom + s.crownTop) / 2;
+  const tr = s.trunkRadius * TRUNK_THICKNESS;
   const grow = (from: THREE.Vector3, dir: THREE.Vector3, len: number, radius: number, depth: number) => {
     const to = from.clone().addScaledVector(dir, len);
     // Keep twigs inside the crown envelope.
@@ -505,14 +543,14 @@ function buildBareBranches(species: TreeSpecies, rng: () => number): THREE.Buffe
   // Leader continues the trunk up into the crown.
   const top = new THREE.Vector3(0, s.trunkHeight, 0);
   const leaderEnd = Math.max(s.trunkHeight + 0.5, s.crownTop - 0.6);
-  b.add(LIMB, limbMatrix(top.clone().setY(top.y - 0.2), new THREE.Vector3(0, leaderEnd, 0), s.trunkRadius * 0.55), color);
+  b.add(LIMB, limbMatrix(top.clone().setY(top.y - 0.2), new THREE.Vector3(0, leaderEnd, 0), tr * 0.55), color);
   const n = 4 + Math.floor(rng() * 2);
   for (let i = 0; i < n; i++) {
     const az = (i / n) * Math.PI * 2 + range(rng, -0.3, 0.3);
     const y0 = Math.min(s.trunkHeight, crownMid) * range(rng, 0.7, 1.0) + (i / n) * (leaderEnd - s.trunkHeight) * 0.6;
     const tilt = s.branchTilt * range(rng, 0.8, 1.2);
     const dir = new THREE.Vector3(Math.cos(az) * Math.sin(tilt), Math.cos(tilt), Math.sin(az) * Math.sin(tilt));
-    grow(new THREE.Vector3(0, y0, 0), dir, s.branchLength * 1.3, s.trunkRadius * 0.6, 2);
+    grow(new THREE.Vector3(0, y0, 0), dir, s.branchLength * 1.3, tr * 0.6, 2);
   }
   return b.build();
 }
@@ -525,6 +563,8 @@ interface CrownMesh {
   mesh: THREE.InstancedMesh;
   crown: CrownGeometry;
   species: TreeSpecies;
+  /** Per-instance variation, in instance order, for the seasonal colour tint. */
+  variations: TreeVariation[];
 }
 
 /**
@@ -577,25 +617,30 @@ export function createTreeField(
     if (list.length === 0) return;
     const allMatrices: THREE.Matrix4[] = [];
     const allIds: string[] = [];
-    const byVariant: { matrices: THREE.Matrix4[]; ids: string[] }[] = Array.from({ length: CROWN_VARIANTS }, () => ({
-      matrices: [],
-      ids: [],
-    }));
+    const byVariant: { matrices: THREE.Matrix4[]; ids: string[]; variations: TreeVariation[] }[] = Array.from(
+      { length: CROWN_VARIANTS },
+      () => ({ matrices: [], ids: [], variations: [] }),
+    );
     for (const t of list) {
       const rng = createRng((hashString(t.id) ^ Math.imul(seed, 0x9e3779b1)) >>> 0);
-      const variant = Math.floor(rng() * CROWN_VARIANTS) % CROWN_VARIANTS;
-      const yaw = rng() * Math.PI * 2;
-      const sxz = t.scale * range(rng, 0.9, 1.1);
-      const sy = t.scale * range(rng, 0.92, 1.08);
+      const v = treeVariation(rng);
+      const variant = chooseVariant(v.variantRoll, CROWN_VARIANTS);
+      const sxz = t.scale * v.width;
+      const sy = t.scale * v.height;
+      // Yaw first, then a slight lean about the base, so no two trees stand exactly upright alike.
+      const q = new THREE.Quaternion()
+        .setFromAxisAngle(UP, v.yaw)
+        .multiply(new THREE.Quaternion().setFromEuler(new THREE.Euler(v.leanX, 0, v.leanZ)));
       const m = new THREE.Matrix4().compose(
         new THREE.Vector3(t.position.x, 0, t.position.z),
-        new THREE.Quaternion().setFromAxisAngle(UP, yaw),
+        q,
         new THREE.Vector3(sxz * range(rng, 0.94, 1.06), sy, sxz),
       );
       allMatrices.push(m);
       allIds.push(t.id);
       byVariant[variant].matrices.push(m);
       byVariant[variant].ids.push(t.id);
+      byVariant[variant].variations.push(v);
     }
 
     const speciesSeed = (seed * 1013 + si * 101) >>> 0;
@@ -610,15 +655,26 @@ export function createTreeField(
       const crown = buildCrown(species, createRng(speciesSeed + 17 * (vi + 1)), speciesSeed + vi * 31);
       geometries.push(crown.geometry);
       const mesh = add(crown.geometry, foliage, v.matrices, v.ids, `tree-crown-${species}-${vi}`);
-      crowns.push({ mesh, crown, species });
+      mesh.setColorAt(0, new THREE.Color(1, 1, 1)); // allocates the instance colour buffer
+      crowns.push({ mesh, crown, species, variations: v.variations });
     });
   });
+
+  const tint = new THREE.Color();
+  const applyTints = (c: CrownMesh, season: Season) => {
+    for (let i = 0; i < c.variations.length; i++) {
+      const [r, g, b] = treeTint(c.variations[i], season);
+      c.mesh.setColorAt(i, tint.setRGB(r, g, b));
+    }
+    if (c.mesh.instanceColor) c.mesh.instanceColor.needsUpdate = true;
+  };
 
   const setSeason = (season: Season) => {
     const winter = season === 'winter';
     for (const c of crowns) {
       c.mesh.visible = !winter;
       recolorCrown(c.crown, c.species, season);
+      applyTints(c, season);
     }
     for (const m of bareMeshes) m.visible = winter;
   };

@@ -209,6 +209,7 @@ export function buildHouse(params: HouseParams): THREE.Group {
     roofSurface,
     rngRear: makeRng(hashSeed(seed, lay.preset, 'rear')),
     rngSign: makeRng(hashSeed(seed, lay.preset, 'sign')),
+    rngDetail: makeRng(hashSeed(seed, lay.preset, 'detail')),
     avenue: corner || params.avenue === true,
     chimneyTops: [],
   };

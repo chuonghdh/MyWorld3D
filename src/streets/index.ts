@@ -2,13 +2,19 @@
 // Everything is merged or instanced into six draw calls:
 //   surfaces (opaque ground), overlay (paint/decals), furniture (iron/wood/stone),
 //   lamp glass, light pools (night only, additive), signal lamps (InstancedMesh).
+// Round 6 decor (bus stops, kiosks, bike racks, manholes, road wear, paving variation, kerb corners,
+// fountain plaza) is merged into those same layers; only two translucent layers are new:
+// the bus shelter glass and the fountain water (the latter only when a fountain fits).
 
 import * as THREE from 'three';
 import type { CityLayout, TrafficLight } from '../city/layout';
 import type { LightAxis, LightPhase } from '../traffic/lights';
 import { attachWeather } from '../buildings/materials';
 import { MeshBuilder } from './builder';
-import { addPoolUVs, buildFurniture, type SignalHead } from './furniture';
+import { addPoolUVs, buildBench, buildFurniture, type SignalHead } from './furniture';
+import { planStreetDecor } from './decor';
+import { buildDecor } from './decorGeometry';
+import { createWaterMaterial } from './water';
 import { buildSurfaces } from './surfaces';
 
 export { SIDEWALK_TOP, ASPHALT_TOP, PAINT_Y, COLORS as STREET_COLORS } from './surfaces';
@@ -43,6 +49,8 @@ export const MESH_NAMES = {
   lampGlass: 'streets-lamp-glass',
   pools: 'streets-light-pools',
   signals: 'streets-signal-lamps',
+  shelterGlass: 'streets-shelter-glass',
+  water: 'streets-fountain-water',
 } as const;
 
 /** Radial gradient texture for the light pools, or null outside a browser. */
@@ -145,23 +153,49 @@ export function createStreetscape(layout: CityLayout): Streetscape {
   });
   const poolBaseOpacity = poolMat.opacity;
   const signalMat = new THREE.MeshBasicMaterial({ color: '#ffffff' });
-  materials.push(surfaceMat, overlayMat, furnitureMat, glassMat, poolMat, signalMat);
+  const shelterGlassMat = new THREE.MeshStandardMaterial({
+    color: '#a9d3df',
+    roughness: 0.08,
+    metalness: 0.1,
+    transparent: true,
+    opacity: 0.22,
+    depthWrite: false,
+    side: THREE.DoubleSide,
+  });
+  const water = createWaterMaterial();
+  materials.push(surfaceMat, overlayMat, furnitureMat, glassMat, poolMat, signalMat, shelterGlassMat, water.material);
 
   // --- Ground surfaces and paint ---
   const surf = new MeshBuilder();
   const overlay = new MeshBuilder();
   buildSurfaces(layout, surf, overlay);
+  // --- Furniture and decor (decor writes into the surface overlay and furniture builders) ---
+  const furn = buildFurniture(layout, poolTexture !== null);
+  const decorGlass = new MeshBuilder();
+  const decorWater = new MeshBuilder();
+  buildDecor(
+    planStreetDecor(layout),
+    { iron: furn.iron, overlay, glass: decorGlass, water: decorWater },
+    (x, z, facing) => buildBench(furn.iron, x, z, facing),
+  );
+
   addMesh(MESH_NAMES.surfaces, surf, surfaceMat, { receive: true });
   addMesh(MESH_NAMES.overlay, overlay, overlayMat, { receive: true });
-
-  // --- Furniture ---
-  const furn = buildFurniture(layout, poolTexture !== null);
   addMesh(MESH_NAMES.furniture, furn.iron, furnitureMat, { cast: true, receive: true });
   addMesh(MESH_NAMES.lampGlass, furn.glass, glassMat, { cast: false, receive: false });
   const pools = addMesh(MESH_NAMES.pools, furn.pools, poolMat, { cast: false, receive: false, uv: poolTexture !== null });
   if (pools) {
     pools.visible = false;
     pools.renderOrder = 2;
+  }
+
+  const shelterGlass = addMesh(MESH_NAMES.shelterGlass, decorGlass, shelterGlassMat, { cast: false, receive: false });
+  if (shelterGlass) shelterGlass.renderOrder = 1;
+  const waterMesh = addMesh(MESH_NAMES.water, decorWater, water.material, { cast: false, receive: false });
+  if (waterMesh) {
+    waterMesh.renderOrder = 1;
+    // The shader clock follows the wall clock; the water needs no per-frame hook from the scene.
+    waterMesh.onBeforeRender = () => water.setTime(performance.now() / 1000);
   }
 
   // --- Signal lamps (one InstancedMesh, colour per instance) ---
@@ -194,6 +228,7 @@ export function createStreetscape(layout: CityLayout): Streetscape {
     glassMat.emissiveIntensity = k * LAMP_GLASS_NIGHT_INTENSITY;
     poolMat.opacity = k * poolBaseOpacity;
     if (pools) pools.visible = k > 0.01;
+    water.setBrightness(1 - k);
   }
 
   return {

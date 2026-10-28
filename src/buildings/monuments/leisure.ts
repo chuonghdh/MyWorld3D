@@ -2,6 +2,7 @@
 
 import * as THREE from 'three';
 import type { V3 } from '../geometry';
+import { WIND, anchorWeight } from '../facade/polish';
 import {
   Shell,
   bench,
@@ -202,9 +203,12 @@ function stall(k: Kit, x: number, z: number, ry: number, stripe: C): void {
     k.box('#8a6a45', 3.6, 0.1, 0.7, 0, 1.0, 0.9);
     k.glass(true, 3.2, 1.2, 1.5, 0, 1.1, -0.3, '#5a4a3a');
     // striped awning, sloping down to the front
-    for (let i = 0; i < 8; i++) {
-      k.boxR('body', i % 2 === 0 ? stripe : '#ffffff', 0.46, 0.06, 1.7, [-1.61 + i * 0.46, 2.85, 1.2], [0.35, 0, 0]);
-    }
+    // Fabric: fixed at the wall side (z 0.35), free at the front edge.
+    k.withWind(WIND.AWNING, (_x, _y, z) => anchorWeight(z, 0.35, 2.05), () => {
+      for (let i = 0; i < 8; i++) {
+        k.boxR('body', i % 2 === 0 ? stripe : '#ffffff', 0.46, 0.06, 1.7, [-1.61 + i * 0.46, 2.85, 1.2], [0.35, 0, 0]);
+      }
+    });
     k.box('#e9dcc0', 3.6, 0.2, 2.4, 0, 2.6, 0);
     signBoard(k, 0, 2.8, -0.6, 3.0, 0.8, stripe, '#fff3c4');
   });
@@ -452,9 +456,12 @@ export function swimmingPool(k: Kit, s: Site): void {
   const parasol = (x: number, z: number, c: C): void => {
     k.cyl('#efeee8', 0.04, 0.04, 2.3, x, deckY, z, 4);
     const nn = 8;
-    for (let i = 0; i < nn; i++) {
-      k.add('body', new THREE.ConeGeometry(1.3, 0.5, 2, 1, true, (i / nn) * TAU, TAU / nn), i % 2 === 0 ? c : '#ffffff', [x, deckY + 2.3 + 0.25, z]);
-    }
+    // Canopy rim flutters; the pole is rigid.
+    k.withWind(WIND.PARASOL, (_x, y) => anchorWeight(y, deckY + 2.8, deckY + 2.3), () => {
+      for (let i = 0; i < nn; i++) {
+        k.add('body', new THREE.ConeGeometry(1.3, 0.5, 2, 1, true, (i / nn) * TAU, TAU / nn), i % 2 === 0 ? c : '#ffffff', [x, deckY + 2.3 + 0.25, z]);
+      }
+    });
   };
   const lz = pz1 + 2.2;
   for (let i = 0; i < 8; i++) {
@@ -566,7 +573,7 @@ export function circus(k: Kit, s: Site): void {
   k.cyl(gold, 0.6, 0.8, 0.3, 0, midY - 0.15, cz, 10);
   // King pole, pennant, bunting to the rim poles.
   k.cyl('#d8d8d4', 0.08, 0.12, 3, 0, topY - 0.2, cz, 6);
-  k.box(red, 1.4, 0.7, 0.04, 0.72, topY + 2.0, cz);
+  k.withWind(WIND.FLAG, (px) => anchorWeight(px, 0.02, 1.42), () => k.box(red, 1.4, 0.7, 0.04, 0.72, topY + 2.0, cz));
   k.blob(gold, 0.2, 0, topY + 2.85, cz);
   const flags = [red, gold, '#2f6b8f', white, '#2f8f4f'];
   for (let i = 0; i < 8; i++) {
@@ -574,7 +581,7 @@ export function circus(k: Kit, s: Site): void {
     const x = (R + 0.9) * Math.sin(a);
     const z = cz + (R + 0.9) * Math.cos(a);
     k.cyl('#d8d8d4', 0.05, 0.07, 5.8, x, 0, z, 5);
-    k.box(flags[i % flags.length], 0.9, 0.5, 0.04, x + 0.47, 5.2, z);
+    k.withWind(WIND.FLAG, (px) => anchorWeight(px, x + 0.02, x + 0.92), () => k.box(flags[i % flags.length], 0.9, 0.5, 0.04, x + 0.47, 5.2, z));
     bunting(k, [0, topY + 1.2, cz], [x, 5.6, z], flags, 0.8, 12);
   }
 

@@ -82,7 +82,7 @@ function buildLamp(iron: MeshBuilder, glass: MeshBuilder, p: Prims, x: number, z
   addAt(iron, p.finial, 0.14, x, y + 4.66, z, facing, c);
 }
 
-function buildBench(b: MeshBuilder, x: number, z: number, facing: number): void {
+export function buildBench(b: MeshBuilder, x: number, z: number, facing: number): void {
   const y = SIDEWALK_TOP;
   const c = Math.cos(facing), s = Math.sin(facing);
   // local (lx, lz) -> world

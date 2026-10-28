@@ -73,6 +73,8 @@ export interface Ctx extends Layout {
   rngRear: Rng;
   /** Stream for sign choice. */
   rngSign: Rng;
+  /** Stream for the Round 6 extras (rooftop features): kept apart so older streams never shift. */
+  rngDetail: Rng;
   /** Corner or avenue lot: shops may carry a blade sign. */
   avenue: boolean;
   /** Collected chimney pot tops. */
@@ -167,6 +169,8 @@ export function pane(
   };
   const roll = opts.dressing === false ? 1 : g();
   const w = u1 - u0;
+  // One schedule seed per window, so curtains and glass switch on together.
+  m.paneGroup(() => {
   if (roll < 0.3 && w > 0.5) {
     // Sheer curtains drawn to the sides.
     const cc = scale(col(pick(g, CURTAIN_COLORS)), 0.55);
@@ -183,6 +187,7 @@ export function pane(
   } else {
     quad(u0, u1, y0, y1, bot, top);
   }
+  });
   return lit;
 }
 
