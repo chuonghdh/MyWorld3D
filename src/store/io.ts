@@ -101,7 +101,8 @@ function parseSettings(v: unknown): WorldSettings {
         out[key] = expectOneOf(raw, SEASONS, 'settings.season');
         break;
       case 'weather':
-        out[key] = expectOneOf(raw, WEATHER_KINDS, 'settings.weather');
+        // Older saves used 'drizzle', which was replaced by 'cloudy'.
+        out[key] = expectOneOf(raw === 'drizzle' ? 'cloudy' : raw, WEATHER_KINDS, 'settings.weather');
         break;
       case 'quality':
         out[key] = expectOneOf(raw, QUALITY_TIERS, 'settings.quality');

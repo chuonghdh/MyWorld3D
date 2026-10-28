@@ -8,6 +8,7 @@ import { createRng } from '../core/rng';
 import type { Season } from '../core/types';
 import { TriBuilder, makeWarp } from './forest';
 import { TAG_BLOOM, TAG_FIXED, TAG_FOLIAGE, applySeasonPaint, createPaintState, type PaintState } from './seasonalPaint';
+import { attachCloudShade } from './cloudShade';
 
 const HEDGE_WIDTH = 0.7;
 const HEDGE_INSET = 0.5;
@@ -256,7 +257,7 @@ export function createCourtyardGreenery(courtyards: readonly Rect[], seed: numbe
     }
   });
 
-  const material = new THREE.MeshStandardMaterial({ vertexColors: true, flatShading: true, roughness: 0.9 });
+  const material = attachCloudShade(new THREE.MeshStandardMaterial({ vertexColors: true, flatShading: true, roughness: 0.9 }));
   const states = new Map<THREE.Mesh, PaintState>();
   const parts: [TriBuilder, string][] = [
     [hedges, 'greenery-hedges'],

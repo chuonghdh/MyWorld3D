@@ -21,6 +21,7 @@ import {
 import { attachWeather, patchWeather, weatherUniforms } from './shaders/weather';
 import { WIND_VERTEX_COMMON, WIND_VERTEX_MAIN_BODY, setBuildingWind, tickBuildingWind, windUniforms } from './shaders/wind';
 import { nightClock } from './facade/polish';
+import { patchCloudShade } from '../environment/cloudShade';
 
 let body: THREE.MeshStandardMaterial | null = null;
 let glass: THREE.MeshStandardMaterial | null = null;
@@ -52,6 +53,7 @@ function patchBody(shader: ShaderLike): void {
     .replace('#include <color_fragment>', SURFACE_FRAGMENT_COLOR)
     .replace('#include <normal_fragment_maps>', SURFACE_FRAGMENT_NORMAL);
   patchWeather(shader);
+  patchCloudShade(shader);
 }
 
 function patchGlass(shader: ShaderLike): void {
@@ -76,7 +78,7 @@ export function getBodyMaterial(): THREE.MeshStandardMaterial {
     body.name = 'building-body';
     body.onBeforeCompile = (shader) => patchBody(shader as unknown as ShaderLike);
     body.onBeforeRender = tickBuildingWind;
-    body.customProgramCacheKey = () => 'building-body-v3';
+    body.customProgramCacheKey = () => 'building-body-v4';
   }
   return body;
 }

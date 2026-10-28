@@ -1,10 +1,9 @@
 // Low, lazy cumulus floating over the town, a little above the birds (they fly up to ~44 m).
-// Two draw calls in total:
-//   1. the clouds: one instanced mesh of camera-facing puffs (a cluster is a cauliflower dome with a
-//      flat grey base), lit by the sun colour with a fake sphere normal, so tops are bright, bellies
-//      are grey and the rims are shaded whether the camera is on the street or looking down from above;
-//   2. their shadows: one soft blob per cluster, projected along the sun direction onto the ground
-//      from the SAME layout and drift, so a shadow always sits under its cloud.
+// One draw call: a single instanced mesh of camera-facing puffs (a cluster is a cauliflower dome with a
+// flat grey base), lit by the sun colour with a fake sphere normal, so tops are bright, bellies are
+// grey and the rims are shaded whether the camera is on the street or looking down from above.
+// Their shadows are not drawn here: cloudShade.ts rasterises the same layout into a mask that the
+// shared surface materials sample, so roofs, walls, trees and streets are shaded in the town's lighting.
 // The clusters live in a wrapping square domain centred on the town, so they drift forever without
 // respawning, and fade by cloud amount, domain edge, camera distance and fog so nothing pops.
 
@@ -19,8 +18,6 @@ export const CLOUD_TOP_MAX = 140;
 export const CLOUD_CELL = 90;
 /** Darkest the ground may get under a cloud shadow (0.35 = 35% darker). */
 export const CLOUD_MAX_DARKNESS = 0.35;
-/** Height of the shadow decal above the ground: above sidewalks (0.15), below street overlays (0.19..). */
-export const CLOUD_DECAL_Y = 0.2;
 /** Clouds drift this fraction of the wind speed, never slower than the minimum or faster than the maximum (m/s). */
 export const CLOUD_WIND_FACTOR = 0.32;
 export const CLOUD_MIN_DRIFT = 1.2;
@@ -311,58 +308,13 @@ void main() {
 }
 `;
 
-const SHADOW_VERTEX = /* glsl */ `
-${COMMON_VERTEX_HEAD}
-uniform vec3 uSunDir;
-varying vec2 vUv;
-varying float vSeed;
-varying float vFade;
-void main() {
-  if (aMisc.x < 0.5) {
-    gl_Position = vec4(2.0, 2.0, 2.0, 1.0);
-    return;
-  }
-${COMMON_CLUSTER}
-  float height = aCenter.y * uAltScale + aMisc.z * 0.35 * uHeightScale;
-  vec2 off = -uSunDir.xz / max(uSunDir.y, 0.15) * height;
-  vec2 halfSize = vec2(aMisc.z * 1.2, aMisc.z * 0.9) * uSizeScale;
-  vFade = edge * vis;
-  vUv = position.xy;
-  vSeed = aInfo.z;
-  if (vFade < 0.004) {
-    gl_Position = vec4(2.0, 2.0, 2.0, 1.0);
-    return;
-  }
-  vec3 world = vec3(c.x + off.x + position.x * halfSize.x, ${CLOUD_DECAL_Y.toFixed(2)}, c.y + off.y + position.y * halfSize.y);
-  gl_Position = projectionMatrix * viewMatrix * vec4(world, 1.0);
-}
-`;
-
-const SHADOW_FRAGMENT = /* glsl */ `
-uniform float uShadowK;
-uniform float uTime;
-uniform float uMaxDark;
-varying vec2 vUv;
-varying float vSeed;
-varying float vFade;
-${NOISE}
-void main() {
-  float r = length(vUv);
-  if (r >= 1.0) discard;
-  // Lumpy, softly feathered blob: noise bends the radius, a smoothstep fades the rim over its whole width.
-  float n = vnoise(vUv * 2.2 + vSeed * 17.0 + uTime * 0.01) * 0.6 + vnoise(vUv * 4.7 + vSeed * 5.0) * 0.4;
-  float d = smoothstep(1.0, 0.15, r + (n - 0.5) * 0.45);
-  float a = d * uMaxDark * uShadowK * vFade;
-  if (a < 0.002) discard;
-  gl_FragColor = vec4(0.02, 0.03, 0.07, a);
-}
-`;
-
 export interface CloudSprites {
   /** The lit puffs (draw call 1). */
   readonly mesh: THREE.Mesh;
-  /** The ground shadows (draw call 2). */
-  readonly shadowMesh: THREE.Mesh;
+  /** Drift of the whole field in metres (shared with the shadow mask). */
+  readonly drift: THREE.Vector2;
+  readonly domain: number;
+  readonly origin: { x: number; z: number };
   readonly layout: CloudLayout;
   update(dt: number, velocity: { x: number; z: number }): void;
   setCoverage(coverage: number): void;
@@ -391,7 +343,7 @@ export function createCloudSprites(origin: { x: number; z: number }, seed: numbe
   geometry.setAttribute('aMisc', new THREE.InstancedBufferAttribute(layout.misc, 3));
   geometry.instanceCount = layout.count;
 
-  // Values shared by reference between the cloud and shadow materials, so both always agree.
+  // Values shared by reference so every consumer of the field agrees.
   const shared = {
     uDrift: { value: new THREE.Vector2(0, 0) },
     uOrigin: { value: new THREE.Vector3(origin.x, 0, origin.z) },
@@ -421,44 +373,21 @@ export function createCloudSprites(origin: { x: number; z: number }, seed: numbe
     depthTest: true,
     fog: true,
   });
-  const shadowUniforms = { ...shared, uShadowK: { value: 1 }, uMaxDark: { value: CLOUD_MAX_DARKNESS } };
-  const shadowMaterial = new THREE.ShaderMaterial({
-    uniforms: shadowUniforms,
-    vertexShader: SHADOW_VERTEX,
-    fragmentShader: SHADOW_FRAGMENT,
-    transparent: true,
-    depthWrite: false,
-    depthTest: true,
-    fog: false,
-  });
-  // Whatever a caller does to the flags, the shadow must stay visible and must never enter a shadow map.
-  Object.defineProperty(shadowMaterial, 'colorWrite', { get: () => true, set: () => undefined });
-
   // The geometry is an InstancedBufferGeometry, so a plain Mesh draws every puff in one call.
   const mesh = new THREE.Mesh(geometry, material);
   mesh.name = 'cloud-sprites';
   mesh.frustumCulled = false;
-  // After the opaque scene and the shadows, before smoke (5), fog banks (18) and rain (19+).
+  // After the opaque scene, before smoke (5), fog banks (18) and rain (19+).
   mesh.renderOrder = 4;
   mesh.castShadow = false;
   mesh.receiveShadow = false;
   mesh.raycast = () => undefined; // nothing may pick the clouds
-
-  const shadowMesh = new THREE.Mesh(geometry, shadowMaterial);
-  shadowMesh.name = 'cloud-shadows';
-  shadowMesh.frustumCulled = false;
-  shadowMesh.renderOrder = 3;
-  shadowMesh.receiveShadow = false;
-  Object.defineProperty(shadowMesh, 'castShadow', { get: () => false, set: () => undefined });
-  shadowMesh.raycast = () => undefined;
 
   const drift = shared.uDrift.value;
   const amb = new THREE.Color();
   const WHITE = new THREE.Color(1, 1, 1);
   let sky = { r: 0.6, g: 0.65, b: 0.75 };
   let ambient = 0.6;
-  let sunlight = 1;
-  let sunY = 1;
   const applyAmbient = (): void => {
     const k = 0.1 + 0.9 * smooth(0.1, 0.65, ambient);
     amb.setRGB(sky.r, sky.g, sky.b);
@@ -466,13 +395,12 @@ export function createCloudSprites(origin: { x: number; z: number }, seed: numbe
     amb.lerp(WHITE, 0.45).multiplyScalar(k);
     (uniforms.uAmbient.value as THREE.Color).copy(amb);
   };
-  const applyShadow = (): void => {
-    shadowUniforms.uShadowK.value = cloudShadowSun(sunY, sunlight);
-  };
 
   return {
     mesh,
-    shadowMesh,
+    drift,
+    domain,
+    origin: { x: origin.x, z: origin.z },
     layout,
     update(dt, v) {
       const step = Math.min(Math.max(dt, 0), 0.1);
@@ -491,24 +419,19 @@ export function createCloudSprites(origin: { x: number; z: number }, seed: numbe
       shared.uHeightScale.value = s.height;
     },
     setSunlight(strength) {
-      sunlight = clamp01(strength);
-      uniforms.uSunK.value = sunlight;
-      applyShadow();
+      uniforms.uSunK.value = clamp01(strength);
     },
     setLighting(sunDir, sunColor, skyColor, amb2) {
       shared.uSunDir.value.set(sunDir.x, sunDir.y, sunDir.z).normalize();
-      sunY = shared.uSunDir.value.y;
       (uniforms.uSunColor.value as THREE.Color).setRGB(sunColor.r, sunColor.g, sunColor.b);
       sky = skyColor;
       ambient = amb2;
       applyAmbient();
-      applyShadow();
     },
     dispose() {
       quad.dispose();
       geometry.dispose();
       material.dispose();
-      shadowMaterial.dispose();
     },
   };
 }

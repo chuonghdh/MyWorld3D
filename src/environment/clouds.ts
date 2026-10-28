@@ -1,17 +1,9 @@
-// Clouds: low cumulus floating over the town plus their soft ground shadows, both built from one
-// layout (see cloudSprites.ts). Two draw calls, no shadow-map cost, shadow darkness capped at 35%.
+// Clouds: low cumulus floating over the town (one draw call, cloudSprites.ts) plus their shadows,
+// which come from the same layout as a mask texture sampled by the town's materials (cloudShade.ts).
 
 import * as THREE from 'three';
 import { createCloudSprites, cloudDriftVelocity } from './cloudSprites';
-
-
-export {
-  CLOUD_BASE_DRIFT,
-  CLOUD_DECAL_Y,
-  CLOUD_MAX_DARKNESS,
-  CLOUD_WIND_FACTOR,
-  cloudShadowAlpha,
-} from './cloudSprites';
+import { createCloudShade } from './cloudShade';
 
 export interface CloudArea {
   minX: number;
@@ -59,11 +51,12 @@ export function createClouds(opts: CloudOptions): CloudField {
     opts.seed ?? 7,
     extent,
   );
-  sprites.setCoverage(coverageForCount(opts.count ?? 10));
+  const initial = coverageForCount(opts.count ?? 10);
+  sprites.setCoverage(initial);
+  const shade = createCloudShade(sprites.layout, sprites.origin, sprites.drift, initial);
 
   const group = new THREE.Group();
   group.name = 'clouds';
-  group.add(sprites.shadowMesh);
   group.add(sprites.mesh);
 
   // Scratch vector: the drift is computed every frame without allocating.
@@ -72,12 +65,25 @@ export function createClouds(opts: CloudOptions): CloudField {
   return {
     group,
     update(dt, wind) {
-      // Lazy drift along the wind (a fraction of its speed, never still); shadows share the layout so they follow.
+      // Lazy drift along the wind (a fraction of its speed, never still); the shadow mask follows the same drift.
       sprites.update(dt, cloudDriftVelocity(wind, velocity));
+      shade.syncDrift();
     },
-    setCoverage: (c) => sprites.setCoverage(c),
-    setSunlight: (s) => sprites.setSunlight(s),
-    setLighting: (d, c, k, a) => sprites.setLighting(d, c, k, a),
-    dispose: () => sprites.dispose(),
+    setCoverage(c) {
+      sprites.setCoverage(c);
+      shade.setCoverage(c);
+    },
+    setSunlight(s) {
+      sprites.setSunlight(s);
+      shade.setSunlight(s);
+    },
+    setLighting(d, c, k, a) {
+      sprites.setLighting(d, c, k, a);
+      shade.setLighting(d);
+    },
+    dispose() {
+      sprites.dispose();
+      shade.dispose();
+    },
   };
 }

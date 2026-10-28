@@ -1,6 +1,8 @@
 import { describe, expect, it } from 'vitest';
 import * as THREE from 'three';
-import { computeSkyState, createGroundDisc, createSkyDome, GROUND_DISC_Y } from '../src/sky';
+import { computeSkyState, createGroundDisc, createSkyDome, GROUND_DISC_Y, MOON_RADIUS, sunAppearance } from '../src/sky';
+import { OLD_MOON_RADIUS, OLD_SUN_RADIUS, OLD_SUN_HORIZON_GROWTH, SUN_HORIZON_RADIUS, SUN_ZENITH_RADIUS, sunRadiusFor } from '../src/sky/state';
+import { lightDirection } from '../src/scene/townShadow';
 import { ASPHALT_TOP, SIDEWALK_TOP } from '../src/streets';
 import { GROUND_Y } from '../src/streets/surfaces';
 import { getLightingForTime, getNightSchedule, getSkyState } from '../src/environment/sun';
@@ -116,22 +118,143 @@ describe('cloud shadows', () => {
     expect(cloudShadowAlpha(1, 0)).toBe(0);
   });
 
-  it('has one shadow decal that ignores shadow-only hacks, plus one sprite draw call', () => {
+  it('draws only the cloud sprites: the shadows are a mask sampled by the materials, not a decal', () => {
     const field = createClouds({ area: { minX: -50, maxX: 50, minZ: -50, maxZ: 50 }, seed: 3 });
     const meshes: THREE.Mesh[] = [];
     field.group.traverse((o) => {
       if (o instanceof THREE.Mesh) meshes.push(o);
     });
-    expect(meshes).toHaveLength(2);
-    const decal = meshes.find((m) => m.name === 'cloud-shadows')!;
-    // What an old Town.tsx did to cloud meshes must not hide the decal or make it cast a shadow.
-    const m = decal.material as THREE.ShaderMaterial;
-    m.colorWrite = false;
-    decal.castShadow = true;
-    expect(m.colorWrite).toBe(true);
-    expect(decal.castShadow).toBe(false);
+    expect(meshes.map((m) => m.name)).toEqual(['cloud-sprites']);
+    expect(meshes[0].castShadow).toBe(false);
     field.update(0.05, { x: 3, z: 1 });
     field.setCoverage(2);
     field.dispose();
+  });
+});
+
+describe('visible sun', () => {
+  const hours = [5, 6, 7, 9, 12, 15, 17, 18, 19, 21];
+
+  it('sits exactly at the sun direction and shares the frame of the light and the cloud shadows', () => {
+    for (const h of hours) {
+      const { sun } = getLightingForTime(h);
+      const v = computeSkyState({ timeOfDay: h });
+      expect(v.sunDir).toEqual([sun.x, sun.y, sun.z]);
+      expect(Math.hypot(...v.sunDir)).toBeCloseTo(1, 6);
+      if (sun.altitudeDeg > 25) {
+        // Above the minimum shadow-light elevation the light comes from exactly the visible sun.
+        const l = lightDirection(sun);
+        expect(l.x).toBeCloseTo(sun.x, 6);
+        expect(l.y).toBeCloseTo(sun.y, 6);
+        expect(l.z).toBeCloseTo(sun.z, 6);
+      } else if (sun.altitudeDeg > 0) {
+        // Low sun: the light is lifted but keeps the azimuth, so shadows still point away from the disc.
+        const l = lightDirection(sun);
+        const k = Math.hypot(sun.x, sun.z) / Math.hypot(l.x, l.z);
+        expect(l.x * k).toBeCloseTo(sun.x, 6);
+        expect(l.z * k).toBeCloseTo(sun.z, 6);
+      }
+    }
+  });
+
+  it('is hidden under the horizon and shown above it', () => {
+    expect(computeSkyState({ timeOfDay: 0, cloudiness: 0 }).sunVis).toBe(0);
+    expect(computeSkyState({ timeOfDay: 22, cloudiness: 0 }).sunVis).toBe(0);
+    expect(computeSkyState({ timeOfDay: 12, cloudiness: 0 }).sunVis).toBeCloseTo(1, 6);
+    expect(sunAppearance(-5, 0).vis).toBe(0);
+    expect(sunAppearance(5, 0).vis).toBe(1);
+    // Sun and moon are never both fully visible.
+    for (let h = 0; h < 24; h += 0.25) {
+      const v = computeSkyState({ timeOfDay: h, cloudiness: 0 });
+      expect(Math.min(v.sunVis, v.moonVis)).toBeLessThan(0.5);
+      if (v.sunVis > 0.05) expect(v.moonDir[1]).toBeLessThan(0.1);
+    }
+  });
+
+  it('is smaller than before: 40% for the moon, 0.3x at the zenith and 0.4x of the old horizon size for the sun', () => {
+    expect(MOON_RADIUS).toBeCloseTo(OLD_MOON_RADIUS * 0.4, 9);
+    expect(SUN_ZENITH_RADIUS).toBeCloseTo(OLD_SUN_RADIUS * 0.3, 9);
+    expect(SUN_HORIZON_RADIUS).toBeCloseTo(OLD_SUN_RADIUS * (1 + OLD_SUN_HORIZON_GROWTH) * 0.4, 9);
+    expect(sunRadiusFor(90)).toBeCloseTo(SUN_ZENITH_RADIUS, 9);
+    expect(sunRadiusFor(0)).toBeCloseTo(SUN_HORIZON_RADIUS, 9);
+    expect(SUN_ZENITH_RADIUS / (OLD_SUN_RADIUS * 0.4)).toBeCloseTo(0.75, 9);
+    // Smooth and monotonic: the sun only shrinks as it climbs.
+    let prev = Infinity;
+    for (let a = 0; a <= 90; a += 1) {
+      const r = sunRadiusFor(a);
+      expect(r).toBeLessThanOrEqual(prev + 1e-12);
+      if (a > 0) expect(prev - r).toBeLessThan(0.0006);
+      prev = r;
+    }
+    expect(sunRadiusFor(-10)).toBeCloseTo(SUN_HORIZON_RADIUS, 9);
+    expect(sunAppearance(60, 0).radius).toBeCloseTo(sunRadiusFor(60), 9);
+    expect(SUN_ZENITH_RADIUS).toBeGreaterThanOrEqual(MOON_RADIUS * 0.8);
+  });
+
+  it('is vivid golden-yellow high up and orange on the horizon, far brighter than the moon', () => {
+    const low = sunAppearance(0, 0);
+    const high = sunAppearance(60, 0);
+    expect(high.disc[0]).toBeGreaterThan(3);
+    expect(high.disc[1]).toBeGreaterThan(0.8);
+    expect(high.disc[1] / high.disc[2]).toBeGreaterThan(4);
+    expect(high.disc[0]).toBeGreaterThanOrEqual(high.disc[1]);
+    expect(low.disc[1] / low.disc[0]).toBeLessThan(0.5);
+    expect(low.disc[2] / low.disc[0]).toBeLessThan(0.2);
+    expect(low.disc[0]).toBeGreaterThan(1);
+    expect(low.radius).toBeGreaterThan(high.radius * 1.5);
+  });
+
+  it('is dimmed and diffused by overcast', () => {
+    const clear = sunAppearance(40, 0);
+    const overcast = sunAppearance(40, 1);
+    expect(overcast.vis).toBeLessThan(clear.vis * 0.2);
+    expect(overcast.glowVis).toBeLessThan(clear.glowVis);
+    expect(overcast.soft).toBeGreaterThan(clear.soft);
+    expect(computeSkyState({ timeOfDay: 12, cloudiness: 1 }).sunVis).toBeLessThan(0.15);
+  });
+
+  it('is never drawn for downward view directions: the shader masks by the pixel height', () => {
+    const mat = createSkyDome().mesh.material as THREE.ShaderMaterial;
+    const src = mat.fragmentShader;
+    expect(src).toContain('float hMask = smoothstep(-0.02, 0.03, h)');
+    expect(src).toContain('* hMask');
+    // Analytic check of the mask: zero for every direction at or below the horizon line by 0.02.
+    const mask = (h: number): number => {
+      const t = Math.min(1, Math.max(0, (h + 0.02) / 0.05));
+      return t * t * (3 - 2 * t);
+    };
+    for (const h of [-1, -0.5, -0.1, -0.02]) expect(mask(h)).toBe(0);
+    expect(mask(0.03)).toBe(1);
+  });
+
+  it('projects to the expected screen position when the camera looks at the sun', () => {
+    const dome = createSkyDome();
+    const mat = dome.mesh.material as THREE.ShaderMaterial;
+    const v = computeSkyState({ timeOfDay: 17.6, cloudiness: 0 });
+    dome.set(v);
+    expect((mat.uniforms.uSunDir.value as THREE.Vector3).toArray()).toEqual(v.sunDir);
+    const cam = new THREE.PerspectiveCamera(35, 1.6, 1, 2000);
+    cam.position.set(0, 3, 0);
+    // Aim 10 degrees to one side of the sun, a little under it: the sun is then in view, up-right.
+    const sun = new THREE.Vector3(...v.sunDir);
+    cam.lookAt(sun.clone().multiplyScalar(100).add(new THREE.Vector3(0, -8, 0)));
+    cam.updateMatrixWorld();
+    const ndc = sun.clone().multiplyScalar(500).add(cam.position).project(cam);
+    expect(Math.abs(ndc.x)).toBeLessThan(1);
+    expect(ndc.y).toBeGreaterThan(0);
+    expect(ndc.y).toBeLessThan(1);
+    // A high camera looking steeply down at the town sees no sky, so the sun is off screen.
+    cam.position.set(0, 380, 130);
+    cam.lookAt(0, 0, 0);
+    cam.updateMatrixWorld();
+    const down = sun.clone().multiplyScalar(500).add(cam.position).project(cam);
+    expect(down.y > 1 || Math.abs(down.x) > 1 || down.z > 1).toBe(true);
+    dome.dispose();
+  });
+
+  it('compiles into a shader that uses the shared moon radius and the new uniforms', () => {
+    const mat = createSkyDome().mesh.material as THREE.ShaderMaterial;
+    expect(mat.fragmentShader).toContain(`float radius = ${MOON_RADIUS.toFixed(4)};`);
+    for (const k of ['uSunDisc', 'uSunSize', 'uSunSoft', 'uSunGlow']) expect(mat.uniforms[k]).toBeDefined();
   });
 });

@@ -21,6 +21,7 @@ import { getLifeEvents as pollLifeEvents, clearLifeEvents, type createLife } fro
 import * as audio from '../audio';
 import type { Pedestrians, VehicleSystem, createTrafficMeshes } from '../traffic';
 import { createStreetscape } from '../streets';
+import type { AircraftSystem } from '../aircraft';
 import { useWorldStore } from '../store';
 import type { Season } from '../core/types';
 import { DAY_SECONDS } from '../store/model';
@@ -40,6 +41,7 @@ export interface TownFrameInputs {
   clouds: ReturnType<typeof createClouds>;
   smoke: ReturnType<typeof createSmoke>;
   weather: ReturnType<typeof createWeather>;
+  aircraft: AircraftSystem;
   traffic: VehicleSystem;
   walkers: Pedestrians;
   trafficMeshes: ReturnType<typeof createTrafficMeshes>;
@@ -56,7 +58,7 @@ export interface TownFrameInputs {
 }
 
 export function useTownFrame(f: TownFrameInputs): void {
-  const { ground, townSize, lighting, lightsOn, shadowMapSize, uniforms, leaves, clouds, smoke, weather } = f;
+  const { ground, townSize, lighting, lightsOn, shadowMapSize, uniforms, leaves, clouds, smoke, weather, aircraft } = f;
   const { traffic, walkers, trafficMeshes, streetscape, life, audioBridge, audioTrees, churchRef, overlay } = f;
   const { sunLight, sunDirRef, hemiLight, ambLight } = f;
 
@@ -114,6 +116,17 @@ export function useTownFrame(f: TownFrameInputs): void {
     if (ambLight.current) ambLight.current.intensity = lighting.sky.ambientIntensity * AMBIENT_GAIN * wx.dim;
 
     clouds.update(dt, wind);
+    // Airliners follow the simulated clock (frozen while paused); contrails need clear, fair air.
+    aircraft.update(t, dt, {
+      camera: state.camera.position,
+      sunDir: sunDirRef.current,
+      sunColor: lighting.sky.sunColor,
+      sunIntensity: lighting.sky.sunIntensity * wx.dim,
+      ambient: lighting.sky.ambientIntensity * wx.dim,
+      night: lightsOn,
+      weather: wx,
+      wind,
+    });
     smoke.update(dt, wind, {
       season: season as Season,
       timeOfDay: useWorldStore.getState().settings.timeOfDay,
@@ -167,6 +180,7 @@ export function useTownFrame(f: TownFrameInputs): void {
         lifeEvents: pollLifeEvents(),
         thunder: weather.thunder,
         horns: traffic.takeHorns(),
+        aircraft: paused ? undefined : aircraft.audioSources(),
       }),
     );
     clearLifeEvents();

@@ -36,6 +36,7 @@ export const SOUND_ROWS: readonly { group: 'Effects' | 'Nature'; category: Categ
   { group: 'Effects', category: 'footstep', label: 'Footsteps' },
   { group: 'Effects', category: 'dog', label: 'Dogs' },
   { group: 'Effects', category: 'cat', label: 'Cats' },
+  { group: 'Effects', category: 'aircraft', label: 'Aircraft' },
   { group: 'Nature', category: 'bird', label: 'Birdsong' },
   { group: 'Nature', category: 'wing', label: 'Wing flaps' },
   { group: 'Nature', category: 'leaves', label: 'Leaves' },

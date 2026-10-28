@@ -12,6 +12,7 @@ import type { Season, TreeSpecies } from '../core/types';
 import { TriBuilder, trunkFootRadius } from './forest';
 import { addFlowerBed, addHedge } from './greenery';
 import { TAG_BLOOM, TAG_FIXED, TAG_FOLIAGE, applySeasonPaint, createPaintState } from './seasonalPaint';
+import { attachCloudShade } from './cloudShade';
 
 export interface FloraTree {
   position: { x: number; z: number };
@@ -184,7 +185,7 @@ export function createStreetFlora(
   let applyPaint: (season: Season) => void = () => {};
   if (b.triangleCount > 0) {
     const geometry = b.build();
-    material = new THREE.MeshStandardMaterial({ vertexColors: true, flatShading: true, roughness: 0.9 });
+    material = attachCloudShade(new THREE.MeshStandardMaterial({ vertexColors: true, flatShading: true, roughness: 0.9 }));
     mesh = new THREE.Mesh(geometry, material);
     mesh.name = 'street-flora-mesh';
     mesh.castShadow = false; // tiny low plants: skipping the shadow pass keeps the cost at one draw call

@@ -23,13 +23,13 @@ const MAX_EVENTS_PER_EMITTER_PER_FRAME = 8;
 const MIN_RADIUS = 3;
 const MAX_RADIUS = 60;
 
-/** How many drop emitters are active for a rain level: drizzle few, storm all ten. 0 below RAIN_ON. */
+/** How many drop emitters are active for a rain level: light rain few, storm all ten. 0 below RAIN_ON. */
 export function activeEmitterCount(rain: number): number {
   if (!(rain > RAIN_ON)) return 0;
   return Math.min(MAX_DROP_EMITTERS, 3 + Math.round(7 * Math.min(1, rain)));
 }
 
-/** Drop events per second for ONE emitter. Drizzle ~1/s, storm ~9/s (about 90/s over ten emitters). */
+/** Drop events per second for ONE emitter. Light rain ~1/s, storm ~9/s (about 90/s over ten emitters). */
 export function dropRatePerEmitter(rain: number): number {
   const r = Math.min(1, Math.max(0, rain));
   return 0.8 + 8.2 * Math.pow(r, 1.3);

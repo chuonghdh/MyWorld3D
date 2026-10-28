@@ -4,6 +4,7 @@ export * from './trees';
 export * from './leaves';
 export * from './clouds';
 export * from './cloudSprites';
+export * from './cloudShade';
 export * from './forest';
 export * from './greenery';
 export * from './smoke';

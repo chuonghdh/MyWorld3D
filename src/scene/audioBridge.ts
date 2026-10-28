@@ -3,7 +3,7 @@
 
 import * as THREE from 'three';
 import type { Season } from '../core/types';
-import type { AudioFrame, AudioHorn, AudioLifeEvent, AudioPedestrian, AudioThunder, AudioTree, AudioVehicle } from '../audio/frame';
+import type { AudioAircraft, AudioFrame, AudioHorn, AudioLifeEvent, AudioPedestrian, AudioThunder, AudioTree, AudioVehicle } from '../audio/frame';
 import { listenerFromCamera } from '../audio/listener';
 import type { PedestrianRender } from '../traffic/pedestrians';
 import type { VehicleRender } from '../traffic/vehicles';
@@ -12,6 +12,8 @@ import type { VehicleRender } from '../traffic/vehicles';
 function umbrellaShare(rain: number): number {
   return Math.min(0.92, 0.35 + rain * 0.8);
 }
+
+const EMPTY_AIRCRAFT: readonly AudioAircraft[] = [];
 
 export interface AudioBridgeInput {
   dt: number;
@@ -30,6 +32,8 @@ export interface AudioBridgeInput {
   lifeEvents: readonly AudioLifeEvent[];
   thunder: readonly { angle: number; distance: number; strength: number }[];
   horns: readonly AudioHorn[];
+  /** Airliners in the air (pooled by the aircraft system); empty while paused. */
+  aircraft?: readonly AudioAircraft[];
 }
 
 export class AudioBridge {
@@ -76,6 +80,7 @@ export class AudioBridge {
     f.church = input.church;
     f.lifeEvents = input.lifeEvents;
     f.horns = input.horns;
+    f.aircraft = input.aircraft ?? EMPTY_AIRCRAFT;
 
     // Vehicles.
     const vOut = f.vehicles as AudioVehicle[];

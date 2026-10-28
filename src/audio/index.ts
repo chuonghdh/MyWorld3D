@@ -84,14 +84,16 @@ export function isReady(): boolean {
   return ctx !== null;
 }
 
-/** Above this camera height (m) the city is heard only as birds, rain and thunder. */
+/** Above this camera height (m) the city is heard only as birds, rain, thunder, music and passing aircraft. */
 export const AERIAL_HEIGHT_M = 45;
 
 /** The frame with every ground source and the wind removed, so those systems fade out; rain and thunder stay. */
-function quietFrame(f: AudioFrame): AudioFrame {
+export function quietFrame(f: AudioFrame): AudioFrame {
   return {
     ...f, night: false, windSpeed: 0, gust: 0, vehicles: [], pedestrians: [], trees: [],
     church: null, lifeEvents: [], horns: [],
+    // Airliners are 200-300 m up and heard from the overview too (quietly, by distance and the zoom factor).
+    aircraft: f.aircraft,
   };
 }
 

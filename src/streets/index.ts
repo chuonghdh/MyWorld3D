@@ -10,6 +10,7 @@ import * as THREE from 'three';
 import type { CityLayout, TrafficLight } from '../city/layout';
 import type { LightAxis, LightPhase } from '../traffic/lights';
 import { attachWeather } from '../buildings/materials';
+import { attachCloudShade } from '../environment/cloudShade';
 import { MeshBuilder } from './builder';
 import { addPoolUVs, buildBench, buildFurniture, type SignalHead } from './furniture';
 import { planStreetDecor } from './decor';
@@ -130,6 +131,10 @@ export function createStreetscape(layout: CityLayout): Streetscape {
   const furnitureMat = new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.6, metalness: 0.2 });
   attachWeather(surfaceMat);
   attachWeather(furnitureMat);
+  // Cloud shadows fall on the road, the markings on it and the street furniture.
+  attachCloudShade(surfaceMat);
+  attachCloudShade(overlayMat);
+  attachCloudShade(furnitureMat);
   const glassMat = new THREE.MeshStandardMaterial({
     color: '#e9e2c8',
     roughness: 0.2,

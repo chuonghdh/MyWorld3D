@@ -65,6 +65,17 @@ export interface AudioHorn {
   cls: AudioVehicleClass;
 }
 
+/** An airliner overhead: position (m) and velocity (m/s). Ids are stable for the whole flight. */
+export interface AudioAircraft {
+  id: number;
+  x: number;
+  y: number;
+  z: number;
+  vx: number;
+  vy: number;
+  vz: number;
+}
+
 export interface AudioFrame {
   /** Seconds since the previous frame. */
   dt: number;
@@ -90,6 +101,8 @@ export interface AudioFrame {
   thunder: readonly AudioThunder[];
   /** Horn requests from the traffic simulation this frame. */
   horns: readonly AudioHorn[];
+  /** Airliners in the air this frame (absent or empty when none, or when the simulation is paused). */
+  aircraft?: readonly AudioAircraft[];
   /** Music button state (store toggles.music). The music system fades in/out over 2 s. */
   musicEnabled: boolean;
 }

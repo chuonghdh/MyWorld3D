@@ -13,6 +13,7 @@
 import * as THREE from 'three';
 import { createRng } from '../core/rng';
 import type { Season, TreeSpecies, Vec2 } from '../core/types';
+import { attachCloudShade } from './cloudShade';
 import { TREE_SPECIES, applyWindSway, createFoliageMaterial, type WindUniforms } from './trees';
 import {
   blossomShare,
@@ -586,7 +587,7 @@ export function createTreeField(
     vertexColors: true,
     flatShading: true,
   });
-  const bark = new THREE.MeshStandardMaterial({ vertexColors: true, flatShading: true, roughness: 0.95 });
+  const bark = attachCloudShade(new THREE.MeshStandardMaterial({ vertexColors: true, flatShading: true, roughness: 0.95 }));
   const twigs = applyWindSway(
     new THREE.MeshStandardMaterial({ vertexColors: true, flatShading: true, roughness: 0.95 }),
     opts.uniforms,

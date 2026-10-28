@@ -1,10 +1,10 @@
-// Procedural sky dome: gradient by time of day, sun disc and glow, moon with phase, stars,
+// Procedural sky dome: gradient by time of day, sun disc with corona and glow, moon with phase, stars,
 // soft cloud layer and a lightning flash. One draw call, no textures, no shadows.
 // The vertex shader keeps the dome at the far plane and ignores camera translation, so it always
 // follows the camera and never interacts with the dynamic near/far planes of the scene.
 
 import * as THREE from 'three';
-import type { SkyUniformValues } from './state';
+import { MOON_RADIUS, type SkyUniformValues } from './state';
 
 const VERTEX = /* glsl */ `
 varying vec3 vDir;
@@ -24,6 +24,10 @@ uniform vec3 uZenith;
 uniform vec3 uHorizon;
 uniform vec3 uSunColor;
 uniform float uSunVis;
+uniform vec3 uSunDisc;
+uniform float uSunSize;
+uniform float uSunSoft;
+uniform float uSunGlow;
 uniform float uMoonVis;
 uniform float uStars;
 uniform float uGlowK;
@@ -89,13 +93,26 @@ void main() {
     col += starCol * star * uStars * fade * 1.6;
   }
 
-  // Sun glow and disc, both soft. The glow widens at golden hour.
+  // Sun: a bright disc with a corona and a wide halo, all direction based (the dome has no parallax).
+  // Everything is masked by the pixel's own height so nothing is ever drawn on the ground side of
+  // the horizon; a sun at altitude 0 shows as a half disc sitting on the horizon.
   float sd = max(dot(dir, uSunDir), 0.0);
+  float hMask = smoothstep(-0.02, 0.03, h);
+  // Distance from the sun centre in units of the disc radius (sine of the angle / radius).
+  float rr = sd > 0.0 ? length(cross(dir, uSunDir)) / uSunSize : 99.0;
   float wide = mix(6.0, 2.5, uGlowK);
-  float glow = pow(sd, wide) * 0.28 + pow(sd, 48.0) * 0.55 + pow(sd, 900.0) * 0.6;
-  col += uSunColor * glow * uSunVis * (0.6 + 0.8 * uGlowK);
-  float disc = smoothstep(0.99935, 0.99975, sd);
-  col = mix(col, uSunColor * 1.6 + vec3(0.2), disc * uSunVis);
+  // Halo exponents are scaled by 1/0.4^2 so the glow shrinks with the discs (angular size x0.4).
+  float halo = pow(sd, wide * 6.25) * 0.28 + pow(sd, 300.0) * 0.3;
+  float corona = exp(-max(rr - 1.0, 0.0) * 2.6) * 0.9 * (1.0 - 0.5 * uSunSoft);
+  vec3 coronaCol = mix(vec3(1.0, 0.72, 0.18), vec3(1.0, 0.4, 0.08), uGlowK);
+  col += (uSunColor * halo + coronaCol * corona * 0.55) * uSunGlow * (0.6 + 0.8 * uGlowK) * hMask;
+  float soft = 0.06 + uSunSoft;
+  float disc = (1.0 - smoothstep(1.0 - soft, 1.0 + 0.3 * soft, rr)) * hMask;
+  // Slight limb darkening keeps the disc from looking like a flat sticker.
+  vec3 discCol = uSunDisc * (1.0 - 0.18 * smoothstep(0.5, 1.0, rr));
+  // White-hot centre only in the very middle of the disc.
+  discCol = mix(vec3(6.0, 5.0, 2.8), discCol, smoothstep(0.0, 0.4, rr));
+  col = mix(col, discCol, disc * uSunVis);
 
   // Moon: lit disc with a soft terminator, faint craters and a glow.
   float md = dot(dir, uMoonDir);
@@ -103,7 +120,7 @@ void main() {
     vec3 right = cross(vec3(0.0, 1.0, 0.0), uMoonDir);
     right = length(right) > 1e-4 ? normalize(right) : vec3(1.0, 0.0, 0.0);
     vec3 up = cross(uMoonDir, right);
-    float radius = 0.045;
+    float radius = ${MOON_RADIUS.toFixed(4)};
     vec2 p = vec2(dot(dir, right), dot(dir, up)) / radius;
     float rr = length(p);
     col += vec3(0.55, 0.65, 0.95) * pow(md, 90.0) * 0.35 * uMoonVis;
@@ -164,6 +181,10 @@ export function createSkyDome(): SkyDome {
     uHorizon: { value: new THREE.Color(0.55, 0.78, 0.94) },
     uSunColor: { value: new THREE.Color(1, 0.95, 0.85) },
     uSunVis: { value: 1 },
+    uSunDisc: { value: new THREE.Color(5, 4.8, 4.1) },
+    uSunSize: { value: 0.05 },
+    uSunSoft: { value: 0 },
+    uSunGlow: { value: 1 },
     uMoonVis: { value: 0 },
     uStars: { value: 0 },
     uGlowK: { value: 0 },
@@ -200,6 +221,10 @@ export function createSkyDome(): SkyDome {
       u.uHorizon.value.setRGB(...v.horizon);
       u.uSunColor.value.setRGB(...v.sunColor);
       u.uSunVis.value = v.sunVis;
+      u.uSunDisc.value.setRGB(...v.sunDisc);
+      u.uSunSize.value = v.sunRadius;
+      u.uSunSoft.value = v.sunSoft;
+      u.uSunGlow.value = v.sunGlowVis;
       u.uMoonVis.value = v.moonVis;
       u.uStars.value = v.stars;
       u.uGlowK.value = v.glowK;

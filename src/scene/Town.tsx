@@ -27,6 +27,7 @@ import { lotAt, monumentBaseFor, type BlockPiece } from './townBlocks';
 import { useTownPieces } from './useTownPieces';
 import { useTownGreenery } from './useTownGreenery';
 import { useTownTraffic } from './useTownTraffic';
+import { useTownAircraft } from './useTownAircraft';
 import { useTownFrame } from './useTownFrame';
 
 export { shadowHalfExtent } from './townShadow';
@@ -144,10 +145,11 @@ export function Town({ onSelect, selected }: { onSelect: (target: OverrideTarget
 
   // --- Frame loop ---------------------------------------------------------------------------
   const ground = layout.townBounds;
+  const aircraft = useTownAircraft(ground, settings.seed);
   const townSize = Math.max(ground.maxX - ground.minX, ground.maxZ - ground.minZ);
 
   useTownFrame({
-    ground, townSize, lighting, lightsOn, shadowMapSize, uniforms, leaves, clouds, smoke, weather,
+    ground, townSize, lighting, lightsOn, shadowMapSize, uniforms, leaves, clouds, smoke, weather, aircraft,
     traffic, walkers, trafficMeshes, streetscape, life, audioBridge, audioTrees, churchRef, overlay,
     sunLight, sunDirRef, hemiLight, ambLight,
   });
@@ -257,6 +259,7 @@ export function Town({ onSelect, selected }: { onSelect: (target: OverrideTarget
       <primitive object={greenery} position={[0, CURB, 0]} />
       <primitive object={flora.group} position={[0, CURB, 0]} />
       <primitive object={clouds.group} />
+      <primitive object={aircraft.group} />
       <primitive object={weather.group} />
       <primitive object={leaves.mesh} />
       <primitive object={smoke.mesh} />

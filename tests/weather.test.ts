@@ -117,6 +117,17 @@ describe('weather targets and easing', () => {
     expect(t.dim).toBe(1);
   });
 
+  it('cloudy is dry and its intensity thickens and darkens the overcast', () => {
+    const lo = weatherTargets('cloudy', 0);
+    const hi = weatherTargets('cloudy', 1);
+    expect(hi.rain).toBe(0);
+    expect(hi.wet).toBe(0);
+    expect(hi.cloud).toBeGreaterThan(lo.cloud);
+    expect(hi.cloud).toBeGreaterThan(0.9);
+    expect(hi.dim).toBeLessThan(lo.dim);
+    expect(hi.storm).toBe(0);
+  });
+
   it('every kind stays in range for all intensities', () => {
     for (const k of WEATHER_KINDS) {
       for (let i = 0; i <= 10; i++) {

@@ -6,6 +6,7 @@ import { createAnimalSounds } from './animals';
 import { createNatureSounds } from './nature';
 import { createRainSounds } from './rain';
 import { createMusic } from './music';
+import { createAircraftSounds } from './aircraft';
 
 export const SOUND_SYSTEM_FACTORIES: readonly SoundSystemFactory[] = [
   createVehicleSounds,
@@ -14,4 +15,5 @@ export const SOUND_SYSTEM_FACTORIES: readonly SoundSystemFactory[] = [
   createNatureSounds,
   createRainSounds,
   createMusic,
+  createAircraftSounds,
 ];

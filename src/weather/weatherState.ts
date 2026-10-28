@@ -2,12 +2,12 @@
 // derived values ease in and out over seconds. The controller in index.ts feeds these into particles,
 // materials, lights, fog and audio.
 
-export const WEATHER_KINDS = ['clear', 'drizzle', 'rain', 'storm', 'snow', 'fog'] as const;
+export const WEATHER_KINDS = ['clear', 'cloudy', 'rain', 'storm', 'snow', 'fog'] as const;
 export type WeatherKind = (typeof WEATHER_KINDS)[number];
 
 export const WEATHER_LABEL: Record<WeatherKind, string> = {
   clear: 'Clear',
-  drizzle: 'Drizzle',
+  cloudy: 'Cloudy',
   rain: 'Rain',
   storm: 'Storm',
   snow: 'Snow',
@@ -49,7 +49,7 @@ export function clamp01(v: number): number {
 /** Maximum rain amount per kind at intensity 1. */
 const RAIN_CAP: Record<WeatherKind, number> = {
   clear: 0,
-  drizzle: 0.35,
+  cloudy: 0,
   rain: 0.75,
   storm: 1,
   snow: 0,
@@ -60,7 +60,7 @@ export function weatherTargets(kind: WeatherKind, intensity: number, out: Weathe
   const i = clamp01(intensity);
   out.rain = RAIN_CAP[kind] * i;
   out.snowfall = kind === 'snow' ? i : 0;
-  out.fog = kind === 'fog' ? i : kind === 'drizzle' ? 0.25 * i : kind === 'rain' ? 0.18 * i : kind === 'snow' ? 0.3 * i : 0;
+  out.fog = kind === 'fog' ? i : kind === 'cloudy' ? 0.08 * i : kind === 'rain' ? 0.18 * i : kind === 'snow' ? 0.3 * i : 0;
   out.storm = kind === 'storm' ? 1 : 0;
   switch (kind) {
     case 'clear':
@@ -69,11 +69,12 @@ export function weatherTargets(kind: WeatherKind, intensity: number, out: Weathe
       out.cloud = 0;
       out.dim = 1;
       break;
-    case 'drizzle':
-      out.wet = 0.35 + 0.35 * i;
+    case 'cloudy':
+      // Dry: intensity only thickens the overcast (0.4 scattered .. 1 solid) and darkens the light.
+      out.wet = 0;
       out.snowCover = 0;
-      out.cloud = 0.45 + 0.25 * i;
-      out.dim = 1 - 0.18 * i;
+      out.cloud = 0.4 + 0.6 * i;
+      out.dim = 1 - 0.3 * i;
       break;
     case 'rain':
       out.wet = 0.6 + 0.4 * i;

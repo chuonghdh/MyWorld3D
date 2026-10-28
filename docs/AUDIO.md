@@ -51,6 +51,7 @@ Built once per render frame by the scene and passed to `audio.update(frame)`.
 | `lifeEvents` | `{type: 'pigeon-scatter'\|'bird-call'\|'cat-meow', x, z}` from `src/life/common.ts` |
 | `thunder` | claps due this frame `{angle, distance, strength}` |
 | `horns` | horn requests from traffic this frame `{x, z, cls}` |
+| `aircraft` | airliners in the air `{id, x, y, z, vx, vy, vz}` (optional; empty while paused) |
 
 Ids must be stable for the life of the object; sources key their emitters on them.
 
@@ -88,8 +89,8 @@ export const createAnimalSounds: SoundSystemFactory = (ctx, bus) => {
 
 ## Categories and volumes
 
-Categories: engine, horn, indicator, voice, footstep, bird, wing, dog, cat, leaves, wind, rain, thunder,
-ambience, music. Groups: effects (engine, horn, indicator, voice, footstep, dog, cat), nature (bird, wing,
+Categories: engine, horn, indicator, voice, footstep, aircraft, bird, wing, dog, cat, leaves, wind, rain, thunder,
+ambience, music. Groups: effects (engine, horn, indicator, voice, footstep, dog, cat, aircraft), nature (bird, wing,
 leaves, wind, rain, thunder, ambience), music (music). API (facade): `setMasterVolume`, `setGroupVolume`,
 `setCategoryVolume`, `setVolumes(partial)`, `getGroupVolumes()` returning plain 0..1 numbers
 (`{master, groups, categories}`) for persistence. Values set before `init()` are kept and applied on init.
@@ -116,6 +117,7 @@ leaves, wind, rain, thunder, ambience), music (music). API (facade): `setMasterV
 | Church bell | church | `nature.ts` | on the hour, near `church` | ambience |
 | Rain pit-pat | ground/roofs around listener | `rain.ts` | `rain` | rain |
 | Thunder | direction/distance from listener | `weather.ts` now, later positional | `frame.thunder` | thunder |
+| Jet pass | each airliner (nearest 2) | `aircraft.ts` | `frame.aircraft`; doppler from radial speed | aircraft |
 | Generative music | none (non-positional) | `music.ts` | Music button, time of day | music |
 
 ## Compatibility shims (remove once Town.tsx is updated)
@@ -123,3 +125,21 @@ leaves, wind, rain, thunder, ambience), music (music). API (facade): `setMasterV
 `setVehicleNearby`, `setWind`, `tick` are no-ops. `setWeatherSound(rain, swell)` and
 `playThunder(distance, strength)` still drive the legacy non-positional rain bed and thunder in `weather.ts`
 (routed through the `rain` and `thunder` category buses so the volumes apply).
+
+## Aircraft (jet pass)
+
+`src/audio/aircraft.ts` voices the airliners flown by `src/aircraft`. The scene fills `AudioFrame.aircraft`
+from `aircraft.audioSources()` (position and velocity, pooled); it is empty while the simulation is paused.
+
+- One bus emitter per aircraft in category `aircraft` (Effects group, own "Aircraft" mixer slider), at most
+  `AIRCRAFT_MAX_VOICES` = 2 voiced (nearest first, `VoiceBudget`). The planes fly 190-300 m up and are heard
+  from up to 1 km, so the emitter uses `refDistance` 250 m and `maxDistance` 2500 m (inverse model); the bus
+  adds the distance lowpass (air absorption) and equal-power panning that follows the plane.
+- The voice (`buildJetVoice`, works on an `OfflineAudioContext` too) is looped brown noise through a 260 Hz
+  lowpass (rumble), pink noise through a 1.1 kHz bandpass (whoosh) and two quiet detuned sines (780 and
+  1010 Hz) whose level drifts with a slow LFO. `jetDoppler` turns the radial speed into a 0.85..1.15 ratio that
+  scales `playbackRate`, the whine frequencies and the filter cutoffs. Overall level is `JET_GAIN` = 0.55.
+- Voices fade in over 3 s and out over 2.5 s (a released voice is kept until silent, then disposed), so there
+  are no clicks; nothing starts when `frame.dt` is 0.
+- The aerial mode in `index.ts` (camera above 45 m) lets the aircraft system through (`quietFrame` keeps
+  `frame.aircraft`); from the overview it is quieter only through distance and the zoom attenuation.

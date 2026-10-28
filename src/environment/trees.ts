@@ -5,6 +5,7 @@
 
 import * as THREE from 'three';
 import type { Season, TreeSpecies } from '../core/types';
+import { attachCloudShade, patchCloudShade } from './cloudShade';
 
 export const TREE_SPECIES: readonly TreeSpecies[] = ['maple', 'oak', 'birch', 'ginkgo'];
 export const SEASONS: readonly Season[] = ['spring', 'summer', 'autumn', 'winter'];
@@ -117,6 +118,7 @@ export function applyWindSway<T extends THREE.Material>(material: T, uniforms: W
     shader.uniforms.uWind = uniforms.uWind;
     shader.uniforms.uGust = uniforms.uGust;
     shader.uniforms.uSwayHeight = uniforms.uSwayHeight;
+    patchCloudShade(shader as unknown as Parameters<typeof patchCloudShade>[0]);
 
     shader.vertexShader = /* glsl */ `
 uniform float uTime;
@@ -154,11 +156,11 @@ uniform float uSwayHeight;
 
   // The injected code is identical for every sway material, so one cache key is enough;
   // three.js still separates programs by its own defines (instancing, vertex colours).
-  material.customProgramCacheKey = () => 'myworld3d-foliage-sway';
+  material.customProgramCacheKey = () => 'myworld3d-foliage-sway|cs1';
   return material;
 }
 
 /** Trunk material: plain bark, does not sway. */
 export function createBarkMaterial(): THREE.MeshStandardMaterial {
-  return new THREE.MeshStandardMaterial({ color: '#6b5a48', roughness: 0.95 });
+  return attachCloudShade(new THREE.MeshStandardMaterial({ color: '#6b5a48', roughness: 0.95 }));
 }

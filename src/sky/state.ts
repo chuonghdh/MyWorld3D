@@ -6,6 +6,27 @@ import { getLightingForTime, getMoonPhase, type Rgb, type SunQuery } from '../en
 
 export type Vec3 = [number, number, number];
 
+/** Previous (pre-shrink) radii, kept only to express the current ones as ratios. */
+export const OLD_MOON_RADIUS = 0.045;
+export const OLD_SUN_RADIUS = 0.05;
+export const OLD_SUN_HORIZON_GROWTH = 0.55;
+/** Both discs are drawn at 40% of their old angular size. */
+export const DISC_SCALE = 0.4;
+/** Angular radius of the moon disc (sine of the angle, about 1 degree). Shared with the dome shader. */
+export const MOON_RADIUS = OLD_MOON_RADIUS * DISC_SCALE;
+/** Sun radius on the horizon: 40% of the old horizon radius (old base 0.05 grown by 55%). */
+export const SUN_HORIZON_RADIUS = OLD_SUN_RADIUS * (1 + OLD_SUN_HORIZON_GROWTH) * DISC_SCALE;
+/** Sun radius at the zenith: 30% of the old base radius. */
+export const SUN_ZENITH_RADIUS = OLD_SUN_RADIUS * 0.3;
+/** Kept for compatibility: the sun radius high in the sky. */
+export const SUN_RADIUS = SUN_ZENITH_RADIUS;
+
+/** Sun disc radius for an altitude in degrees: smooth from the horizon size (0 deg) to the zenith size (90 deg). */
+export function sunRadiusFor(altDeg: number): number {
+  const t = smoothstep(0, 90, altDeg);
+  return lerp(SUN_HORIZON_RADIUS, SUN_ZENITH_RADIUS, t);
+}
+
 export interface SkyInput {
   /** Light slider value, 0-24. */
   timeOfDay: number;
@@ -27,8 +48,16 @@ export interface SkyUniformValues {
   zenith: Vec3;
   horizon: Vec3;
   sunColor: Vec3;
-  /** 0..1 how visible the sun disc and glow are. */
+  /** 0..1 how visible the sun disc is (0 below the horizon, dimmed by cloud cover). */
   sunVis: number;
+  /** HDR colour of the sun disc: white-yellow high up, orange-red near the horizon. */
+  sunDisc: Vec3;
+  /** Sun disc radius (sine of the angular radius); grows towards the horizon. */
+  sunRadius: number;
+  /** 0..1 edge softness of the disc; overcast diffuses it. */
+  sunSoft: number;
+  /** 0..1 strength of the sun corona and halo (fades slower than the disc). */
+  sunGlowVis: number;
   moonVis: number;
   /** 0..1 star brightness. */
   stars: number;
@@ -95,6 +124,34 @@ function zenithFor(altDeg: number): Rgb {
   return last.color;
 }
 
+/**
+ * Look of the sun disc for an altitude (degrees) and cloud cover. Pure, shared by the shader inputs
+ * and the tests. `low` is 0 high in the sky and 1 on the horizon.
+ */
+export function sunAppearance(altDeg: number, cloudiness: number): {
+  disc: Vec3;
+  radius: number;
+  soft: number;
+  vis: number;
+  glowVis: number;
+  low: number;
+} {
+  const c = clamp01(cloudiness);
+  const low = 1 - smoothstep(2, 28, altDeg);
+  // HDR so the bloom pass picks the disc up; the low sun is reddened and much dimmer so it stays orange instead of clipping to white.
+  // Vivid gold by day (g stays near 1 so it does not clip to white), deeper orange on the horizon.
+  const disc: Vec3 = [lerp(3.2, 2.2, low), lerp(1.0, 0.7, low), lerp(0.12, 0.1, low)];
+  return {
+    disc,
+    radius: sunRadiusFor(altDeg),
+    soft: c * 0.5,
+    // The disc is gone once it is fully below the horizon; the sky glow lingers a little longer.
+    vis: smoothstep(-3.5, -0.5, altDeg) * (1 - c * 0.9),
+    glowVis: smoothstep(-6, 2, altDeg) * (1 - c * 0.5),
+    low,
+  };
+}
+
 const toVec = (c: Rgb): Vec3 => [c.r, c.g, c.b];
 
 /** sRGB hex to linear 0..1 (the shader works in linear space like the rest of the scene). */
@@ -124,7 +181,6 @@ export function computeSkyState(input: SkyInput): SkyUniformValues {
     lerp(zenith[2], lerp(horizon[2], grey, 0.4) * 0.95, cloudiness * 0.8),
   ];
 
-  const dayAbove = smoothstep(-4, 3, alt);
   const golden = smoothstep(14, 5, alt) * smoothstep(-6, 0, alt);
   const moonVis = smoothstep(2, -8, alt) * (1 - cloudiness * 0.75);
   const stars = smoothstep(-5, -15, alt) * (1 - cloudiness * 0.95);
@@ -137,6 +193,7 @@ export function computeSkyState(input: SkyInput): SkyUniformValues {
   const ambient = sky.ambientIntensity;
   const lightMul = ambient * 1.3 + sky.sunIntensity * 0.6 * (1 - cloudiness * 0.6) + sky.moonFill * 0.5;
   const sc = sky.sunColor;
+  const sunLook = sunAppearance(alt, cloudiness);
 
   return {
     sunDir: [sun.x, sun.y, sun.z],
@@ -145,7 +202,11 @@ export function computeSkyState(input: SkyInput): SkyUniformValues {
     zenith: zen,
     horizon,
     sunColor: toVec(sc),
-    sunVis: dayAbove * (1 - cloudiness * 0.85),
+    sunVis: sunLook.vis,
+    sunDisc: sunLook.disc,
+    sunRadius: sunLook.radius,
+    sunSoft: sunLook.soft,
+    sunGlowVis: sunLook.glowVis,
     moonVis,
     stars,
     glowK: golden,

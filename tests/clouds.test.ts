@@ -1,6 +1,20 @@
 import { describe, expect, it } from 'vitest';
 import * as THREE from 'three';
 import { createClouds } from '../src/environment/clouds';
+import { getBodyMaterial, attachWeather } from '../src/buildings/materials';
+import { createBarkMaterial, createFoliageMaterial, createWindUniforms } from '../src/environment/trees';
+import {
+  CLOUD_DIRECT_DARKNESS,
+  CLOUD_LIGHTS_CHUNK,
+  CLOUD_MASK_REBUILD_STEP,
+  CLOUD_MASK_SIZE,
+  attachCloudShade,
+  cloudLookup,
+  cloudShadeUniforms,
+  hasCloudShade,
+  rasterizeCloudMask,
+  sampleCloudMask,
+} from '../src/environment/cloudShade';
 import {
   CLOUD_BASE_MAX,
   CLOUD_BASE_MIN,
@@ -132,7 +146,7 @@ describe('cloud shadows from the layout', () => {
     expect(Math.hypot(low.x, low.z)).toBeLessThan(100 / 0.15 + 1);
   });
 
-  it('fades with a low sun, is capped at 35% and uses one draw call next to the clouds', () => {
+  it('adds exactly one draw call, and the drift and sun reach the shared shadow uniforms', () => {
     expect(cloudShadowSun(0.02, 1)).toBe(0);
     expect(cloudShadowSun(-0.5, 1)).toBe(0);
     expect(cloudShadowSun(0.8, 1)).toBe(1);
@@ -140,30 +154,144 @@ describe('cloud shadows from the layout', () => {
     expect(CLOUD_MAX_DARKNESS).toBeLessThanOrEqual(0.35);
 
     const field = createClouds({ area, seed: 3 });
-    const sprites = field.group.children.find((c) => c.name === 'cloud-sprites') as THREE.Mesh;
-    const shadows = field.group.children.find((c) => c.name === 'cloud-shadows') as THREE.Mesh;
-    expect(field.group.children).toHaveLength(2);
-    expect(sprites.geometry).toBe(shadows.geometry);
-    expect((sprites.geometry as THREE.InstancedBufferGeometry).instanceCount).toBeGreaterThan(300);
+    expect(field.group.children).toHaveLength(1);
+    const sprites = field.group.children[0] as THREE.Mesh;
     const mat = sprites.material as THREE.ShaderMaterial;
-    const smat = shadows.material as THREE.ShaderMaterial;
+    expect((sprites.geometry as THREE.InstancedBufferGeometry).instanceCount).toBeGreaterThan(300);
     expect(mat.fog).toBe(true);
     expect(mat.depthWrite).toBe(false);
-    expect(smat.depthWrite).toBe(false);
-    expect(mat.uniforms.uDrift).toBe(smat.uniforms.uDrift); // shadows drift with their clouds
 
-    field.setLighting({ x: 0.3, y: 0.8, z: 0.2 }, { r: 1, g: 0.9, b: 0.8 }, { r: 0.5, g: 0.7, b: 0.9 }, 0.6);
+    const u = cloudShadeUniforms;
+    const sunHigh = { x: 0.3, y: 0.8, z: 0.2 };
+    const light = (dir: { x: number; y: number; z: number }): void =>
+      field.setLighting(dir, { r: 1, g: 0.9, b: 0.8 }, { r: 0.5, g: 0.7, b: 0.9 }, 0.6);
+    light(sunHigh);
     field.setSunlight(1);
-    expect(smat.uniforms.uShadowK.value).toBeCloseTo(1, 5);
-    field.setLighting({ x: 1, y: 0.01, z: 0 }, { r: 1, g: 0.5, b: 0.3 }, { r: 0.5, g: 0.4, b: 0.4 }, 0.3);
-    expect(smat.uniforms.uShadowK.value).toBe(0);
-    expect((mat.uniforms.uSunDir.value as THREE.Vector3).length()).toBeCloseTo(1, 5);
+    field.setCoverage(0.3);
+    expect(u.uCsK.value).toBeCloseTo(CLOUD_DIRECT_DARKNESS, 5);
+    expect(u.uCsPar.value.x).toBeGreaterThan(0); // the lookup points toward the sun
+    field.setCoverage(1); // overcast: no distinct shadows
+    expect(u.uCsK.value).toBeLessThan(CLOUD_DIRECT_DARKNESS * 0.2);
+    field.setCoverage(0.3);
+    light({ x: 1, y: 0.01, z: 0 });
+    expect(u.uCsK.value).toBe(0); // low sun: faded out
+    light(sunHigh);
+    field.setSunlight(0); // night
+    expect(u.uCsK.value).toBe(0);
+    field.setSunlight(1);
 
     const before = (mat.uniforms.uDrift.value as THREE.Vector2).x;
-    field.update(0.05, { x: 4, z: 1 });
+    field.update(1, { x: 4, z: 1 });
     expect((mat.uniforms.uDrift.value as THREE.Vector2).x).toBeGreaterThan(before);
+    // The mask follows the clouds.
+    expect(u.uCsDrift.value.x).toBeCloseTo((mat.uniforms.uDrift.value as THREE.Vector2).x, 6);
     field.setCoverage(1);
     expect(mat.uniforms.uAltScale.value).toBeLessThan(1);
     field.dispose();
+  });
+});
+
+describe('cloud shadow mask', () => {
+  const layout = buildCloudLayout(3, DOMAIN);
+  const raster = (cover: number): Uint8Array => {
+    const out = new Uint8Array(CLOUD_MASK_SIZE * CLOUD_MASK_SIZE);
+    rasterizeCloudMask(layout, cover, CLOUD_MASK_SIZE, out);
+    return out;
+  };
+  const mean = (m: Uint8Array): number => m.reduce((s, v) => s + v, 0) / m.length / 255;
+
+  it('is deterministic, covers more as the sky clouds over, and stays in range', () => {
+    const a = raster(0.5);
+    const b = raster(0.5);
+    expect(Array.from(a)).toEqual(Array.from(b));
+    expect(mean(raster(0.3))).toBeGreaterThan(0.05);
+    expect(mean(raster(0.6))).toBeGreaterThan(mean(raster(0.3)));
+    expect(mean(raster(1))).toBeGreaterThan(mean(raster(0.6)));
+    expect(mean(raster(1))).toBeLessThan(0.9);
+    let max = 0;
+    let min = 255;
+    for (const v of a) {
+      max = Math.max(max, v);
+      min = Math.min(min, v);
+    }
+    expect(max).toBeGreaterThan(200); // some texels are fully shaded
+    expect(min).toBe(0); // and some are open sky
+  });
+
+  it('is periodic over the domain and samples inside 0..1', () => {
+    const m = raster(0.6);
+    for (let i = 0; i < 40; i++) {
+      const x = (i * 37.3) % DOMAIN;
+      const z = (i * 91.7) % DOMAIN;
+      const v = sampleCloudMask(m, CLOUD_MASK_SIZE, DOMAIN, x, z);
+      expect(v).toBeGreaterThanOrEqual(0);
+      expect(v).toBeLessThanOrEqual(1);
+      expect(sampleCloudMask(m, CLOUD_MASK_SIZE, DOMAIN, x + DOMAIN, z - DOMAIN)).toBeCloseTo(v, 6);
+    }
+  });
+
+  it('looks toward the sun, less far for raised surfaces (parallax)', () => {
+    const out = { x: 0, z: 0 };
+    const par = { x: 1, z: 0 }; // sun at 45 degrees in the east: 1 m shift per metre of height
+    const ground = cloudLookup({ x: 10, y: 0, z: 5 }, par, 95, out);
+    expect(ground.x).toBeCloseTo(105, 5);
+    expect(ground.z).toBeCloseTo(5, 5);
+    const roof = cloudLookup({ x: 10, y: 25, z: 5 }, par, 95, out);
+    expect(roof.x).toBeCloseTo(80, 5); // a roof 25 m up looks at a cloud 25 m closer
+    const tall = cloudLookup({ x: 10, y: 200, z: 5 }, par, 95, out); // above the cloud: no shift
+    expect(tall.x).toBeCloseTo(10, 5);
+  });
+
+  it('rebuilds the texture only when the cloud amount changes noticeably', () => {
+    const field = createClouds({ area, seed: 3 });
+    const tex = cloudShadeUniforms.uCsMask.value as THREE.DataTexture;
+    expect(tex.image.data.length).toBe(CLOUD_MASK_SIZE * CLOUD_MASK_SIZE);
+    field.setCoverage(0.3);
+    const v1 = tex.version;
+    field.setCoverage(0.3 + CLOUD_MASK_REBUILD_STEP / 4);
+    expect(tex.version).toBe(v1);
+    field.setCoverage(0.6);
+    expect(tex.version).toBeGreaterThan(v1);
+    field.dispose();
+  });
+});
+
+describe('cloud shadow patch on the shared materials', () => {
+  const compile = (m: THREE.Material) => {
+    const sh = {
+      uniforms: {} as Record<string, { value: unknown }>,
+      vertexShader: '#include <common>\n#include <project_vertex>\nvoid main(){}',
+      fragmentShader: '#include <common>\nvoid main(){\n#include <lights_fragment_begin>\n}',
+    };
+    m.onBeforeCompile(sh as never, null as never);
+    return sh;
+  };
+
+  it('splices the lookup into the building body, the bark, the foliage and attached street materials', () => {
+    expect(CLOUD_LIGHTS_CHUNK).toContain('directLight.color *= csShade');
+    const mats: THREE.Material[] = [
+      getBodyMaterial(),
+      createBarkMaterial(),
+      attachCloudShade(new THREE.MeshStandardMaterial()),
+      createFoliageMaterial({ species: 'oak', season: 'summer', uniforms: createWindUniforms(10) } as never),
+    ];
+    for (const m of mats) {
+      const sh = compile(m);
+      expect(hasCloudShade(sh.fragmentShader)).toBe(true);
+      expect(sh.vertexShader).toContain('vCsPos');
+      expect(sh.uniforms.uCsMask).toBe(cloudShadeUniforms.uCsMask);
+      expect(m.customProgramCacheKey()).toMatch(/cs1|building-body-v4/);
+    }
+  });
+
+  it('does not stack when attached twice and keeps the weather patch of the street materials', () => {
+    const m = attachWeather(new THREE.MeshStandardMaterial());
+    attachCloudShade(m);
+    attachCloudShade(m);
+    const sh = compile(m);
+    expect(sh.fragmentShader.match(/float cloudShadeAt/g)).toHaveLength(1);
+    expect(sh.fragmentShader).toContain('uWet');
+    expect(m.customProgramCacheKey()).toContain('wx1');
+    expect(m.customProgramCacheKey()).toContain('cs1');
   });
 });
