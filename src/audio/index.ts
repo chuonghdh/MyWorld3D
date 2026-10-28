@@ -1,46 +1,39 @@
-// Procedural Web Audio engine for MyWorld3D. No audio files.
+// Audio facade for MyWorld3D. All sound is procedural (no files), object-oriented and positional:
+// every source is a SoundSystem (see frame.ts, systems.ts) that owns bus emitters. See docs/AUDIO.md.
 // Call init() from a user gesture (browsers block autoplay); every other call is a no-op before that.
 
-import { createWeatherAudio, type WeatherAudio } from './weather';
+import { AudioBus, type Category, type Group, type PartialVolumes, type VolumeSettings, defaultVolumes } from './bus';
+import type { AudioFrame, SoundSystem, AudioVehicleClass } from './frame';
+import { SOUND_SYSTEM_FACTORIES } from './systems';
 
-export type VehicleClass = 'car' | 'bus' | 'truck' | 'motorbike';
+export type VehicleClass = AudioVehicleClass;
+export type { AudioFrame, SoundSystem, SoundSystemFactory } from './frame';
+export type { Category, Group, VolumeSettings } from './bus';
+export { listenerFromCamera, type ListenerState } from './listener';
 
-type AudioWindow = { AudioContext?: typeof AudioContext; webkitAudioContext?: typeof AudioContext };
-
-const ENGINE_BASE_HZ: Record<VehicleClass, number> = {
-  car: 85,
-  bus: 55,
-  truck: 45,
-  motorbike: 130,
+type AudioWindow = {
+  AudioContext?: typeof AudioContext;
+  webkitAudioContext?: typeof AudioContext;
+  /** The one live context of this page, kept outside the module so a hot reload cannot orphan it. */
+  __mwAudioContext?: AudioContext | null;
 };
 
-const MASTER_LEVEL = 0.8;
-const ENGINE_LEVEL = 0.15;
-/** Average seconds between random horn honks and dog barks. */
-const HORN_INTERVAL_S = 40;
-const BARK_INTERVAL_S = 25;
+let ctx: AudioContext | null = null;
+let bus: AudioBus | null = null;
+let systems: SoundSystem[] = [];
+let soundEnabled = true;
+/** Volumes requested before init() (or kept across it); applied to the bus on creation. */
+const volumes: VolumeSettings = defaultVolumes();
+const warned = new Set<string>();
 
-interface Engine {
-  osc: OscillatorNode;
-  gain: GainNode;
-  base: number;
+function warnOnce(name: string, err: unknown): void {
+  if (warned.has(name)) return;
+  warned.add(name);
+  console.warn(`[audio] sound system "${name}" failed and will keep being skipped on errors:`, err);
 }
 
-let ctx: AudioContext | null = null;
-let master: GainNode | null = null;
-let noise: AudioBuffer | null = null;
-let leafGain: GainNode | null = null;
-let leafFilter: BiquadFilterNode | null = null;
-let weatherAudio: WeatherAudio | null = null;
-let weatherRain = 0;
-let weatherSwell = 0;
-const engines = new Map<VehicleClass, Engine>();
-
-let windSpeed = 0;
-let soundEnabled = true;
-
 /**
- * Creates the AudioContext and all looping sources. Call once from a click or key handler.
+ * Creates the AudioContext, master, bus and all sound systems. Call from a click or key handler.
  * Returns false if Web Audio is unavailable. Safe to call again.
  */
 export function init(): boolean {
@@ -52,20 +45,38 @@ export function init(): boolean {
   const Ctor = w.AudioContext ?? w.webkitAudioContext;
   if (!Ctor) return false;
 
+  // A previous module instance (hot reload) may have left a context running with nothing able to mute or stop
+  // it: that is an un-mutable hiss. Close it before creating the new one.
+  if (w.__mwAudioContext) {
+    void w.__mwAudioContext.close().catch(() => undefined);
+    w.__mwAudioContext = null;
+  }
   const context = new Ctor();
-  const out = context.createGain();
-  out.gain.value = soundEnabled ? MASTER_LEVEL : 0;
-  out.connect(context.destination);
+  w.__mwAudioContext = context;
+  const master = context.createGain();
+  // A limiter between master and speakers: loud moments (thunder over a storm) compress instead of clipping.
+  const limiter = context.createDynamicsCompressor();
+  limiter.threshold.value = -9;
+  limiter.knee.value = 6;
+  limiter.ratio.value = 12;
+  limiter.attack.value = 0.003;
+  limiter.release.value = 0.25;
+  master.connect(limiter);
+  limiter.connect(context.destination);
+  const b = new AudioBus(context, master);
+  b.setVolumes(volumes);
+  b.setSoundMuted(!soundEnabled);
   ctx = context;
-  master = out;
+  bus = b;
 
-  noise = makeNoiseBuffer(context, 2);
-  buildLeaves(context);
-  buildCrowd(context);
-  buildEngines(context);
-  weatherAudio = createWeatherAudio(context, out, noise);
-  weatherAudio.set(weatherRain, weatherSwell);
-  setWind(windSpeed);
+  systems = [];
+  for (const make of SOUND_SYSTEM_FACTORIES) {
+    try {
+      systems.push(make(context, b));
+    } catch (err) {
+      warnOnce('factory', err);
+    }
+  }
   return true;
 }
 
@@ -73,220 +84,106 @@ export function isReady(): boolean {
   return ctx !== null;
 }
 
-/** Wind speed in m/s. Drives leaf rustle volume and brightness. */
-export function setWind(speed: number): void {
-  windSpeed = Math.max(0, speed);
-  if (!ctx || !leafGain || !leafFilter) return;
-  const t = ctx.currentTime;
-  const level = Math.min(1, windSpeed / 15);
-  leafGain.gain.setTargetAtTime(0.02 + level * 0.35, t, 0.3);
-  leafFilter.frequency.setTargetAtTime(1500 + level * 3000, t, 0.5);
+/** Above this camera height (m) the city is heard only as birds, rain and thunder. */
+export const AERIAL_HEIGHT_M = 45;
+
+/** The frame with every ground source and the wind removed, so those systems fade out; rain and thunder stay. */
+function quietFrame(f: AudioFrame): AudioFrame {
+  return {
+    ...f, night: false, windSpeed: 0, gust: 0, vehicles: [], pedestrians: [], trees: [],
+    church: null, lifeEvents: [], horns: [],
+  };
 }
 
-/** Master mute. Mirrors WorldSettings.soundEnabled; the caller passes that value. */
+/** The frame for the bird system: no walkers (so no dogs) and only bird life events (no cats). */
+function birdsOnlyFrame(f: AudioFrame): AudioFrame {
+  const events = f.lifeEvents.filter((e) => e.type === 'bird-call' || e.type === 'pigeon-scatter');
+  return { ...f, pedestrians: [], lifeEvents: events };
+}
+
+/**
+ * Once per render frame: sets the listener from the camera and lets every sound system react.
+ * A failing system is skipped (one console warning) and never silences the others.
+ */
+export function update(frame: AudioFrame): void {
+  if (!ctx || !bus || ctx.state !== 'running') return;
+  try {
+    bus.setListener(frame.listener);
+  } catch (err) {
+    warnOnce('listener', err);
+  }
+  const aerial = frame.listener.height > AERIAL_HEIGHT_M;
+  const quiet = aerial ? quietFrame(frame) : frame;
+  const birdsOnly = aerial ? birdsOnlyFrame(frame) : frame;
+  for (const s of systems) {
+    // Sound off silences the city's sounds, but music has its own switch (frame.musicEnabled) and keeps running.
+    if (!soundEnabled && s.name !== 'music') continue;
+    try {
+      // From high above only birds (songs and wing flaps) and music are heard; the street below stays silent.
+      s.update(s.name === 'music' ? frame : s.name === 'animals' ? birdsOnly : quiet);
+    } catch (err) {
+      warnOnce(s.name, err);
+    }
+  }
+}
+
+/** The Sound switch (city sounds). Mirrors WorldSettings.soundEnabled; music is switched separately. */
 export function setSoundEnabled(on: boolean): void {
   soundEnabled = on;
-  if (!ctx || !master) return;
-  master.gain.setTargetAtTime(on ? MASTER_LEVEL : 0, ctx.currentTime, 0.05);
+  bus?.setSoundMuted(!on);
 }
 
-/** Rain bed level 0..1 and wind swell 0..1 (storm gusts). Cheap; call every frame. */
-export function setWeatherSound(rain: number, swell: number): void {
-  weatherRain = rain;
-  weatherSwell = swell;
-  weatherAudio?.set(rain, swell);
+export function setMasterVolume(v: number): void {
+  if (Number.isFinite(v)) volumes.master = Math.min(1, Math.max(0, v));
+  bus?.setMasterVolume(v);
 }
 
-/** One thunder clap now; the caller applies the distance/340 s delay. Distance in metres, strength 0..1. */
-export function playThunder(distance: number, strength = 1): void {
-  if (!ctx || !soundEnabled) return;
-  weatherAudio?.thunder(distance, strength);
+export function setCategoryVolume(cat: Category, v: number): void {
+  if (Number.isFinite(v)) volumes.categories[cat] = Math.min(1, Math.max(0, v));
+  bus?.setCategoryVolume(cat, v);
 }
 
-/** Sets how loud a vehicle class hums. gain 0..1; 0 silences it. */
-export function setVehicleNearby(vehicle: VehicleClass, gain: number): void {
-  const engine = engines.get(vehicle);
-  if (!ctx || !engine) return;
-  const g = clamp01(gain) * ENGINE_LEVEL;
-  engine.gain.gain.setTargetAtTime(g, ctx.currentTime, 0.2);
+export function setGroupVolume(group: Group, v: number): void {
+  if (Number.isFinite(v)) volumes.groups[group] = Math.min(1, Math.max(0, v));
+  bus?.setGroupVolume(group, v);
 }
 
-/**
- * Plays a passing vehicle: the hum swells and fades with a Doppler-like pitch drop.
- * Gain falls off with distance in world metres.
- */
-export function playVehiclePass(vehicle: VehicleClass, distance: number): void {
-  const engine = engines.get(vehicle);
-  if (!ctx || !engine) return;
-  const peak = ENGINE_LEVEL / (1 + Math.max(0, distance) / 15);
-  const t = ctx.currentTime;
-  const g = engine.gain.gain;
-  g.cancelScheduledValues(t);
-  g.setValueAtTime(0, t);
-  g.linearRampToValueAtTime(peak, t + 1.5);
-  g.linearRampToValueAtTime(0, t + 3);
-  const f = engine.osc.frequency;
-  f.cancelScheduledValues(t);
-  f.setValueAtTime(engine.base * 1.12, t);
-  f.linearRampToValueAtTime(engine.base * 0.88, t + 3);
+/** Applies a persisted (possibly partial) volume object. */
+export function setVolumes(v: PartialVolumes): void {
+  if (bus) bus.setVolumes(v);
+  if (v.master !== undefined && Number.isFinite(v.master)) volumes.master = Math.min(1, Math.max(0, v.master));
+  for (const [g, x] of Object.entries(v.groups ?? {})) if (Number.isFinite(x)) volumes.groups[g as Group] = Math.min(1, Math.max(0, x as number));
+  for (const [c, x] of Object.entries(v.categories ?? {})) if (Number.isFinite(x)) volumes.categories[c as Category] = Math.min(1, Math.max(0, x as number));
 }
 
-/** Short car horn, pitch picked at random. */
-export function playHorn(): void {
-  if (!ctx || !master || !soundEnabled) return;
-  const t = ctx.currentTime;
-  const base = 380 + Math.random() * 140;
-  const out = ctx.createGain();
-  out.gain.setValueAtTime(0, t);
-  out.gain.linearRampToValueAtTime(0.12, t + 0.02);
-  out.gain.setValueAtTime(0.12, t + 0.35);
-  out.gain.linearRampToValueAtTime(0, t + 0.45);
-  out.connect(master);
-  const lp = ctx.createBiquadFilter();
-  lp.type = 'lowpass';
-  lp.frequency.value = 2200;
-  lp.connect(out);
-  for (const ratio of [1, 1.25]) {
-    const osc = ctx.createOscillator();
-    osc.type = 'square';
-    osc.frequency.value = base * ratio;
-    osc.connect(lp);
-    osc.start(t);
-    osc.stop(t + 0.5);
-    osc.onended = () => osc.disconnect();
-  }
-}
-
-/** Dog bark: two or three short pitched bursts with a falling pitch envelope. */
-export function playBark(): void {
-  if (!ctx || !master || !soundEnabled) return;
-  const t0 = ctx.currentTime;
-  const count = 2 + Math.floor(Math.random() * 2);
-  const pitch = 520 + Math.random() * 180;
-  for (let i = 0; i < count; i++) {
-    const t = t0 + i * 0.2;
-    const env = ctx.createGain();
-    env.gain.setValueAtTime(0, t);
-    env.gain.linearRampToValueAtTime(0.28, t + 0.01);
-    env.gain.linearRampToValueAtTime(0, t + 0.13);
-    const formant = ctx.createBiquadFilter();
-    formant.type = 'bandpass';
-    formant.frequency.value = 900;
-    formant.Q.value = 1.2;
-    formant.connect(env);
-    env.connect(master);
-    const osc = ctx.createOscillator();
-    osc.type = 'sawtooth';
-    osc.frequency.setValueAtTime(pitch, t);
-    osc.frequency.exponentialRampToValueAtTime(pitch * 0.5, t + 0.13);
-    osc.connect(formant);
-    osc.start(t);
-    osc.stop(t + 0.15);
-    osc.onended = () => {
-      osc.disconnect();
-      formant.disconnect();
-      env.disconnect();
-    };
-  }
-}
-
-/**
- * Advances random ambient events (horns, barks). Call once per frame with the frame time in seconds.
- * Does nothing while sound is disabled.
- */
-export function tick(dt: number): void {
-  if (!ctx || !soundEnabled || ctx.state !== 'running') return;
-  if (Math.random() < dt / HORN_INTERVAL_S) playHorn();
-  if (Math.random() < dt / BARK_INTERVAL_S) playBark();
+/** Plain-number snapshot (master, three groups, every category) that can be JSON-persisted. */
+export function getGroupVolumes(): VolumeSettings {
+  return {
+    master: volumes.master,
+    groups: { ...volumes.groups },
+    categories: { ...volumes.categories },
+  };
 }
 
 /** Releases the audio context. Use when the scene unmounts. */
 export function dispose(): void {
-  weatherAudio?.dispose();
-  weatherAudio = null;
-  if (ctx) void ctx.close();
-  ctx = null;
-  master = null;
-  noise = null;
-  leafGain = null;
-  leafFilter = null;
-  engines.clear();
-}
-
-// ---- internals -------------------------------------------------------------
-
-function clamp01(v: number): number {
-  return Math.min(1, Math.max(0, v));
-}
-
-function makeNoiseBuffer(context: AudioContext, seconds: number): AudioBuffer {
-  const len = Math.floor(context.sampleRate * seconds);
-  const buf = context.createBuffer(1, len, context.sampleRate);
-  const data = buf.getChannelData(0);
-  for (let i = 0; i < len; i++) data[i] = Math.random() * 2 - 1;
-  return buf;
-}
-
-function loopNoise(context: AudioContext): AudioBufferSourceNode {
-  const src = context.createBufferSource();
-  src.buffer = noise;
-  src.loop = true;
-  src.start();
-  return src;
-}
-
-/** Leaf rustle: band-passed noise, volume and brightness follow wind speed. */
-function buildLeaves(context: AudioContext): void {
-  const filter = context.createBiquadFilter();
-  filter.type = 'bandpass';
-  filter.frequency.value = 1500;
-  filter.Q.value = 0.7;
-  const gain = context.createGain();
-  gain.gain.value = 0;
-  loopNoise(context).connect(filter);
-  filter.connect(gain);
-  gain.connect(master as GainNode);
-  leafFilter = filter;
-  leafGain = gain;
-}
-
-/** Crowd chatter: low-level band-passed noise with a slow random-feeling swell. */
-function buildCrowd(context: AudioContext): void {
-  const filter = context.createBiquadFilter();
-  filter.type = 'bandpass';
-  filter.frequency.value = 900;
-  filter.Q.value = 0.5;
-  const gain = context.createGain();
-  gain.gain.value = 0.03;
-  const lfo = context.createOscillator();
-  lfo.frequency.value = 0.37;
-  const lfoDepth = context.createGain();
-  lfoDepth.gain.value = 0.02;
-  lfo.connect(lfoDepth);
-  lfoDepth.connect(gain.gain);
-  lfo.start();
-  loopNoise(context).connect(filter);
-  filter.connect(gain);
-  gain.connect(master as GainNode);
-}
-
-/** One low engine hum per vehicle class, silent until setVehicleNearby or playVehiclePass. */
-function buildEngines(context: AudioContext): void {
-  const classes: VehicleClass[] = ['car', 'bus', 'truck', 'motorbike'];
-  for (const cls of classes) {
-    const base = ENGINE_BASE_HZ[cls];
-    const osc = context.createOscillator();
-    osc.type = 'sawtooth';
-    osc.frequency.value = base;
-    const lp = context.createBiquadFilter();
-    lp.type = 'lowpass';
-    lp.frequency.value = 320;
-    const gain = context.createGain();
-    gain.gain.value = 0;
-    osc.connect(lp);
-    lp.connect(gain);
-    gain.connect(master as GainNode);
-    osc.start();
-    engines.set(cls, { osc, gain, base });
+  for (const s of systems) {
+    try {
+      s.dispose();
+    } catch (err) {
+      warnOnce(s.name, err);
+    }
   }
+  systems = [];
+  bus?.dispose();
+  bus = null;
+  if (ctx) void ctx.close();
+  const w = window as unknown as AudioWindow;
+  if (w.__mwAudioContext === ctx) w.__mwAudioContext = null;
+  ctx = null;
+}
+
+// Hot module reload: this module instance is about to be replaced, so stop its sound for good.
+if (import.meta.hot) {
+  import.meta.hot.dispose(() => dispose());
 }

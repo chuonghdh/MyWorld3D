@@ -1,4 +1,4 @@
-import { describe, expect, it, vi } from 'vitest';
+import { describe, expect, it } from 'vitest';
 import * as THREE from 'three';
 import {
   EASE,
@@ -180,10 +180,9 @@ describe('thunder sound character', () => {
 
 describe('weather controller', () => {
   const ctx = { camera: { x: 0, y: 30, z: 0 }, wind: { x: 2, z: 1 }, lightLevel: 1 };
-  const sink = () => ({ setWeatherSound: vi.fn(), playThunder: vi.fn() });
 
   it('clear weather draws nothing', () => {
-    const w = createWeather({ audio: sink() });
+    const w = createWeather();
     w.update(0.016, ctx);
     w.group.traverse((o) => {
       if ((o as THREE.Mesh).isMesh || (o as THREE.Points).isPoints) expect(o.visible).toBe(false);
@@ -193,7 +192,7 @@ describe('weather controller', () => {
   });
 
   it('rain fills streaks within the budget and wets the surfaces', () => {
-    const w = createWeather({ audio: sink() });
+    const w = createWeather();
     w.setWeather('rain', 1, true);
     const o = w.update(0.016, ctx);
     expect(o.rain).toBeGreaterThan(0.5);
@@ -215,23 +214,32 @@ describe('weather controller', () => {
   });
 
   it('only a storm produces flashes and thunder', () => {
-    const s = sink();
-    const rainOnly = createWeather({ audio: s, random: seqRandom(4) });
+    const rainOnly = createWeather({ random: seqRandom(4) });
     rainOnly.setWeather('rain', 1, true);
-    for (let i = 0; i < 60 * 120; i++) rainOnly.update(1 / 60, ctx);
-    expect(s.playThunder).not.toHaveBeenCalled();
+    let rainClaps = 0;
+    for (let i = 0; i < 60 * 120; i++) {
+      rainOnly.update(1 / 60, ctx);
+      rainClaps += rainOnly.thunder.length;
+    }
+    expect(rainClaps).toBe(0);
 
-    const s2 = sink();
-    const storm = createWeather({ audio: s2, random: seqRandom(4) });
+    const storm = createWeather({ random: seqRandom(4) });
     storm.setWeather('storm', 1, true);
     let maxFlash = 0;
-    for (let i = 0; i < 60 * 180; i++) maxFlash = Math.max(maxFlash, storm.update(1 / 60, ctx).flash);
+    let stormClaps = 0;
+    for (let i = 0; i < 60 * 180; i++) {
+      maxFlash = Math.max(maxFlash, storm.update(1 / 60, ctx).flash);
+      for (const t of storm.thunder) {
+        stormClaps++;
+        expect(Number.isFinite(t.angle)).toBe(true); // every clap knows where its strike was
+      }
+    }
     expect(maxFlash).toBeGreaterThan(0.2);
-    expect(s2.playThunder).toHaveBeenCalled();
+    expect(stormClaps).toBeGreaterThan(0);
   });
 
   it('snow covers upward surfaces slowly', () => {
-    const w = createWeather({ audio: sink() });
+    const w = createWeather();
     w.setWeather('snow', 1);
     let o = w.update(0.25, ctx);
     expect(o.snow).toBeLessThan(0.3);

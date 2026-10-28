@@ -648,3 +648,34 @@
   stroke: var(--mw-accent);
   stroke-width: 1.8;
 }
+
+.mw-mixer {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+/* Per-sound mixer rows (collapsed under the group sliders). */
+.mw-mixer-details {
+  margin-top: 6px;
+}
+
+.mw-mixer-details > summary {
+  cursor: pointer;
+  color: var(--mw-muted);
+  font-size: 12px;
+  padding: 4px 0;
+  user-select: none;
+}
+
+.mw-mixer-details[open] > summary {
+  color: var(--mw-fg);
+}
+
+.mw-mixer-sub {
+  margin: 8px 0 2px;
+  font-size: 10px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--mw-muted);
+}

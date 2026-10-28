@@ -3,7 +3,6 @@
 // Draw calls: rain streaks 1 + ripples 1 + snow 1 + fog banks 1 + bolt 1, each hidden (and so free)
 // when its weather is not active; typical rain uses 2, storm 3 during a flash, snow 1-2, fog 1.
 import * as THREE from 'three';
-import * as audio from '../audio';
 import { FogBanks, fogDensityMultiplier, fogTintFor } from './fog';
 import { LightningBolt, LightningController, type Thunder } from './Lightning';
 import { Rain } from './Rain';
@@ -62,18 +61,11 @@ export interface WeatherOutput {
   storm: number;
 }
 
-export interface WeatherAudioSink {
-  setWeatherSound(rain: number, swell: number): void;
-  playThunder(distance: number, strength?: number): void;
-}
-
 export interface WeatherOptions {
   kind?: WeatherKind;
   intensity?: number;
   /** Random function for lightning (tests). */
   random?: () => number;
-  /** Audio hook; defaults to src/audio. */
-  audio?: WeatherAudioSink;
 }
 
 export interface Weather {
@@ -85,6 +77,8 @@ export interface Weather {
   /** The latest output without advancing. */
   readonly output: WeatherOutput;
   readonly lightning: LightningController;
+  /** Thunder claps due this frame (delay already applied); the array is reused between frames. */
+  readonly thunder: readonly Thunder[];
   /** Forces a strike (debug); only has a visible effect while the camera is set. */
   strike(distance?: number): void;
   dispose(): void;
@@ -101,7 +95,6 @@ export function createWeather(opts: WeatherOptions = {}): Weather {
   const lightning = new LightningController({ random: opts.random });
   const bolt = new LightningBolt(opts.random);
   group.add(rain.group, snow.group, banks.mesh, bolt.mesh);
-  const sink: WeatherAudioSink = opts.audio ?? audio;
 
   let kind: WeatherKind = opts.kind ?? 'clear';
   let intensity = opts.intensity ?? 0.6;
@@ -146,6 +139,7 @@ export function createWeather(opts: WeatherOptions = {}): Weather {
     group,
     output,
     lightning,
+    thunder: thunderBuf,
     setWeather(k, i, snap = false) {
       kind = k;
       intensity = Math.min(1, Math.max(0, i));
@@ -170,7 +164,7 @@ export function createWeather(opts: WeatherOptions = {}): Weather {
       if (lightning.strike) bolt.setFlash(lightning.flash);
       else bolt.hide();
       output.flash = lightning.flash;
-      for (const t of lightning.takeThunder(thunderBuf)) sink.playThunder(t.distance, t.strength);
+      lightning.takeThunder(thunderBuf); // claps whose delay elapsed this frame, read through `thunder`
 
       const light = Math.min(1, Math.max(0, ctx.lightLevel));
       const sky = ctx.skyColor ?? NO_SKY;
@@ -179,7 +173,6 @@ export function createWeather(opts: WeatherOptions = {}): Weather {
       fogTintFor(kind, output.fogTintAmount, light, output.fogTint);
       banks.update(step, { fog: values.fog, wind: ctx.wind, camera: ctx.camera, tint: output.fogTint });
       setSurfaceWeather(values.wet, values.snowCover, sky, light);
-      sink.setWeatherSound(values.rain, values.storm * 0.9 + values.rain * 0.25);
       return output;
     },
     dispose() {
@@ -188,7 +181,6 @@ export function createWeather(opts: WeatherOptions = {}): Weather {
       banks.dispose();
       bolt.dispose();
       resetSurfaceWeather();
-      sink.setWeatherSound(0, 0);
     },
   };
 }

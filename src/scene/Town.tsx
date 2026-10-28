@@ -24,9 +24,9 @@ import {
   type WindUniforms,
 } from '../environment';
 import { createStreetscape } from '../streets';
+import { getLifeEvents as pollLifeEvents, clearLifeEvents } from '../life';
 import { createLife } from '../life';
 import * as audio from '../audio';
-import type { VehicleClass } from '../audio';
 import { Pedestrians, VehicleSystem, createTrafficMeshes } from '../traffic';
 import {
   MONUMENT_KINDS,
@@ -39,6 +39,7 @@ import {
 import type { MonumentKind, Season } from '../core/types';
 import { hashId, runtime } from './runtime';
 import { Selection } from './Selection';
+import { AudioBridge } from './audioBridge';
 import { sameTarget } from './selectionMath';
 import { DAY_SECONDS } from '../store/model';
 import { blockPresetFor, lotStyle } from './cityStyle';
@@ -338,6 +339,9 @@ export function Town({ onSelect, selected }: { onSelect: (target: OverrideTarget
     // Season changes go through setSeason below instead of rebuilding.
     [treeItems, uniforms, settings.seed],
   );
+  // Sound: one reusable frame per render frame; trees feed the leaf-rustle sources.
+  const audioBridge = useMemo(() => new AudioBridge(), []);
+  const audioTrees = useMemo(() => treeItems.map((t) => ({ x: t.position.x, z: t.position.z, scale: t.scale })), [treeItems]);
   const [hovered, setHovered] = useState<OverrideTarget | null>(null);
   const hover = (t: OverrideTarget | null) => setHovered((p) => (sameTarget(p, t) ? p : t));
   useEffect(() => treeField.setSeason(settings.season as Season), [treeField, settings.season]);
@@ -476,6 +480,18 @@ export function Town({ onSelect, selected }: { onSelect: (target: OverrideTarget
     light.shadow.map = null;
   }, [shadowMapSize]);
 
+  // The church bell rings from the Gothic cathedral monument, wherever swapping has put it.
+  const church = useMemo(() => {
+    for (const p of pieces) {
+      if (p.kind !== 'monument') continue;
+      const kind = blockOverrides[p.blockId]?.monument ?? monumentBaseFor(p.blockId);
+      if (kind === 'gothic-cathedral' && p.lots[0]) return { x: p.lots[0].x, z: p.lots[0].z };
+    }
+    return null;
+  }, [pieces, blockOverrides]);
+  const churchRef = useRef(church);
+  churchRef.current = church;
+
   // --- Frame loop ---------------------------------------------------------------------------
   const ground = layout.townBounds;
   const townSize = Math.max(ground.maxX - ground.minX, ground.maxZ - ground.minZ);
@@ -552,7 +568,6 @@ export function Town({ onSelect, selected }: { onSelect: (target: OverrideTarget
     });
     streetscape.updateSignals((light, axis) => traffic.lights.phaseOf(light.id, axis));
 
-    // Engine loudness per vehicle class follows the nearest vehicle to the camera.
     const cam = state.camera.position;
     life.update(dt, {
       time: t,
@@ -565,16 +580,30 @@ export function Town({ onSelect, selected }: { onSelect: (target: OverrideTarget
       camera: cam,
     });
     trafficMeshes.vehicles.setFocus(cam.x, cam.z);
-    const nearest: Record<VehicleClass, number> = { car: 0, bus: 0, truck: 0, motorbike: 0 };
-    for (const v of vehicles) {
-      const d = Math.hypot(v.position.x - cam.x, v.position.z - cam.z);
-      nearest[v.cls] = Math.max(nearest[v.cls], Math.max(0, 1 - d / 150));
-    }
-    for (const cls of Object.keys(nearest) as VehicleClass[]) audio.setVehicleNearby(cls, nearest[cls]);
 
-    audio.setWind(Math.hypot(wind.x, wind.z));
-    audio.setSoundEnabled(soundEnabled);
-    audio.tick(dt);
+    // Sound: every source is positional and separate; the frame carries what they need.
+    audio.setSoundEnabled(soundEnabled && !paused);
+    audio.update(
+      audioBridge.fill({
+        dt,
+        camera: state.camera,
+        timeOfDay: useWorldStore.getState().settings.timeOfDay,
+        season: season as Season,
+        windSpeed: Math.hypot(wind.x, wind.z),
+        gust: gustStrength(t, runtime.gusts),
+        rain: wx.rain,
+        night: lightsOn,
+        musicEnabled: useWorldStore.getState().toggles.music,
+        vehicles,
+        pedestrians: walkers.getPedestrians(),
+        trees: audioTrees,
+        church: churchRef.current,
+        lifeEvents: pollLifeEvents(),
+        thunder: weather.thunder,
+        horns: traffic.takeHorns(),
+      }),
+    );
+    clearLifeEvents();
   });
 
   // --- Lights ---------------------------------------------------------------------------------

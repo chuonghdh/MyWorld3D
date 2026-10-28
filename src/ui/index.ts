@@ -9,3 +9,5 @@ export type { MonumentPanelProps } from './MonumentPanel';
 export { TimeBar } from './TimeBar';
 export { HelpOverlay } from './HelpOverlay';
 export { isNarrowViewport, screenshotFilename, isHelpKey } from './uiUtils';
+export { SoundMixer, parseMixer, serializeMixer, loadMixer, saveMixer, applyStoredMixer, MIXER_DEFAULTS } from './SoundMixer';
+export type { MixerSettings, MixerKey } from './SoundMixer';

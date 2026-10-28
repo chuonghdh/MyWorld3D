@@ -80,6 +80,22 @@ const GHOST_S = 5;
 /** Standing this long (seconds) for no good reason starts the same push-on. */
 const STUCK_PUSH_S = 40;
 /**
+ * Horn events for the audio layer (see takeHorns). They use their own random generator, so the main simulation
+ * sequence is untouched. A vehicle honks when a pedestrian has held it on a green light for HORN_PED_HOLD_S, when it
+ * is jammed (HELD_BACKUP_S, resolveJam), or rarely after a hard brake. Per vehicle cooldown and a global rate limit.
+ */
+const HORN_PED_HOLD_S = 5;
+/** A vehicle honks at most once per 45 s, and the whole city at most once per 6 s (horns are meant to be rare). */
+const HORN_COOLDOWN_S = 45;
+const HORN_GLOBAL_GAP_S = 6;
+/** Only this share of the situations that could make a driver honk actually does. */
+const HORN_CHANCE = 0.5;
+/** Smoothed deceleration (m/s^2) below which a braking vehicle counts as braking hard. */
+const HORN_HARD_BRAKE = -3;
+/** Chance per second of honking while braking hard: about once per 15 min for a vehicle that brakes hard continuously. */
+const HORN_HARD_BRAKE_RATE = 1 / 900;
+const HORN_QUEUE_MAX = 8;
+/**
  * Junction right of way: a vehicle may enter a junction only when it holds a grant, and grants go in the order
  * vehicles arrived (first come, first served) among vehicles whose ways through the junction cross or merge.
  */
@@ -256,6 +272,18 @@ interface Vehicle {
   /** Seconds it has stood still, and whether its wait is legitimate (a red light or pedestrians on the crosswalk). */
   standT: number;
   legitWait: boolean;
+  /** Held at a green light by a pedestrian on the crosswalk ahead, and for how long (seconds). */
+  pedHold: boolean;
+  pedHeldT: number;
+  /** Simulation clock time of its last horn (-Infinity when never). */
+  lastHornAt: number;
+}
+
+/** A horn request for the audio layer. */
+export interface HornEvent {
+  x: number;
+  z: number;
+  cls: VehicleClass;
 }
 
 interface CrosswalkRect {
@@ -306,6 +334,13 @@ export class VehicleSystem {
   /** The vehicle's actual footprint where it stands (the sweep boxes carry extra clearance). */
   private readonly ownBox: Obb = { x: 0, z: 0, heading: 0, halfLength: 0, halfWidth: 0 };
   private readonly rng: () => number;
+  /** Separate generator for horn randomness: the main rng sequence (and the determinism hash) must not change. */
+  private readonly hornRng: () => number;
+  private hornClock = 0;
+  private lastHornGlobal = -Infinity;
+  private readonly hornQueue: HornEvent[] = [];
+  private hornQueueLen = 0;
+  private readonly hornOut: HornEvent[] = [];
   private readonly pool: Vehicle[] = [];
   private readonly renderPool: VehicleRender[] = [];
   private readonly renderList: VehicleRender[] = [];
@@ -317,6 +352,7 @@ export class VehicleSystem {
   constructor(layout: CityLayout, options: VehicleSystemOptions) {
     this.multiplier = Math.max(0, options.trafficMultiplier);
     this.rng = createRng(options.seed ?? 1);
+    this.hornRng = createRng(((options.seed ?? 1) ^ 0x68c0ffee) >>> 0);
     this.lights = options.lights ?? new TrafficLightController(layout.trafficLights);
 
     for (const cw of layout.crosswalks) {
@@ -737,6 +773,9 @@ export class VehicleSystem {
     v.grantWait = false;
     v.standT = 0;
     v.legitWait = false;
+    v.pedHold = false;
+    v.pedHeldT = 0;
+    v.lastHornAt = -Infinity;
     v.entryOrder = v.junctionIdx >= 0 ? ++this.entrySeq : 0;
     // Insert keeping the list sorted by s, largest first.
     let i = 0;
@@ -752,7 +791,43 @@ export class VehicleSystem {
     this.pool.push(v);
   }
 
+  /**
+   * Horn requests raised since the last call. The returned array and its records are reused: read them now and do
+   * not keep references. Reading clears the queue.
+   */
+  takeHorns(): readonly HornEvent[] {
+    const out = this.hornOut;
+    out.length = 0;
+    for (let i = 0; i < this.hornQueueLen; i++) out.push(this.hornQueue[i]);
+    this.hornQueueLen = 0;
+    return out;
+  }
+
+  /** Queues a horn for v, subject to the per-vehicle cooldown, the city-wide gap and a coin flip (see HORN_*). */
+  private tryHorn(v: Vehicle): void {
+    const now = this.hornClock;
+    if (now - v.lastHornAt < HORN_COOLDOWN_S) return;
+    if (now - this.lastHornGlobal < HORN_GLOBAL_GAP_S) return;
+    if (this.hornQueueLen >= HORN_QUEUE_MAX) return;
+    if (this.hornRng() >= HORN_CHANCE) {
+      v.lastHornAt = now - HORN_COOLDOWN_S + 10; // reconsiders in 10 s rather than on the very next frame
+      return;
+    }
+    v.lastHornAt = now;
+    this.lastHornGlobal = now;
+    let e = this.hornQueue[this.hornQueueLen];
+    if (!e) {
+      e = { x: 0, z: 0, cls: 'car' };
+      this.hornQueue[this.hornQueueLen] = e;
+    }
+    e.x = v.x;
+    e.z = v.z;
+    e.cls = v.cls;
+    this.hornQueueLen++;
+  }
+
   private step(dt: number): void {
+    this.hornClock += dt;
     this.lights.update(dt);
     this.stepNo++;
     this.updateGrants();
@@ -1050,6 +1125,7 @@ export class VehicleSystem {
     const wOrder = w.inJunction ? w.entryOrder : Infinity;
     const later = vOrder !== wOrder ? (vOrder > wOrder ? v : w) : v.id > w.id ? v : w;
     v.heldFor = 0;
+    this.tryHorn(v);
     if (!later.backedUp) {
       later.backedUp = true;
       later.backupLeft = BACKUP_DIST;
@@ -1099,6 +1175,7 @@ export class VehicleSystem {
     let stopAt = -1; // limit for the vehicle centre
     v.grantWait = false;
     v.legitWait = false;
+    v.pedHold = false;
     for (let i = 0; i < pm.stops.length; i++) {
       const line = pm.stops[i];
       if (front > line.passS) continue; // part of the vehicle is past the crosswalk line
@@ -1119,6 +1196,7 @@ export class VehicleSystem {
       }
       v.grantWait = phase === 'green' && line.junction >= 0 && v.granted !== line.junction;
       v.legitWait = phase !== 'green' || (line.cw >= 0 && this.crosswalkBusy[line.cw] !== 0);
+      v.pedHold = phase === 'green' && line.cw >= 0 && this.crosswalkBusy[line.cw] !== 0;
       const dist = Math.max(0, line.s - front);
       // Cannot stop any more: commit. A crawling vehicle can always stop within the clamp below.
       if (v.speed > COMMIT_MIN_SPEED && v.speed * v.speed > 2 * MAX_DECEL * dist) continue;
@@ -1242,6 +1320,18 @@ export class VehicleSystem {
 
     v.standT = v.speed < 0.2 ? v.standT + dt : 0;
     this.syncPose(pm, v);
+
+    // Horn triggers (own rng; see HORN_*). A pedestrian holding the vehicle at a green light for a while.
+    if (v.pedHold && v.speed < 0.5) {
+      v.pedHeldT += dt;
+      if (v.pedHeldT >= HORN_PED_HOLD_S) {
+        v.pedHeldT = 0;
+        this.tryHorn(v);
+      }
+    } else {
+      v.pedHeldT = 0;
+    }
+    if (v.accel < HORN_HARD_BRAKE && v.speed > 2 && this.hornRng() < HORN_HARD_BRAKE_RATE * dt) this.tryHorn(v);
   }
 
   /** Updates the cached world position and junction of a vehicle; notes when it enters a junction. */

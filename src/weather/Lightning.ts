@@ -22,6 +22,8 @@ export interface Strike {
 }
 
 export interface Thunder {
+  /** Compass direction of the strike (radians in the XZ plane), same as Strike.angle. */
+  angle: number;
   distance: number;
   strength: number;
   /** Seconds left until the sound is due. */
@@ -74,7 +76,7 @@ export class LightningController {
     };
     this.strike = strike;
     this.elapsed = 0;
-    this.pending.push({ distance: d, strength, remaining: thunderDelay(d) });
+    this.pending.push({ angle: strike.angle, distance: d, strength, remaining: thunderDelay(d) });
     return strike;
   }
 

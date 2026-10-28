@@ -3,6 +3,7 @@ import { SEASONS } from '../store/model';
 import { WEATHER_KINDS, WEATHER_LABEL, type WeatherKind } from '../weather/weatherState';
 import type { Season } from '../core/types';
 import { ActionButton, Panel, Segmented, Slider } from './controls';
+import { SoundMixer } from './SoundMixer';
 
 /** Actions that the scene handles. Store-backed toggles are also written to the store. */
 export type CityAction =
@@ -248,6 +249,9 @@ export function SettingsCity({ onAction }: SettingsCityProps) {
           <ActionButton onClick={() => setQuality(suggested.tier)}>Use {QUALITY_LABEL[suggested.tier]}</ActionButton>
         </div>
       )}
+
+      <div className="mw-group-title">Sound</div>
+      <SoundMixer />
 
       <div className="mw-button-grid">
         <ActionButton icon="≋" onClick={() => onAction?.('gust')}>Gust</ActionButton>
