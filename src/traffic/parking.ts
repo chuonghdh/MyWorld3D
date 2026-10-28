@@ -92,7 +92,11 @@ export function computeParkingSpots(layout: CityLayout, options: ParkingOptions 
 
           const inward = rng() * 0.1; // jitter only toward the road centre so no car crosses the curb
           const lateral = side * (road.width / 2 - size.half - 0.04 - inward);
-          const yawJitter = rng() < 0.15 ? (rng() - 0.5) * 0.18 : (rng() - 0.5) * 0.04;
+          const rawYaw = rng() < 0.15 ? (rng() - 0.5) * 0.18 : (rng() - 0.5) * 0.04;
+          // Keep the corners of a slightly skewed car within 0.1 m of its straight footprint, so the
+          // clearance driving lanes were laid out with (see laneOffsetFor) holds for every parked car.
+          const maxYaw = 0.1 / (size.length / 2);
+          const yawJitter = Math.max(-maxYaw, Math.min(maxYaw, rawYaw));
           const tint = rng();
           const baseHeading = vertical ? (side === 1 ? 0 : Math.PI) : side === 1 ? Math.PI / 2 : -Math.PI / 2;
           const x = vertical ? axis + lateral : centre;

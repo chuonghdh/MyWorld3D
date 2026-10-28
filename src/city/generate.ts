@@ -49,10 +49,21 @@ const LANES_PER_ROAD = 2;
 
 const LIGHT_TIMING: TrafficLightTiming = {
   cycleSeconds: 40,
-  nsGreenSeconds: 18,
-  ewGreenSeconds: 18,
+  nsGreenSeconds: 16,
+  ewGreenSeconds: 16,
   yellowSeconds: 2,
+  allRedSeconds: 2,
 };
+
+/**
+ * Distance from an avenue's centre line to its lane centres. Avenues have parked cars along both
+ * kerbs (up to about 3.15 m from the centre line at their inner side); a bus (half width 1.25 m) plus
+ * 0.15 m of clearance must fit between that and the lane centre, so lane centre = half width - 3.75.
+ * Streets have no parking and keep a quarter of the width.
+ */
+export function laneOffsetFor(line: { width: number; cls: string }): number {
+  return line.cls === 'avenue' ? line.width / 2 - 3.75 : line.width / 4;
+}
 
 /**
  * Jittered road centre lines from `min` to `max` inclusive. Gaps stay within CELL_MIN..CELL_MAX
@@ -299,8 +310,8 @@ export function generateCity(settings: WorldSettings): CityLayout {
   const xIdx = xs.map((_, i) => i);
   xs.forEach((line, i) => {
     for (const direction of [1, -1] as const) {
-      // Same convention as phase 1: offset = direction * width / 4.
-      const offset = (direction * line.width) / 4;
+      // Offset = direction * lane offset (a quarter of the width on streets, clear of parked cars on avenues).
+      const offset = direction * laneOffsetFor(line);
       const ordered = direction === 1 ? zIdx : [...zIdx].reverse();
       const waypoints = ordered.map((j) => ({ x: line.pos + offset, z: zs[j].pos }));
       const lightIds = ordered.map((j) => `light-${i}-${j}`);
@@ -309,7 +320,7 @@ export function generateCity(settings: WorldSettings): CityLayout {
   });
   zs.forEach((line, j) => {
     for (const direction of [1, -1] as const) {
-      const offset = (direction * line.width) / 4;
+      const offset = direction * laneOffsetFor(line);
       const ordered = direction === 1 ? xIdx : [...xIdx].reverse();
       const waypoints = ordered.map((i) => ({ x: xs[i].pos, z: line.pos + offset }));
       const lightIds = ordered.map((i) => `light-${i}-${j}`);

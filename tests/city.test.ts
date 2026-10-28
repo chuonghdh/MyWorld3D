@@ -355,13 +355,14 @@ describe('generateCity', () => {
     }
   });
 
-  it('puts lanes at a quarter of the road width', () => {
+  it('puts lanes at a quarter of the road width on streets and clear of the parking strip on avenues', () => {
     const city = generateCity(settings());
     const roads = new Map(city.roads.map((r) => [r.id, r]));
     for (const path of city.trafficPaths) {
       const road = roads.get(path.roadId)!;
       const lateral = road.orientation === 'vertical' ? path.waypoints[0].x - road.start.x : path.waypoints[0].z - road.start.z;
-      expect(lateral).toBeCloseTo((path.direction * road.width) / 4, 9);
+      const expected = road.streetClass === 'avenue' ? road.width / 2 - 3.75 : road.width / 4;
+      expect(lateral).toBeCloseTo(path.direction * expected, 9);
     }
   });
 

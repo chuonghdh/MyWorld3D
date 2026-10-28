@@ -120,8 +120,11 @@ function pedestrianRun(): string {
 }
 
 // Captured from the pre-change implementation.
-const EXPECTED_VEHICLES = '6472b343';
-const EXPECTED_PEDESTRIANS = 'f1a829fd';
+// Re-captured when the signal rules changed (stop at the crosswalk line, queueing, commit past it,
+// yield to pedestrians and cross traffic, junction right of way, turns, edge spawns).
+const EXPECTED_VEHICLES = 'f79cdeb5';
+// Re-captured when the signals gained an all-red gap (pedestrians read the same timing).
+const EXPECTED_PEDESTRIANS = 'b6c9cb9';
 
 describe('traffic determinism (baseline captured before allocation clean-up)', () => {
   it('vehicle simulation and instance buffers are bit-identical for a seed and dt sequence', () => {

@@ -107,7 +107,7 @@ describe('lightStateAt', () => {
 describe('VehicleSystem', () => {
   it('stops a vehicle before the stop line on red and never passes it', () => {
     const layout = straightLayout();
-    const sys = new VehicleSystem(layout, { trafficMultiplier: 4, seed: 3 });
+    const sys = new VehicleSystem(layout, { trafficMultiplier: 4, seed: 3, edgeExtension: 0 });
     sys.lights.setTime(25); // north-south red from 20 to 40
     const id = sys.addVehicle('path-pos', 50, 'car');
     expect(id).not.toBeNull();
@@ -128,8 +128,43 @@ describe('VehicleSystem', () => {
     expect(state!.speed).toBeCloseTo(0, 6);
   });
 
+  it('on yellow, a vehicle fully behind the line stops with its front before the line', () => {
+    const sys = new VehicleSystem(straightLayout(), { trafficMultiplier: 4, seed: 3, edgeExtension: 0 });
+    sys.lights.setTime(18.2); // north-south yellow from 18 to 20, then red
+    const id = sys.addVehicle('path-pos', 70, 'car') as number;
+    sys.update(12);
+    const st = sys.getVehicleState(id)!;
+    expect(st.speed).toBeCloseTo(0, 6);
+    expect(st.s + 4.5 / 2).toBeLessThanOrEqual(95 + 1e-6); // front bumper before the line at s = 95
+    expect(st.s + 4.5 / 2).toBeGreaterThan(93);
+  });
+
+  it('on yellow or red, a vehicle that already has a part past the line keeps going', () => {
+    for (const t of [18.5, 25]) {
+      const sys = new VehicleSystem(straightLayout(), { trafficMultiplier: 4, seed: 3, edgeExtension: 0 });
+      sys.lights.setTime(t);
+      const id = sys.addVehicle('path-pos', 94, 'car') as number; // front at 96.25, past the line
+      sys.update(3);
+      expect(sys.getVehicleState(id)!.s).toBeGreaterThan(100);
+    }
+  });
+
+  it('queues behind a stopped leader instead of running up to the line', () => {
+    const sys = new VehicleSystem(straightLayout(), { trafficMultiplier: 4, seed: 3, edgeExtension: 0 });
+    sys.lights.setTime(18.2);
+    const leader = sys.addVehicle('path-pos', 80, 'car') as number;
+    const follower = sys.addVehicle('path-pos', 55, 'car') as number;
+    sys.update(15); // light time 18.2 to 33.2: yellow, then red until 40
+    const l = sys.getVehicleState(leader)!;
+    const f = sys.getVehicleState(follower)!;
+    expect(l.speed).toBeCloseTo(0, 6);
+    expect(f.speed).toBeCloseTo(0, 6);
+    expect(l.s + 4.5 / 2).toBeLessThanOrEqual(95 + 1e-6);
+    expect(l.s - f.s).toBeGreaterThanOrEqual((4.5 + 4.5) / 2 + 6 - 1e-6);
+  });
+
   it('lets a stopped vehicle go once the light turns green', () => {
-    const sys = new VehicleSystem(straightLayout(), { trafficMultiplier: 4, seed: 3 });
+    const sys = new VehicleSystem(straightLayout(), { trafficMultiplier: 4, seed: 3, edgeExtension: 0 });
     sys.lights.setTime(25);
     const id = sys.addVehicle('path-pos', 50, 'car') as number;
     sys.update(10);
@@ -141,7 +176,7 @@ describe('VehicleSystem', () => {
   });
 
   it('keeps the following distance behind a stopped leader', () => {
-    const sys = new VehicleSystem(straightLayout(), { trafficMultiplier: 4, seed: 3 });
+    const sys = new VehicleSystem(straightLayout(), { trafficMultiplier: 4, seed: 3, edgeExtension: 0 });
     sys.lights.setTime(25);
     const leader = sys.addVehicle('path-pos', 80, 'car') as number;
     const follower = sys.addVehicle('path-pos', 60, 'car') as number;
@@ -151,7 +186,7 @@ describe('VehicleSystem', () => {
   });
 
   it('removes vehicles that reach the end of their path', () => {
-    const sys = new VehicleSystem(straightLayout(), { trafficMultiplier: 4, seed: 3 });
+    const sys = new VehicleSystem(straightLayout(), { trafficMultiplier: 4, seed: 3, edgeExtension: 0 });
     sys.lights.setTime(0);
     sys.addVehicle('path-pos', 185, 'car');
     expect(sys.count).toBe(1);

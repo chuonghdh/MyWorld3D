@@ -172,11 +172,11 @@ export function crowdDensityAt(hour: number): number {
 }
 
 /** Seconds of red left for cars of one axis (0 = ns, 1 = ew) before their green starts, or -1 when not red. */
-export function redRemaining(cycle: number, nsGreen: number, ewGreen: number, yellow: number, axis: number, t: number): number {
+export function redRemaining(cycle: number, nsGreen: number, ewGreen: number, yellow: number, axis: number, t: number, allRed = 0): number {
   if (!(cycle > 0)) return -1;
   let u = t % cycle;
   if (u < 0) u += cycle;
-  const start = axis === 0 ? 0 : nsGreen + yellow;
+  const start = axis === 0 ? 0 : nsGreen + yellow + allRed;
   const yellowEnd = start + (axis === 0 ? nsGreen : ewGreen) + yellow;
   if (u >= yellowEnd) return cycle - u + start;
   if (u < start) return start - u;
@@ -210,6 +210,7 @@ interface Graph {
   cycle: Float32Array;
   nsG: Float32Array;
   ewG: Float32Array;
+  allR: Float32Array;
   yel: Float32Array;
   spawnCum: Float32Array;
   spawnTotal: number;
@@ -419,6 +420,7 @@ function buildGraph(layout: CityLayout, rects: RoadRects): Graph {
     cycle: new Float32Array(E),
     nsG: new Float32Array(E),
     ewG: new Float32Array(E),
+    allR: new Float32Array(E),
     yel: new Float32Array(E),
     spawnCum: new Float32Array(E),
     spawnTotal: 0,
@@ -461,6 +463,7 @@ function buildGraph(layout: CityLayout, rects: RoadRects): Graph {
         g.nsG[i] = t.nsGreenSeconds;
         g.ewG[i] = t.ewGreenSeconds;
         g.yel[i] = t.yellowSeconds;
+        g.allR[i] = t.allRedSeconds ?? 0;
       }
     }
     degree[e.a]++;
@@ -1030,7 +1033,7 @@ export class Pedestrians {
     const g = this.g;
     if (g.ctl[e] === 0) return true;
     const t = this.lights ? this.lights.elapsed : this.time;
-    const rem = redRemaining(g.cycle[e], g.nsG[e], g.ewG[e], g.yel[e], g.axis[e], t);
+    const rem = redRemaining(g.cycle[e], g.nsG[e], g.ewG[e], g.yel[e], g.axis[e], t, g.allR[e]);
     return rem >= crossTime + CROSS_MARGIN;
   }
 

@@ -109,6 +109,11 @@ export interface TrafficLightTiming {
   /** Green time for the east-west axis (horizontal roads). */
   ewGreenSeconds: number;
   yellowSeconds: number;
+  /**
+   * All-red gap after each yellow, before the other axis turns green, so vehicles that entered on yellow can
+   * clear the intersection. Optional: absent means none. cycleSeconds = 2 * (green + yellow + allRed) then.
+   */
+  allRedSeconds?: number;
 }
 
 /** Fixed-timing signal at a road intersection. */

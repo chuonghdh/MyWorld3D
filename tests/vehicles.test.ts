@@ -228,7 +228,7 @@ describe('parking', () => {
 
 describe('VehicleSystem behaviour', () => {
   it('sets the braking flag when slowing for a red light and holds it while stopped', () => {
-    const sys = new VehicleSystem(straightLayout(), { trafficMultiplier: 4, seed: 3 });
+    const sys = new VehicleSystem(straightLayout(), { trafficMultiplier: 4, seed: 3, edgeExtension: 0 });
     sys.lights.setTime(25);
     const id = sys.addVehicle('path-pos', 50, 'car') as number;
     let sawBraking = false;
@@ -245,7 +245,7 @@ describe('VehicleSystem behaviour', () => {
     expect(stopped.speed).toBeLessThan(0.1);
     expect(stopped.braking).toBe(true);
     // Not braking while cruising on a clear green road.
-    const sys2 = new VehicleSystem(straightLayout(), { trafficMultiplier: 4, seed: 3 });
+    const sys2 = new VehicleSystem(straightLayout(), { trafficMultiplier: 4, seed: 3, edgeExtension: 0 });
     sys2.lights.setTime(0);
     const id2 = sys2.addVehicle('path-pos', 10, 'car') as number;
     for (let i = 0; i < 10; i++) sys2.update(0.1);
@@ -253,7 +253,7 @@ describe('VehicleSystem behaviour', () => {
   });
 
   it('turns the heading smoothly through a corner with no jump per step', () => {
-    const sys = new VehicleSystem(cornerLayout(), { trafficMultiplier: 4, seed: 3 });
+    const sys = new VehicleSystem(cornerLayout(), { trafficMultiplier: 4, seed: 3, edgeExtension: 0 });
     const id = sys.addVehicle('path-turn', 60, 'car') as number;
     let prev = sys.getVehicles().find((x) => x.id === id)!.heading;
     let maxStep = 0;
@@ -277,7 +277,7 @@ describe('VehicleSystem behaviour', () => {
   });
 
   it('slows down for a corner', () => {
-    const sys = new VehicleSystem(cornerLayout(), { trafficMultiplier: 4, seed: 3 });
+    const sys = new VehicleSystem(cornerLayout(), { trafficMultiplier: 4, seed: 3, edgeExtension: 0 });
     const id = sys.addVehicle('path-turn', 60, 'car') as number;
     let minSpeed = Infinity;
     for (let i = 0; i < 300; i++) {
@@ -326,7 +326,7 @@ describe('VehicleSystem behaviour', () => {
   });
 
   it('wheel phase grows with distance driven', () => {
-    const sys = new VehicleSystem(straightLayout(), { trafficMultiplier: 4, seed: 3 });
+    const sys = new VehicleSystem(straightLayout(), { trafficMultiplier: 4, seed: 3, edgeExtension: 0 });
     sys.lights.setTime(0);
     const id = sys.addVehicle('path-pos', 10, 'car') as number;
     sys.update(1);

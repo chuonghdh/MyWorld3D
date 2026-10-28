@@ -24,7 +24,7 @@ export function lightStateAt(timing: TrafficLightTiming, t: number, axis: LightA
   let u = t % cycle;
   if (u < 0) u += cycle;
 
-  const start = axis === 'ns' ? 0 : timing.nsGreenSeconds + timing.yellowSeconds;
+  const start = axis === 'ns' ? 0 : timing.nsGreenSeconds + timing.yellowSeconds + (timing.allRedSeconds ?? 0);
   const greenEnd = start + (axis === 'ns' ? timing.nsGreenSeconds : timing.ewGreenSeconds);
   const yellowEnd = greenEnd + timing.yellowSeconds;
 

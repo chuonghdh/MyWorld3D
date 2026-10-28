@@ -362,6 +362,11 @@ export function Town({ onSelect }: { onSelect: (target: OverrideTarget) => void 
       }),
     [trafficLayout, trafficMultiplier, traffic],
   );
+  // Vehicles hold back while a pedestrian is on the crosswalk ahead, even on green.
+  useEffect(() => {
+    traffic.setPedestrianSource(() => walkers.getPedestrians());
+    return () => traffic.setPedestrianSource(null);
+  }, [traffic, walkers]);
   const life = useMemo(() => createLife(layout, { seed: settings.seed }), [layout, settings.seed]);
   useEffect(() => () => life.dispose(), [life]);
 
