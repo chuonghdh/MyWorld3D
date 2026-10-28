@@ -1,9 +1,9 @@
 import { useMemo, useState } from 'react';
 import { Canvas } from '@react-three/fiber';
 import { OrbitControls } from '@react-three/drei';
-import { generateCity } from './city';
+import { getCityLayout } from './city';
 import { DEFAULT_HOUSE_BASE, HousePanel, MonumentPanel, SettingsCity, type CityAction } from './ui';
-import { TREE_SPECIES, useWorldStore, type OverrideTarget } from './store';
+import { QUALITY_PRESETS, TREE_SPECIES, detectDevice, suggestQuality, useWorldStore, type OverrideTarget } from './store';
 import * as audio from './audio';
 import { Town, monumentBaseFor } from './scene/Town';
 import { runtime } from './scene/runtime';
@@ -22,10 +22,9 @@ export function App() {
   const resetHouses = useWorldStore((s) => s.resetHouses);
   const loadLayout = useWorldStore((s) => s.loadLayout);
 
-  const layout = useMemo(
-    () => generateCity(settings),
-    [settings.seed, settings.townWidth, settings.townDepth, settings.streetTreeMultiplier, settings.trafficMultiplier],
-  );
+  const layout = getCityLayout(settings);
+  const preset = QUALITY_PRESETS[settings.quality];
+  const setSuggestedQuality = useWorldStore((s) => s.setSuggestedQuality);
 
   const night = useMemo(() => getLightingForTime(settings.timeOfDay).sky.lightsOn, [settings.timeOfDay]);
 
@@ -91,16 +90,25 @@ export function App() {
     >
       <Canvas
         shadows="soft"
-        dpr={[1, 2]}
+        dpr={[1, preset.dprMax]}
         camera={{ position: [0, 380, 130], fov: 35, near: 1, far: 2000 }}
         onPointerMissed={() => setSelected(null)}
         onCreated={(state) => {
+          // Suggest a quality tier from the GPU and device; the user decides whether to apply it.
+          try {
+            const gl = state.gl.getContext();
+            const info = gl.getExtension('WEBGL_debug_renderer_info');
+            const renderer = info ? String(gl.getParameter(info.UNMASKED_RENDERER_WEBGL)) : undefined;
+            setSuggestedQuality(suggestQuality(detectDevice(renderer)));
+          } catch {
+            /* no suggestion */
+          }
           // Dev-only handle for profiling from the browser console (draw calls, triangles).
           if (import.meta.env.DEV) (window as unknown as { __r3f?: unknown }).__r3f = state;
         }}
       >
         <Town onSelect={setSelected} />
-        <PostFX tiltShift={toggles.tiltShift} night={night} />
+        <PostFX tiltShift={toggles.tiltShift} night={night} bloomScale={preset.bloom} msaa={preset.msaa} />
         <OrbitControls
           target={[0, 0, 0]}
           enableDamping

@@ -12,6 +12,8 @@ import {
 } from './model';
 
 export * from './model';
+export * from './quality';
+import type { QualitySuggestion, QualityTier } from './quality';
 
 export type OverrideTarget =
   | { type: 'block'; id: string }
@@ -26,7 +28,12 @@ export interface WorldState extends LayoutData {
   /** Redo stack, most recent undone step last. */
   future: LayoutData[];
   toggles: UiToggles;
+  /** Device-based tier suggestion. Transient: never applied automatically, not saved. */
+  suggestedQuality: QualitySuggestion | null;
 
+  setSuggestedQuality: (s: QualitySuggestion | null) => void;
+  /** Changes the quality tier. Not undoable: undo/redo keep the current tier. */
+  setQuality: (tier: QualityTier) => void;
   setSetting: <K extends keyof WorldSettings>(key: K, value: WorldSettings[K]) => void;
   setOverride: (target: OverrideTarget, patch: OverridePatch) => void;
   clearOverride: (target: OverrideTarget) => void;
@@ -59,6 +66,12 @@ function snapshot(s: LayoutData): LayoutData {
     houseOverrides: s.houseOverrides,
     treeOverrides: s.treeOverrides,
   };
+}
+
+/** Undo/redo restore layout data but never the quality tier, which is a device preference. */
+function keepQuality(layout: LayoutData, quality: QualityTier): LayoutData {
+  const snap = snapshot(layout);
+  return { ...snap, settings: { ...snap.settings, quality } };
 }
 
 function sameLayout(a: LayoutData, b: LayoutData): boolean {
@@ -98,6 +111,10 @@ export const useWorldStore = create<WorldState>()((set, get) => {
     past: [],
     future: [],
     toggles: { ...DEFAULT_TOGGLES },
+    suggestedQuality: null,
+
+    setSuggestedQuality: (suggestion) => set({ suggestedQuality: suggestion }),
+    setQuality: (tier) => set((s) => (s.settings.quality === tier ? s : { settings: { ...s.settings, quality: tier } })),
 
     setSetting: (key, value) => {
       const s = get();
@@ -155,7 +172,7 @@ export const useWorldStore = create<WorldState>()((set, get) => {
       if (s.past.length === 0) return;
       const prev = s.past[s.past.length - 1];
       set({
-        ...snapshot(prev),
+        ...keepQuality(prev, s.settings.quality),
         past: s.past.slice(0, -1),
         future: [snapshot(s), ...s.future].slice(0, HISTORY_LIMIT),
       });
@@ -166,7 +183,7 @@ export const useWorldStore = create<WorldState>()((set, get) => {
       if (s.future.length === 0) return;
       const [next, ...rest] = s.future;
       set({
-        ...snapshot(next),
+        ...keepQuality(next, s.settings.quality),
         past: [...s.past, snapshot(s)].slice(-HISTORY_LIMIT),
         future: rest,
       });
@@ -189,7 +206,7 @@ export const useWorldStore = create<WorldState>()((set, get) => {
     resetAll: () => {
       const s = get();
       commit({
-        settings: createDefaultSettings(s.settings.seed),
+        settings: { ...createDefaultSettings(s.settings.seed), quality: s.settings.quality },
         blockOrder: [...s.baseBlockOrder],
         baseBlockOrder: [...s.baseBlockOrder],
         blockOverrides: {},

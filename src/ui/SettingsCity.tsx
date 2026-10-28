@@ -1,4 +1,4 @@
-import { useWorldStore } from '../store';
+import { QUALITY_LABEL, QUALITY_TIERS, useWorldStore, type QualityTier } from '../store';
 import { SEASONS } from '../store/model';
 import { WEATHER_KINDS, WEATHER_LABEL, type WeatherKind } from '../weather/weatherState';
 import type { Season } from '../core/types';
@@ -67,6 +67,8 @@ export function SettingsCity({ onAction }: SettingsCityProps) {
   const setToggle = useWorldStore((st) => st.setToggle);
   const resetBlocks = useWorldStore((st) => st.resetBlocks);
   const resetHouses = useWorldStore((st) => st.resetHouses);
+  const setQuality = useWorldStore((st) => st.setQuality);
+  const suggested = useWorldStore((st) => st.suggestedQuality);
 
   const toggle = (key: 'tiltShift' | 'music' | 'moveBlocks', action: CityAction) => {
     const next = !toggles[key];
@@ -229,6 +231,23 @@ export function SettingsCity({ onAction }: SettingsCityProps) {
           onChange={(v) => setSetting('leafSize', v)}
         />
       </div>
+
+      <div className="mw-group-title">Quality</div>
+      <Segmented<QualityTier>
+        label="Graphics"
+        ariaLabel="Graphics quality"
+        value={s.quality}
+        options={QUALITY_TIERS.slice().reverse().map((v) => ({ value: v, label: QUALITY_LABEL[v] }))}
+        onChange={setQuality}
+      />
+      {suggested && suggested.tier !== s.quality && (
+        <div className="mw-field">
+          <div className="mw-muted">
+            Suggested for this device: {QUALITY_LABEL[suggested.tier]} ({suggested.reason})
+          </div>
+          <ActionButton onClick={() => setQuality(suggested.tier)}>Use {QUALITY_LABEL[suggested.tier]}</ActionButton>
+        </div>
+      )}
 
       <div className="mw-button-grid">
         <ActionButton icon="≋" onClick={() => onAction?.('gust')}>Gust</ActionButton>

@@ -71,7 +71,7 @@ void main() {
   // Brighter haze band hugging the horizon.
   col = mix(col, uHorizon * 1.08, exp(-max(h, 0.0) * 9.0) * 0.35);
   // Below the horizon the dome is the horizon colour (the ground disc covers it anyway).
-  col = mix(col, uHorizon, smoothstep(0.0, -0.08, h));
+  col = mix(col, uHorizon, (1.0 - smoothstep(-0.08, 0.0, h)));
 
   // Stars: sparse points on a 3D grid, twinkling, hidden near the horizon and by the moon glow.
   if (uStars > 0.001 && h > 0.0) {
@@ -83,7 +83,7 @@ void main() {
     float present = step(0.9, r.x);
     float size = mix(0.08, 0.2, r.y * r.y);
     float tw = 0.75 + 0.25 * sin(uTime * (1.5 + r.z * 3.0) + r.z * 40.0);
-    float star = present * smoothstep(size, 0.0, d) * tw * (0.5 + r.y);
+    float star = present * (1.0 - smoothstep(0.0, size, d)) * tw * (0.5 + r.y);
     vec3 starCol = mix(vec3(0.75, 0.82, 1.0), vec3(1.0, 0.9, 0.75), r.z);
     float fade = smoothstep(0.0, 0.25, h) * (1.0 - 0.8 * pow(max(dot(dir, uMoonDir), 0.0), 20.0));
     col += starCol * star * uStars * fade * 1.6;
@@ -100,7 +100,8 @@ void main() {
   // Moon: lit disc with a soft terminator, faint craters and a glow.
   float md = dot(dir, uMoonDir);
   if (uMoonVis > 0.001 && md > 0.0) {
-    vec3 right = normalize(cross(vec3(0.0, 1.0, 0.0), uMoonDir));
+    vec3 right = cross(vec3(0.0, 1.0, 0.0), uMoonDir);
+    right = length(right) > 1e-4 ? normalize(right) : vec3(1.0, 0.0, 0.0);
     vec3 up = cross(uMoonDir, right);
     float radius = 0.045;
     vec2 p = vec2(dot(dir, right), dot(dir, up)) / radius;
@@ -108,11 +109,11 @@ void main() {
     col += vec3(0.55, 0.65, 0.95) * pow(md, 90.0) * 0.35 * uMoonVis;
     if (rr < 1.15) {
       vec3 n = vec3(p, sqrt(max(1.0 - rr * rr, 0.0)));
-      float lit = smoothstep(-0.08, 0.18, dot(n, normalize(uMoonLight)));
+      float lit = smoothstep(-0.08, 0.18, dot(n, normalize(uMoonLight + vec3(1e-4))));
       float crater = 0.82 + 0.18 * vnoise(p * 4.0 + 3.1) + 0.1 * vnoise(p * 9.0);
       vec3 moonCol = vec3(0.93, 0.94, 0.88) * crater;
       moonCol = mix(vec3(0.05, 0.06, 0.1), moonCol, lit);
-      float edge = smoothstep(1.0, 0.9, rr);
+      float edge = (1.0 - smoothstep(0.9, 1.0, rr));
       col = mix(col, moonCol * 1.5, edge * uMoonVis * (0.2 + 0.8 * lit));
     }
   }
@@ -137,6 +138,8 @@ void main() {
   // Lightning flash lights up the whole sky.
   col += uFlash * vec3(0.55, 0.6, 0.8) * (0.4 + 0.6 * smoothstep(-0.1, 0.6, h));
 
+  // Never emit NaN or huge values: they would smear into black blocks through the bloom blur.
+  col = clamp(col, vec3(0.0), vec3(16.0));
   gl_FragColor = vec4(col, 1.0);
 }
 `;

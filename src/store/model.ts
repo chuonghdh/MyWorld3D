@@ -11,12 +11,15 @@ import type {
   WorldSettings as CoreWorldSettings,
 } from '../core/types';
 import type { WeatherKind } from '../weather/weatherState';
+import type { QualityTier } from './quality';
 
 /** Core settings plus the weather fields (saved to JSON, old files fall back to clear). */
 export interface WorldSettings extends CoreWorldSettings {
   weather: WeatherKind;
   /** 0..1 strength of the chosen weather. */
   weatherIntensity: number;
+  /** Rendering quality tier (saved to JSON; old files fall back to high). */
+  quality: QualityTier;
 }
 
 /** LOCAL TYPE: roof shapes listed in BRD 2.4. Reconcile with buildings agent. */
@@ -119,6 +122,7 @@ export const DEFAULT_SETTINGS: WorldSettings = {
   soundEnabled: true,
   weather: 'clear',
   weatherIntensity: 0.6,
+  quality: 'high',
 };
 
 export function createDefaultSettings(seed: number = DEFAULT_SETTINGS.seed): WorldSettings {

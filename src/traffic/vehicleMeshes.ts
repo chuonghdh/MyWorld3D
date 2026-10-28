@@ -301,7 +301,8 @@ export function createVehicleMeshes(capacity = 256, layout?: CityLayout): Vehicl
       const gm = glow.instanceMatrix.array as Float32Array;
       const gc = glow.instanceColor!.array as Float32Array;
 
-      for (const v of list) {
+      for (let li = 0; li < list.length; li++) {
+        const v = list[li];
         const vi = v.variant;
         const mesh = variants[vi];
         const i = fill[vi];

@@ -15,6 +15,7 @@ import {
   type WorldSettings,
 } from './model';
 import { WEATHER_KINDS } from '../weather/weatherState';
+import { QUALITY_TIERS } from './quality';
 
 export const LAYOUT_VERSION = 1;
 
@@ -90,7 +91,7 @@ function parseSettings(v: unknown): WorldSettings {
   for (const key of Object.keys(DEFAULT_SETTINGS) as (keyof WorldSettings)[]) {
     const raw = o[key];
     // Weather arrived later than version 1 files: old files fall back to the defaults.
-    if (raw === undefined && (key === 'weather' || key === 'weatherIntensity')) {
+    if (raw === undefined && (key === 'weather' || key === 'weatherIntensity' || key === 'quality')) {
       out[key] = DEFAULT_SETTINGS[key];
       continue;
     }
@@ -101,6 +102,9 @@ function parseSettings(v: unknown): WorldSettings {
         break;
       case 'weather':
         out[key] = expectOneOf(raw, WEATHER_KINDS, 'settings.weather');
+        break;
+      case 'quality':
+        out[key] = expectOneOf(raw, QUALITY_TIERS, 'settings.quality');
         break;
       case 'weatherIntensity':
         out[key] = Math.min(1, Math.max(0, expectNumber(raw, 'settings.weatherIntensity')));

@@ -80,8 +80,50 @@ function cullInside(geo: THREE.BufferGeometry, cores: readonly Core[]): THREE.Bu
   return out;
 }
 
+/** Per-vertex flag written by HouseMesh (src/buildings/facade/mesh.ts): 1 = shadow caster, 0 = small detail. */
+const CASTER_ATTRIBUTE = 'aCaster';
+const BODY_MATERIAL = 'building-body';
+
+/**
+ * Splits a body geometry into [casters, details] by the aCaster attribute and strips the attribute.
+ * Geometry without the attribute (monuments) is all casters. Triangles keep their order and data, so
+ * casters plus details are exactly the input triangles.
+ */
+function splitCasters(geo: THREE.BufferGeometry): [THREE.BufferGeometry | null, THREE.BufferGeometry | null] {
+  const flag = geo.getAttribute(CASTER_ATTRIBUTE);
+  if (!flag || geo.getIndex()) return [geo, null];
+  const tris = flag.count / 3;
+  const cast: number[] = [];
+  const detail: number[] = [];
+  for (let t = 0; t < tris; t++) (flag.getX(t * 3) > 0.5 ? cast : detail).push(t);
+  const build = (list: number[]): THREE.BufferGeometry | null => {
+    if (list.length === 0) return null;
+    const out = new THREE.BufferGeometry();
+    for (const name of Object.keys(geo.attributes)) {
+      if (name === CASTER_ATTRIBUTE) continue;
+      const a = geo.getAttribute(name);
+      const size = a.itemSize;
+      const src = a.array as Float32Array;
+      const dst = new Float32Array(list.length * 3 * size);
+      list.forEach((t, i) => dst.set(src.subarray(t * 3 * size, (t * 3 + 3) * size), i * 3 * size));
+      out.setAttribute(name, new THREE.BufferAttribute(dst, size, a.normalized));
+    }
+    return out;
+  };
+  const result: [THREE.BufferGeometry | null, THREE.BufferGeometry | null] = [build(cast), build(detail)];
+  geo.dispose();
+  return result;
+}
+
 export function mergeByMaterial(items: readonly PlacedObject[], name: string): THREE.Group {
   const buckets = new Map<THREE.Material, THREE.BufferGeometry[]>();
+  // Small body detail (frames, railings, shutters, pots ...) that is drawn but does not cast shadows.
+  const details = new Map<THREE.Material, THREE.BufferGeometry[]>();
+  const push = (map: Map<THREE.Material, THREE.BufferGeometry[]>, material: THREE.Material, geo: THREE.BufferGeometry): void => {
+    const list = map.get(material);
+    if (list) list.push(geo);
+    else map.set(material, [geo]);
+  };
   const local = new THREE.Matrix4();
   const cores = items.map(coreOf);
 
@@ -100,9 +142,11 @@ export function mergeByMaterial(items: readonly PlacedObject[], name: string): T
       local.multiplyMatrices(matrix, child.matrixWorld);
       let geo = (child.geometry as THREE.BufferGeometry).clone().applyMatrix4(local);
       geo = cullInside(geo, others);
-      const list = buckets.get(material);
-      if (list) list.push(geo);
-      else buckets.set(material, [geo]);
+      if (material.name === BODY_MATERIAL) {
+        const [cast, detail] = splitCasters(geo);
+        if (cast) push(buckets, material, cast);
+        if (detail) push(details, material, detail);
+      } else push(buckets, material, geo);
       (child.geometry as THREE.BufferGeometry).dispose();
     });
   });
@@ -116,7 +160,18 @@ export function mergeByMaterial(items: readonly PlacedObject[], name: string): T
     merged.computeBoundingSphere();
     const mesh = new THREE.Mesh(merged, material);
     mesh.name = material.name || 'merged';
-    mesh.castShadow = material.name === 'building-body';
+    mesh.castShadow = material.name === BODY_MATERIAL;
+    mesh.receiveShadow = true;
+    group.add(mesh);
+  }
+  for (const [material, geos] of details) {
+    const merged = mergeGeometries(geos, false);
+    for (const g of geos) g.dispose();
+    if (!merged) continue;
+    merged.computeBoundingSphere();
+    const mesh = new THREE.Mesh(merged, material);
+    mesh.name = (material.name || 'merged') + '-detail';
+    mesh.castShadow = false;
     mesh.receiveShadow = true;
     group.add(mesh);
   }

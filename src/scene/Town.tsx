@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useRef } from 'react';
 import { useFrame, type ThreeEvent } from '@react-three/fiber';
 import * as THREE from 'three';
-import { generateCity, type Block, type CityLayout, type Lot, type Rect } from '../city';
+import { getCityLayout, retargetTraffic, type Block, type CityLayout, type Lot, type Rect } from '../city';
 import { buildHouse, buildMonument, defaultHouseParams, type HouseChimney, type HouseParams } from '../buildings';
 import { setGlassEnvironment, setNightLights } from '../buildings/materials';
 import { createWeather, applyFogRange } from '../weather';
@@ -30,6 +30,7 @@ import type { VehicleClass } from '../audio';
 import { Pedestrians, VehicleSystem, createTrafficMeshes } from '../traffic';
 import {
   MONUMENT_KINDS,
+  QUALITY_PRESETS,
   useWorldStore,
   type BlockOverride,
   type HouseOverride,
@@ -61,6 +62,85 @@ function lightDirection(dir: { x: number; y: number; z: number; altitudeDeg: num
   if (flat.lengthSq() < 1e-6) flat.set(0, 1);
   flat.normalize().multiplyScalar(Math.cos(alt));
   return new THREE.Vector3(flat.x, Math.sin(alt), flat.y);
+}
+
+const SUN_DISTANCE = 220;
+/** Shadow bias the whole-town fit was tuned with. */
+const SHADOW_NORMAL_BIAS = 0.04;
+
+/**
+ * Half-extent of the shadow frustum for a camera at `dist` metres from its ground target.
+ * Zoomed out it is the whole-town fit (identical to the fixed frustum used before); zoomed in it
+ * shrinks around the target, in 10 m steps so zooming does not make the shadow edges crawl.
+ */
+export function shadowHalfExtent(dist: number, fullHalf: number): number {
+  const wanted = Math.max(50, dist * 0.8);
+  const stepped = Math.ceil(wanted / 10) * 10;
+  return stepped >= fullHalf ? fullHalf : stepped;
+}
+
+const _fwd = new THREE.Vector3();
+const _right = new THREE.Vector3();
+const _up = new THREE.Vector3();
+const _centre = new THREE.Vector3();
+const _worldUp = new THREE.Vector3(0, 1, 0);
+
+/**
+ * Fits the sun's shadow camera around where the camera is looking and snaps its centre to whole
+ * shadow texels along the light's own axes, so shadows stay still while the view pans.
+ */
+function fitSunShadow(
+  light: THREE.DirectionalLight,
+  camera: THREE.Camera,
+  sunDir: THREE.Vector3,
+  sunDistance: number,
+  bounds: Rect,
+  mapSize: number,
+): void {
+  const fullHalf = Math.max(bounds.maxX - bounds.minX, bounds.maxZ - bounds.minZ) / 2 + 20;
+
+  // Ground point under the view centre (camera ray meets y = 0); the origin when looking level or up.
+  camera.getWorldDirection(_fwd);
+  _centre.set(0, 0, 0);
+  let dist = Infinity;
+  if (_fwd.y < -0.02) {
+    const along = Math.min(camera.position.y / -_fwd.y, 400);
+    dist = along;
+    _centre.copy(camera.position).addScaledVector(_fwd, along);
+    _centre.y = 0;
+    _centre.x = THREE.MathUtils.clamp(_centre.x, bounds.minX, bounds.maxX);
+    _centre.z = THREE.MathUtils.clamp(_centre.z, bounds.minZ, bounds.maxZ);
+  }
+  const half = shadowHalfExtent(dist, fullHalf);
+  if (half >= fullHalf) _centre.set(0, 0, 0);
+
+  // Light axes (the shadow camera looks along -sunDir, with world up as its up hint).
+  _right.crossVectors(_worldUp, sunDir);
+  if (_right.lengthSq() < 1e-8) _right.set(1, 0, 0);
+  _right.normalize();
+  _up.crossVectors(sunDir, _right).normalize();
+  if (half < fullHalf) {
+    const texel = (2 * half) / mapSize;
+    const cr = _centre.dot(_right);
+    const cu = _centre.dot(_up);
+    _centre.addScaledVector(_right, Math.round(cr / texel) * texel - cr);
+    _centre.addScaledVector(_up, Math.round(cu / texel) * texel - cu);
+  }
+
+  light.target.position.copy(_centre);
+  light.target.updateMatrixWorld();
+  light.position.copy(_centre).addScaledVector(sunDir, sunDistance);
+
+  const cam = light.shadow.camera;
+  if (cam.right !== half) {
+    cam.left = -half;
+    cam.right = half;
+    cam.top = half;
+    cam.bottom = -half;
+    cam.updateProjectionMatrix();
+  }
+  // World-space normal offset scales with the texel size; the depth bias is range-based and stays.
+  light.shadow.normalBias = Math.max(0.015, SHADOW_NORMAL_BIAS * (half / fullHalf));
 }
 
 /** Street trees read too small from the top-down camera at their botanical size. */
@@ -179,10 +259,9 @@ export function Town({ onSelect }: { onSelect: (target: OverrideTarget) => void 
   const setBlockOrder = useWorldStore((s) => s.setBlockOrder);
   const swapBlocks = useWorldStore((s) => s.swapBlocks);
 
-  const layout = useMemo(
-    () => generateCity(settings),
-    [settings.seed, settings.townWidth, settings.townDepth, settings.streetTreeMultiplier, settings.trafficMultiplier],
-  );
+  // Generated once per layout key (seed, size, street trees). Traffic density is not part of it.
+  const layout = getCityLayout(settings);
+  const preset = QUALITY_PRESETS[settings.quality];
 
   const freshIds = layout.blocks.map((b) => b.id);
   const orderIsFresh = storedBase.length === freshIds.length && freshIds.every((id) => storedBase.includes(id));
@@ -222,6 +301,7 @@ export function Town({ onSelect }: { onSelect: (target: OverrideTarget) => void 
   useEffect(() => () => weather.dispose(), [weather]);
   const overlay = useRef({ cloudiness: 0.25, flash: 0 });
   const sunLight = useRef<THREE.DirectionalLight>(null);
+  const sunDirRef = useRef(new THREE.Vector3(0, 1, 0));
   const hemiLight = useRef<THREE.HemisphereLight>(null);
   const ambLight = useRef<THREE.AmbientLight>(null);
 
@@ -265,18 +345,21 @@ export function Town({ onSelect }: { onSelect: (target: OverrideTarget) => void 
   );
 
   // --- Traffic ------------------------------------------------------------------------------
+  // Only these two follow the slider (and the quality tier's traffic factor); the layout stays put.
+  const trafficMultiplier = settings.trafficMultiplier * preset.traffic;
+  const trafficLayout = useMemo(() => retargetTraffic(layout, trafficMultiplier), [layout, trafficMultiplier]);
   const traffic = useMemo(
-    () => new VehicleSystem(layout, { trafficMultiplier: settings.trafficMultiplier }),
-    [layout, settings.trafficMultiplier],
+    () => new VehicleSystem(trafficLayout, { trafficMultiplier }),
+    [trafficLayout, trafficMultiplier],
   );
   const walkers = useMemo(
     () =>
-      new Pedestrians(layout, {
-        trafficMultiplier: settings.trafficMultiplier,
+      new Pedestrians(trafficLayout, {
+        trafficMultiplier,
         lights: traffic.lights,
         timeOfDay: useWorldStore.getState().settings.timeOfDay,
       }),
-    [layout, settings.trafficMultiplier, traffic],
+    [trafficLayout, trafficMultiplier, traffic],
   );
   const life = useMemo(() => createLife(layout, { seed: settings.seed }), [layout, settings.seed]);
   useEffect(() => () => life.dispose(), [life]);
@@ -368,6 +451,16 @@ export function Town({ onSelect }: { onSelect: (target: OverrideTarget) => void 
     previous.current = pieces;
   }, [pieces, cache]);
 
+  // A new shadow map size needs the old render target released so three allocates a fresh one.
+  const shadowMapSize = preset.shadowMap;
+  useEffect(() => {
+    const light = sunLight.current;
+    if (!light) return;
+    light.shadow.mapSize.set(shadowMapSize, shadowMapSize);
+    light.shadow.map?.dispose();
+    light.shadow.map = null;
+  }, [shadowMapSize]);
+
   // --- Frame loop ---------------------------------------------------------------------------
   const ground = layout.townBounds;
   const townSize = Math.max(ground.maxX - ground.minX, ground.maxZ - ground.minZ);
@@ -420,7 +513,10 @@ export function Town({ onSelect }: { onSelect: (target: OverrideTarget) => void 
     clouds.setCoverage(wx.cloudiness);
     clouds.setSunlight(Math.min(1, lighting.sky.sunIntensity) * wx.dim);
     applyFogRange(state.scene.fog as THREE.Fog, townSize * 2.2, townSize * 6, wx.fogDensityMul);
-    if (sunLight.current) sunLight.current.intensity = lighting.sky.sunIntensity * SUN_GAIN * wx.dim * (1 - 0.5 * wx.flash);
+    if (sunLight.current) {
+      sunLight.current.intensity = lighting.sky.sunIntensity * SUN_GAIN * wx.dim * (1 - 0.5 * wx.flash);
+      fitSunShadow(sunLight.current, state.camera, sunDirRef.current, SUN_DISTANCE, ground, shadowMapSize);
+    }
     if (hemiLight.current) hemiLight.current.intensity = lighting.sky.ambientIntensity * HEMI_GAIN * wx.dim + wx.flash * 2.5;
     if (ambLight.current) ambLight.current.intensity = lighting.sky.ambientIntensity * AMBIENT_GAIN * wx.dim;
 
@@ -472,7 +568,8 @@ export function Town({ onSelect }: { onSelect: (target: OverrideTarget) => void 
 
   // --- Lights ---------------------------------------------------------------------------------
   const sunDir = lightDirection(lighting.sun.altitudeDeg > -2 ? lighting.sun : lighting.moon);
-  const sunDistance = 220;
+  sunDirRef.current.copy(sunDir);
+  const sunDistance = SUN_DISTANCE;
   const sky = lighting.sky;
   const sunColor = new THREE.Color(sky.sunColor.r, sky.sunColor.g, sky.sunColor.b);
   const skyColor = new THREE.Color(sky.sky.r, sky.sky.g, sky.sky.b);
@@ -532,12 +629,8 @@ export function Town({ onSelect }: { onSelect: (target: OverrideTarget) => void 
         castShadow
         shadow-bias={-0.0004}
         shadow-normalBias={0.04}
-        shadow-mapSize-width={2048}
-        shadow-mapSize-height={2048}
-        shadow-camera-left={-townSize / 2 - 20}
-        shadow-camera-right={townSize / 2 + 20}
-        shadow-camera-top={townSize / 2 + 20}
-        shadow-camera-bottom={-townSize / 2 - 20}
+        shadow-mapSize-width={shadowMapSize}
+        shadow-mapSize-height={shadowMapSize}
         shadow-camera-far={600}
       />
 

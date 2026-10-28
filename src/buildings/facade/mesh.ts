@@ -96,6 +96,31 @@ function traceSource(): string {
   return out.join(' < ');
 }
 
+/** Name of the per-vertex attribute (body only) that is 1 when a triangle belongs in the shadow pass, 0 for small detail. */
+export const CASTER_ATTRIBUTE = 'aCaster';
+
+/**
+ * Shadow-caster classification (see src/scene/mergeBlock.ts, which splits a block's body into a caster and a
+ * detail mesh). A box casts unless it is tiny (longest side under 0.4 m), a thin bar (second side under
+ * 0.15 m: window frames, railings, rails, pots) or a thin plate (under 8 cm thick and under 1.2 m wide:
+ * shutters, doors, sign boards). Everything else, walls, roofs, parapets, slabs, chimney stacks,
+ * cornices, keeps casting. The shadow of the excluded parts is a few centimetres wide and invisible.
+ */
+export function boxCasts(du: number, dy: number, dn: number): boolean {
+  let s0 = du;
+  let s1 = dy;
+  let s2 = dn;
+  if (s0 > s1) [s0, s1] = [s1, s0];
+  if (s1 > s2) [s1, s2] = [s2, s1];
+  if (s0 > s1) [s0, s1] = [s1, s0];
+  if (s2 < 0.4 || s1 < 0.15) return false;
+  if (s0 < 0.08 && s1 < 1.2) return false;
+  return true;
+}
+
+/** A free polygon casts when its area is at least 0.16 m2 (a 0.4 x 0.4 m patch). */
+export const POLY_CAST_AREA = 0.16;
+
 /** Growable Float32Array. */
 class FBuf {
   a = new Float32Array(3072);
@@ -133,6 +158,8 @@ interface Buf {
   c: FBuf;
   /** Surface ids, one float per vertex (body only). */
   s: FBuf | null;
+  /** Shadow-caster flags, one float per vertex (body only). */
+  k: FBuf | null;
   /** Texture coordinates, two floats per vertex (sign only). */
   uv: FBuf | null;
 }
@@ -143,6 +170,7 @@ function newBuf(t: Target): Buf {
     n: new FBuf(),
     c: new FBuf(),
     s: t === 'body' ? new FBuf() : null,
+    k: t === 'body' ? new FBuf() : null,
     uv: t === 'sign' ? new FBuf() : null,
   };
 }
@@ -152,6 +180,7 @@ interface PendingBox extends LayerBox {
   c: Col;
   top: Col;
   surface: number;
+  caster: boolean;
   src: string;
 }
 
@@ -185,9 +214,13 @@ export class HouseMesh {
     }
   }
 
-  /** Appends the per-vertex extras (surface id, uv) for `count` vertices that have no uv. */
+  /** Caster flag written for the box being emitted. */
+  private caster = true;
+
+  /** Appends the per-vertex extras (surface id, caster flag, uv) for `count` vertices that have no uv. */
   private extras(buf: Buf, count: number): void {
     if (buf.s) for (let i = 0; i < count; i++) buf.s.push1(this.surface);
+    if (buf.k) for (let i = 0; i < count; i++) buf.k.push1(this.caster ? 1 : 0);
     if (buf.uv) for (let i = 0; i < count; i++) buf.uv.push2(0, 0);
   }
 
@@ -255,6 +288,7 @@ export class HouseMesh {
       }
     }
     const perVertex = Array.isArray(c[0]);
+    const polyCasts = len * 0.5 >= POLY_CAST_AREA ? 1 : 0;
     const buf = this.bufs[t];
     const traceStart = trace.on ? buf.p.len / 9 : 0;
     const push = (i: number): void => {
@@ -263,6 +297,7 @@ export class HouseMesh {
       const cc = (perVertex ? (c as readonly Col[])[i] : (c as Col));
       buf.c.push3(cc[0], cc[1], cc[2]);
       if (buf.s) buf.s.push1(this.surface);
+      if (buf.k) buf.k.push1(polyCasts);
       if (buf.uv) {
         const uv = uvs ? uvs[i] : null;
         buf.uv.push2(uv ? uv[0] : 0, uv ? uv[1] : 0);
@@ -321,6 +356,7 @@ export class HouseMesh {
       c,
       top: top ?? c,
       surface: this.surface,
+      caster: boxCasts(u1 - u0, y1 - y0, n1 - n0),
       f: this.frame,
       u0,
       u1,
@@ -366,6 +402,7 @@ export class HouseMesh {
     const { f, u0, u1, y0, y1, n0, n1, skip, c, top } = bx;
     const prevSurface = this.surface;
     this.surface = bx.surface;
+    this.caster = bx.caster;
     // World x/z of the four (u, n) corners; y is shared.
     const X = (u: number, n: number): number => f.ox + u * f.ux + n * f.nx;
     const Z = (u: number, n: number): number => f.oz + u * f.uz + n * f.nz;
@@ -545,6 +582,7 @@ export class HouseMesh {
       );
       g.setAttribute('color', new THREE.BufferAttribute(buf.c.take(), 3));
       if (buf.s) g.setAttribute(SURFACE_ATTRIBUTE, new THREE.BufferAttribute(buf.s.take(), 1));
+      if (buf.k) g.setAttribute(CASTER_ATTRIBUTE, new THREE.BufferAttribute(buf.k.take(), 1));
       g.computeBoundingBox();
       g.computeBoundingSphere();
       const mesh = new THREE.Mesh(g, materials[t]);

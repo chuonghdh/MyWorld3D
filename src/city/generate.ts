@@ -118,7 +118,7 @@ function polylineLength(points: readonly Vec2[]): number {
 }
 
 /** Evenly spaced spawn points along a path; count scales with trafficMultiplier. */
-function spawnPointsFor(waypoints: readonly Vec2[], trafficMultiplier: number): Vec2[] {
+export function spawnPointsFor(waypoints: readonly Vec2[], trafficMultiplier: number): Vec2[] {
   const length = polylineLength(waypoints);
   const count = Math.max(0, Math.round((trafficMultiplier * length) / TRAFFIC_SPAWN_SPACING));
   if (count === 0 || waypoints.length < 2) return [];
