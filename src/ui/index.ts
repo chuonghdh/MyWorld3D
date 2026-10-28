@@ -7,3 +7,5 @@ export type { HousePanelProps, HouseBase } from './HousePanel';
 export { MonumentPanel } from './MonumentPanel';
 export type { MonumentPanelProps } from './MonumentPanel';
 export { TimeBar } from './TimeBar';
+export { HelpOverlay } from './HelpOverlay';
+export { isNarrowViewport, screenshotFilename, isHelpKey } from './uiUtils';

@@ -1,5 +1,6 @@
 // Small shared form controls for the panels. Plain DOM, no UI library.
 import { useState, type ReactNode } from 'react';
+import { isNarrowViewport } from './uiUtils';
 
 interface SliderProps {
   label: string;
@@ -159,7 +160,8 @@ export function Swatches({
  * scene behind stays visible; the title bar stays so the panel can be opened again.
  */
 export function Panel({ title, children }: { title: string; children: ReactNode }) {
-  const [collapsed, setCollapsed] = useState(false);
+  // Collapsed by default on phones so the first view is the scene, not a full-screen sheet.
+  const [collapsed, setCollapsed] = useState(() => isNarrowViewport());
   return (
     <section className={`mw-panel${collapsed ? ' is-collapsed' : ''}`} aria-label={title}>
       <header className="mw-panel-head">

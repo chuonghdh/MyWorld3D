@@ -1,13 +1,14 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Canvas } from '@react-three/fiber';
-import { OrbitControls } from '@react-three/drei';
 import { getCityLayout } from './city';
-import { DEFAULT_HOUSE_BASE, HousePanel, MonumentPanel, SettingsCity, TimeBar, type CityAction } from './ui';
+import { DEFAULT_HOUSE_BASE, HelpOverlay, HousePanel, MonumentPanel, SettingsCity, TimeBar, type CityAction } from './ui';
 import { QUALITY_PRESETS, TREE_SPECIES, detectDevice, suggestQuality, useWorldStore, type OverrideTarget } from './store';
 import * as audio from './audio';
 import { Town, monumentBaseFor } from './scene/Town';
 import { runtime } from './scene/runtime';
+import { CameraRig } from './scene/CameraRig';
 import { PostFX } from './scene/PostFX';
+import { ScreenshotRequest } from './scene/ScreenshotRequest';
 import { getLightingForTime } from './environment';
 
 // Scene shell: the 3D town fills the screen, the city settings sit on the right,
@@ -70,7 +71,7 @@ export function App() {
         break;
       }
       case 'wholeMap':
-        runtime.wholeMapRequests++;
+        runtime.cameraPresetRequests.push('overview');
         break;
       case 'moveBlocks':
         setToggle('moveBlocks', value ?? !toggles.moveBlocks);
@@ -121,22 +122,19 @@ export function App() {
           if (import.meta.env.DEV) (window as unknown as { __r3f?: unknown }).__r3f = state;
         }}
       >
-        <Town onSelect={setSelected} />
+        <CameraRig />
+        <Town onSelect={setSelected} selected={selected} />
         <PostFX tiltShift={toggles.tiltShift} night={night} bloomScale={preset.bloom} msaa={preset.msaa} />
-        <OrbitControls
-          target={[0, 0, 0]}
-          enableDamping
-          maxPolarAngle={Math.PI / 2.05}
-          minDistance={40}
-          maxDistance={600}
-        />
+        <ScreenshotRequest />
       </Canvas>
 
-      <div style={{ position: 'absolute', top: 16, left: '50%', transform: 'translateX(-50%)' }}>
+      {/* Centred on the full screen width; below 1280 px it shrinks to icons so it clears the side panels. */}
+      <div className="mw-topbar-host">
         <TimeBar />
       </div>
+      <HelpOverlay />
       <div style={{ position: 'absolute', top: 16, left: 16, width: 280 }}>{panel}</div>
-      <div style={{ position: 'absolute', top: 16, right: 16, width: 300 }}>
+      <div data-mw-right-panel style={{ position: 'absolute', top: 16, right: 16, width: 300 }}>
         <SettingsCity onAction={handleAction} />
       </div>
     </div>

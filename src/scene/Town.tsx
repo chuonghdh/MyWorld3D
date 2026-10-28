@@ -1,6 +1,6 @@
 // The 3D town: streetscape, blocks of houses or monuments, trees, sky, wind, leaves and traffic.
 // Everything is derived from the store (layout settings and overrides) plus per-frame simulation.
-import { useEffect, useMemo, useRef } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { useFrame, type ThreeEvent } from '@react-three/fiber';
 import * as THREE from 'three';
 import { getCityLayout, retargetTraffic, type Block, type CityLayout, type Lot, type Rect } from '../city';
@@ -38,6 +38,8 @@ import {
 } from '../store';
 import type { MonumentKind, Season } from '../core/types';
 import { hashId, runtime } from './runtime';
+import { Selection } from './Selection';
+import { sameTarget } from './selectionMath';
 import { DAY_SECONDS } from '../store/model';
 import { blockPresetFor, lotStyle } from './cityStyle';
 import { disposeMerged, mergeByMaterial, type PlacedObject } from './mergeBlock';
@@ -159,6 +161,8 @@ interface LotHit {
   facing: number;
   width: number;
   depth: number;
+  /** Height of the house, for the selection frame. */
+  height?: number;
 }
 
 interface BlockPiece {
@@ -250,7 +254,7 @@ function disposePiece(piece: BlockPiece): void {
   if (piece.object instanceof THREE.Group) disposeMerged(piece.object);
 }
 
-export function Town({ onSelect }: { onSelect: (target: OverrideTarget) => void }) {
+export function Town({ onSelect, selected }: { onSelect: (target: OverrideTarget) => void; selected: OverrideTarget | null }) {
   const settings = useWorldStore((s) => s.settings);
   const storedOrder = useWorldStore((s) => s.blockOrder);
   const storedBase = useWorldStore((s) => s.baseBlockOrder);
@@ -319,20 +323,23 @@ export function Town({ onSelect }: { onSelect: (target: OverrideTarget) => void 
     streetscape.setNightAmount(schedule.lamps);
   }, [lightsOn, streetscape, settings.timeOfDay, lighting]);
 
-  const treeField = useMemo(
+  const treeItems = useMemo(
     () =>
-      createTreeField(
-        layout.streetTrees.map((t) => ({
-          id: t.id,
-          position: t.position,
-          species: treeOverrides[t.id]?.species ?? t.species,
-          scale: t.scale * TREE_SCALE,
-        })),
-        { season: settings.season as Season, uniforms, seed: settings.seed },
-      ),
-    // Season changes go through setSeason below instead of rebuilding.
-    [layout, treeOverrides, uniforms, settings.seed],
+      layout.streetTrees.map((t) => ({
+        id: t.id,
+        position: t.position,
+        species: treeOverrides[t.id]?.species ?? t.species,
+        scale: t.scale * TREE_SCALE,
+      })),
+    [layout, treeOverrides],
   );
+  const treeField = useMemo(
+    () => createTreeField(treeItems, { season: settings.season as Season, uniforms, seed: settings.seed }),
+    // Season changes go through setSeason below instead of rebuilding.
+    [treeItems, uniforms, settings.seed],
+  );
+  const [hovered, setHovered] = useState<OverrideTarget | null>(null);
+  const hover = (t: OverrideTarget | null) => setHovered((p) => (sameTarget(p, t) ? p : t));
   useEffect(() => treeField.setSeason(settings.season as Season), [treeField, settings.season]);
   useEffect(() => () => treeField.dispose(), [treeField]);
 
@@ -409,7 +416,8 @@ export function Town({ onSelect }: { onSelect: (target: OverrideTarget) => void 
         const obj = buildMonument(monumentKind, { width, depth, seed: lot?.seed ?? 1 });
         obj.position.set((lot?.position.x ?? c.x) + offset.x, 0, (lot?.position.z ?? c.z) + offset.z);
         obj.rotation.y = lot?.facing ?? 0;
-        piece = { key: 'm-' + block.id, blockId: block.id, kind, object: obj, lots: [], chimneys: [], signature };
+        const footprint = [{ id: lot?.id ?? block.id, x: obj.position.x, z: obj.position.z, facing: obj.rotation.y, width, depth }];
+        piece = { key: 'm-' + block.id, blockId: block.id, kind, object: obj, lots: footprint, chimneys: [], signature };
       } else {
         const placedHouses: PlacedObject[] = [];
         const hits: LotHit[] = [];
@@ -431,6 +439,7 @@ export function Town({ onSelect }: { onSelect: (target: OverrideTarget) => void 
             facing: lot.facing,
             width: lot.width,
             depth: lot.depth,
+            height: new THREE.Box3().setFromObject(house).max.y,
           });
         }
         const obj = mergeByMaterial(placedHouses, 'block-' + block.id);
@@ -487,23 +496,6 @@ export function Town({ onSelect }: { onSelect: (target: OverrideTarget) => void 
       }
     }
 
-    // Depth precision: a fixed near plane of 1 m leaves only millimetres of resolution at 300 m, so
-    // coplanar details flicker. Tie the clip planes to the distance from the orbit target instead.
-    const camDist = state.camera.position.length();
-    const persp = state.camera as THREE.PerspectiveCamera;
-    const wantNear = THREE.MathUtils.clamp(camDist * 0.05, 0.5, 30);
-    const wantFar = Math.max(1200, camDist * 4);
-    if (Math.abs(persp.near - wantNear) > persp.near * 0.05 || Math.abs(persp.far - wantFar) > persp.far * 0.05) {
-      persp.near = wantNear;
-      persp.far = wantFar;
-      persp.updateProjectionMatrix();
-    }
-
-    while (runtime.wholeMapRequests > 0) {
-      runtime.wholeMapRequests--;
-      state.camera.position.set(0, townSize * 1.75, townSize * 0.45);
-      state.camera.lookAt(0, 0, 0);
-    }
     while (runtime.gustRequests > 0) {
       runtime.gustRequests--;
       runtime.gusts = triggerGust(runtime.gusts, t, 6);
@@ -614,6 +606,20 @@ export function Town({ onSelect }: { onSelect: (target: OverrideTarget) => void 
     if (lot) onSelect({ type: 'house', id: lot.id });
   }
 
+  function hoverBlock(e: ThreeEvent<PointerEvent>, piece: BlockPiece) {
+    e.stopPropagation();
+    if (piece.kind === 'monument') return hover({ type: 'block', id: piece.blockId });
+    const lot = lotAt(piece.lots, e.point);
+    hover(lot ? { type: 'house', id: lot.id } : null);
+  }
+
+  function hoverTree(e: ThreeEvent<PointerEvent>) {
+    const id = e.instanceId === undefined ? null : treeField.treeIdAt(e.object, e.instanceId);
+    if (!id) return;
+    e.stopPropagation();
+    hover({ type: 'tree', id });
+  }
+
   function handleTreeClick(e: ThreeEvent<MouseEvent>) {
     if (e.instanceId === undefined) return;
     const id = treeField.treeIdAt(e.object, e.instanceId);
@@ -656,10 +662,23 @@ export function Town({ onSelect }: { onSelect: (target: OverrideTarget) => void 
       <primitive object={streetscape.group} />
 
       {pieces.map((p) => (
-        <primitive key={p.key} object={p.object} onClick={(e: ThreeEvent<MouseEvent>) => handleBlockClick(e, p)} />
+        <primitive
+          key={p.key}
+          object={p.object}
+          onClick={(e: ThreeEvent<MouseEvent>) => handleBlockClick(e, p)}
+          onPointerMove={(e: ThreeEvent<PointerEvent>) => hoverBlock(e, p)}
+          onPointerOut={() => hover(null)}
+        />
       ))}
 
-      <primitive object={treeField.group} position={[0, CURB, 0]} onClick={handleTreeClick} />
+      <primitive
+        object={treeField.group}
+        position={[0, CURB, 0]}
+        onClick={handleTreeClick}
+        onPointerMove={hoverTree}
+        onPointerOut={() => hover(null)}
+      />
+      <Selection blocks={pieces} trees={treeItems} selected={selected} hovered={hovered} />
       <primitive object={greenery} position={[0, CURB, 0]} />
       <primitive object={clouds.group} />
       <primitive object={weather.group} />

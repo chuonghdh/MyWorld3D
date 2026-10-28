@@ -43,6 +43,8 @@ export interface WorldState extends LayoutData {
   setToggle: (key: keyof UiToggles, value: boolean) => void;
   /** Moves the time of day forward (wraps at 24). Not undoable: it is clock ticking, not an edit. */
   advanceTime: (hours: number) => void;
+  /** Sets the time of day (hours, wraps at 24). Not undoable, like advanceTime: used by camera presets. */
+  setTimeOfDay: (hours: number) => void;
   undo: () => void;
   redo: () => void;
   resetBlocks: () => void;
@@ -167,6 +169,10 @@ export const useWorldStore = create<WorldState>()((set, get) => {
 
     advanceTime: (hours) => {
       set((s) => ({ settings: { ...s.settings, timeOfDay: (((s.settings.timeOfDay + hours) % 24) + 24) % 24 } }));
+    },
+
+    setTimeOfDay: (hours) => {
+      set((s) => ({ settings: { ...s.settings, timeOfDay: ((hours % 24) + 24) % 24 } }));
     },
 
     setToggle: (key, value) => {

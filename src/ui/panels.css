@@ -356,3 +356,295 @@
   background: rgba(232, 131, 58, 0.55);
   background-clip: padding-box;
 }
+
+/* ===== Help overlay and tool bar (Photo, ?) ===== */
+.mw-toolbar {
+  position: fixed;
+  left: 16px;
+  bottom: 16px;
+  display: flex;
+  gap: 8px;
+  padding: 8px 10px;
+  background: var(--mw-bg);
+  border: 1px solid var(--mw-line);
+  border-radius: 14px;
+  backdrop-filter: blur(10px);
+  z-index: 20;
+}
+
+.mw-toolbar .mw-timebar-btn {
+  min-width: 0;
+}
+
+.mw-toolbar-help {
+  font-weight: 700;
+  min-width: 36px;
+}
+
+.mw-help-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 100;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(0, 0, 0, 0.45);
+}
+
+.mw-help {
+  width: min(460px, calc(100vw - 24px));
+  max-height: calc(100vh - 24px);
+  display: flex;
+  flex-direction: column;
+  background: var(--mw-bg);
+  color: var(--mw-fg);
+  border: 1px solid var(--mw-line);
+  border-radius: 14px;
+  backdrop-filter: blur(10px);
+  font: 13px/1.35 system-ui, -apple-system, 'Segoe UI', sans-serif;
+  overflow: hidden;
+}
+
+.mw-help-body {
+  padding: 10px 14px 14px;
+  overflow-y: auto;
+}
+
+.mw-help-list {
+  margin: 0;
+}
+
+.mw-help-row {
+  display: grid;
+  grid-template-columns: 150px 1fr;
+  gap: 10px;
+  padding: 4px 0;
+  border-bottom: 1px solid var(--mw-line);
+}
+
+.mw-help-row dt {
+  color: var(--mw-accent);
+  font-weight: 600;
+}
+
+.mw-help-row dd {
+  margin: 0;
+  color: var(--mw-fg);
+}
+
+/* ===== Mobile / touch layout (Round 4.5) =====
+   Under 600 px: panels become bottom sheets (Settings is collapsed by default, see Panel in controls.tsx),
+   buttons are at least 40 px high, the time bar shrinks and the tool bar moves under it.
+   The panel wrappers in App.tsx carry inline positions, so the panels themselves go position: fixed. */
+@media (max-width: 600px) {
+  .mw-panel {
+    position: fixed;
+    left: 8px;
+    right: 8px;
+    bottom: 8px;
+    width: auto;
+    max-height: 55vh;
+    z-index: 15;
+  }
+
+  /* Selection panels (House, Monument) sit above the collapsed Settings header. */
+  .mw-panel:not([aria-label="Settings"]) {
+    bottom: 64px;
+    max-height: 40vh;
+  }
+
+  .mw-btn,
+  .mw-seg,
+  .mw-select,
+  .mw-timebar-btn,
+  .mw-panel-toggle {
+    min-height: 40px;
+  }
+
+  .mw-panel-toggle {
+    min-width: 40px;
+  }
+
+  .mw-timebar {
+    gap: 4px;
+    padding: 4px 6px;
+    border-radius: 12px;
+  }
+
+  .mw-timebar-btn {
+    min-width: 0;
+    padding: 4px 8px;
+    gap: 4px;
+    font-size: 12px;
+  }
+
+  .mw-timebar-clock {
+    min-width: 0;
+    padding: 2px 6px;
+    font-size: 15px;
+  }
+
+  .mw-toolbar {
+    left: auto;
+    right: 8px;
+    bottom: auto;
+    top: 64px;
+    flex-direction: column;
+    padding: 4px;
+  }
+
+  .mw-help-row {
+    grid-template-columns: 110px 1fr;
+  }
+}
+
+/* Time bar extras: analog clock when folded, walking figure, drag ghost. */
+.mw-timebar-fold {
+  min-width: 0;
+  padding: 7px 9px;
+}
+
+.mw-clock-analog {
+  width: 36px;
+  height: 36px;
+  flex: none;
+}
+
+.mw-clock-analog circle {
+  fill: rgba(0, 0, 0, 0.35);
+  stroke: var(--mw-line);
+  stroke-width: 1.2;
+}
+
+.mw-clock-analog .pivot {
+  fill: var(--mw-accent);
+  stroke: none;
+}
+
+.mw-clock-analog line {
+  stroke: var(--mw-fg);
+  stroke-linecap: round;
+}
+
+.mw-clock-analog .hour {
+  stroke-width: 2.2;
+}
+
+.mw-clock-analog .minute {
+  stroke: var(--mw-accent);
+  stroke-width: 1.4;
+}
+
+.mw-walk-ghost {
+  position: fixed;
+  transform: translate(-50%, -50%);
+  pointer-events: none;
+  z-index: 60;
+  filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.5));
+}
+
+/* Top bar placement: centred on the full screen width. */
+.mw-topbar-host {
+  position: absolute;
+  top: 16px;
+  left: 0;
+  right: 0;
+  display: flex;
+  justify-content: center;
+  pointer-events: none;
+}
+
+.mw-topbar-host > * {
+  pointer-events: auto;
+}
+
+/* AM / PM next to the clock, and the folded analog clock with its period. */
+.mw-clock-period {
+  margin-left: 6px;
+  font: 600 11px/1 system-ui, -apple-system, 'Segoe UI', sans-serif;
+  letter-spacing: 0.04em;
+  color: var(--mw-muted);
+}
+
+.mw-clock-folded {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.mw-clock-folded .mw-clock-period {
+  margin-left: 0;
+}
+
+/* Narrower windows: icon-only buttons so the centred bar clears the settings panel. */
+@media (max-width: 1279px) {
+  .mw-timebar .mw-label {
+    display: none;
+  }
+
+  .mw-timebar .mw-timebar-btn {
+    min-width: 0;
+    padding: 7px 10px;
+  }
+
+  .mw-timebar-clock {
+    min-width: 0;
+    font-size: 19px;
+  }
+}
+
+/* Map / street view switch and icon buttons. */
+.mw-icon {
+  width: 18px;
+  height: 18px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.5;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.mw-timebar-icon {
+  min-width: 0;
+  padding: 7px 10px;
+}
+
+.mw-viewswitch {
+  display: inline-flex;
+  border: 1px solid var(--mw-line);
+  border-radius: 10px;
+  overflow: hidden;
+  background: var(--mw-btn);
+}
+
+.mw-viewswitch-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 7px 11px;
+  border: none;
+  background: transparent;
+  color: var(--mw-muted);
+  cursor: pointer;
+}
+
+.mw-viewswitch-btn + .mw-viewswitch-btn {
+  border-left: 1px solid var(--mw-line);
+}
+
+.mw-viewswitch-btn:hover {
+  color: var(--mw-fg);
+  background: rgba(255, 255, 255, 0.08);
+}
+
+.mw-viewswitch-btn.is-active {
+  color: var(--mw-accent);
+  background: rgba(232, 131, 58, 0.22);
+}
+
+.mw-walk-ghost .mw-icon {
+  width: 34px;
+  height: 34px;
+  stroke: var(--mw-accent);
+  stroke-width: 1.8;
+}
