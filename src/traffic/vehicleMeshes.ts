@@ -32,14 +32,14 @@ export interface VehicleMeshes {
   parked: readonly ParkingSpot[];
   /** Night look on or off (headlights, tail lights, interior, ground glow). */
   setNight(on: boolean): void;
-  /** Optional: world position of the camera focus. Headlight glow is only drawn within 110 m of it. */
+  /** Kept for callers; the headlight glow no longer depends on the camera focus (it is always drawn). */
   setFocus(x: number, z: number): void;
   update(vehicles: readonly VehicleRender[], ctx: VisualContext): void;
   dispose(): void;
 }
 
-const GLOW_CAP = 200;
-const GLOW_RANGE = 110;
+/** One headlight pool plus one brake pool per vehicle, for every vehicle the system can hold. */
+const GLOW_CAP = 640;
 
 // ---- shader patch ----------------------------------------------------------------------------
 
@@ -185,10 +185,12 @@ function glowMaterial(night: { value: number }): THREE.ShaderMaterial {
       varying vec2 vUv;
       varying vec3 vCol;
       void main() {
-        float v = vUv.y;
+        // Interpolation can push v a hair past 1 at the far edge; pow() of a negative base is NaN,
+        // and a NaN added to the frame shows up as black dashes along the edge of the pool.
+        float v = clamp(vUv.y, 0.0, 1.0);
         float half_w = mix(0.3, 1.0, v);
-        float xn = abs(vUv.x * 2.0 - 1.0) / half_w;
-        float a = pow(1.0 - v, 1.7) * (1.0 - smoothstep(0.35, 1.0, xn));
+        float xn = min(abs(vUv.x * 2.0 - 1.0) / half_w, 1.0);
+        float a = pow(max(1.0 - v, 0.0), 1.7) * (1.0 - smoothstep(0.35, 1.0, xn));
         a *= smoothstep(0.0, 0.06, v);
         gl_FragColor = vec4(vCol * a * 0.55 * uNight, 1.0);
       }
@@ -249,6 +251,7 @@ export function createVehicleMeshes(capacity = 256, layout?: CityLayout): Vehicl
   }
 
   // Headlight glow: a unit quad on the ground, z in [0,1] ahead of the instance origin, x in [-0.5,0.5].
+  // The instance matrix lifts it to 0.045 m, just above the asphalt top (0.04 m).
   const glowGeo = new THREE.PlaneGeometry(1, 1);
   glowGeo.rotateX(-Math.PI / 2);
   glowGeo.translate(0, 0, 0.5);
@@ -263,9 +266,6 @@ export function createVehicleMeshes(capacity = 256, layout?: CityLayout): Vehicl
   group.add(glow);
 
   let night = false;
-  let focusX = 0;
-  let focusZ = 0;
-  let hasFocus = false;
   const fill = new Array<number>(VARIANT_COUNT).fill(0);
 
   const classMesh: Record<VehicleClass, THREE.InstancedMesh> = {
@@ -287,10 +287,8 @@ export function createVehicleMeshes(capacity = 256, layout?: CityLayout): Vehicl
       uniforms.night.value = on ? 1 : 0;
       glow.visible = on;
     },
-    setFocus(x, z) {
-      focusX = x;
-      focusZ = z;
-      hasFocus = true;
+    setFocus() {
+      // Intentionally empty: glow is drawn for every vehicle so it never pops at a distance.
     },
     update(list, ctx) {
       const t = ctx.time;
@@ -343,7 +341,7 @@ export function createVehicleMeshes(capacity = 256, layout?: CityLayout): Vehicl
         m[i * 4 + 2] = 1;
         m[i * 4 + 3] = v.indicator;
 
-        if (night && gn < GLOW_CAP - 1 && (!hasFocus || Math.abs(v.position.x - focusX) + Math.abs(v.position.z - focusZ) < GLOW_RANGE)) {
+        if (night && gn < GLOW_CAP - 1) {
           const big = v.cls === 'bus' || v.cls === 'truck';
           const bike = v.cls === 'motorbike';
           const width = bike ? 2.6 : big ? 6.5 : 5.6;

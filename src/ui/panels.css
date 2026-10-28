@@ -42,6 +42,7 @@
 }
 
 .mw-panel-head h2 {
+  flex: 1;
   margin: 0;
   font-size: 12px;
   letter-spacing: 0.12em;
@@ -246,4 +247,112 @@
   .mw-panel {
     width: calc(100vw - 32px);
   }
+}
+
+/* Floating time bar: pause, standard/auto time and a digital clock, top centre. */
+.mw-timebar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 10px;
+  background: var(--mw-bg);
+  color: var(--mw-fg);
+  border: 1px solid var(--mw-line);
+  border-radius: 14px;
+  backdrop-filter: blur(10px);
+  font: 13px/1.35 system-ui, -apple-system, 'Segoe UI', sans-serif;
+}
+
+.mw-timebar-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 92px;
+  justify-content: center;
+  padding: 7px 12px;
+  border-radius: 9px;
+  border: 1px solid var(--mw-line);
+  background: var(--mw-btn);
+  color: var(--mw-fg);
+  font: inherit;
+  cursor: pointer;
+}
+
+.mw-timebar-btn:hover {
+  background: rgba(255, 255, 255, 0.13);
+}
+
+.mw-timebar-btn.is-active {
+  border-color: var(--mw-accent);
+  background: rgba(232, 131, 58, 0.22);
+}
+
+.mw-timebar-clock {
+  min-width: 76px;
+  padding: 4px 10px;
+  border-radius: 9px;
+  background: rgba(0, 0, 0, 0.35);
+  border: 1px solid var(--mw-line);
+  color: var(--mw-accent);
+  font: 600 22px/1.2 ui-monospace, 'Cascadia Mono', Consolas, monospace;
+  letter-spacing: 0.08em;
+  text-align: center;
+  font-variant-numeric: tabular-nums;
+}
+
+.mw-panel-toggle {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 26px;
+  height: 26px;
+  border-radius: 8px;
+  border: 1px solid var(--mw-line);
+  background: var(--mw-btn);
+  color: var(--mw-muted);
+  font-size: 10px;
+  cursor: pointer;
+  padding: 0;
+}
+
+.mw-panel-toggle:hover {
+  color: var(--mw-fg);
+  background: rgba(255, 255, 255, 0.13);
+}
+
+/* Folded panel: only the title bar remains, so it shrinks to a slim card. */
+.mw-panel.is-collapsed {
+  width: auto;
+  min-width: 180px;
+}
+
+.mw-panel.is-collapsed .mw-panel-head {
+  border-bottom: none;
+}
+
+/* Scrollbars inside the panels follow the dark card theme instead of the browser's white bar. */
+.mw-panel-body {
+  scrollbar-width: thin;
+  scrollbar-color: rgba(255, 255, 255, 0.22) transparent;
+}
+
+.mw-panel-body::-webkit-scrollbar {
+  width: 8px;
+}
+
+.mw-panel-body::-webkit-scrollbar-track {
+  background: transparent;
+  margin: 4px 0;
+}
+
+.mw-panel-body::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.22);
+  border-radius: 8px;
+  border: 2px solid transparent;
+  background-clip: padding-box;
+}
+
+.mw-panel-body::-webkit-scrollbar-thumb:hover {
+  background: rgba(232, 131, 58, 0.55);
+  background-clip: padding-box;
 }

@@ -105,7 +105,14 @@ export interface UiToggles {
   tiltShift: boolean;
   moveBlocks: boolean;
   music: boolean;
+  /** Freezes every simulation clock; the camera still moves. */
+  paused: boolean;
+  /** Time of day advances by itself: one in-app day lasts DAY_SECONDS real seconds. */
+  autoTime: boolean;
 }
+
+/** Real seconds one in-app day lasts in auto time (24 minutes: one in-app hour per real minute). */
+export const DAY_SECONDS = 24 * 60;
 
 export const DEFAULT_SETTINGS: WorldSettings = {
   seed: 1,
@@ -140,6 +147,6 @@ export function createEmptyLayout(seed: number = DEFAULT_SETTINGS.seed): LayoutD
   };
 }
 
-export const DEFAULT_TOGGLES: UiToggles = { tiltShift: false, moveBlocks: false, music: false };
+export const DEFAULT_TOGGLES: UiToggles = { tiltShift: false, moveBlocks: false, music: false, paused: false, autoTime: false };
 
 export const HISTORY_LIMIT = 100;

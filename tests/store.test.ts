@@ -11,7 +11,7 @@ function resetStore() {
     ...layout,
     past: [],
     future: [],
-    toggles: { tiltShift: false, moveBlocks: false, music: false },
+    toggles: { tiltShift: false, moveBlocks: false, music: false, paused: false, autoTime: false },
   });
   useWorldStore.getState().setBlockOrder(BLOCKS);
   // setBlockOrder is undoable; clear history so each test starts clean.

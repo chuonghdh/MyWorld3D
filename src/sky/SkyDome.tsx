@@ -4,6 +4,7 @@ import { useEffect, useMemo, useRef, type MutableRefObject } from 'react';
 import { useFrame } from '@react-three/fiber';
 import type { Season } from '../core/types';
 import type { Rgb } from '../environment/sun';
+import { runtime } from '../scene/runtime';
 import { createSkyDome } from './dome';
 import { createGroundDisc } from './ground';
 import { computeSkyState } from './state';
@@ -53,7 +54,7 @@ export function SkyDome({ timeOfDay, season, cloudiness = 0.25, flash = 0, overl
       dome.set(v);
       ground.set(v, fogNear, fogFar);
     }
-    dome.tick(state.clock.elapsedTime);
+    dome.tick(runtime.simTime);
     ground.follow(state.camera);
   });
 

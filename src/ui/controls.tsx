@@ -1,5 +1,5 @@
 // Small shared form controls for the panels. Plain DOM, no UI library.
-import type { ReactNode } from 'react';
+import { useState, type ReactNode } from 'react';
 
 interface SliderProps {
   label: string;
@@ -154,14 +154,29 @@ export function Swatches({
   );
 }
 
+/**
+ * Floating card with a title bar. The triangle in the top-right corner folds the body away so the
+ * scene behind stays visible; the title bar stays so the panel can be opened again.
+ */
 export function Panel({ title, children }: { title: string; children: ReactNode }) {
+  const [collapsed, setCollapsed] = useState(false);
   return (
-    <section className="mw-panel" aria-label={title}>
+    <section className={`mw-panel${collapsed ? ' is-collapsed' : ''}`} aria-label={title}>
       <header className="mw-panel-head">
         <span className="mw-dot" aria-hidden="true" />
         <h2>{title}</h2>
+        <button
+          type="button"
+          className="mw-panel-toggle"
+          aria-expanded={!collapsed}
+          aria-label={collapsed ? `Show ${title}` : `Hide ${title}`}
+          title={collapsed ? 'Show' : 'Hide'}
+          onClick={() => setCollapsed((c) => !c)}
+        >
+          <span aria-hidden="true">{collapsed ? '▼' : '▲'}</span>
+        </button>
       </header>
-      <div className="mw-panel-body">{children}</div>
+      {!collapsed && <div className="mw-panel-body">{children}</div>}
     </section>
   );
 }

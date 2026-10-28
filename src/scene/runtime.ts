@@ -11,6 +11,10 @@ export const runtime = {
   leafDevilRequests: 0,
   /** Pending Whole map presses; the scene moves the camera to frame the town. */
   wholeMapRequests: 0,
+  /** Simulation seconds: the scene clock, frozen while paused. */
+  simTime: 0,
+  /** Hours of auto time not yet written to the store. */
+  pendingHours: 0,
   /** Block id picked first in Move blocks mode; the second click swaps with it. */
   pendingBlockId: null as string | null,
 };

@@ -128,17 +128,20 @@ describe('createVehicleMeshes', () => {
     m.dispose();
   });
 
-  it('draws at most 200 glow instances and none by day', () => {
+  it('draws headlight glow for every vehicle at night, however far from the camera, and none by day', () => {
     const m = createVehicleMeshes(300);
     const list: VehicleRender[] = [];
     for (let i = 0; i < 300; i++) {
-      list.push({ id: i + 1, position: { x: i, z: 0 }, heading: 0, cls: 'car', variant: 0, speed: 8, accel: -3, braking: true, indicator: 0, yawRate: 0, wheelPhase: 0, tint: 0.1 });
+      list.push({ id: i + 1, position: { x: i * 10, z: 0 }, heading: 0, cls: 'car', variant: 0, speed: 8, accel: -3, braking: true, indicator: 0, yawRate: 0, wheelPhase: 0, tint: 0.1 });
     }
+    m.setFocus(0, 0); // vehicles up to 3 km away: no distance cut-off may switch their glow off
     m.update(list, { time: 0, night: false, season: 'summer' });
+    expect(m.glow.count).toBe(0);
     m.setNight(true);
     m.update(list, { time: 0, night: true, season: 'summer' });
-    expect(m.glow.count).toBeLessThanOrEqual(200);
-    expect(m.glow.count).toBeGreaterThan(0);
+    // One headlight pool and one brake pool each (all braking), within the instance capacity.
+    expect(m.glow.count).toBe(600);
+    expect(m.glow.count).toBeLessThanOrEqual(m.glow.instanceMatrix.count);
     m.dispose();
   });
 });

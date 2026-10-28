@@ -6,3 +6,4 @@ export { HousePanel, DEFAULT_HOUSE_BASE, WALL_COLORS, SHUTTER_COLORS } from './H
 export type { HousePanelProps, HouseBase } from './HousePanel';
 export { MonumentPanel } from './MonumentPanel';
 export type { MonumentPanelProps } from './MonumentPanel';
+export { TimeBar } from './TimeBar';

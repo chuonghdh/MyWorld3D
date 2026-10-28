@@ -1,8 +1,8 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { Canvas } from '@react-three/fiber';
 import { OrbitControls } from '@react-three/drei';
 import { getCityLayout } from './city';
-import { DEFAULT_HOUSE_BASE, HousePanel, MonumentPanel, SettingsCity, type CityAction } from './ui';
+import { DEFAULT_HOUSE_BASE, HousePanel, MonumentPanel, SettingsCity, TimeBar, type CityAction } from './ui';
 import { QUALITY_PRESETS, TREE_SPECIES, detectDevice, suggestQuality, useWorldStore, type OverrideTarget } from './store';
 import * as audio from './audio';
 import { Town, monumentBaseFor } from './scene/Town';
@@ -27,6 +27,20 @@ export function App() {
   const setSuggestedQuality = useWorldStore((s) => s.setSuggestedQuality);
 
   const night = useMemo(() => getLightingForTime(settings.timeOfDay).sky.lightsOn, [settings.timeOfDay]);
+
+  // Space pauses and resumes everything (handy for capturing a frame).
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (e.code !== 'Space') return;
+      const el = e.target as HTMLElement | null;
+      if (el && (el.tagName === 'INPUT' || el.tagName === 'TEXTAREA' || el.tagName === 'BUTTON')) return;
+      e.preventDefault();
+      const st = useWorldStore.getState();
+      st.setToggle('paused', !st.toggles.paused);
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, []);
 
   function handleAction(action: CityAction, value?: boolean) {
     switch (action) {
@@ -118,6 +132,9 @@ export function App() {
         />
       </Canvas>
 
+      <div style={{ position: 'absolute', top: 16, left: '50%', transform: 'translateX(-50%)' }}>
+        <TimeBar />
+      </div>
       <div style={{ position: 'absolute', top: 16, left: 16, width: 280 }}>{panel}</div>
       <div style={{ position: 'absolute', top: 16, right: 16, width: 300 }}>
         <SettingsCity onAction={handleAction} />

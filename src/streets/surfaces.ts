@@ -10,6 +10,13 @@ import { MeshBuilder } from './builder';
 export const GROUND_Y = 0;
 export const ASPHALT_TOP = 0.04;
 export const PAINT_Y = ASPHALT_TOP + 0.02;
+/**
+ * Asphalt underlay: the slabs have no bottom faces, so where two slabs meet (road end against
+ * intersection) a hairline gap shows whatever lies beneath as dark dashes. This slab, a little wider
+ * than each road piece and 1 cm below its top, sits under every seam in the same colour.
+ */
+export const UNDERLAY_TOP = ASPHALT_TOP - 0.01;
+const UNDERLAY_GROW = 0.06;
 export const SIDEWALK_TOP = 0.15;
 export const SIDEWALK_OVERLAY_Y = SIDEWALK_TOP + 0.015;
 export const CURB_WIDTH = 0.22;
@@ -142,6 +149,7 @@ function buildRoad(road: RoadSegment, layout: CityLayout, surf: MeshBuilder, ove
   // Asphalt slab.
   const r = worldRect(ax, ax.u0, ax.u1, ax.v - ax.half, ax.v + ax.half);
   surf.box(r[0], r[1], GROUND_Y, ASPHALT_TOP, r[2], r[3], COLORS.asphalt);
+  surf.box(r[0] - UNDERLAY_GROW, r[1] + UNDERLAY_GROW, GROUND_Y, UNDERLAY_TOP, r[2] - UNDERLAY_GROW, r[3] + UNDERLAY_GROW, COLORS.asphalt);
 
   // Markings.
   const pieces = subtractIntervals(ax.u0, ax.u1, markingCuts(ax, layout));
@@ -238,6 +246,7 @@ function buildSidewalks(road: RoadSegment, layout: CityLayout, surf: MeshBuilder
 function buildIntersection(it: Intersection, surf: MeshBuilder): void {
   const hx = it.sizeX / 2, hz = it.sizeZ / 2;
   surf.box(it.center.x - hx, it.center.x + hx, GROUND_Y, ASPHALT_TOP, it.center.z - hz, it.center.z + hz, COLORS.asphalt);
+  surf.box(it.center.x - hx - UNDERLAY_GROW, it.center.x + hx + UNDERLAY_GROW, GROUND_Y, UNDERLAY_TOP, it.center.z - hz - UNDERLAY_GROW, it.center.z + hz + UNDERLAY_GROW, COLORS.asphalt);
 }
 
 /** Zebra crossing: stripes run along the traffic, repeated across the road. */

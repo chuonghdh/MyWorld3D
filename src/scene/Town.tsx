@@ -38,6 +38,7 @@ import {
 } from '../store';
 import type { MonumentKind, Season } from '../core/types';
 import { hashId, runtime } from './runtime';
+import { DAY_SECONDS } from '../store/model';
 import { blockPresetFor, lotStyle } from './cityStyle';
 import { disposeMerged, mergeByMaterial, type PlacedObject } from './mergeBlock';
 
@@ -465,8 +466,21 @@ export function Town({ onSelect }: { onSelect: (target: OverrideTarget) => void 
   const ground = layout.townBounds;
   const townSize = Math.max(ground.maxX - ground.minX, ground.maxZ - ground.minZ);
 
-  useFrame((state, dt) => {
-    const t = state.clock.getElapsedTime();
+  useFrame((state, frameDt) => {
+    const { paused, autoTime } = useWorldStore.getState().toggles;
+    // Paused: every simulation sees dt = 0 and a frozen clock; only the camera keeps working.
+    const dt = paused ? 0 : frameDt;
+    runtime.simTime += dt;
+    const t = runtime.simTime;
+
+    if (autoTime && !paused) {
+      runtime.pendingHours += (dt * 24) / DAY_SECONDS;
+      // Written in small steps: each store write re-renders the town to refresh lights and sky.
+      if (runtime.pendingHours >= 0.02) {
+        useWorldStore.getState().advanceTime(runtime.pendingHours);
+        runtime.pendingHours = 0;
+      }
+    }
 
     // Depth precision: a fixed near plane of 1 m leaves only millimetres of resolution at 300 m, so
     // coplanar details flicker. Tie the clip planes to the distance from the orbit target instead.
