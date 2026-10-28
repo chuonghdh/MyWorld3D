@@ -1,102 +1,103 @@
 # MyWorld3D – BRD v1.1 (Phase 1: Foundation)
 
-## 1. Mục tiêu
-Mô phỏng thành phố 3D nhìn từ trên cao, có nhà cửa, xe cộ, cây xanh, ngày đêm, mây, gió. Phase 1 là khung chạy được, làm nền để mở rộng thành game/simulation.
+## 1. Goal
+A top-down 3D city simulation with houses, vehicles, trees, day and night, clouds and wind. Phase 1 is a working foundation that can later grow into a game or simulation.
 
-## 2. Phạm vi Phase 1
+## 2. Phase 1 scope
 
-### 2.1 Scene & camera
-- Nhìn từ trên cao, orbit / pan / zoom.
-- Chế độ Tilt-shift (hậu kỳ làm mờ nền kiểu mô hình thu nhỏ).
-- Whole map: căn camera để thấy toàn bộ thành phố.
+### 2.1 Scene and camera
+- Top-down view with orbit, pan and zoom.
+- Tilt-shift mode (post-processing blur of the top and bottom of the view, miniature-model look).
+- Whole map: frames the camera so the whole city is visible.
 
-### 2.2 Sinh thành phố (procedural)
-- Sinh theo `seed` và tham số: đường, lưới block, lô đất, khối nhà, cây đường phố.
-- Quy mô trung bình: vài trăm nhà (mục tiêu ~300–400).
-- Kiến trúc theo hướng Tây Âu: kiểu nhà, dãy nhà và đường phố đều mang phong cách châu Âu.
-- Mỗi block có một loại: **block of houses** hoặc **block of monument**.
+### 2.2 Procedural city generation
+- Generated from a `seed` and parameters: roads, block grid, lots, house volumes, street trees.
+- Mid scale: a few hundred houses (target about 300–400).
+- Western European look: house types, terraces and streets all follow a European style.
+- Every block is one of two kinds: **block of houses** or **block of monument**.
 
-### 2.3 Block monument (10 loại)
-Các công trình châu Âu, tự dựng procedural đơn giản:
-Hospital, Stadium, Funfair, Swimming pool, Dinosaur park, Supermarket, Open-air theatre, Circus, Fire station, và một công trình châu Âu thay cho One Pillar Pagoda (**tạm chọn nhà thờ kiểu Gothic**; bạn có thể đổi).
+### 2.3 Monument blocks (10 kinds)
+European landmarks, built procedurally and kept simple:
+Hospital, Stadium, Funfair, Swimming pool, Dinosaur park, Supermarket, Open-air theatre, Circus, Fire station, and one European landmark in place of the One Pillar Pagoda (**a Gothic church for now**; can be changed).
 
-### 2.4 Nhà (house)
-- 9 preset kiểu nhà: As the block has it, Original (Feuilles), Canal house (Amsterdam), Glass tower, Brutalist concrete, Bauhaus, Mediterranean, Brownstone (New York), Nordic timber, Shophouse (Asia).
-  - Lưu ý: các preset nhà Châu Á/Shophouse vẫn nằm trong danh sách vì bạn chọn "tất cả 9 preset"; nếu muốn đồng nhất Tây Âu thì báo lại.
-- Mỗi preset có nút **Classic / Modern**.
-- Thuộc tính: số tầng (2–8), kiểu mái (Mansard, Flat, Gable, Hip, Cornice, Parapet, Terrace, Low tiled, Step gable...), màu tường, màu cửa chớp, nút New look và Original (hoàn tác về gốc).
+### 2.4 Houses
+- 9 house presets: As the block has it, Original (Feuilles), Canal house (Amsterdam), Glass tower, Brutalist concrete, Bauhaus, Mediterranean, Brownstone (New York), Nordic timber, Shophouse (Asia).
+  - Note: the Asian shophouse preset stays in the list because "all 9 presets" was chosen; say so if the set should be purely Western European.
+- Every preset has a **Classic / Modern** toggle.
+- Properties: number of floors (2–8), roof type (Mansard, Flat, Gable, Hip, Cornice, Parapet, Terrace, Low tiled, Step gable...), wall colour, shutter colour, New look and Original (revert to the original) buttons.
 
-### 2.5 Cây đô thị (4 loại, bộ châu Âu/Mỹ)
-- 4 loài rụng lá, đổi màu theo mùa.
-- Mùa: Xuân xanh, Hạ xanh đậm, Thu đỏ vàng, Đông trụi lá.
-- Thuộc tính: loài, số lượng (Street trees ×), kích thước lá (Leaf size), tỉ lệ lá (Leaves %).
-- Nút **Switch trees**: đổi loài cây hàng loạt.
+### 2.5 Street trees (4 kinds, European/American set)
+- 4 deciduous species whose colour follows the season.
+- Seasons: fresh green spring, deep green summer, red and yellow autumn, bare winter.
+- Properties: species, amount (Street trees ×), leaf size (Leaf size), leaf share (Leaves %).
+- **Switch trees** button: changes the species of many trees at once.
 
-### 2.6 Panel cấu hình
-- **Settings – City:** Light (golden hour → dusk), Season, Wind (tốc độ m/s, hướng la bàn), Town width/depth, Traffic & people (×), Street trees (×), Leaves %, Leaf size. Nút: Gust, Leaf devil, Sound, Music, Tilt-shift, Switch trees, Whole map, Move blocks, Reset blocks, Reset houses.
-- **House panel:** như mục 2.4.
-- **Monument block panel:** chọn công trình trong 10 loại.
-- Click chọn nhà / block / cây → hiện bảng thuộc tính tương ứng.
+### 2.6 Configuration panels
+- **Settings – City:** Light (golden hour to dusk), Season, Wind (speed in m/s, compass direction), Town width/depth, Traffic & people (×), Street trees (×), Leaves %, Leaf size. Buttons: Gust, Leaf devil, Sound, Music, Tilt-shift, Switch trees, Whole map, Move blocks, Reset blocks, Reset houses.
+- **House panel:** as in section 2.4.
+- **Monument block panel:** pick one of the 10 landmarks.
+- Clicking a house, block or tree opens the matching property panel.
 
-### 2.7 Chỉnh sửa
-- Kéo thả để hoán đổi vị trí hai block hoặc hai nhà.
-- Undo / Redo (Ctrl+Z / Ctrl+Y) cho thao tác kéo thả và đổi thuộc tính.
-- Lưu / tải layout ra file JSON.
+### 2.7 Editing
+- Drag and drop to swap two blocks or two houses.
+- Undo / Redo (Ctrl+Z / Ctrl+Y) for swaps and property changes.
+- Save / load the layout as a JSON file.
 
-### 2.8 Ngày đêm, mây, gió
-- Chu kỳ ngày đêm điều khiển bằng slider; đèn đường và cửa sổ bật khi tối.
-- Mây trôi chậm.
-- **Gust:** cơn gió giả lập, tăng gió tạm thời.
-- **Leaf devil:** cuốn lá xoáy ngẫu nhiên trên đường.
-- Gió làm cây và lá đung đưa (shader vertex); gió mạnh cuốn lá rơi theo.
+### 2.8 Day and night, clouds, wind
+- The day and night cycle is driven by a slider; street lamps and windows light up when it gets dark.
+- Slowly drifting clouds.
+- **Gust:** a simulated gust that temporarily raises the wind.
+- **Leaf devil:** a random whirl of leaves on the streets.
+- Wind sways trees and leaves (vertex shader); strong wind carries fallen leaves along.
 
-### 2.9 Âm thanh (làm đủ nhóm)
-- **Xào xạc lá:** cường độ theo tốc độ gió.
-- **Xe:** tiếng động cơ theo loại xe (xe con, xe buýt, xe tải, xe máy).
-- **Còi xe:** ngẫu nhiên, thỉnh thoảng.
-- **Người đi bộ:** tiếng lao xao nói chuyện nhỏ, nền nhẹ.
-- **Chó sủa:** ngẫu nhiên từ người đi bộ dắt chó.
-- Có nút **Sound** (bật/tắt toàn bộ) và **Music** (placeholder phase 1).
-- Lưu ý: trình duyệt chặn autoplay, âm thanh chỉ bật sau khi người dùng click lần đầu.
+### 2.9 Sound (full set)
+- **Rustling leaves:** intensity follows wind speed.
+- **Vehicles:** engine sound per vehicle type (car, bus, truck, motorbike).
+- **Horns:** random and occasional.
+- **Pedestrians:** a soft murmur of talking, light background.
+- **Dogs barking:** random, from pedestrians walking dogs.
+- A **Sound** button (all sound on/off) and a **Music** button (placeholder in phase 1).
+- Note: browsers block autoplay, so sound only starts after the first user click.
 
-### 2.10 Giao thông & người đi bộ
-- Xe con, xe buýt, xe tải, xe máy chạy theo waypoint trên làn đường. Chưa tránh va chạm.
-- Đèn tín hiệu theo chu kỳ cố định tại giao lộ.
-- Người đi bộ trên vỉa hè, có chó (dắt theo).
+### 2.10 Traffic and pedestrians
+- Cars, buses, trucks and motorbikes follow lane paths; at each junction they go straight (60 %), turn left (20 %) or turn right (20 %). Vehicles enter and leave at the border of the map.
+- Fixed-cycle traffic lights at junctions, with an all-red gap between phases.
+- Vehicles stop in front of the crosswalk on yellow or red, keep going once any part of them is past it, wait while pedestrians are on the crosswalk, and pass a junction first come, first served. Jams are broken by backing up one vehicle and, if that fails, letting the earlier one push through.
+- Pedestrians on the sidewalks, some walking dogs.
 
-## 3. Yêu cầu phi chức năng
+## 3. Non-functional requirements
 - Chrome / Edge desktop.
-- Mục tiêu ~30 fps với 300–400 nhà trên laptop thông thường.
-- Dùng `InstancedMesh` và gộp geometry để giảm draw call.
-- UI và code đều tiếng Anh.
+- Target about 30 fps with 300–400 houses on an ordinary laptop.
+- Use `InstancedMesh` and merged geometry to keep draw calls low.
+- UI, code, comments and documentation are all in English.
 
-## 4. Công nghệ
+## 4. Technology
 - TypeScript, Vite, Three.js, React + React Three Fiber.
-- `@react-three/drei` (helper: OrbitControls, Sky, Cloud...).
-- `zustand` (state layout và setting).
-- `suncalc` (vị trí mặt trời theo giờ).
-- `three-mesh-bvh` (nếu click chọn chậm).
-- `vitest` (test logic sinh thành phố).
-- Web Audio API (âm thanh procedural, không cần file audio ngoài phase 1).
+- `@react-three/drei` (helpers: OrbitControls, Sky, Cloud...).
+- `zustand` (layout and settings state).
+- `suncalc` (sun position by time of day).
+- `three-mesh-bvh` (if click picking is slow).
+- `vitest` (tests for the city generation logic).
+- Web Audio API (procedural sound, no external audio files in phase 1).
 
-## 5. Ngoài phạm vi Phase 1
-- Dữ liệu OSM thật.
-- Xe tránh va chạm và AI giao thông phức tạp (phase 2).
-- Multiplayer, mobile, lưu đám mây.
-- Nhạc nền (Music chỉ là placeholder).
+## 5. Out of scope for Phase 1
+- Real OSM data.
+- Full vehicle collision avoidance and complex traffic AI (phase 2).
+- Multiplayer, mobile, cloud saves.
+- Background music (Music is only a placeholder).
 
-## 6. Tiêu chí nghiệm thu
-1. Cùng seed cho cùng thành phố.
-2. Mọi slider trong setting đổi scene ngay.
-3. Chọn được nhà / block / cây và sửa thuộc tính.
-4. Hoán đổi được hai block hoặc nhà bằng kéo thả; Undo/Redo hoạt động.
-5. Lưu JSON rồi tải lại ra đúng layout.
-6. Ngày đêm, mây, gió, lá cây và cuốn lá hoạt động.
-7. Âm thanh xào xạc tăng theo gió; có nút Sound bật/tắt.
-8. Xe, đèn tín hiệu và người đi bộ hoạt động; không lỗi trong console.
-9. Đạt mục tiêu fps trên máy thông thường.
+## 6. Acceptance criteria
+1. The same seed gives the same city.
+2. Every slider in the settings changes the scene immediately.
+3. Houses, blocks and trees can be selected and their properties edited.
+4. Two blocks or houses can be swapped by drag and drop; Undo/Redo works.
+5. Saving to JSON and loading it again restores the layout.
+6. Day and night, clouds, wind, tree leaves and the leaf devil work.
+7. The rustling sound grows with the wind; the Sound button turns it on and off.
+8. Vehicles, traffic lights and pedestrians work with no console errors.
+9. The fps target is met on an ordinary machine.
 
-## 7. Giả định (có thể đổi)
-- Cây đô thị: Maple (Phong), Oak (Sồi), Birch (Bạch dương), Ginkgo (Bạch quả) – bộ châu Âu/Mỹ.
-- Monument thay Pagoda: nhà thờ kiểu Gothic.
-- Git: `git init` local, chưa commit cho đến khi được yêu cầu.
+## 7. Assumptions (can change)
+- Street trees: Maple, Oak, Birch, Ginkgo – a European/American set.
+- The monument replacing the Pagoda: a Gothic church.
+- Git: local `git init`; commits only when requested.

@@ -1,22 +1,22 @@
-# MyWorld3D – Kế hoạch agent
+# MyWorld3D – Agent plan
 
-Tổng cộng 6 vai trò. Agent 0 làm trước, 4 agent (1–4) chạy song song sau khi khung xong, agent 5 làm cuối.
+Six roles in total. Agent 0 goes first, agents 1–4 run in parallel once the skeleton exists, and agent 5 goes last.
 
-| # | Vai trò | Phạm vi file (file ownership) | Phụ thuộc |
+| # | Role | File scope (file ownership) | Depends on |
 |---|---|---|---|
-| 0 | Scaffold | `package.json`, `vite.config.ts`, `tsconfig*.json`, `src/main.tsx`, `src/App.tsx`, `src/core/*` (types, seed RNG) | – |
-| 1 | City generator | `src/city/*` (đường, lưới block, lô đất, cây đường phố, waypoint xe) | 0 |
-| 2 | Building & monument | `src/buildings/*` (preset nhà, mái, Classic/Modern, 10 block-monument) | 0 |
-| 3 | Environment | `src/environment/*` (sky, mặt trời, mây, gió, shader cây/lá, lá cuốn) | 0 |
-| 4 | UI, state & audio | `src/ui/*`, `src/store/*`, `src/audio/*` (panel, zustand, JSON, undo/redo, Web Audio) | 0 |
-| 5 | Traffic & QA | `src/traffic/*`, `tests/*` (xe, đèn tín hiệu, người đi bộ; test; kiểm tra fps/console) | 1, 2, 3, 4 |
+| 0 | Scaffold | `package.json`, `vite.config.ts`, `tsconfig*.json`, `src/main.tsx`, `src/App.tsx`, `src/core/*` (types, seeded RNG) | – |
+| 1 | City generator | `src/city/*` (roads, block grid, lots, street trees, vehicle waypoints) | 0 |
+| 2 | Buildings and monuments | `src/buildings/*` (house presets, roofs, Classic/Modern, 10 monument blocks) | 0 |
+| 3 | Environment | `src/environment/*` (sky, sun, clouds, wind, tree and leaf shaders, leaf devil) | 0 |
+| 4 | UI, state and audio | `src/ui/*`, `src/store/*`, `src/audio/*` (panels, zustand, JSON, undo/redo, Web Audio) | 0 |
+| 5 | Traffic and QA | `src/traffic/*`, `tests/*` (vehicles, traffic lights, pedestrians; tests; fps and console checks) | 1, 2, 3, 4 |
 
-## Quy tắc khi chạy song song
-- Mỗi agent chỉ sửa file trong phạm vi của mình. Cần đổi file khác thì báo lại thay vì tự sửa.
-- Kiểu dữ liệu chung (`src/core/types.ts`) do agent 0 định nghĩa trước. Các agent khác chỉ thêm, không đổi tên trường đã có.
-- Store (`src/store`) là nguồn duy nhất cho layout và setting. Scene chỉ đọc từ store.
+## Rules for parallel work
+- Each agent edits only files inside its own scope. If another file needs a change, report it instead of editing it.
+- Shared types (`src/core/types.ts`) are defined first by agent 0. Other agents only add fields, they never rename existing ones.
+- The store (`src/store`) is the single source of truth for layout and settings. The scene only reads from it.
 
-## Thứ tự
-1. Agent 0: scaffold, build được, scene trống có camera top-down.
-2. Agent 1–4: chạy song song.
-3. Agent 5: tích hợp traffic, test, kiểm tra build và console.
+## Order
+1. Agent 0: scaffold, a building project, an empty scene with a top-down camera.
+2. Agents 1–4: run in parallel.
+3. Agent 5: integrate traffic, run the tests, check the build and the console.
