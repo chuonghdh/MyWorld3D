@@ -132,6 +132,7 @@ export function createPeopleMeshes(pedestrianCapacity = 512, dogCapacity = 256):
   umbrellas.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
   const umbrellaTmp = new THREE.Color();
   for (let i = 0; i < pedestrianCapacity; i++) umbrellas.setColorAt(i, umbrellaTmp.set(UMBRELLA_COLORS[i % UMBRELLA_COLORS.length]));
+  const umbrellaColours = UMBRELLA_COLORS.map((c) => new THREE.Color(c));
   group.add(umbrellas);
 
   let viewBoost = 1;
@@ -269,6 +270,9 @@ export function createPeopleMeshes(pedestrianCapacity = 512, dogCapacity = 256):
           const ux = ped.position.x - c * 0.22 * scale + s * 0.22 * scale;
           const uz = ped.position.z + s * 0.22 * scale + c * 0.22 * scale;
           const sitDrop = ped.pose === 3 ? model.seatDrop * scale : 0;
+          // Colour follows the person, not the packed slot, so it stays fixed as others open or close theirs.
+          const colour = umbrellaColours[Math.floor(((ped.umbrellaRank * 9973) % 1) * umbrellaColours.length)];
+          umbrellas.setColorAt(u, colour);
           writeInstance(umbrellas, u, ux, uz, ped.heading, ped.y + (model.headTop + 0.3) * scale - sitDrop, 0.85 * Math.max(0.8, scale));
           u++;
         }

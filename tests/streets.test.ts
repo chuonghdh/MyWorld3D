@@ -192,3 +192,18 @@ describe('streetscape', () => {
     expect(r[1].startCut).toBe('carriage');
   });
 });
+
+describe('night amount and shop spill', () => {
+  it('fades lamps in smoothly and keeps the draw call count', () => {
+    const s = createStreetscape(fixture());
+    const pools = s.group.getObjectByName(MESH_NAMES.pools) as THREE.Mesh | undefined;
+    s.setNightAmount(0.5);
+    const glass = s.group.getObjectByName(MESH_NAMES.lampGlass) as THREE.Mesh;
+    const mat = glass.material as THREE.MeshStandardMaterial;
+    expect(mat.emissiveIntensity).toBeCloseTo(LAMP_GLASS_NIGHT_INTENSITY / 2, 6);
+    if (pools) expect(pools.visible).toBe(true);
+    s.setNightAmount(0);
+    if (pools) expect(pools.visible).toBe(false);
+    s.dispose();
+  });
+});

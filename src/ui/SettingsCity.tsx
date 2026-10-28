@@ -1,5 +1,6 @@
 import { useWorldStore } from '../store';
 import { SEASONS } from '../store/model';
+import { WEATHER_KINDS, WEATHER_LABEL, type WeatherKind } from '../weather/weatherState';
 import type { Season } from '../core/types';
 import { ActionButton, Panel, Segmented, Slider } from './controls';
 
@@ -95,6 +96,28 @@ export function SettingsCity({ onAction }: SettingsCityProps) {
         value={s.season}
         options={SEASONS.map((v) => ({ value: v, label: SEASON_LABEL[v] }))}
         onChange={(v) => setSetting('season', v)}
+      />
+
+      <Segmented<WeatherKind>
+        label="Weather"
+        ariaLabel="Weather"
+        value={s.weather}
+        options={WEATHER_KINDS.map((v) => ({ value: v, label: WEATHER_LABEL[v] }))}
+        onChange={(v) => {
+          setSetting('weather', v);
+          // Picking a weather with the slider at the bottom would show nothing: lift it to a visible level.
+          if (v !== 'clear' && s.weatherIntensity < 0.15) setSetting('weatherIntensity', 0.6);
+        }}
+      />
+      <Slider
+        id="weather-intensity"
+        label="Intensity"
+        value={s.weatherIntensity}
+        min={0}
+        max={1}
+        step={0.01}
+        format={(v) => `${Math.round(v * 100)}%`}
+        onChange={(v) => setSetting('weatherIntensity', v)}
       />
 
       <Slider

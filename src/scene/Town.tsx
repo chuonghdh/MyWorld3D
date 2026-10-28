@@ -6,6 +6,9 @@ import * as THREE from 'three';
 import { generateCity, type Block, type CityLayout, type Lot, type Rect } from '../city';
 import { buildHouse, buildMonument, defaultHouseParams, type HouseChimney, type HouseParams } from '../buildings';
 import { setGlassEnvironment, setNightLights } from '../buildings/materials';
+import { createWeather, applyFogRange } from '../weather';
+import { SkyDome } from '../sky';
+import { getNightSchedule } from '../environment/sun';
 import {
   createClouds,
   createCourtyardGreenery,
@@ -62,21 +65,6 @@ function lightDirection(dir: { x: number; y: number; z: number; altitudeDeg: num
 
 /** Street trees read too small from the top-down camera at their botanical size. */
 const TREE_SCALE = 1.35;
-
-/**
- * Seen from above, solid clouds hide the town. Instead they are invisible and only cast
- * their shadows, which drift across the streets with the wind.
- */
-function shadowOnlyClouds(group: THREE.Group): void {
-  group.traverse((child) => {
-    if (!(child instanceof THREE.Mesh)) return;
-    const m = child.material as THREE.MeshStandardMaterial;
-    m.colorWrite = false;
-    m.depthWrite = false;
-    child.castShadow = true;
-    child.receiveShadow = false;
-  });
-}
 
 /** Monument a block shows before any override. Same rule the scene uses when building it. */
 export function monumentBaseFor(blockId: string): MonumentKind {
@@ -210,11 +198,7 @@ export function Town({ onSelect }: { onSelect: (target: OverrideTarget) => void 
   const uniforms: WindUniforms = useMemo(() => createWindUniforms(10), []);
   const leaves = useMemo(() => new LeafSystem({ bounds: layout.townBounds }), [layout.townBounds]);
   const clouds = useMemo(
-    () => {
-      const field = createClouds({ area: layout.townBounds, count: 10, seed: settings.seed });
-      shadowOnlyClouds(field.group);
-      return field;
-    },
+    () => createClouds({ area: layout.townBounds, count: 10, seed: settings.seed }),
     [layout.townBounds, settings.seed],
   );
   useEffect(() => {
@@ -234,6 +218,13 @@ export function Town({ onSelect }: { onSelect: (target: OverrideTarget) => void 
     );
   }, [lighting]);
 
+  const weather = useMemo(() => createWeather(), []);
+  useEffect(() => () => weather.dispose(), [weather]);
+  const overlay = useRef({ cloudiness: 0.25, flash: 0 });
+  const sunLight = useRef<THREE.DirectionalLight>(null);
+  const hemiLight = useRef<THREE.HemisphereLight>(null);
+  const ambLight = useRef<THREE.AmbientLight>(null);
+
   const smoke = useMemo(() => createSmoke(), []);
   useEffect(() => () => smoke.dispose(), [smoke]);
 
@@ -242,9 +233,10 @@ export function Town({ onSelect }: { onSelect: (target: OverrideTarget) => void 
   useEffect(() => () => streetscape.dispose(), [streetscape]);
 
   useEffect(() => {
+    const schedule = getNightSchedule(settings.timeOfDay, lighting.sun.altitudeDeg);
     setNightLights(lightsOn);
-    streetscape.setNight(lightsOn);
-  }, [lightsOn, streetscape]);
+    streetscape.setNightAmount(schedule.lamps);
+  }, [lightsOn, streetscape, settings.timeOfDay, lighting]);
 
   const treeField = useMemo(
     () =>
@@ -414,6 +406,24 @@ export function Town({ onSelect }: { onSelect: (target: OverrideTarget) => void 
     const { windSpeed, windDirection, leafAmount, leafSize, season, soundEnabled } = useWorldStore.getState().settings;
     const wind = windVector(t, { speed: windSpeed, direction: windDirection }, runtime.gusts);
     updateWindUniforms(uniforms, t, wind, gustStrength(t, runtime.gusts));
+
+    const st = useWorldStore.getState().settings;
+    weather.setWeather(st.weather, st.weatherIntensity);
+    const wx = weather.update(dt, {
+      camera: state.camera.position,
+      wind,
+      lightLevel: Math.min(1, lighting.sky.ambientIntensity),
+      skyColor: lighting.sky.sky,
+    });
+    overlay.current.cloudiness = wx.cloudiness;
+    overlay.current.flash = wx.flash;
+    clouds.setCoverage(wx.cloudiness);
+    clouds.setSunlight(Math.min(1, lighting.sky.sunIntensity) * wx.dim);
+    applyFogRange(state.scene.fog as THREE.Fog, townSize * 2.2, townSize * 6, wx.fogDensityMul);
+    if (sunLight.current) sunLight.current.intensity = lighting.sky.sunIntensity * SUN_GAIN * wx.dim * (1 - 0.5 * wx.flash);
+    if (hemiLight.current) hemiLight.current.intensity = lighting.sky.ambientIntensity * HEMI_GAIN * wx.dim + wx.flash * 2.5;
+    if (ambLight.current) ambLight.current.intensity = lighting.sky.ambientIntensity * AMBIENT_GAIN * wx.dim;
+
     clouds.update(dt, wind);
     smoke.update(dt, wind, {
       season: season as Season,
@@ -425,12 +435,13 @@ export function Town({ onSelect }: { onSelect: (target: OverrideTarget) => void 
     leaves.update(dt, wind, { leafAmount, leafSize, season: season as Season });
 
     traffic.update(dt);
-    walkers.update(dt, { timeOfDay: useWorldStore.getState().settings.timeOfDay });
+    walkers.update(dt, { timeOfDay: useWorldStore.getState().settings.timeOfDay, rain: wx.rain });
     const vehicles = traffic.getVehicles();
     trafficMeshes.update(vehicles, walkers.getPedestrians(), {
       time: t,
       night: lightsOn,
       season: season as Season,
+      rain: wx.rain,
     });
     streetscape.updateSignals((light, axis) => traffic.lights.phaseOf(light.id, axis));
 
@@ -465,6 +476,8 @@ export function Town({ onSelect }: { onSelect: (target: OverrideTarget) => void 
   const sky = lighting.sky;
   const sunColor = new THREE.Color(sky.sunColor.r, sky.sunColor.g, sky.sunColor.b);
   const skyColor = new THREE.Color(sky.sky.r, sky.sky.g, sky.sky.b);
+  const moonColor = new THREE.Color(sky.moonColor.r, sky.moonColor.g, sky.moonColor.b);
+  const nightGround = new THREE.Color('#c9b48e').lerp(new THREE.Color('#3a4668'), sky.nightness);
 
   function handleBlockClick(e: ThreeEvent<MouseEvent>, piece: BlockPiece) {
     e.stopPropagation();
@@ -495,11 +508,24 @@ export function Town({ onSelect }: { onSelect: (target: OverrideTarget) => void 
 
   return (
     <>
-      <color attach="background" args={[skyColor.r, skyColor.g, skyColor.b]} />
       <fog attach="fog" args={[skyColor, townSize * 2.2, townSize * 6]} />
-      <ambientLight intensity={sky.ambientIntensity * AMBIENT_GAIN} />
-      <hemisphereLight args={[skyColor, '#c9b48e', sky.ambientIntensity * HEMI_GAIN]} />
+      <SkyDome
+        timeOfDay={settings.timeOfDay}
+        season={settings.season as Season}
+        overlay={overlay}
+        fogColor={sky.sky}
+        fogNear={townSize * 2.2}
+        fogFar={townSize * 6}
+      />
+      <ambientLight ref={ambLight} intensity={sky.ambientIntensity * AMBIENT_GAIN} />
+      <hemisphereLight ref={hemiLight} args={[skyColor, nightGround, sky.ambientIntensity * HEMI_GAIN]} />
       <directionalLight
+        position={[lighting.moon.x * 220, Math.max(lighting.moon.y, 0.3) * 220, lighting.moon.z * 220]}
+        color={moonColor}
+        intensity={sky.moonFill * SUN_GAIN * 0.5}
+      />
+      <directionalLight
+        ref={sunLight}
         position={[sunDir.x * sunDistance, sunDir.y * sunDistance, sunDir.z * sunDistance]}
         color={sunColor}
         intensity={sky.sunIntensity * SUN_GAIN}
@@ -524,6 +550,7 @@ export function Town({ onSelect }: { onSelect: (target: OverrideTarget) => void 
       <primitive object={treeField.group} position={[0, CURB, 0]} onClick={handleTreeClick} />
       <primitive object={greenery} position={[0, CURB, 0]} />
       <primitive object={clouds.group} />
+      <primitive object={weather.group} />
       <primitive object={leaves.mesh} />
       <primitive object={smoke.mesh} />
       <primitive object={trafficMeshes.group} />

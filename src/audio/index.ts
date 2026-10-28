@@ -1,6 +1,8 @@
 // Procedural Web Audio engine for MyWorld3D. No audio files.
 // Call init() from a user gesture (browsers block autoplay); every other call is a no-op before that.
 
+import { createWeatherAudio, type WeatherAudio } from './weather';
+
 export type VehicleClass = 'car' | 'bus' | 'truck' | 'motorbike';
 
 type AudioWindow = { AudioContext?: typeof AudioContext; webkitAudioContext?: typeof AudioContext };
@@ -29,6 +31,9 @@ let master: GainNode | null = null;
 let noise: AudioBuffer | null = null;
 let leafGain: GainNode | null = null;
 let leafFilter: BiquadFilterNode | null = null;
+let weatherAudio: WeatherAudio | null = null;
+let weatherRain = 0;
+let weatherSwell = 0;
 const engines = new Map<VehicleClass, Engine>();
 
 let windSpeed = 0;
@@ -58,6 +63,8 @@ export function init(): boolean {
   buildLeaves(context);
   buildCrowd(context);
   buildEngines(context);
+  weatherAudio = createWeatherAudio(context, out, noise);
+  weatherAudio.set(weatherRain, weatherSwell);
   setWind(windSpeed);
   return true;
 }
@@ -81,6 +88,19 @@ export function setSoundEnabled(on: boolean): void {
   soundEnabled = on;
   if (!ctx || !master) return;
   master.gain.setTargetAtTime(on ? MASTER_LEVEL : 0, ctx.currentTime, 0.05);
+}
+
+/** Rain bed level 0..1 and wind swell 0..1 (storm gusts). Cheap; call every frame. */
+export function setWeatherSound(rain: number, swell: number): void {
+  weatherRain = rain;
+  weatherSwell = swell;
+  weatherAudio?.set(rain, swell);
+}
+
+/** One thunder clap now; the caller applies the distance/340 s delay. Distance in metres, strength 0..1. */
+export function playThunder(distance: number, strength = 1): void {
+  if (!ctx || !soundEnabled) return;
+  weatherAudio?.thunder(distance, strength);
 }
 
 /** Sets how loud a vehicle class hums. gain 0..1; 0 silences it. */
@@ -182,6 +202,8 @@ export function tick(dt: number): void {
 
 /** Releases the audio context. Use when the scene unmounts. */
 export function dispose(): void {
+  weatherAudio?.dispose();
+  weatherAudio = null;
   if (ctx) void ctx.close();
   ctx = null;
   master = null;

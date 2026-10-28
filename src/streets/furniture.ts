@@ -19,8 +19,13 @@ export const FURNITURE_COLORS = {
 } as const;
 
 export const LAMP_HEIGHT = 4.5;
-export const POOL_RADIUS = 5;
+/** Lamp pool radius. Small and soft: it should read as light on the paving, not as a disc. */
+export const POOL_RADIUS = 4;
 const POOL_Y = SIDEWALK_TOP + 0.03;
+/** Shop-front light spill sits a hair under the lamp pools so the two never share a plane. */
+const SPILL_Y = SIDEWALK_TOP + 0.024;
+/** Depth of the spill zone in front of a lit shop, metres. */
+const SPILL_DEPTH = 2.4;
 
 // Shared primitive geometries, created once per build and disposed after merging.
 interface Prims {
@@ -201,8 +206,8 @@ export function buildFurniture(layout: CityLayout, poolsAsQuads: boolean): Furni
     const { x, z } = lamp.position;
     buildLamp(iron, glass, p, x, z, lamp.facing);
     // Pool shifted a little toward the road the lamp faces.
-    const px = x + Math.sin(lamp.facing) * 0.6;
-    const pz = z + Math.cos(lamp.facing) * 0.6;
+    const px = x + Math.sin(lamp.facing) * 1.1;
+    const pz = z + Math.cos(lamp.facing) * 1.1;
     if (!poolsAsQuads) pools.falloffDisc(px, POOL_Y, pz, POOL_RADIUS, warm);
     else pools.rect(POOL_Y, px - POOL_RADIUS, px + POOL_RADIUS, pz - POOL_RADIUS, pz + POOL_RADIUS, '#ffffff');
     // A bin beside every third lamp, 1.2 m along the curb.
@@ -211,6 +216,23 @@ export function buildFurniture(layout: CityLayout, poolsAsQuads: boolean): Furni
       buildBin(iron, p, x + ax * 1.2, z + az * 1.2);
     }
   });
+
+  // Lit shop fronts: a soft warm strip of light on the pavement in front of every shop or cafe.
+  // Lots face a street at multiples of 90 degrees, so the strip stays an axis-aligned quad
+  // (the pool UVs only support those) and shares the pool mesh and material: +0 draw calls.
+  for (const lot of layout.lots) {
+    if (lot.groundFloor === 'residential') continue;
+    const quarter = Math.round(lot.facing / (Math.PI / 2));
+    const fx = Math.round(Math.sin(quarter * (Math.PI / 2)));
+    const fz = Math.round(Math.cos(quarter * (Math.PI / 2)));
+    const along = lot.width * 0.9;
+    const cx = lot.position.x + fx * (lot.depth / 2 + SPILL_DEPTH / 2 - 0.2);
+    const cz = lot.position.z + fz * (lot.depth / 2 + SPILL_DEPTH / 2 - 0.2);
+    const sx = fx !== 0 ? SPILL_DEPTH : along;
+    const sz = fz !== 0 ? SPILL_DEPTH : along;
+    if (!poolsAsQuads) continue;
+    pools.rect(SPILL_Y, cx - sx / 2, cx + sx / 2, cz - sz / 2, cz + sz / 2, '#ffffff');
+  }
 
   for (const bench of layout.benches) buildBench(iron, bench.position.x, bench.position.z, bench.facing);
 

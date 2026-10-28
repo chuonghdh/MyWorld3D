@@ -8,8 +8,16 @@ import type {
   MonumentKind,
   Season,
   TreeSpecies,
-  WorldSettings,
+  WorldSettings as CoreWorldSettings,
 } from '../core/types';
+import type { WeatherKind } from '../weather/weatherState';
+
+/** Core settings plus the weather fields (saved to JSON, old files fall back to clear). */
+export interface WorldSettings extends CoreWorldSettings {
+  weather: WeatherKind;
+  /** 0..1 strength of the chosen weather. */
+  weatherIntensity: number;
+}
 
 /** LOCAL TYPE: roof shapes listed in BRD 2.4. Reconcile with buildings agent. */
 export const ROOF_TYPES = [
@@ -109,6 +117,8 @@ export const DEFAULT_SETTINGS: WorldSettings = {
   leafAmount: 1,
   leafSize: 1,
   soundEnabled: true,
+  weather: 'clear',
+  weatherIntensity: 0.6,
 };
 
 export function createDefaultSettings(seed: number = DEFAULT_SETTINGS.seed): WorldSettings {

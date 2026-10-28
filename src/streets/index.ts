@@ -6,6 +6,7 @@
 import * as THREE from 'three';
 import type { CityLayout, TrafficLight } from '../city/layout';
 import type { LightAxis, LightPhase } from '../traffic/lights';
+import { attachWeather } from '../buildings/materials';
 import { MeshBuilder } from './builder';
 import { addPoolUVs, buildFurniture, type SignalHead } from './furniture';
 import { buildSurfaces } from './surfaces';
@@ -17,6 +18,8 @@ export interface Streetscape {
   group: THREE.Group;
   /** Lamp glass emissive and ground light pools on/off. */
   setNight(on: boolean): void;
+  /** Smooth version of setNight: 0 off .. 1 fully on. Use it to fade lamps in through dusk. */
+  setNightAmount(amount: number): void;
   /** Call once per frame; only heads whose phase changed are rewritten. */
   updateSignals(phaseOf: (light: TrafficLight, axis: LightAxis) => LightPhase): void;
   dispose(): void;
@@ -53,10 +56,12 @@ function makePoolTexture(): THREE.Texture | null {
     const ctx = canvas.getContext('2d');
     if (!ctx) return null;
     const g = ctx.createRadialGradient(size / 2, size / 2, 0, size / 2, size / 2, size / 2);
-    g.addColorStop(0, 'rgba(255,255,255,1)');
-    g.addColorStop(0.35, 'rgba(255,255,255,0.55)');
-    g.addColorStop(0.7, 'rgba(255,255,255,0.15)');
-    g.addColorStop(1, 'rgba(255,255,255,0)');
+    // Gaussian-like falloff that reaches exactly zero at the rim, so no disc edge can show.
+    for (let i = 0; i <= 10; i++) {
+      const r = i / 10;
+      const fall = Math.exp(-r * r * 4.2) * (1 - r * r * r);
+      g.addColorStop(r, `rgba(255,255,255,${Math.max(0, fall).toFixed(4)})`);
+    }
     ctx.fillStyle = g;
     ctx.fillRect(0, 0, size, size);
     const tex = new THREE.CanvasTexture(canvas);
@@ -115,6 +120,8 @@ export function createStreetscape(layout: CityLayout): Streetscape {
     polygonOffsetUnits: -4,
   });
   const furnitureMat = new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.6, metalness: 0.2 });
+  attachWeather(surfaceMat);
+  attachWeather(furnitureMat);
   const glassMat = new THREE.MeshStandardMaterial({
     color: '#e9e2c8',
     roughness: 0.2,
@@ -125,17 +132,18 @@ export function createStreetscape(layout: CityLayout): Streetscape {
   const poolTexture = makePoolTexture();
   if (poolTexture) textures.push(poolTexture);
   const poolMat = new THREE.MeshBasicMaterial({
-    color: poolTexture ? new THREE.Color('#ffcf7a') : new THREE.Color('#ffffff'),
+    color: poolTexture ? new THREE.Color('#ffc880') : new THREE.Color('#ffffff'),
     map: poolTexture,
     vertexColors: !poolTexture,
     transparent: true,
-    opacity: poolTexture ? 0.5 : 1,
+    opacity: poolTexture ? 0.42 : 1,
     blending: THREE.AdditiveBlending,
     depthWrite: false,
     polygonOffset: true,
     polygonOffsetFactor: -2,
     polygonOffsetUnits: -8,
   });
+  const poolBaseOpacity = poolMat.opacity;
   const signalMat = new THREE.MeshBasicMaterial({ color: '#ffffff' });
   materials.push(surfaceMat, overlayMat, furnitureMat, glassMat, poolMat, signalMat);
 
@@ -181,12 +189,19 @@ export function createStreetscape(layout: CityLayout): Streetscape {
 
   let disposed = false;
 
+  function setNightAmount(amount: number): void {
+    const k = Math.min(1, Math.max(0, amount));
+    glassMat.emissiveIntensity = k * LAMP_GLASS_NIGHT_INTENSITY;
+    poolMat.opacity = k * poolBaseOpacity;
+    if (pools) pools.visible = k > 0.01;
+  }
+
   return {
     group,
     setNight(on: boolean) {
-      glassMat.emissiveIntensity = on ? LAMP_GLASS_NIGHT_INTENSITY : 0;
-      if (pools) pools.visible = on;
+      setNightAmount(on ? 1 : 0);
     },
+    setNightAmount,
     updateSignals(phaseOf) {
       if (!signalColors) return;
       let changed = false;

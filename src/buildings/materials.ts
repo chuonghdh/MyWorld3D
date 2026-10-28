@@ -17,6 +17,7 @@ import {
   GLASS_VERTEX_COMMON,
   GLASS_VERTEX_MAIN,
 } from './shaders/glass';
+import { attachWeather, patchWeather, weatherUniforms } from './shaders/weather';
 
 let body: THREE.MeshStandardMaterial | null = null;
 let glass: THREE.MeshStandardMaterial | null = null;
@@ -42,6 +43,7 @@ function patchBody(shader: ShaderLike): void {
     .replace('#include <common>', `#include <common>\n${SURFACE_FRAGMENT_COMMON}`)
     .replace('#include <color_fragment>', SURFACE_FRAGMENT_COLOR)
     .replace('#include <normal_fragment_maps>', SURFACE_FRAGMENT_NORMAL);
+  patchWeather(shader);
 }
 
 function patchGlass(shader: ShaderLike): void {
@@ -62,7 +64,7 @@ export function getBodyMaterial(): THREE.MeshStandardMaterial {
     body = new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.85, metalness: 0 });
     body.name = 'building-body';
     body.onBeforeCompile = (shader) => patchBody(shader as unknown as ShaderLike);
-    body.customProgramCacheKey = () => 'building-body-v1';
+    body.customProgramCacheKey = () => 'building-body-v2';
   }
   return body;
 }
@@ -112,5 +114,8 @@ export function setNightLights(on: boolean, intensity = NIGHT_EMISSIVE): void {
   getGlassLitMaterial().emissiveIntensity = on ? intensity : 0;
   setSignNight(on);
 }
+
+/** Shared weather uniforms (uWet, uSnow, uWetSky) and the helper that hooks street/ground materials to them. */
+export { attachWeather, weatherUniforms };
 
 export { getSignMaterial, setSignNight } from './signs';

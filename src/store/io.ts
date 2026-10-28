@@ -1,5 +1,4 @@
 // JSON save / load for the city layout. importLayout never throws on bad input.
-import type { WorldSettings } from '../core/types';
 import {
   BLOCK_KINDS,
   DEFAULT_SETTINGS,
@@ -13,7 +12,9 @@ import {
   type HouseOverride,
   type LayoutData,
   type TreeOverride,
+  type WorldSettings,
 } from './model';
+import { WEATHER_KINDS } from '../weather/weatherState';
 
 export const LAYOUT_VERSION = 1;
 
@@ -88,10 +89,21 @@ function parseSettings(v: unknown): WorldSettings {
   const out: Record<string, unknown> = {};
   for (const key of Object.keys(DEFAULT_SETTINGS) as (keyof WorldSettings)[]) {
     const raw = o[key];
+    // Weather arrived later than version 1 files: old files fall back to the defaults.
+    if (raw === undefined && (key === 'weather' || key === 'weatherIntensity')) {
+      out[key] = DEFAULT_SETTINGS[key];
+      continue;
+    }
     if (raw === undefined) fail(`settings.${key} is missing`);
     switch (key) {
       case 'season':
         out[key] = expectOneOf(raw, SEASONS, 'settings.season');
+        break;
+      case 'weather':
+        out[key] = expectOneOf(raw, WEATHER_KINDS, 'settings.weather');
+        break;
+      case 'weatherIntensity':
+        out[key] = Math.min(1, Math.max(0, expectNumber(raw, 'settings.weatherIntensity')));
         break;
       case 'soundEnabled':
         out[key] = expectBoolean(raw, 'settings.soundEnabled');

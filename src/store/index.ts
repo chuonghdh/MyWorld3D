@@ -1,5 +1,4 @@
 import { create } from 'zustand';
-import type { WorldSettings } from '../core/types';
 import {
   DEFAULT_TOGGLES,
   HISTORY_LIMIT,
@@ -9,6 +8,7 @@ import {
   type LayoutData,
   type TreeOverride,
   type UiToggles,
+  type WorldSettings,
 } from './model';
 
 export * from './model';
