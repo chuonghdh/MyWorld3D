@@ -10,6 +10,7 @@ import {
   gableRise,
   isFlatRoof,
   offsetPolygon,
+  offsetPolygonSafe,
   type Segment,
 } from './layout';
 import { bayColumns, consoleBracket, frameBars, glassRail, pane, railU, type Ctx } from './parts';
@@ -127,9 +128,9 @@ function mansardUpperInset(ctx: Ctx): number {
 function mansard(ctx: Ctx): SurfaceFn {
   const { m, c, edges, wallTop } = ctx;
   const uIn = mansardUpperInset(ctx);
-  const b0 = offsetPolygon(edges, edges.map((e) => (e.facade ? MANSARD_BASE_INSET : 0)));
-  const b1 = offsetPolygon(edges, edges.map((e) => (e.facade ? MANSARD_BASE_INSET + MANSARD_LOWER_INSET : 0)));
-  const b2 = offsetPolygon(edges, edges.map((e) => (e.facade ? MANSARD_BASE_INSET + MANSARD_LOWER_INSET + uIn : 0)));
+  const b0 = offsetPolygonSafe(edges, edges.map((e) => (e.facade ? MANSARD_BASE_INSET : 0)));
+  const b1 = offsetPolygonSafe(edges, edges.map((e) => (e.facade ? MANSARD_BASE_INSET + MANSARD_LOWER_INSET : 0)));
+  const b2 = offsetPolygonSafe(edges, edges.map((e) => (e.facade ? MANSARD_BASE_INSET + MANSARD_LOWER_INSET + uIn : 0)));
   const y1 = wallTop + MANSARD_LOWER_H;
   const y2 = y1 + MANSARD_UPPER_H;
   const slate = c.roof;
@@ -161,8 +162,14 @@ function mansard(ctx: Ctx): SurfaceFn {
 /** One dormer per bay on the lower mansard slope, with a small pediment (classic) or a box (modern). */
 function dormers(ctx: Ctx, seg: Segment): void {
   const { m, c, rng, wallTop } = ctx;
-  const { centres } = bayColumns(ctx, seg.L);
   const modern = ctx.modern;
+  // Dormers stay clear of facade corners, where the neighbouring segment's dormers (and the sloping
+  // mansard return) would overlap them.
+  const halfW = (modern ? 0.75 : 0.58) + 0.2;
+  const margin = 1.2;
+  const centres = bayColumns(ctx, seg.L).centres.filter(
+    (cu) => (seg.startTurn === null || cu - halfW >= -seg.L / 2 + margin) && (seg.endTurn === null || cu + halfW <= seg.L / 2 - margin),
+  );
   const yb = wallTop + 0.28;
   const yt = wallTop + (modern ? 2.0 : 1.95);
   const nf = -0.3;
@@ -194,16 +201,16 @@ function dormers(ctx: Ctx, seg: Segment): void {
         const t = Math.PI * (k / 6);
         pts.push([cu - Math.cos(t) * (half + 0.06), yt + 0.08 + Math.sin(t) * apex * 0.75]);
       }
-      m.prismUY(c.cornice, pts, nf - 0.12, nf + 0.06);
-      m.withSurface(SURFACE.ZINC, () => m.prismUY(c.roofTop, pts.map(([u, y]) => [u, y - 0.02] as [number, number]), nb, nf - 0.12));
+      m.prismUY(c.cornice, pts, nf - 0.12, nf + 0.06, true);
+      m.withSurface(SURFACE.ZINC, () => m.prismUY(c.roofTop, pts.map(([u, y]) => [u, y - 0.02] as [number, number]), nb, nf - 0.12, true));
     } else {
       const tri: [number, number][] = [
         [a - 0.06, yt + 0.08],
         [b + 0.06, yt + 0.08],
         [cu, yt + 0.08 + apex],
       ];
-      m.prismUY(c.cornice, tri, nf - 0.12, nf + 0.06);
-      m.withSurface(SURFACE.ZINC, () => m.prismUY(c.roofTop, tri.map(([u, y]) => [u, y - 0.02] as [number, number]), nb, nf - 0.12));
+      m.prismUY(c.cornice, tri, nf - 0.12, nf + 0.06, true);
+      m.withSurface(SURFACE.ZINC, () => m.prismUY(c.roofTop, tri.map(([u, y]) => [u, y - 0.02] as [number, number]), nb, nf - 0.12, true));
     }
   });
 }
@@ -348,7 +355,7 @@ function parasol(ctx: Ctx, x: number, y: number, z: number): void {
     rim.push([x + Math.cos(a) * rimR, y + 1.95, z + Math.sin(a) * rimR]);
     tip.push([x + Math.cos(a) * 0.04, y + 2.35, z + Math.sin(a) * 0.04]);
   }
-  m.loft('body', cloth, rim, tip, scale(cloth, 0.7), null);
+  m.loft('body', cloth, rim, tip, scale(cloth, 0.7), cloth);
 }
 
 /** Tower plant room with louvre bands. */
@@ -452,8 +459,8 @@ function item(ctx: Ctx, k: ItemKind, x: number, y: number, z: number, sx: number
       const wood = col(pick(rng, ['#8a6a4a', '#7a5c40', '#93785a']));
       const toP = (pts: [number, number][], yy: number): P3[] => pts.map(([px, pz]) => [px, yy, pz] as P3);
       m.loft('body', wood, toP(oct(0.82), y + 1.15), toP(oct(0.82), y + 2.6), null, null);
-      for (const hy of [y + 1.5, y + 2.0, y + 2.4]) m.loft('body', dark, toP(oct(0.85), hy), toP(oct(0.85), hy + 0.05), null, null);
-      m.loft('body', scale(dark, 1.2), toP(oct(0.9), y + 2.6), toP(oct(0.05), y + 3.0), scale(dark, 1.2), null);
+      for (const hy of [y + 1.5, y + 2.0, y + 2.4]) m.loft('body', dark, toP(oct(0.85), hy), toP(oct(0.85), hy + 0.05), dark, dark);
+      m.loft('body', scale(dark, 1.2), toP(oct(0.9), y + 2.6), toP(oct(0.05), y + 3.0), scale(dark, 1.2), scale(dark, 1.2));
       break;
     }
     case 'skylight': {
@@ -481,10 +488,14 @@ function item(ctx: Ctx, k: ItemKind, x: number, y: number, z: number, sx: number
     }
     case 'vents': {
       const pipes = int(rng, 2, 3);
+      const placedPipes: [number, number][] = [];
       for (let i = 0; i < pipes; i++) {
         const px = x + range(rng, -sx / 2 + 0.12, sx / 2 - 0.12);
         const pz = z + range(rng, -sz / 2 + 0.12, sz / 2 - 0.12);
         const h = range(rng, 0.5, 1.0);
+        // Pipes keep 0.3 m apart so their square sections never overlap.
+        if (placedPipes.some(([qx, qz]) => Math.hypot(qx - px, qz - pz) < 0.3)) continue;
+        placedPipes.push([px, pz]);
         m.bar(grey, [px, y, pz], [px, y + h, pz], 0.13);
         m.b(scale(grey, 0.8), px - 0.11, px + 0.11, y + h, y + h + 0.08, pz - 0.11, pz + 0.11, 0);
       }
@@ -497,7 +508,7 @@ function item(ctx: Ctx, k: ItemKind, x: number, y: number, z: number, sx: number
       for (let i = 0; i < 3; i++) {
         const yy = y + h - 0.2 - i * 0.35;
         const len = 0.9 - i * 0.2;
-        m.bar(iron, [x - len / 2, yy, z], [x + len / 2, yy, z], 0.03);
+        m.bar(iron, [x - len / 2, yy, z + 0.05], [x + len / 2, yy, z + 0.05], 0.03);
       }
       break;
     }
@@ -507,10 +518,25 @@ function item(ctx: Ctx, k: ItemKind, x: number, y: number, z: number, sx: number
       const hz = sz / 2;
       const lo = y + 0.25;
       const hi = y + 0.25 + 2 * hz * Math.sin(tilt);
-      m.poly('glass', [[x - hx, lo, z + hz], [x + hx, lo, z + hz], [x + hx, hi, z - hz], [x - hx, hi, z - hz]], col('#1d2b45'), [x, y, z - 5]);
-      m.b(grey, x - hx, x - hx + 0.06, y, hi, z - hz, z - hz + 0.06, NY);
-      m.b(grey, x + hx - 0.06, x + hx, y, hi, z - hz, z - hz + 0.06, NY);
-      m.b(grey, x - hx, x + hx, y, lo, z + hz - 0.06, z + hz, NY);
+      // Tilted panel: a closed shell. The glass is the top face itself (no separate slab top beneath it,
+      // so nothing can be seen between the two); the other five faces are grey.
+      const dy = hi - lo;
+      const dz = -2 * hz;
+      const len = Math.hypot(dy, dz);
+      const up: P3 = [0, -dz / len, dy / len];
+      const th = 0.05;
+      const top = (px: number, t: number): P3 => [px, lo + dy * t, z + hz + dz * t];
+      const bot = (px: number, t: number): P3 => [px, lo + dy * t - up[1] * th, z + hz + dz * t - up[2] * th];
+      const centre: P3 = [x, (lo + hi) / 2 - up[1] * th / 2, z - up[2] * th / 2];
+      m.poly('glass', [top(x - hx, 0), top(x + hx, 0), top(x + hx, 1), top(x - hx, 1)], col('#1d2b45'), [x, y, z - 5]);
+      m.poly('body', [bot(x - hx, 0), bot(x - hx, 1), bot(x + hx, 1), bot(x + hx, 0)], grey, centre);
+      m.poly('body', [top(x - hx, 0), bot(x - hx, 0), bot(x + hx, 0), top(x + hx, 0)], grey, centre);
+      m.poly('body', [top(x - hx, 1), top(x + hx, 1), bot(x + hx, 1), bot(x - hx, 1)], grey, centre);
+      m.poly('body', [top(x - hx, 0), top(x - hx, 1), bot(x - hx, 1), bot(x - hx, 0)], grey, centre);
+      m.poly('body', [top(x + hx, 0), bot(x + hx, 0), bot(x + hx, 1), top(x + hx, 1)], grey, centre);
+      m.b(grey, x - hx, x - hx + 0.06, y, hi - 0.03, z - hz, z - hz + 0.06, NY);
+      m.b(grey, x + hx - 0.06, x + hx, y, hi - 0.03, z - hz, z - hz + 0.06, NY);
+      m.b(grey, x - hx, x + hx, y, lo - 0.03, z + hz - 0.06, z + hz, NY);
       break;
     }
   }
@@ -537,8 +563,10 @@ function gableRoof(ctx: Ctx, stepped: boolean): SurfaceFn {
   const thick = 0.16;
   const stepEnd = [stepped && endFac[0], stepped && endFac[1]];
   const ovN = endFac.map((e, i) => (e && !stepEnd[i] ? 0.35 : 0));
-  const n0 = -Lr / 2 - ovN[0];
-  const n1 = Lr / 2 + ovN[1];
+  // Slab ends: past the wall on street gables (overhang), tucked 3 cm inside on party gables so the
+  // slab never shares the lot-boundary plane with the gable wall, the chimneys or a neighbour.
+  const n0 = -Lr / 2 - ovN[0] + (ovN[0] > 0 ? 0 : 0.03);
+  const n1 = Lr / 2 + ovN[1] - (ovN[1] > 0 ? 0 : 0.03);
   const roofCol = c.roof;
   m.frame = frame;
 
@@ -549,42 +577,58 @@ function gableRoof(ctx: Ctx, stepped: boolean): SurfaceFn {
     const ey = wallTop + delta * tanP;
     const ru = -s * 0.02;
     const ry = wallTop + h + 0.02 * tanP;
-    const mid: P3 = [(eu + ru) / 2 + s * sinP * thick * 0.5, (ey + ry) / 2 + cosP * thick * 0.5, (n0 + n1) / 2];
+    // The two slabs overlap at the ridge: the right one is 2.5 cm shorter at each end.
+    const sn0 = n0 + (s > 0 ? 0.025 : 0);
+    const sn1 = n1 - (s > 0 ? 0.025 : 0);
+    const mid: P3 = [(eu + ru) / 2 + s * sinP * thick * 0.5, (ey + ry) / 2 + cosP * thick * 0.5, (sn0 + sn1) / 2];
     const half = Math.hypot(ru - eu, ry - ey) / 2;
     m.surface = ctx.roofSurface;
-    m.obox('body', roofCol, mid, [0, 0, (n1 - n0) / 2], [((ru - eu) / (2 * half)) * half, ((ry - ey) / (2 * half)) * half, 0], [s * sinP * thick * 0.5, cosP * thick * 0.5, 0]);
+    m.obox('body', roofCol, mid, [0, 0, (sn1 - sn0) / 2], [((ru - eu) / (2 * half)) * half, ((ry - ey) / (2 * half)) * half, 0], [s * sinP * thick * 0.5, cosP * thick * 0.5, 0]);
     m.surface = SURFACE.PLAIN;
     if (ov > 0) {
       // Gutter along the eave.
-      m.b(col('#5d6166'), eu + s * 0.0 - 0.07, eu + s * 0.0 + 0.07, ey - 0.12, ey + 0.02, n0, n1, 0);
+      m.b(col('#5d6166'), eu + s * 0.0 - 0.07, eu + s * 0.0 + 0.07, ey - 0.12, ey + 0.02, n0 - 0.03, n1 + 0.03, 0);
+    } else {
+      // Close the slit between the wall head and the underside of the slab along party eaves.
+      // Sunk 5 cm into the wall head and set 2 cm behind the wall face, so no face shares a plane with the wall.
+      m.b(c.party, s * (S / 2 - 0.06), s * (S / 2 - delta + 0.01), wallTop - 0.05, ey + 0.03, n0 + 0.03, n1 - 0.03, 0);
     }
   }
   // Ridge cap.
-  m.b(scale(roofCol, 0.75), -0.14, 0.14, wallTop + h - 0.04, wallTop + h + thick + 0.06, n0, n1, NY);
+  m.b(scale(roofCol, 0.75), -0.14, 0.14, wallTop + h - 0.04, wallTop + h + thick + 0.06, n0 + 0.06, n1 - 0.06, NY);
 
   // Gable ends.
   for (const e of [0, 1] as const) {
     const sgn = e === 0 ? -1 : 1;
     const nEdge = sgn * Lr / 2;
     const fac = endFac[e];
-    if (stepEnd[e]) continue;
+    // Behind a stepped or bell gable the wall base sinks 2 cm into the wall head and its face stands 10 cm
+    // behind the core front wall (no shared plane with the steps' feet or the wall below).
+    const base = wallTop - (stepEnd[e] ? 0.02 : 0);
     const tri: [number, number][] = [
-      [-S / 2, wallTop],
-      [S / 2, wallTop],
+      [-S / 2, base],
+      [S / 2, base],
       [0, wallTop + h],
     ];
     const colr = fac ? c.wall : endSide[e] === 'back' ? c.rear : c.party;
     m.surface = ctx.wallSurface;
-    if (sgn > 0) m.prismUY(colr, tri, nEdge - 0.3, nEdge);
-    else m.prismUY(colr, tri, nEdge, nEdge + 0.3);
+    // Closed gable wall (its back face stays open, it faces the roof space). Behind a stepped or bell
+    // gable it is recessed, so the roof triangle is closed wherever the steps leave gaps.
+    const triRing = (n: number): P3[] => tri.map(([u, y]) => [u, y, n] as P3);
+    const rec = stepEnd[e] ? ctx.look.r + 0.1 : 0;
+    if (sgn > 0) m.loft('body', colr, triRing(nEdge - rec - 0.3), triRing(nEdge - rec), null, colr);
+    else m.loft('body', colr, triRing(nEdge + rec), triRing(nEdge + rec + 0.3), colr, null);
     m.surface = SURFACE.PLAIN;
-    if (fac) {
+    if (fac && !stepEnd[e]) {
       // Bargeboards along the verges.
       const nb = nEdge + sgn * (ovN[e] - 0.02);
       const trim = ctx.spec.kind === 'nordic' ? c.trim : scale(roofCol, 0.8);
       for (const s of [-1, 1]) {
         const ov = sideFac[s < 0 ? 0 : 1] ? 0.45 : -0.12;
-        m.bar(trim, [s * (S / 2 + ov), wallTop - ov * tanP + 0.02, nb], [0, wallTop + h + 0.12, nb], 0.14);
+        // The two boards overlap at the apex: the right one sits 2.5 cm further out so their sides never share a plane.
+        const nbs = nb + (s > 0 ? sgn * 0.025 : 0);
+        // Hung 5 cm below the slab line so its underside is not coplanar with the slab's.
+        m.bar(trim, [s * (S / 2 + ov), wallTop - ov * tanP - 0.03, nbs], [0, wallTop + h + 0.07, nbs], 0.14);
       }
     }
   }
@@ -671,7 +715,7 @@ function bellGable(ctx: Ctx, seg: Segment, h: number): void {
     const t1 = (k + 1) / K;
     const a = hw(t0);
     const b = hw(t1);
-    m.withSurface(ctx.wallSurface, () => m.prismUY(c.wall, [[-a, wallTop + t0 * H], [a, wallTop + t0 * H], [b, wallTop + t1 * H], [-b, wallTop + t1 * H]], -0.4, 0));
+    m.withSurface(ctx.wallSurface, () => m.prismUY(c.wall, [[-a, wallTop + t0 * H], [a, wallTop + t0 * H], [b, wallTop + t1 * H], [-b, wallTop + t1 * H]], -0.4, 0, true));
   }
   // Scrolls at the shoulders and a segmental cap.
   const ys = wallTop + 0.62 * H;
@@ -752,6 +796,8 @@ function hipRoof(ctx: Ctx, overhang: number, tiled: boolean): SurfaceFn {
   // Hip and ridge caps.
   const cap = scale(roofCol, tiled ? 0.85 : 0.75);
   const n = edges.length;
+  const ridges: [number, number, number, number][] = [];
+  const ridgeEnds: [number, number][] = [];
   for (let i = 0; i < n; i++) {
     const j = (i + 1) % n;
     if (edges[i].facade && edges[j].facade) {
@@ -762,8 +808,20 @@ function hipRoof(ctx: Ctx, overhang: number, tiled: boolean): SurfaceFn {
     if (Math.hypot(ti[0] - tj[0], ti[1] - tj[1]) > 0.2) {
       const facadeEdge = edges[i].facade;
       if (!facadeEdge) continue;
-      // Top edge of a slope: only a ridge when the slope opposite meets it.
-      m.bar(cap, [ti[0], wallTop + h + 0.06, ti[1]], [tj[0], wallTop + h + 0.06, tj[1]], 0.18);
+      // Top edge of a slope: only a ridge when the slope opposite meets it. Opposite slopes share
+      // their top edge, so each ridge is emitted once.
+      const dup = ridges.some(([ax, az, bx, bz]) => {
+        const near = (x1: number, z1: number, x2: number, z2: number): boolean => Math.hypot(x1 - x2, z1 - z2) < 0.05;
+        return (near(ax, az, ti[0], ti[1]) && near(bx, bz, tj[0], tj[1])) || (near(ax, az, tj[0], tj[1]) && near(bx, bz, ti[0], ti[1]));
+      });
+      if (dup) continue;
+      ridges.push([ti[0], ti[1], tj[0], tj[1]]);
+      ridgeEnds.push([ti[0], ti[1]], [tj[0], tj[1]]);
+      // Tucked 10 cm in at both ends so the bar never ends flush with the lot line or a hip.
+      const len = Math.hypot(tj[0] - ti[0], tj[1] - ti[1]);
+      const ex = ((tj[0] - ti[0]) / len) * 0.1;
+      const ez = ((tj[1] - ti[1]) / len) * 0.1;
+      m.bar(cap, [ti[0] + ex, wallTop + h + 0.06, ti[1] + ez], [tj[0] - ex, wallTop + h + 0.06, tj[1] - ez], 0.18);
     }
   }
 
@@ -786,12 +844,16 @@ function hipRoof(ctx: Ctx, overhang: number, tiled: boolean): SurfaceFn {
       const ribCol = scale(roofCol, 1.12);
       for (let k = 0; k <= count; k++) {
         const u = ua + k * 0.3;
+        // A rib that would end beside the end of a ridge bar is left out (their end faces would share a plane).
+        const [rx, rz] = toHouse(f, u, nIn);
+        if (ridgeEnds.some(([ex, ez]) => Math.hypot(ex - rx, ez - rz) < 0.25)) continue;
         m.bar(ribCol, [u, wallTop + 0.06, nOut], [u, wallTop + h + 0.02 - 0.05, nIn], 0.1);
       }
       // A few tile courses across the slope.
       for (const t of [0.33, 0.66]) {
         const nn = nOut + (nIn - nOut) * t;
-        const yy = wallTop + 0.06 + (h - 0.05) * t;
+        // Each segment's courses sit at their own height (2.5 cm apart) so those of neighbouring slopes never share a plane at the hips.
+        const yy = wallTop + 0.06 + (h - 0.05) * t + (seg.index % 4) * 0.025;
         m.bar(scale(roofCol, 0.88), [ua, yy, nn], [ua + count * 0.3, yy, nn], 0.05);
       }
       m.frame = HOUSE_FRAME;
@@ -830,12 +892,15 @@ function chimneys(ctx: Ctx, surface: SurfaceFn): void {
       top = Math.max(top, surface(x, z));
     }
     const yTop = wallTop + top + range(rng, 0.8, 1.3);
-    m.frame = f;
+    // The stack stands 6 cm inside the lot line, so its faces are never flush with the party gable,
+    // the roof edge or the neighbour's walls. Collar and cap project beyond the stack face in steps.
+    const off = 0.06;
+    m.frame = { ...f, ox: f.ox - f.nx * off, oz: f.oz - f.nz * off };
     m.withSurface(SURFACE.BRICK, () => m.b(c.chimney, u0, u1, wallTop - 0.3, yTop, -depth, 0, NY));
-    m.b(scale(c.chimney, 0.9), u0, u1, yTop - 0.35, yTop - 0.28, -depth - 0.04, 0, NY);
+    m.b(scale(c.chimney, 0.9), u0, u1, yTop - 0.35, yTop - 0.28, -depth - 0.04, 0.03, NY);
     const cu0 = Math.max(-L / 2, u0 - 0.06);
     const cu1 = Math.min(L / 2, u1 + 0.06);
-    m.b(scale(c.trim, 0.9), cu0, cu1, yTop, yTop + 0.1, -depth - 0.06, 0, NY);
+    m.b(scale(c.trim, 0.9), cu0, cu1, yTop, yTop + 0.1, -depth - 0.06, 0.05, NY);
     const pots = Math.max(1, Math.floor((u1 - u0) / 0.36));
     let best: { u: number; y: number } | null = null;
     for (let p = 0; p < pots; p++) {
@@ -844,12 +909,16 @@ function chimneys(ctx: Ctx, surface: SurfaceFn): void {
       if (!best || Math.abs(u - uc) < Math.abs(best.u - uc)) best = { u, y: yTop + 0.1 + ph };
       m.box('body', potCol, u - 0.09, u + 0.09, yTop + 0.1, yTop + 0.1 + ph, -depth / 2 - 0.09, -depth / 2 + 0.09, NY, potTop);
     }
-    // Flue breast on the party wall face below.
-    m.withSurface(ctx.wallSurface, () =>
-      m.b(scale(c.party, 1.05), uc - (u1 - u0) * 0.4, uc + (u1 - u0) * 0.4, wallTop * 0.3, wallTop - 0.05, -0.04, 0, NN | NY),
-    );
+    // Flue breast on a side party wall face below: 3 cm proud of the core wall, behind the lot line.
+    // (Not on the rear wall: windows and pipes live there.)
+    m.frame = f;
+    if (seg.side !== 'back') {
+      m.withSurface(ctx.wallSurface, () =>
+        m.b(scale(c.party, 1.05), uc - (u1 - u0) * 0.4, uc + (u1 - u0) * 0.4, wallTop * 0.3, wallTop - 0.05, -0.045, -0.01, NN | NY),
+      );
+    }
     if (best) {
-      const [hx, hz] = toHouse(f, best.u, -depth / 2);
+      const [hx, hz] = toHouse(f, best.u, -depth / 2 - off);
       ctx.chimneyTops.push({ x: hx, y: best.y, z: hz });
     }
     m.frame = HOUSE_FRAME;

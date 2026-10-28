@@ -51,7 +51,8 @@ export function rearElevation(ctx: Ctx, seg: Segment): void {
         kind: tower ? 'tower' : 'lean',
         a,
         b: a + w,
-        h: tower ? wallTop - 0.5 : Math.min(3.2, ctx.groundH - 0.5),
+        // Height varies in 3 cm steps per house, so two extensions that meet across a narrow yard never share a roof plane.
+        h: (tower ? wallTop - 0.5 : Math.min(3.2, ctx.groundH - 0.5)) - 0.03 * int(rng, 0, 3),
       };
     }
   }

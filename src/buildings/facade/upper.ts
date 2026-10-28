@@ -116,7 +116,7 @@ export function windowUnit(ctx: Ctx, u0: number, u1: number, y0: number, y1: num
         [u1 + 0.05, u1 + 0.05 + lw],
       ] as const) {
         m.b(sh, a, b, y0, y1, 0, 0.05, NN);
-        const slats = Math.max(3, Math.round((y1 - y0) / 0.32));
+        const slats = Math.max(3, Math.round((y1 - y0) / 0.5));
         for (let k = 1; k < slats; k++) {
           const yy = y0 + ((y1 - y0) * k) / slats;
           m.b(scale(sh, 0.72), a + 0.05, b - 0.05, yy - 0.018, yy + 0.018, 0.05, 0.065, NN | NY | PU | NU);

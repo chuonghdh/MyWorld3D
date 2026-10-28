@@ -383,6 +383,18 @@ export function Town({ onSelect }: { onSelect: (target: OverrideTarget) => void 
   useFrame((state, dt) => {
     const t = state.clock.getElapsedTime();
 
+    // Depth precision: a fixed near plane of 1 m leaves only millimetres of resolution at 300 m, so
+    // coplanar details flicker. Tie the clip planes to the distance from the orbit target instead.
+    const camDist = state.camera.position.length();
+    const persp = state.camera as THREE.PerspectiveCamera;
+    const wantNear = THREE.MathUtils.clamp(camDist * 0.05, 0.5, 30);
+    const wantFar = Math.max(1200, camDist * 4);
+    if (Math.abs(persp.near - wantNear) > persp.near * 0.05 || Math.abs(persp.far - wantFar) > persp.far * 0.05) {
+      persp.near = wantNear;
+      persp.far = wantFar;
+      persp.updateProjectionMatrix();
+    }
+
     while (runtime.wholeMapRequests > 0) {
       runtime.wholeMapRequests--;
       state.camera.position.set(0, townSize * 1.75, townSize * 0.45);

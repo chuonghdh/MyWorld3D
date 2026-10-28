@@ -8,6 +8,10 @@ import { windowUnit } from './upper';
 import { chance, int, pick, range } from './rng';
 import { SIGNS, pickSign, signUv } from '../signs';
 
+/** Fascia board front and the lettering quad 3.5 cm in front of it (no shared plane). */
+const SIGN_BOARD_N = 0.12;
+const SIGN_N = SIGN_BOARD_N + 0.035;
+
 export function groundFacade(ctx: Ctx, seg: Segment): void {
   if (ctx.spec.kind === 'tower') {
     towerLobby(ctx, seg);
@@ -114,9 +118,11 @@ function entrance(ctx: Ctx, a: number, b: number, y0: number, yTop: number, styl
       m.prismUY(infill, [[u0, yS + Math.sin(t0) * R], [u1, yS + Math.sin(t1) * R], [u1, yTop + 0.001], [u0, yTop + 0.001]], -r, 0);
     }
     pane(ctx, a, b, yS, yTop, -r + 0.02, { dressing: false });
-    for (const t of [Math.PI * 0.25, Math.PI * 0.5, Math.PI * 0.75]) {
-      m.bar(c.iron, [cu, yS, -r + 0.05], [cu + Math.cos(t) * R, yS + Math.sin(t) * R, -r + 0.05], 0.035);
-    }
+    // The three fan bars meet at the hub; each sits at its own depth (2.5 cm steps) so they never share a face plane.
+    [Math.PI * 0.25, Math.PI * 0.5, Math.PI * 0.75].forEach((t, k) => {
+      const nb = -r + 0.05 + k * 0.025;
+      m.bar(c.iron, [cu, yS, nb], [cu + Math.cos(t) * (R - 0.03), yS + Math.sin(t) * (R - 0.03), nb], 0.035);
+    });
     m.b(c.iron, a, b, yS - 0.06, yS, -r + 0.02, -r + 0.1, NN);
     doorLeaves(ctx, a, b, y0, yS - 0.06, door);
     m.b(c.trim, cu - 0.15, cu + 0.15, yTop - 0.28, yTop + 0.14, 0, 0.09, NN);
@@ -180,11 +186,11 @@ function bladeSign(ctx: Ctx, seg: Segment, pa: number, pb: number, signIdx: numb
   const uv = signUv(signIdx);
   const white = col('#ffffff');
   m.bar(iron, [ub, y0 + bh + 0.22, 0.0], [ub, y0 + bh + 0.22, nFar + 0.05], 0.04);
-  m.bar(iron, [ub, y0 + bh + 0.22, nFar - 0.1], [ub, y0 + bh, nFar - 0.1], 0.015);
-  m.bar(iron, [ub, y0 + bh + 0.22, nNear + 0.1], [ub, y0 + bh, nNear + 0.1], 0.015);
-  m.bar(iron, [ub, y0 + bh + 0.22, 0.0], [ub, y0 + bh + 0.02, nNear + 0.5], 0.02);
+  // Rods hang from the underside of the arm (they stop at its bottom face, not inside it).
+  m.bar(iron, [ub, y0 + bh + 0.2, nFar - 0.1], [ub, y0 + bh, nFar - 0.1], 0.015);
+  m.bar(iron, [ub, y0 + bh + 0.2, nNear + 0.1], [ub, y0 + bh, nNear + 0.1], 0.015);
   m.b(scale(iron, 1.2), ub - 0.025, ub + 0.025, y0, y0 + bh, nNear, nFar, 0);
-  const t = 0.03;
+  const t = 0.05;
   const nm = (nNear + nFar) / 2;
   const yc = y0 + bh / 2;
   m.uvQuad('sign', [ub + t, y0, nFar], [ub + t, y0, nNear], [ub + t, y0 + bh, nNear], [ub + t, y0 + bh, nFar], white, uv.u0, uv.v0, uv.u1, uv.v1, [ub - 1, yc, nm]);
@@ -230,7 +236,7 @@ function shopfront(ctx: Ctx, seg: Segment, terrace: boolean): void {
   skin(ctx, p[n], L / 2, 0, gH, { courses: look.rustic });
   skin(ctx, p[0], p[n], gTop, gH, { courses: null, plinth: false });
   // Fascia sign band with a moulded cap.
-  m.b(col(SIGNS[signIdx].bg), bu0, bu1, boardBot, boardTop, 0, 0.12, NN);
+  m.b(col(SIGNS[signIdx].bg), bu0, bu1, boardBot, boardTop, 0, SIGN_BOARD_N, NN);
   m.b(scale(shop, 0.8), bu0 - 0.05, bu1 + 0.05, boardTop, boardTop + 0.08, 0, 0.2, NN);
   m.b(scale(shop, 0.8), bu0 - 0.04, bu1 + 0.04, boardBot - 0.05, boardBot, 0, 0.16, NN);
   {
@@ -239,10 +245,10 @@ function shopfront(ctx: Ctx, seg: Segment, terrace: boolean): void {
     const uv = signUv(signIdx);
     m.uvQuad(
       'sign',
-      [sc - signW / 2, yc - signH / 2, 0.125],
-      [sc + signW / 2, yc - signH / 2, 0.125],
-      [sc + signW / 2, yc + signH / 2, 0.125],
-      [sc - signW / 2, yc + signH / 2, 0.125],
+      [sc - signW / 2, yc - signH / 2, SIGN_N],
+      [sc + signW / 2, yc - signH / 2, SIGN_N],
+      [sc + signW / 2, yc + signH / 2, SIGN_N],
+      [sc - signW / 2, yc + signH / 2, SIGN_N],
       col('#ffffff'),
       uv.u0,
       uv.v0,

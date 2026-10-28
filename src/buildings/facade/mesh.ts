@@ -14,6 +14,7 @@ import * as THREE from 'three';
 import { getBodyMaterial, getGlassLitMaterial, getGlassMaterial } from '../materials';
 import { SURFACE, SURFACE_ATTRIBUTE } from '../surface';
 import { getSignMaterial } from '../signs';
+import { fixedFace, resolveLayers, type LayerBox, type LayerLimits, type Solid } from './layers';
 
 export type Target = 'body' | 'glass' | 'glassLit' | 'sign';
 /** Texture coordinates of one quad corner (sign atlas cell). */
@@ -71,6 +72,30 @@ export const NY = 8;
 export const PN = 16;
 export const NN = 32;
 
+/**
+ * Debug trace of where primitives come from (tests only): when `on`, every box() and poly() records
+ * the triangle range it wrote and the two nearest caller frames, so an audit hit can be traced back
+ * to the line of code that emitted it.
+ */
+export const trace = {
+  on: false,
+  log: [] as { t: Target; start: number; count: number; src: string }[],
+  /** The boxes of the last flush (resolved), for re-verification in tests. */
+  boxes: [] as (LayerBox & { src: string })[],
+};
+
+function traceSource(): string {
+  const lines = (new Error().stack ?? '').split('\n').slice(1);
+  const out: string[] = [];
+  for (const l of lines) {
+    if (/mesh\.ts/.test(l)) continue;
+    const m = /([\w.]+\.ts):(\d+):\d+/.exec(l);
+    if (m) out.push(`${m[1]}:${m[2]}`);
+    if (out.length >= 3) break;
+  }
+  return out.join(' < ');
+}
+
 /** Growable Float32Array. */
 class FBuf {
   a = new Float32Array(3072);
@@ -122,6 +147,14 @@ function newBuf(t: Target): Buf {
   };
 }
 
+interface PendingBox extends LayerBox {
+  t: Target;
+  c: Col;
+  top: Col;
+  surface: number;
+  src: string;
+}
+
 export class HouseMesh {
   frame: Frame = HOUSE_FRAME;
   /** Surface id written for every body vertex emitted from now on (see ../surface.ts). */
@@ -132,6 +165,14 @@ export class HouseMesh {
     glassLit: newBuf('glassLit'),
     sign: newBuf('sign'),
   };
+  /** Boxes waiting for the layering pass (see layers.ts). */
+  private pending: PendingBox[] = [];
+  /** Emitted polygons that boxes must keep clear of (panes, gable ends ...). */
+  private fixed: ReturnType<typeof fixedFace>[] = [];
+  /** Closed volumes (the house core) that hide the faces of boxes standing on them. */
+  private solids: Solid[] = [];
+  /** Where equally facing faces may be pushed to (set by the house: its lot plus allowed projections). */
+  limits: LayerLimits | null = null;
 
   /** Runs fn with the given body surface id, then restores the previous one. */
   withSurface(id: number, fn: () => void): void {
@@ -152,6 +193,7 @@ export class HouseMesh {
 
   /** Triangle count so far. */
   get triangles(): number {
+    this.flush();
     let t = 0;
     for (const b of Object.values(this.bufs)) t += b.p.len / 9;
     return t;
@@ -214,6 +256,7 @@ export class HouseMesh {
     }
     const perVertex = Array.isArray(c[0]);
     const buf = this.bufs[t];
+    const traceStart = trace.on ? buf.p.len / 9 : 0;
     const push = (i: number): void => {
       buf.p.push3(w[i * 3], w[i * 3 + 1], w[i * 3 + 2]);
       buf.n.push3(nx, ny, nz);
@@ -241,6 +284,8 @@ export class HouseMesh {
       push(b);
       push(d);
     }
+    this.fixed.push(fixedFace(w, nx, ny, nz));
+    if (trace.on) trace.log.push({ t, start: traceStart, count: buf.p.len / 9 - traceStart, src: traceSource() });
   }
 
   /** Quad with four corners already in counter-clockwise order. */
@@ -262,14 +307,65 @@ export class HouseMesh {
     ]);
   }
 
-  /** Axis-aligned box (in frame coordinates) from min/max corners. `skip` uses the PU..NN flags. */
-  box(t: Target, c: Col, u0: number, u1: number, y0: number, y1: number, n0: number, n1: number, skip = 0, top?: Col): void {
+  /**
+   * Box (in frame coordinates) from min/max corners. The PU..NN skip argument is accepted for compatibility but ignored. Boxes are collected
+   * and emitted together by flush(), after the layering pass has separated near-coplanar faces.
+   */
+  box(t: Target, c: Col, u0: number, u1: number, y0: number, y1: number, n0: number, n1: number, _skip = 0, top?: Col): void {
     if (u0 > u1) [u0, u1] = [u1, u0];
     if (y0 > y1) [y0, y1] = [y1, y0];
     if (n0 > n1) [n0, n1] = [n1, n0];
     if (u1 - u0 < 1e-6 || y1 - y0 < 1e-6 || n1 - n0 < 1e-6) return;
-    const f = this.frame;
-    const buf = this.bufs[t];
+    this.pending.push({
+      t,
+      c,
+      top: top ?? c,
+      surface: this.surface,
+      f: this.frame,
+      u0,
+      u1,
+      y0,
+      y1,
+      n0,
+      n1,
+      // The caller's skip flags are ignored: boxes are closed solids and a face is dropped only when the
+      // layering pass proves it hidden (covered by another solid or by the house core), so a wrongly
+      // skipped face can never open a hole.
+      skip: 0,
+      src: trace.on ? traceSource() : '',
+    });
+  }
+
+  /** Registers a convex prism (xz polygon, y range) as solid: box faces buried inside it are not emitted. */
+  addSolid(poly: readonly [number, number][], y0: number, y1: number): void {
+    let a = 0;
+    for (let i = 0; i < poly.length; i++) {
+      const j = (i + 1) % poly.length;
+      a += poly[i][0] * poly[j][1] - poly[j][0] * poly[i][1];
+    }
+    const pts = a >= 0 ? poly : [...poly].reverse();
+    this.solids.push({ poly: pts.flat(), y0, y1 });
+  }
+
+  /** Runs the layering pass over the deferred boxes and writes their triangles. */
+  private flush(): void {
+    if (this.pending.length === 0) return;
+    const boxes = this.pending;
+    this.pending = [];
+    if (trace.on) trace.boxes = boxes;
+    resolveLayers(boxes, this.fixed.filter((x): x is NonNullable<typeof x> => x !== null), this.solids, this.limits);
+    for (const b of boxes) {
+      const buf = this.bufs[b.t];
+      const start = buf.p.len / 9;
+      this.emitBox(buf, b);
+      if (trace.on) trace.log.push({ t: b.t, start, count: buf.p.len / 9 - start, src: b.src });
+    }
+  }
+
+  private emitBox(buf: Buf, bx: PendingBox): void {
+    const { f, u0, u1, y0, y1, n0, n1, skip, c, top } = bx;
+    const prevSurface = this.surface;
+    this.surface = bx.surface;
     // World x/z of the four (u, n) corners; y is shared.
     const X = (u: number, n: number): number => f.ox + u * f.ux + n * f.nx;
     const Z = (u: number, n: number): number => f.oz + u * f.uz + n * f.nz;
@@ -279,7 +375,7 @@ export class HouseMesh {
     const x01 = X(u0, n1), z01 = Z(u0, n1);
     const quad = (
       ax: number, ay: number, az: number,
-      bx: number, by: number, bz: number,
+      bx2: number, by: number, bz: number,
       cx: number, cy: number, cz: number,
       dx: number, dy: number, dz: number,
       nx: number, ny: number, nz: number,
@@ -287,7 +383,7 @@ export class HouseMesh {
     ): void => {
       const p = buf.p;
       p.push3(ax, ay, az);
-      p.push3(bx, by, bz);
+      p.push3(bx2, by, bz);
       p.push3(cx, cy, cz);
       p.push3(ax, ay, az);
       p.push3(cx, cy, cz);
@@ -303,8 +399,9 @@ export class HouseMesh {
     if (!(skip & NN)) quad(x10, y0, z10, x00, y0, z00, x00, y1, z00, x10, y1, z10, -f.nx, 0, -f.nz, c);
     if (!(skip & PU)) quad(x11, y0, z11, x10, y0, z10, x10, y1, z10, x11, y1, z11, f.ux, 0, f.uz, c);
     if (!(skip & NU)) quad(x00, y0, z00, x01, y0, z01, x01, y1, z01, x00, y1, z00, -f.ux, 0, -f.uz, c);
-    if (!(skip & PY)) quad(x01, y1, z01, x11, y1, z11, x10, y1, z10, x00, y1, z00, 0, 1, 0, top ?? c);
+    if (!(skip & PY)) quad(x01, y1, z01, x11, y1, z11, x10, y1, z10, x00, y1, z00, 0, 1, 0, top);
     if (!(skip & NY)) quad(x00, y0, z00, x10, y0, z10, x11, y0, z11, x01, y0, z01, 0, -1, 0, c);
+    this.surface = prevSurface;
   }
 
   /** Body box shorthand. */
@@ -347,7 +444,7 @@ export class HouseMesh {
     sl = Math.hypot(q[0], q[1], q[2]);
     q = [(q[0] / sl) * size * 0.5, (q[1] / sl) * size * 0.5, (q[2] / sl) * size * 0.5];
     const ctr: P3 = [(a[0] + b[0]) / 2, (a[1] + b[1]) / 2, (a[2] + b[2]) / 2];
-    this.obox(t, c, ctr, ax, s, q, true);
+    this.obox(t, c, ctr, ax, s, q, false);
   }
 
   /**
@@ -396,8 +493,24 @@ export class HouseMesh {
     this.loft('body', c, a, b, bottom, top);
   }
 
+  /**
+   * Affine remap of world x and z: x' = ax * x + bx, z' = az * z + bz. Used last, to pull the sides
+   * that touch a neighbour in from the lot line. Normals are left alone (the scale is within 0.5%).
+   */
+  remapXZ(ax: number, bx: number, az: number, bz: number): void {
+    this.flush();
+    for (const buf of Object.values(this.bufs)) {
+      const p = buf.p.a;
+      for (let i = 0; i < buf.p.len; i += 3) {
+        p[i] = p[i] * ax + bx;
+        p[i + 2] = p[i + 2] * az + bz;
+      }
+    }
+  }
+
   /** Multiplies vertex colours by fn(y) (e.g. fake ground occlusion). */
   shade(fn: (y: number) => number): void {
+    this.flush();
     for (const buf of Object.values(this.bufs)) {
       const p = buf.p.a;
       const c = buf.c.a;
@@ -412,6 +525,7 @@ export class HouseMesh {
 
   /** Merges into a Group of up to four meshes named body, glass, glassLit and sign. */
   build(): THREE.Group {
+    this.flush();
     const materials: Record<Target, THREE.Material> = {
       body: getBodyMaterial(),
       glass: getGlassMaterial(),

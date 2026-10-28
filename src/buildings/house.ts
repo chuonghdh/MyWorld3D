@@ -35,6 +35,9 @@ import {
   SHOPFRONT_COLORS,
 } from './palette';
 
+/** Distance each non-facade side is pulled in from the lot line (m), so neighbouring walls never share a plane. */
+export const PARTY_GAP = 0.025;
+
 export type { RoofType, HouseChimney };
 export { ROOF_TYPES, FALLBACK_PRESET, MIN_FLOORS, MAX_FLOORS, resolvePreset };
 
@@ -133,6 +136,15 @@ export function buildHouse(params: HouseParams): THREE.Group {
   const modern = lay.modern;
   const look = lookFor(kind, modern);
   const m = new HouseMesh();
+  // Layering may push a detail outward, but never past the lot line of a side that touches a neighbour
+  // (street sides may project, rear sides may take the existing 1.2 m allowance).
+  const fl = lay.facades;
+  m.limits = {
+    xmin: -lay.W / 2 - (fl.left ? 1.5 : 0),
+    xmax: lay.W / 2 + (fl.right ? 1.5 : 0),
+    zmin: -lay.D / 2 - (fl.back ? 1.5 : 1.2),
+    zmax: lay.D / 2 + (fl.front ? 1.5 : 0),
+  };
 
   const wallHex = params.wallColor || lay.spec.defaultWall;
   const wall = shiftLightness(wallHex, (rng() * 2 - 1) * 0.04);
@@ -222,6 +234,25 @@ export function buildHouse(params: HouseParams): THREE.Group {
   m.frame = HOUSE_FRAME;
   buildRoof(ctx);
 
+  // Neighbours: every side that is not a street facade touches the next house, whose own wall would sit
+  // exactly on the shared lot line. Pull such sides in by PARTY_GAP so the two walls never share a
+  // plane (the gap is closed from both houses: each is a closed solid, nothing can be seen through it).
+  const gx0 = f.left ? 0 : PARTY_GAP;
+  const gx1 = f.right ? 0 : PARTY_GAP;
+  const gz0 = f.back ? 0 : PARTY_GAP;
+  const gz1 = f.front ? 0 : PARTY_GAP;
+  const sx = (lay.W - gx0 - gx1) / lay.W;
+  const sz = (lay.D - gz0 - gz1) / lay.D;
+  const bx = -lay.W / 2 + gx0 - sx * (-lay.W / 2);
+  const bz = -lay.D / 2 + gz0 - sz * (-lay.D / 2);
+  if (gx0 + gx1 + gz0 + gz1 > 0) {
+    m.remapXZ(sx, bx, sz, bz);
+    for (const t of ctx.chimneyTops) {
+      t.x = t.x * sx + bx;
+      t.z = t.z * sz + bz;
+    }
+  }
+
   // Fake ground occlusion: darken the bottom 0.8 m by up to 12%.
   m.shade((y) => (y < 0.8 ? 0.88 + 0.12 * Math.max(0, y / 0.8) : 1));
 
@@ -233,6 +264,8 @@ export function buildHouse(params: HouseParams): THREE.Group {
     roof: lay.roof,
     style: params.style,
     height: lay.wallTop + lay.roofH,
+    /** Height of the wall head (top of the walls, below the roof). */
+    wallTop: lay.wallTop,
     width: lay.W,
     depth: lay.D,
     triangles: m.triangles,
@@ -270,10 +303,13 @@ function buildCore(ctx: Ctx): void {
   };
   if (tower) {
     const lobby = offsetPolygon(edges, edges.map((e) => (e.facade ? 1.0 : 0.04)));
+    m.addSolid(lobby, 0, ctx.groundH);
+    m.addSolid(upper, ctx.groundH, ctx.wallTop);
     walls(ring(lobby, 0), ring(lobby, ctx.groundH), null);
     walls(ring(upper, ctx.groundH), ring(upper, ctx.wallTop), c.deck);
     m.poly('body', ring(upper, ctx.groundH), col('#d9d6cf'), [0, ctx.groundH + 1, 0]);
   } else {
+    m.addSolid(upper, 0, ctx.wallTop);
     walls(ring(upper, 0), ring(upper, ctx.wallTop), c.deck);
   }
 }

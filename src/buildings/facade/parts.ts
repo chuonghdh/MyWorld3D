@@ -6,7 +6,6 @@ import {
   NN,
   NU,
   NY,
-  PU,
   PY,
   col,
   mix,
@@ -127,7 +126,7 @@ function skinInner(
   const courses = opts.courses === undefined ? ctx.look.texture : opts.courses;
   if (courses) {
     // Recessed joint colour behind raised courses.
-    m.b(scale(c, 0.78), u0, u1, y0, y1, -r, 0, NN | PY | NY);
+    m.b(scale(c, 0.78), u0, u1, y0, y1, -r, 0);
     const k0 = Math.floor(y0 / courses.h);
     for (let k = k0; k * courses.h < y1; k++) {
       const a = Math.max(y0, k * courses.h + courses.gap / 2);
@@ -135,11 +134,11 @@ function skinInner(
       if (b - a < 0.01) continue;
       // Slight per-course tone change reads as stone blocks or boards.
       const tone = 0.97 + 0.06 * (((k * 7919) % 13) / 13);
-      // Front and top faces only: the ends are hidden in the reveal at this scale.
-      m.b(scale(c, tone), u0, u1, a, b, 0, courses.proj, NN | NY | PU | NU);
+      // Closed except the back, which sits on the joint backing.
+      m.b(scale(c, tone), u0, u1, a, b, 0, courses.proj, NN);
     }
   } else {
-    m.b(c, u0, u1, y0, y1, -r, 0, NN);
+    m.b(c, u0, u1, y0, y1, -r, 0);
   }
   if (opts.plinth !== false && y0 < 0.5 && !courses) {
     m.withSurface(SURFACE.STONE, () => m.b(ctx.c.base, u0, u1, y0, Math.min(0.5, y1), 0, 0.035, NN));
@@ -230,14 +229,17 @@ export function frameBars(ctx: Ctx, kind: FrameKind, u0: number, u1: number, y0:
 export function railU(ctx: Ctx, u0: number, u1: number, y0: number, h: number, n: number, opts: { spacing?: number; band?: boolean; color?: Col } = {}): void {
   const m = ctx.m;
   const c = opts.color ?? ctx.c.iron;
-  const sp = opts.spacing ?? 0.15;
+  // Balusters are closed boxes now; 15% wider spacing keeps the triangle budget.
+  const sp = (opts.spacing ?? 0.15) * 1.15;
   m.b(c, u0, u1, y0 + h - 0.05, y0 + h, n - 0.03, n + 0.03);
-  m.b(c, u0, u1, y0 + 0.05, y0 + 0.09, n - 0.015, n + 0.015, PY);
-  if (opts.band) m.b(c, u0, u1, y0 + h - 0.24, y0 + h - 0.21, n - 0.015, n + 0.015, PY | NY);
+  // Both rails are as deep as the top rail and the balusters 2 cm slimmer on each side than them, so the
+  // balusters stand inside the rails with no face closer than 2 cm to a rail face (and end flush inside them).
+  m.b(c, u0, u1, y0 + 0.05, y0 + 0.09, n - 0.03, n + 0.03, PY);
+  if (opts.band) m.b(c, u0, u1, y0 + h - 0.24, y0 + h - 0.21, n - 0.03, n + 0.03, PY | NY);
   const count = Math.max(1, Math.round((u1 - u0) / sp));
   for (let i = 0; i <= count; i++) {
     const u = u0 + ((u1 - u0) * i) / count;
-    const s = i === 0 || i === count ? 0.025 : 0.012;
+    const s = i === 0 || i === count ? 0.025 : 0.01;
     m.b(c, u - s, u + s, y0, y0 + h - 0.05, n - s, n + s, PY | NY | NN);
   }
 }
@@ -245,12 +247,13 @@ export function railU(ctx: Ctx, u0: number, u1: number, y0: number, h: number, n
 /** Railing running along n (balcony returns) at u. */
 export function railN(ctx: Ctx, u: number, n0: number, n1: number, y0: number, h: number, spacing = 0.15, color = ctx.c.iron): void {
   const m = ctx.m;
+  spacing *= 1.15;
   m.b(color, u - 0.03, u + 0.03, y0 + h - 0.05, y0 + h, n0, n1);
-  m.b(color, u - 0.015, u + 0.015, y0 + 0.05, y0 + 0.09, n0, n1, PY);
+  m.b(color, u - 0.03, u + 0.03, y0 + 0.05, y0 + 0.09, n0, n1, PY);
   const count = Math.max(1, Math.round((n1 - n0) / spacing));
   for (let i = 1; i < count; i++) {
     const n = n0 + ((n1 - n0) * i) / count;
-    m.b(color, u - 0.012, u + 0.012, y0, y0 + h - 0.05, n - 0.012, n + 0.012, PY | NY | NU);
+    m.b(color, u - 0.01, u + 0.01, y0, y0 + h - 0.05, n - 0.01, n + 0.01, PY | NY | NU);
   }
 }
 

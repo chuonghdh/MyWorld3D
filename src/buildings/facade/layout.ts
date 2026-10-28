@@ -244,6 +244,36 @@ export function offsetPolygon(edges: readonly Edge[], insets: readonly number[])
   return out;
 }
 
+/**
+ * Like offsetPolygon, but an edge that the insets cut away completely (a chamfer swallowed by the
+ * facade insets of a mansard) is collapsed to a point instead of turning the polygon inside out: its
+ * inset is set so that its line passes through the corner of its neighbours.
+ */
+export function offsetPolygonSafe(edges: readonly Edge[], insets: readonly number[]): [number, number][] {
+  const n = edges.length;
+  const ins = [...insets];
+  for (let pass = 0; pass < n; pass++) {
+    const poly = offsetPolygon(edges, ins);
+    let fixed = false;
+    for (let i = 0; i < n; i++) {
+      const a = poly[(i - 1 + n) % n];
+      const b = poly[i];
+      // Edge i runs along (nz, -nx); a reversed run means the edge no longer exists.
+      const run = (b[0] - a[0]) * edges[i].nz - (b[1] - a[1]) * edges[i].nx;
+      if (run < -1e-6) {
+        const p = edges[(i - 1 + n) % n];
+        const q = edges[(i + 1) % n];
+        const corner = intersect(p, p.c - ins[(i - 1 + n) % n], q, q.c - ins[(i + 1) % n]);
+        ins[i] = edges[i].c - (edges[i].nx * corner[0] + edges[i].nz * corner[1]);
+        fixed = true;
+        break;
+      }
+    }
+    if (!fixed) return poly;
+  }
+  return offsetPolygon(edges, ins);
+}
+
 function buildSegments(edges: Edge[], fac: Facades): Segment[] {
   const n = edges.length;
   const poly = offsetPolygon(edges, edges.map(() => 0));
