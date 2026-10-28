@@ -22,11 +22,11 @@ export const SPAWN_RADIUS_MIN = 900;
 export const SPAWN_RADIUS_MAX = 1020;
 /** The line passes the town centre at most this fraction of the spawn radius away. */
 export const MAX_LATERAL = 0.35;
-/** Flights per in-app day, inclusive. */
-export const FLIGHTS_PER_DAY_MIN = 10;
-export const FLIGHTS_PER_DAY_MAX = 15;
-/** The day is cut into this many equal windows; at most one flight starts in each. */
-export const STRATA = FLIGHTS_PER_DAY_MAX;
+/** One flight per in-app hour, at a random moment inside that hour. */
+export const FLIGHTS_PER_DAY_MIN = 24;
+export const FLIGHTS_PER_DAY_MAX = 24;
+/** The day is cut into this many equal windows (one per hour); exactly one flight starts in each. */
+export const STRATA = 24;
 /** Trail slots: a slot is reused three windows later, long after its trail has faded. */
 export const SLOTS = 3;
 
@@ -91,21 +91,12 @@ function hashSeed(seed: number, day: number): number {
 /** The flights of one in-app day, sorted by start time. Deterministic in (seed, day, centre). */
 export function flightsForDay(seed: number, day: number, cx = 0, cz = 0): Flight[] {
   const rng = createRng(hashSeed(seed, day));
-  const count = FLIGHTS_PER_DAY_MIN + Math.floor(rng() * (FLIGHTS_PER_DAY_MAX - FLIGHTS_PER_DAY_MIN + 1));
-  // Pick `count` of the windows (partial Fisher-Yates), then keep them in time order.
-  const windows: number[] = [];
-  for (let i = 0; i < STRATA; i++) windows.push(i);
-  for (let i = 0; i < count; i++) {
-    const j = i + Math.floor(rng() * (STRATA - i));
-    const tmp = windows[i];
-    windows[i] = windows[j];
-    windows[j] = tmp;
-  }
-  const chosen = windows.slice(0, count).sort((a, b) => a - b);
+  const chosen: number[] = [];
+  for (let i = 0; i < STRATA; i++) chosen.push(i);
   const width = DAY_SECONDS / STRATA;
   const out: Flight[] = [];
   for (const w of chosen) {
-    const start = day * DAY_SECONDS + (w + 0.1 + rng() * 0.5) * width;
+    const start = day * DAY_SECONDS + (w + rng()) * width;
     const radius = SPAWN_RADIUS_MIN + rng() * (SPAWN_RADIUS_MAX - SPAWN_RADIUS_MIN);
     const theta = rng() * Math.PI * 2;
     const lateral = (rng() * 2 - 1) * MAX_LATERAL * radius;

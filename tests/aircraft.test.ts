@@ -47,14 +47,27 @@ const env = (over: Partial<AircraftEnv> = {}): AircraftEnv => ({
 });
 
 describe('flight schedule', () => {
-  it('schedules 10-15 flights per day for many seeds and days', () => {
+  it('schedules exactly one flight per in-app hour, at a random moment inside it', () => {
     for (let seed = 0; seed < 60; seed++) {
       for (let day = -2; day < 6; day++) {
         const n = flightsForDay(seed, day).length;
-        expect(n).toBeGreaterThanOrEqual(10);
-        expect(n).toBeLessThanOrEqual(15);
+        expect(n).toBe(24);
       }
     }
+  });
+
+  it('starts flight h inside in-app hour h, at varying moments', () => {
+    const hour = DAY_SECONDS / 24;
+    const offsets = new Set<number>();
+    for (let seed = 0; seed < 20; seed++) {
+      flightsForDay(seed, 1).forEach((f, h) => {
+        const into = f.start - (DAY_SECONDS + h * hour);
+        expect(into).toBeGreaterThanOrEqual(0);
+        expect(into).toBeLessThan(hour);
+        offsets.add(Math.round(into));
+      });
+    }
+    expect(offsets.size).toBeGreaterThan(30);
   });
 
   it('is deterministic and varies with the seed', () => {
