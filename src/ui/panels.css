@@ -1,0 +1,249 @@
+/* Panel styles. Dark translucent card, matching the reference screenshots. */
+:root {
+  --mw-bg: rgba(28, 24, 22, 0.82);
+  --mw-fg: #f1ebe3;
+  --mw-muted: #a79c92;
+  --mw-accent: #e8833a;
+  --mw-line: rgba(255, 255, 255, 0.12);
+  --mw-btn: rgba(255, 255, 255, 0.07);
+}
+
+@media (prefers-color-scheme: light) {
+  :root:not([data-theme="dark"]) {
+    --mw-bg: rgba(30, 26, 24, 0.82);
+  }
+}
+
+:root[data-theme="dark"] {
+  --mw-bg: rgba(28, 24, 22, 0.82);
+}
+
+.mw-panel {
+  width: 300px;
+  max-height: calc(100vh - 32px);
+  display: flex;
+  flex-direction: column;
+  background: var(--mw-bg);
+  color: var(--mw-fg);
+  border-radius: 14px;
+  border: 1px solid var(--mw-line);
+  backdrop-filter: blur(10px);
+  font: 13px/1.35 system-ui, -apple-system, 'Segoe UI', sans-serif;
+  box-sizing: border-box;
+  overflow: hidden;
+}
+
+.mw-panel-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 12px 14px;
+  border-bottom: 1px solid var(--mw-line);
+}
+
+.mw-panel-head h2 {
+  margin: 0;
+  font-size: 12px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  font-weight: 600;
+}
+
+.mw-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--mw-accent);
+}
+
+.mw-panel-body {
+  padding: 12px 14px 14px;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.mw-group-title {
+  font-size: 10px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--mw-muted);
+  margin-top: 4px;
+}
+
+.mw-field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-width: 0;
+}
+
+.mw-field-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 8px;
+}
+
+.mw-value {
+  font-variant-numeric: tabular-nums;
+  color: var(--mw-muted);
+  white-space: nowrap;
+}
+
+.mw-muted {
+  color: var(--mw-muted);
+  font-size: 12px;
+}
+
+.mw-strong {
+  font-size: 15px;
+  font-weight: 600;
+}
+
+.mw-range {
+  width: 100%;
+  accent-color: var(--mw-accent);
+  margin: 0;
+}
+
+.mw-grid-2 {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+}
+
+.mw-compass-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.mw-compass {
+  width: 56px;
+  height: 56px;
+  flex: none;
+  fill: none;
+  stroke: var(--mw-muted);
+  stroke-width: 1.5;
+}
+
+.mw-compass circle {
+  stroke-opacity: 0.6;
+}
+
+.mw-compass polygon {
+  fill: var(--mw-accent);
+  stroke: none;
+}
+
+.mw-segmented {
+  display: flex;
+  gap: 6px;
+}
+
+.mw-seg,
+.mw-btn,
+.mw-chip,
+.mw-select {
+  font: inherit;
+  color: var(--mw-fg);
+  background: var(--mw-btn);
+  border: 1px solid var(--mw-line);
+  border-radius: 8px;
+  cursor: pointer;
+}
+
+.mw-seg {
+  flex: 1;
+  padding: 6px 4px;
+  font-size: 12px;
+}
+
+.mw-seg.is-active,
+.mw-chip.is-active {
+  background: rgba(232, 131, 58, 0.28);
+  border-color: var(--mw-accent);
+}
+
+.mw-button-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+}
+
+.mw-button-grid-2 {
+  grid-template-columns: 1fr 1fr;
+}
+
+.mw-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  min-height: 40px;
+  padding: 8px;
+  text-align: center;
+  line-height: 1.15;
+}
+
+.mw-btn.is-active {
+  background: rgba(232, 131, 58, 0.28);
+  border-color: var(--mw-accent);
+}
+
+.mw-btn-icon {
+  opacity: 0.8;
+}
+
+.mw-chip-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 6px;
+}
+
+.mw-chip {
+  padding: 6px 4px;
+  font-size: 12px;
+}
+
+.mw-select {
+  width: 100%;
+  padding: 7px 8px;
+}
+
+.mw-swatches {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.mw-swatch {
+  width: 22px;
+  height: 22px;
+  border-radius: 6px;
+  border: 1px solid var(--mw-line);
+  cursor: pointer;
+  padding: 0;
+}
+
+.mw-swatch.is-active {
+  outline: 2px solid var(--mw-accent);
+  outline-offset: 2px;
+}
+
+.mw-seg:focus-visible,
+.mw-btn:focus-visible,
+.mw-chip:focus-visible,
+.mw-select:focus-visible,
+.mw-swatch:focus-visible {
+  outline: 2px solid var(--mw-accent);
+  outline-offset: 2px;
+}
+
+@media (max-width: 480px) {
+  .mw-panel {
+    width: calc(100vw - 32px);
+  }
+}
