@@ -1,7 +1,10 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Canvas } from '@react-three/fiber';
 import { getCityLayout } from './city';
-import { DEFAULT_HOUSE_BASE, HelpOverlay, HousePanel, MonumentPanel, SettingsCity, TimeBar, type CityAction } from './ui';
+import {
+  DEFAULT_HOUSE_BASE, HelpOverlay, HousePanel, MonumentPanel, PanelFocusContext, SettingsCity, TimeBar, isNarrowViewport,
+  type CityAction, type PanelId,
+} from './ui';
 import { QUALITY_PRESETS, TREE_SPECIES, detectDevice, suggestQuality, useWorldStore, type OverrideTarget } from './store';
 import * as audio from './audio';
 import { Town, monumentBaseFor } from './scene/Town';
@@ -15,6 +18,14 @@ import { getLightingForTime } from './environment';
 // and the selected house or monument block gets a panel on the left.
 export function App() {
   const [selected, setSelected] = useState<OverrideTarget | null>(null);
+  // One side panel open at a time. Phones start with every panel folded to an icon.
+  const [activePanel, setActivePanel] = useState<PanelId | null>(() => (isNarrowViewport('(max-width: 600px)') ? null : 'settings'));
+  const focus = useMemo(() => ({ active: activePanel, setActive: setActivePanel }), [activePanel]);
+  // Choosing a house or monument opens its panel and folds the settings panel.
+  const select = useCallback((target: OverrideTarget | null) => {
+    setSelected(target);
+    if (target) setActivePanel('selection');
+  }, []);
   const settings = useWorldStore((s) => s.settings);
   const toggles = useWorldStore((s) => s.toggles);
   const setSetting = useWorldStore((s) => s.setSetting);
@@ -123,7 +134,7 @@ export function App() {
         }}
       >
         <CameraRig />
-        <Town onSelect={setSelected} selected={selected} />
+        <Town onSelect={select} selected={selected} />
         <PostFX tiltShift={toggles.tiltShift} night={night} bloomScale={preset.bloom} msaa={preset.msaa} />
         <ScreenshotRequest />
       </Canvas>
@@ -133,10 +144,12 @@ export function App() {
         <TimeBar />
       </div>
       <HelpOverlay />
-      <div style={{ position: 'absolute', top: 16, left: 16, width: 280 }}>{panel}</div>
-      <div data-mw-right-panel style={{ position: 'absolute', top: 16, right: 16, width: 300 }}>
-        <SettingsCity onAction={handleAction} />
-      </div>
+      <PanelFocusContext.Provider value={focus}>
+        <div className="mw-left-panel">{panel}</div>
+        <div data-mw-right-panel className="mw-right-panel">
+          <SettingsCity onAction={handleAction} />
+        </div>
+      </PanelFocusContext.Provider>
     </div>
   );
 }

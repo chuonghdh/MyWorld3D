@@ -1,10 +1,19 @@
 // Top control bar: pause, auto/standard time, digital clock, a Map / Street view switch and Photo.
 // It folds to a small analog clock with an expand button, so it stays out of the way.
-import { useEffect, useState } from 'react';
+// On phones (up to 600 px) it becomes a two-row panel: a window of three controls that slides one control
+// at a time, and the clock on the row below.
+import { useEffect, useRef, useState } from 'react';
 import type { PointerEvent as ReactPointerEvent } from 'react';
 import { createPortal } from 'react-dom';
 import { useWorldStore } from '../store';
 import { runtime } from '../scene/runtime';
+import { isNarrowViewport } from './uiUtils';
+
+/** Width of one control in the phone window, and how many show at once. */
+const PHONE_SLOT_PX = 44;
+const PHONE_VISIBLE = 3;
+/** Horizontal drag (px) that moves the phone window by one control. */
+const SWIPE_PX = 30;
 
 function clockText(hours: number): string {
   const total = Math.floor((((hours % 24) + 24) % 24) * 60);
@@ -20,6 +29,19 @@ function clock12(hours: number): { text: string; period: 'AM' | 'PM' } {
   const mm = total % 60;
   const h12 = hh % 12 === 0 ? 12 : hh % 12;
   return { text: `${String(h12).padStart(2, '0')}:${String(mm).padStart(2, '0')}`, period: hh < 12 ? 'AM' : 'PM' };
+}
+
+/** True on phones; follows the viewport when it is resized or rotated. */
+function usePhoneLayout(): boolean {
+  const [phone, setPhone] = useState(() => isNarrowViewport('(max-width: 600px)'));
+  useEffect(() => {
+    if (typeof window.matchMedia !== 'function') return;
+    const mq = window.matchMedia('(max-width: 600px)');
+    const onChange = () => setPhone(mq.matches);
+    mq.addEventListener('change', onChange);
+    return () => mq.removeEventListener('change', onChange);
+  }, []);
+  return phone;
 }
 
 /** Small analog clock face; the hands follow the time of day. */
@@ -138,12 +160,124 @@ function ViewSwitch() {
   );
 }
 
-export function TimeBar() {
+function PauseButton() {
   const paused = useWorldStore((s) => s.toggles.paused);
-  const autoTime = useWorldStore((s) => s.toggles.autoTime);
-  const timeOfDay = useWorldStore((s) => s.settings.timeOfDay);
   const setToggle = useWorldStore((s) => s.setToggle);
+  return (
+    <button
+      type="button"
+      className={`mw-timebar-btn${paused ? ' is-active' : ''}`}
+      aria-pressed={paused}
+      title="Pause or resume everything (Space)"
+      onClick={() => setToggle('paused', !paused)}
+    >
+      <span aria-hidden="true">{paused ? '▶' : '❚❚'}</span>
+      <span className="mw-label">{paused ? 'Resume' : 'Pause'}</span>
+    </button>
+  );
+}
+
+function AutoButton() {
+  const autoTime = useWorldStore((s) => s.toggles.autoTime);
+  const setToggle = useWorldStore((s) => s.setToggle);
+  return (
+    <button
+      type="button"
+      className={`mw-timebar-btn${autoTime ? ' is-active' : ''}`}
+      aria-pressed={autoTime}
+      title="Auto: one in-app day lasts 24 real minutes"
+      onClick={() => setToggle('autoTime', !autoTime)}
+    >
+      <span aria-hidden="true">◐</span>
+      <span className="mw-label">{autoTime ? 'Auto' : 'Standard'}</span>
+    </button>
+  );
+}
+
+function PhotoButton() {
+  return (
+    <button
+      type="button"
+      className="mw-timebar-btn mw-timebar-icon"
+      aria-label="Photo"
+      title="Save the 3D view as a PNG (no panels)"
+      onClick={() => {
+        runtime.screenshotRequests++;
+      }}
+    >
+      <CameraIcon />
+    </button>
+  );
+}
+
+/**
+ * Phone layout: row one is a window showing three controls, moved one control per arrow tap or swipe;
+ * row two is the clock. The controls are the same buttons as on desktop.
+ */
+function PhoneTimeBar({ timeOfDay }: { timeOfDay: number }) {
+  // Controls in order: pause, auto, map, street, photo (the view switch contributes its two buttons).
+  const COUNT = 5;
+  const maxStart = COUNT - PHONE_VISIBLE;
+  const [start, setStart] = useState(0);
+  const drag = useRef<number | null>(null);
+  const step = (d: number) => setStart((s) => Math.min(maxStart, Math.max(0, s + d)));
+
+  const onDown = (e: ReactPointerEvent<HTMLDivElement>) => {
+    drag.current = e.clientX;
+  };
+  const onUp = (e: ReactPointerEvent<HTMLDivElement>) => {
+    if (drag.current === null) return;
+    const dx = e.clientX - drag.current;
+    drag.current = null;
+    if (dx <= -SWIPE_PX) step(1);
+    else if (dx >= SWIPE_PX) step(-1);
+  };
+
+  const clock = clock12(timeOfDay);
+  return (
+    <div className="mw-timebar mw-timebar-phone" role="group" aria-label="Time controls">
+      <div className="mw-m-row">
+        <button
+          type="button"
+          className="mw-m-arrow"
+          aria-label="Previous controls"
+          disabled={start === 0}
+          onClick={() => step(-1)}
+        >
+          ‹
+        </button>
+        <div className="mw-m-window" onPointerDown={onDown} onPointerUp={onUp} onPointerCancel={() => (drag.current = null)}>
+          <div className="mw-m-track" style={{ transform: `translateX(${-start * PHONE_SLOT_PX}px)` }}>
+            <PauseButton />
+            <AutoButton />
+            <ViewSwitch />
+            <PhotoButton />
+          </div>
+        </div>
+        <button
+          type="button"
+          className="mw-m-arrow"
+          aria-label="Next controls"
+          disabled={start === maxStart}
+          onClick={() => step(1)}
+        >
+          ›
+        </button>
+      </div>
+      <div className="mw-timebar-clock mw-m-clock" aria-label="Time of day">
+        {clock.text}
+        <span className="mw-clock-period">{clock.period}</span>
+      </div>
+    </div>
+  );
+}
+
+export function TimeBar() {
+  const timeOfDay = useWorldStore((s) => s.settings.timeOfDay);
+  const phone = usePhoneLayout();
   const [collapsed, setCollapsed] = useState(false);
+
+  if (phone) return <PhoneTimeBar timeOfDay={timeOfDay} />;
 
   if (collapsed) {
     return (
@@ -169,42 +303,14 @@ export function TimeBar() {
 
   return (
     <div className="mw-timebar" role="group" aria-label="Time controls">
-      <button
-        type="button"
-        className={`mw-timebar-btn${paused ? ' is-active' : ''}`}
-        aria-pressed={paused}
-        title="Pause or resume everything (Space)"
-        onClick={() => setToggle('paused', !paused)}
-      >
-        <span aria-hidden="true">{paused ? '▶' : '❚❚'}</span>
-        <span className="mw-label">{paused ? 'Resume' : 'Pause'}</span>
-      </button>
-      <button
-        type="button"
-        className={`mw-timebar-btn${autoTime ? ' is-active' : ''}`}
-        aria-pressed={autoTime}
-        title="Auto: one in-app day lasts 24 real minutes"
-        onClick={() => setToggle('autoTime', !autoTime)}
-      >
-        <span aria-hidden="true">◐</span>
-        <span className="mw-label">{autoTime ? 'Auto' : 'Standard'}</span>
-      </button>
+      <PauseButton />
+      <AutoButton />
       <div className="mw-timebar-clock" aria-label="Time of day">
         {clock12(timeOfDay).text}
         <span className="mw-clock-period">{clock12(timeOfDay).period}</span>
       </div>
       <ViewSwitch />
-      <button
-        type="button"
-        className="mw-timebar-btn mw-timebar-icon"
-        aria-label="Photo"
-        title="Save the 3D view as a PNG (no panels)"
-        onClick={() => {
-          runtime.screenshotRequests++;
-        }}
-      >
-        <CameraIcon />
-      </button>
+      <PhotoButton />
       <button
         type="button"
         className="mw-timebar-btn mw-timebar-fold"

@@ -1,7 +1,7 @@
 import { useWorldStore } from '../store';
 import { MONUMENT_KINDS } from '../store/model';
 import type { MonumentKind } from '../core/types';
-import { Panel, Select } from './controls';
+import { LandmarkGlyph, Panel, Select } from './controls';
 
 const MONUMENT_LABEL: Record<MonumentKind, string> = {
   hospital: 'Hospital',
@@ -28,7 +28,7 @@ export function MonumentPanel({ blockId, base = 'hospital' }: MonumentPanelProps
   const current: MonumentKind = override?.monument ?? base;
 
   return (
-    <Panel title="Monument block">
+    <Panel id="selection" title="Monument block" icon={<LandmarkGlyph />}>
       <Select<MonumentKind>
         id="monument-kind"
         label="Monument"

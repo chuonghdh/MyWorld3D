@@ -18,6 +18,15 @@
 - Runtime crashes can pass tsc and unit tests: load the page and read the console after wiring changes.
 - Built-in browser pane cannot paint frames; verify scene graph, uniforms and shader compile instead.
 
+## Browser verification (run before any new work)
+1. `list_connected_browsers` (Claude in Chrome). It must show one connected, local browser. If it is empty, stop and ask the user to connect Chrome. Do not fall back silently.
+2. `tabs_context_mcp` with `createIfEmpty: true`, then navigate the tab to `http://localhost:5173/` (dev server must be running).
+3. Wait about 6 s, then read console errors (`read_console_messages`, `onlyErrors: true`) and check `canvases >= 1` and WebGL available (`javascript_tool`).
+4. Take a screenshot (`computer` screenshot, `save_to_disk: true`) and look at it. This is the only place a frame can be seen.
+5. Close the tab when done unless the user wants it kept.
+
+Last smoke test: passed on 2026-10-29 (page title MyWorld3D, one canvas, WebGL on, no console errors, Settings panel and town visible). The built-in pane in the app cannot paint frames: do not use it for visual checks.
+
 ## Process knowledge
 - Run in this order before reporting: `npx tsc --noEmit`, `npx vitest run`, `npx vite build`.
 - Commits only on the user's word, in English, with the attribution line from the current system reminder.

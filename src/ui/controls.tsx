@@ -1,6 +1,5 @@
 // Small shared form controls for the panels. Plain DOM, no UI library.
-import { useState, type ReactNode } from 'react';
-import { isNarrowViewport } from './uiUtils';
+import { createContext, useContext, type ReactNode } from 'react';
 
 interface SliderProps {
   label: string;
@@ -155,13 +154,26 @@ export function Swatches({
   );
 }
 
+/** The two side panels: city settings, and the selected house or monument. Only one is open at a time. */
+export type PanelId = 'settings' | 'selection';
+
+export interface PanelFocus {
+  /** The open panel, or null when every panel is folded. */
+  active: PanelId | null;
+  setActive: (id: PanelId | null) => void;
+}
+
+/** Provided once by the app shell; without it the settings panel stays open and toggles do nothing. */
+export const PanelFocusContext = createContext<PanelFocus>({ active: 'settings', setActive: () => undefined });
+
 /**
  * Floating card with a title bar. The triangle in the top-right corner folds the body away so the
- * scene behind stays visible; the title bar stays so the panel can be opened again.
+ * scene behind stays visible; the title bar stays so the panel can be opened again. Opening one
+ * panel folds the other.
  */
-export function Panel({ title, children }: { title: string; children: ReactNode }) {
-  // Collapsed by default on phones so the first view is the scene, not a full-screen sheet.
-  const [collapsed, setCollapsed] = useState(() => isNarrowViewport());
+export function Panel({ id, title, icon, children }: { id: PanelId; title: string; icon?: ReactNode; children: ReactNode }) {
+  const focus = useContext(PanelFocusContext);
+  const collapsed = focus.active !== id;
   return (
     <section className={`mw-panel${collapsed ? ' is-collapsed' : ''}`} aria-label={title}>
       <header className="mw-panel-head">
@@ -173,12 +185,40 @@ export function Panel({ title, children }: { title: string; children: ReactNode 
           aria-expanded={!collapsed}
           aria-label={collapsed ? `Show ${title}` : `Hide ${title}`}
           title={collapsed ? 'Show' : 'Hide'}
-          onClick={() => setCollapsed((c) => !c)}
+          onClick={() => focus.setActive(collapsed ? id : null)}
         >
-          <span aria-hidden="true">{collapsed ? '▼' : '▲'}</span>
+          <span className="mw-panel-arrow" aria-hidden="true">{collapsed ? '▼' : '▲'}</span>
+          {icon && <span className="mw-panel-glyph" aria-hidden="true">{icon}</span>}
         </button>
       </header>
       {!collapsed && <div className="mw-panel-body">{children}</div>}
     </section>
+  );
+}
+
+/** Small line icons for the collapsed panel widget (shown only in the compact mid-width layout). */
+export function SettingsGlyph() {
+  return (
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round">
+      <circle cx="12" cy="12" r="3" />
+      <path d="M12 2.8v3M12 18.2v3M2.8 12h3M18.2 12h3M5.5 5.5l2.1 2.1M16.4 16.4l2.1 2.1M5.5 18.5l2.1-2.1M16.4 7.6l2.1-2.1" />
+    </svg>
+  );
+}
+
+export function HouseGlyph() {
+  return (
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinejoin="round">
+      <path d="M3 11l9-7 9 7v9H3z" />
+      <path d="M10 20v-5h4v5" />
+    </svg>
+  );
+}
+
+export function LandmarkGlyph() {
+  return (
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinejoin="round">
+      <path d="M3 21h18M5 21V10M10 21V10M14 21V10M19 21V10M2 10h20L12 3z" />
+    </svg>
   );
 }

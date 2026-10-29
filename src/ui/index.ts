@@ -7,6 +7,8 @@ export type { HousePanelProps, HouseBase } from './HousePanel';
 export { MonumentPanel } from './MonumentPanel';
 export type { MonumentPanelProps } from './MonumentPanel';
 export { TimeBar } from './TimeBar';
+export { PanelFocusContext } from './controls';
+export type { PanelId, PanelFocus } from './controls';
 export { HelpOverlay } from './HelpOverlay';
 export { isNarrowViewport, screenshotFilename, isHelpKey } from './uiUtils';
 export { SoundMixer, parseMixer, serializeMixer, loadMixer, saveMixer, applyStoredMixer, MIXER_DEFAULTS } from './SoundMixer';

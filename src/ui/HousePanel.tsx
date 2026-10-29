@@ -1,7 +1,7 @@
 import { useWorldStore } from '../store';
 import { HOUSE_PRESETS, HOUSE_STYLES, ROOF_TYPES, type HouseOverride, type RoofType } from '../store/model';
 import type { HousePreset, HouseStyle } from '../core/types';
-import { ActionButton, Panel, Segmented, Select, Slider, Swatches } from './controls';
+import { ActionButton, HouseGlyph, Panel, Segmented, Select, Slider, Swatches } from './controls';
 
 export const WALL_COLORS = ['#d8c3a5', '#c97b5a', '#e9e2d0', '#8a9a9b', '#b9a58b', '#f0e6d2', '#7d5a4f', '#a7b8c4'];
 export const SHUTTER_COLORS = ['#4a5d4a', '#2f4a6d', '#7a2e2a', '#e0d8c4', '#3b3b3b', '#c9a227'];
@@ -82,7 +82,7 @@ export function HousePanel({ houseId, base, onAction }: HousePanelProps) {
   };
 
   return (
-    <Panel title="House">
+    <Panel id="selection" title="House" icon={<HouseGlyph />}>
       <Select<HousePreset>
         id="house-preset"
         label="Type"

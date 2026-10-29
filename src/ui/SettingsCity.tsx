@@ -2,7 +2,7 @@ import { QUALITY_LABEL, QUALITY_TIERS, useWorldStore, type QualityTier } from '.
 import { SEASONS } from '../store/model';
 import { WEATHER_KINDS, WEATHER_LABEL, type WeatherKind } from '../weather/weatherState';
 import type { Season } from '../core/types';
-import { ActionButton, Panel, Segmented, Slider } from './controls';
+import { ActionButton, Panel, Segmented, SettingsGlyph, Slider } from './controls';
 import { SoundMixer } from './SoundMixer';
 
 /** Actions that the scene handles. Store-backed toggles are also written to the store. */
@@ -78,7 +78,7 @@ export function SettingsCity({ onAction }: SettingsCityProps) {
   };
 
   return (
-    <Panel title="Settings">
+    <Panel id="settings" title="Settings" icon={<SettingsGlyph />}>
       <div className="mw-group-title">Atmosphere</div>
 
       <Slider
