@@ -4,6 +4,7 @@ import { generateCity, type CityLayout } from '../src/city';
 import { DEFAULT_SETTINGS } from '../src/store/model';
 import { createStreetscape, MESH_NAMES } from '../src/streets';
 import {
+  distanceToTriangle,
   planStreetDecor,
   rectCircleDistance,
   solidCorners,
@@ -11,9 +12,12 @@ import {
   type DecorPlan,
 } from '../src/streets/decor';
 import { CURB_WIDTH } from '../src/streets/surfaces';
+import { courtyardGreeneryFootprint } from '../src/streets/greeneryFootprint';
 import { computeParkingSpots, PARKED_SIZE } from '../src/traffic/parking';
 
 const SEEDS = [1, 7, 1234, 98765];
+
+const planOf = (layout: CityLayout): DecorPlan => planStreetDecor(layout, courtyardGreeneryFootprint(layout));
 
 function cityOf(seed: number, size = 217): CityLayout {
   return generateCity({ ...DEFAULT_SETTINGS, seed, townWidth: size, townDepth: size });
@@ -23,14 +27,14 @@ const count = (plan: DecorPlan, kind: string) => plan.solids.filter((s) => s.kin
 
 describe('street decor plan', () => {
   it('is deterministic and responds to the seed', () => {
-    const a = planStreetDecor(cityOf(1));
-    const b = planStreetDecor(cityOf(1));
+    const a = planOf(cityOf(1));
+    const b = planOf(cityOf(1));
     expect(JSON.stringify(a)).toBe(JSON.stringify(b));
-    expect(JSON.stringify(planStreetDecor(cityOf(7)))).not.toBe(JSON.stringify(a));
+    expect(JSON.stringify(planOf(cityOf(7)))).not.toBe(JSON.stringify(a));
   });
 
   it('provides every family on the default town', () => {
-    const plan = planStreetDecor(cityOf(DEFAULT_SETTINGS.seed));
+    const plan = planOf(cityOf(DEFAULT_SETTINGS.seed));
     expect(count(plan, 'busStop')).toBeGreaterThanOrEqual(1);
     expect(count(plan, 'busSign')).toBeGreaterThanOrEqual(1);
     expect(count(plan, 'kiosk')).toBeGreaterThanOrEqual(1);
@@ -45,18 +49,23 @@ describe('street decor plan', () => {
     expect(plan.fountain!.pigeons.length).toBeGreaterThan(0);
   });
 
-  it('keeps solids bounded (triangle budget) and a fountain exists on larger towns too', () => {
+  it('keeps solids bounded (triangle budget) on larger towns', () => {
     for (const seed of SEEDS) {
-      const plan = planStreetDecor(cityOf(seed, 300));
+      const plan = planOf(cityOf(seed, 300));
       expect(plan.solids.length).toBeLessThan(120);
-      expect(plan.fountain).not.toBeNull();
     }
+  });
+
+  it('places a fountain on some larger towns; where greenery fills every courtyard it is omitted, never overlapped', () => {
+    // Courtyards are 10 to 23 m and hedges plus beds fill most of them, so a 3.7 m clear disc is not always there.
+    const placed = SEEDS.filter((seed) => planOf(cityOf(seed, 300)).fountain !== null);
+    expect(placed.length).toBeGreaterThanOrEqual(1);
   });
 
   it('places solids clear of lanes, crossings, pedestrian lines, parking and other furniture', () => {
     for (const seed of SEEDS) {
       const layout = cityOf(seed);
-      const plan = planStreetDecor(layout);
+      const plan = planOf(layout);
       const spots = computeParkingSpots(layout);
       for (const s of plan.solids) {
         const road = layout.roads.find((r) => r.id === s.roadId)!;
@@ -112,7 +121,7 @@ describe('street decor plan', () => {
   it('keeps solids away from the traffic lane polylines', () => {
     for (const seed of SEEDS) {
       const layout = cityOf(seed);
-      const plan = planStreetDecor(layout);
+      const plan = planOf(layout);
       for (const s of plan.solids) {
         for (const path of layout.trafficPaths) {
           for (let k = 0; k + 1 < path.waypoints.length; k++) {
@@ -130,7 +139,7 @@ describe('street decor plan', () => {
   it('keeps road decals between the lane markings and off each other', () => {
     for (const seed of SEEDS) {
       const layout = cityOf(seed);
-      const plan = planStreetDecor(layout);
+      const plan = planOf(layout);
       const lines = (roadId: string) => {
         const r = layout.roads.find((x) => x.id === roadId)!;
         const edge = r.width / 2 - CURB_WIDTH - 0.35;
@@ -176,7 +185,7 @@ describe('street decor plan', () => {
   it('puts the fountain in free courtyard space', () => {
     for (const seed of SEEDS) {
       const layout = cityOf(seed);
-      const f = planStreetDecor(layout).fountain!;
+      const f = planOf(layout).fountain!;
       const inCourtyard = layout.blocks.some(
         (b) => b.courtyard && f.x - f.plazaRadius >= b.courtyard.minX && f.x + f.plazaRadius <= b.courtyard.maxX && f.z - f.plazaRadius >= b.courtyard.minZ && f.z + f.plazaRadius <= b.courtyard.maxZ,
       );
@@ -184,6 +193,8 @@ describe('street decor plan', () => {
       for (const t of layout.streetTrees) {
         if (t.setting === 'courtyard') expect(Math.hypot(t.position.x - f.x, t.position.z - f.z)).toBeGreaterThan(f.plazaRadius);
       }
+      // Courtyard greenery (hedges, beds, bushes) is read from the same generator the scene uses.
+      for (const t of courtyardGreeneryFootprint(layout)) expect(distanceToTriangle(f.x, f.z, t)).toBeGreaterThanOrEqual(f.plazaRadius);
     }
   });
 });

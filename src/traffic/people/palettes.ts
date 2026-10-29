@@ -5,7 +5,24 @@ export type SeasonName = 'spring' | 'summer' | 'autumn' | 'winter';
 
 export const SKIN_COLORS = ['#f6d3b4', '#ecbb92', '#dba479', '#c78a5a', '#b07245', '#8d5a36', '#6b4026', '#4b2d1d'];
 
-export const HAIR_COLORS = ['#1d1a19', '#3a2a20', '#5a3b24', '#7d4c2b', '#b3541f', '#d8b66b', '#9c9c9c', '#e8e8e6', '#2c2c46', '#6a3b3b'];
+/**
+ * Hair colours. Indices 0-5 are natural tones (children and teens use only these), 6, 7, 10 and 11 are the
+ * greys and whites that elders mostly get (see pedestrians.ts).
+ */
+export const HAIR_COLORS = [
+  '#1d1a19',
+  '#3a2a20',
+  '#5a3b24',
+  '#7d4c2b',
+  '#b3541f',
+  '#d8b66b',
+  '#9c9c9c',
+  '#e8e8e6',
+  '#2c2c46',
+  '#6a3b3b',
+  '#c4c4c2',
+  '#f6f6f2',
+];
 
 /** 16 top colours per season. Saturated enough to read against the cream sidewalk from above. */
 export const TOP_COLORS: Record<SeasonName, string[]> = {
@@ -32,4 +49,4 @@ export const ACCENT_COLORS: Record<SeasonName, string[]> = {
 
 export const DOG_COATS = ['#c58a3c', '#7a4a28', '#2b2a2a', '#e5dccb', '#8c7a66'];
 
-export const PALETTE_SIZES = { skin: 8, hair: 10, top: 16, pants: 12, accent: 12, coat: 5 } as const;
+export const PALETTE_SIZES = { skin: 8, hair: 12, top: 16, pants: 12, accent: 12, coat: 5 } as const;

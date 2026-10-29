@@ -124,7 +124,12 @@ function pedestrianRun(): string {
 // yield to pedestrians and cross traffic, junction right of way, turns, edge spawns).
 const EXPECTED_VEHICLES = 'f79cdeb5';
 // Re-captured when the signals gained an all-red gap (pedestrians read the same timing).
-const EXPECTED_PEDESTRIANS = 'b6c9cb9';
+// Re-captured for the people overhaul (intentional): four age groups with teens, sexes, hair styles, garments,
+// age and sex speeds, child gait wobble, dogs kept off the road, dresses at about 5 percent, patterned tops,
+// children in pairs at the child's pace (the adult walks at it), 90 percent of women with long hair, 70 percent
+// patterned tops in six patterns, and no dresses or ao dai (their random draws were removed; coat tails replaced
+// the dress shape).
+const EXPECTED_PEDESTRIANS = '499b5c20';
 
 describe('traffic determinism (baseline captured before allocation clean-up)', () => {
   it('vehicle simulation and instance buffers are bit-identical for a seed and dt sequence', () => {

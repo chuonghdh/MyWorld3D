@@ -31,10 +31,29 @@ export const TRAIT_SCARF = 2;
 export const TRAIT_BAG = 4;
 export const TRAIT_SHORTS = 8;
 export const TRAIT_SHORT_SLEEVES = 16;
+export const TRAIT_BEARD = 128;
+export const TRAIT_MOUSTACHE = 256;
+/** Patterned top (one of the four patterns; see outfit.ts). */
+export const TRAIT_DOTS = 512;
+export const TRAIT_HEARTS = 1024;
+export const TRAIT_HSTRIPES = 2048;
+export const TRAIT_VSTRIPES = 4096;
+export const TRAIT_CHECKS = 8192;
+export const TRAIT_DIAGONAL = 16384;
+/** The six pattern traits, for picking one at random. */
+const PATTERN_TRAITS = [TRAIT_DOTS, TRAIT_HEARTS, TRAIT_HSTRIPES, TRAIT_VSTRIPES, TRAIT_CHECKS, TRAIT_DIAGONAL];
+/** Hair styles that count as long for women: to the shoulders, to the waist, long bob, pigtails. */
+const LONG_FEMALE_STYLES = [4, 8, 7, 9];
+/** Hair styles that count as short for women (crop, side parting, curly, ponytail, bun). */
+const SHORT_FEMALE_STYLES = [0, 1, 2, 5, 6];
 
+/** Age groups written to PedestrianRender.body (the mesh index). */
 export const BODY_ADULT = 0;
 export const BODY_CHILD = 1;
 export const BODY_ELDER = 2;
+export const BODY_TEEN = 3;
+/** Number of hair styles written to PedestrianRender.hairStyle (see personGeometry.ts). */
+export const HAIR_STYLE_COUNT = 10;
 
 export interface DogRender {
   /** Ground position (x, z) of the dog. */
@@ -62,8 +81,12 @@ export interface PedestrianRender {
   heading: number;
   /** Present when this walker is walking a dog. */
   dog: DogRender | null;
-  /** BODY_ADULT, BODY_CHILD or BODY_ELDER. */
+  /** BODY_ADULT, BODY_CHILD, BODY_ELDER or BODY_TEEN. */
   body: number;
+  /** 1 for a woman or girl, 0 for a man or boy (sets the body shape and hair choice). */
+  female: number;
+  /** Hair style 0..HAIR_STYLE_COUNT-1. */
+  hairStyle: number;
   /** Clothing and skin palette indices; the mesh takes them modulo its palette sizes. */
   top: number;
   pants: number;
@@ -521,12 +544,14 @@ export class Pedestrians {
   private readonly committed = new Uint8Array(MAX_WALKERS);
   private readonly bench = new Int16Array(MAX_WALKERS);
   private readonly body = new Uint8Array(MAX_WALKERS);
+  private readonly female = new Uint8Array(MAX_WALKERS);
+  private readonly hairStyle = new Uint8Array(MAX_WALKERS);
   private readonly top = new Uint8Array(MAX_WALKERS);
   private readonly pants = new Uint8Array(MAX_WALKERS);
   private readonly hair = new Uint8Array(MAX_WALKERS);
   private readonly skin = new Uint8Array(MAX_WALKERS);
   private readonly accent = new Uint8Array(MAX_WALKERS);
-  private readonly traits = new Uint8Array(MAX_WALKERS);
+  private readonly traits = new Uint16Array(MAX_WALKERS);
   private readonly phase = new Float32Array(MAX_WALKERS);
   private readonly rank = new Float32Array(MAX_WALKERS);
   private readonly scale = new Float32Array(MAX_WALKERS);
@@ -608,6 +633,8 @@ export class Pedestrians {
         heading: 0,
         dog: null,
         body: 0,
+        female: 0,
+        hairStyle: 0,
         top: 0,
         pants: 0,
         hair: 0,
@@ -677,20 +704,36 @@ export class Pedestrians {
     const rng = this.rng;
     let nextId = 1;
     let dogs = 0;
-    const setLook = (i: number, bodyType: number): void => {
-      this.body[i] = bodyType;
+    const setLook = (i: number, age: number, female: number): void => {
+      this.body[i] = age;
+      this.female[i] = female;
       this.top[i] = Math.floor(rng() * 16);
       this.pants[i] = Math.floor(rng() * 12);
       const hairRoll = rng();
-      this.hair[i] = bodyType === BODY_ELDER ? (hairRoll < 0.45 ? 6 : hairRoll < 0.8 ? 7 : Math.floor(rng() * 10)) : Math.floor(hairRoll * 10);
+      if (age === BODY_ELDER) {
+        // Most elders have grey or white hair.
+        this.hair[i] = hairRoll < 0.75 ? GREY_HAIR[Math.floor(rng() * GREY_HAIR.length)] : Math.floor(rng() * 6);
+      } else if (age === BODY_ADULT) {
+        this.hair[i] = Math.floor(hairRoll * 10);
+      } else {
+        // Children and teens: natural tones only.
+        this.hair[i] = Math.floor(hairRoll * 6);
+      }
+      this.hairStyle[i] = hairStyleFor(age, female, rng());
       this.skin[i] = Math.floor(rng() * 8);
       this.accent[i] = Math.floor(rng() * 12);
       let t = 0;
       if (rng() < 0.25) t |= TRAIT_HAT;
       if (rng() < 0.65) t |= TRAIT_SCARF;
-      if (rng() < (bodyType === BODY_CHILD ? 0.85 : 0.45)) t |= TRAIT_BAG;
-      if (rng() < (bodyType === BODY_CHILD ? 0.7 : 0.5)) t |= TRAIT_SHORTS;
+      if (rng() < (age === BODY_CHILD ? 0.85 : 0.45)) t |= TRAIT_BAG;
+      if (rng() < (age === BODY_CHILD ? 0.7 : age === BODY_TEEN ? 0.4 : 0.5)) t |= TRAIT_SHORTS;
       if (rng() < 0.7) t |= TRAIT_SHORT_SLEEVES;
+      if (!female && (age === BODY_ADULT || age === BODY_ELDER)) {
+        if (rng() < (age === BODY_ELDER ? 0.45 : 0.25)) t |= TRAIT_BEARD;
+        if (rng() < (age === BODY_ELDER ? 0.3 : 0.15)) t |= TRAIT_MOUSTACHE;
+      }
+      // Patterned tops for 70 percent of walkers (men and women), one of six patterns.
+      if (rng() < 0.7) t |= PATTERN_TRAITS[Math.min(PATTERN_TRAITS.length - 1, Math.floor(rng() * PATTERN_TRAITS.length))];
       this.traits[i] = t;
       this.phase[i] = rng() * Math.PI * 2;
       this.rank[i] = rng();
@@ -699,7 +742,7 @@ export class Pedestrians {
       this.lat[i] = (rng() - 0.5) * 1.5;
       this.hd[i] = rng() * Math.PI * 2;
       this.idleTimer[i] = 6 + rng() * 60;
-      this.speed[i] = speedFor(bodyType, rng());
+      this.speed[i] = speedFor(age, female, rng());
       this.state[i] = S_HIDDEN;
       this.timer[i] = 0;
     };
@@ -716,14 +759,20 @@ export class Pedestrians {
     let i = 0;
     while (i < MAX_WALKERS) {
       if (i + 1 < MAX_WALKERS && rng() < PAIR_CHANCE) {
+        // Pairs: elder couple, adult couple (opposite sexes), parent and child, parent and teen, two teens.
         const kind = rng();
-        const leadBody = kind < 0.2 ? BODY_ELDER : BODY_ADULT;
-        const followBody = kind < 0.2 ? BODY_ELDER : kind < 0.6 ? BODY_ADULT : BODY_CHILD;
-        setLook(i, leadBody);
-        setLook(i + 1, followBody);
+        const couple = kind < 0.5;
+        const leadBody = kind < 0.2 ? BODY_ELDER : kind < 0.85 ? BODY_ADULT : BODY_TEEN;
+        const followBody = kind < 0.2 ? BODY_ELDER : kind < 0.5 ? BODY_ADULT : kind < 0.7 ? BODY_CHILD : BODY_TEEN;
+        const leadFemale = rng() < 0.5 ? 1 : 0;
+        const followFemale = couple ? 1 - leadFemale : rng() < 0.5 ? 1 : 0;
+        setLook(i, leadBody, leadFemale);
+        setLook(i + 1, followBody, followFemale);
         this.follower[i] = i + 1;
         this.leader[i + 1] = i;
-        this.speed[i + 1] = this.speed[i] * (followBody === BODY_CHILD ? 1 : 1);
+        // The adult waits for a child, so the pair walks at the child's own pace (the child's wobble is render only).
+        if (followBody === BODY_CHILD) this.speed[i] = this.speed[i + 1];
+        else this.speed[i + 1] = this.speed[i];
         this.rank[i + 1] = this.rank[i];
         this.lat[i] = -0.35;
         this.lat[i + 1] = 0.35;
@@ -731,7 +780,7 @@ export class Pedestrians {
         i += 2;
       } else {
         const r = rng();
-        setLook(i, r < 0.82 ? BODY_ADULT : BODY_ELDER);
+        setLook(i, r < 0.7 ? BODY_ADULT : r < 0.8 ? BODY_TEEN : BODY_ELDER, rng() < 0.5 ? 1 : 0);
         if (rng() < DOG_CHANCE) addDog(i, this.lat[i] > 0 ? -1 : 1);
         i += 1;
       }
@@ -849,6 +898,8 @@ export class Pedestrians {
       r.y = this.oy[i];
       r.heading = this.oh[i];
       r.body = this.body[i];
+      r.female = this.female[i];
+      r.hairStyle = this.hairStyle[i];
       r.top = this.top[i];
       r.pants = this.pants[i];
       r.hair = this.hair[i];
@@ -1305,6 +1356,8 @@ export class Pedestrians {
           case S_MOVE:
             pose = POSE_WALK;
             spd = this.speed[i] * (st === S_MOVE ? 0.8 : this.speedMul);
+            // Children are erratic: their gait rate wobbles (render only; positions are unchanged).
+            if (this.body[i] === BODY_CHILD) spd *= 1 + 0.25 * Math.sin(this.time * 2.3 + this.phase[i]);
             if (st === S_WALK) {
               const e = this.edge[i];
               if (g.cross[e] === 1) {
@@ -1374,7 +1427,11 @@ export class Pedestrians {
         this.oy[i] = this.oy[L];
         this.oh[i] = hh;
         this.opose[i] = pose;
-        this.ospeed[i] = this.body[i] === BODY_CHILD ? this.ospeed[L] : this.ospeed[L];
+        // A follower keeps the leader's pace: a child walking with an adult goes at the adult's pace (the adult waits).
+        // Children keep their own erratic wobble on top; teens take a slightly quicker rate.
+        const rate = this.body[i] === BODY_TEEN ? 1.1 : 1;
+        const wobble = this.body[i] === BODY_CHILD ? 1 + 0.25 * Math.sin(this.time * 2.3 + this.phase[i]) : 1;
+        this.ospeed[i] = this.ospeed[L] * rate * wobble;
         visible++;
         this.clamp(i);
       }
@@ -1393,8 +1450,16 @@ export class Pedestrians {
       const moving = this.ospeed[i] > 0.05;
       const back = moving ? 0.85 + 0.2 * Math.sin(this.time * 0.9 + this.dogPhase[d]) : 0.55;
       const side = this.dogSide[i] * 0.5;
-      let dxp = this.ox[i] - fx * back + lx * side;
-      let dzp = this.oz[i] - fz * back + lz * side;
+      // Never onto the road unless the owner is there: a dog trailing an owner who has just turned at a kerb
+      // would otherwise stand in the street. The first candidate off the asphalt wins (no allocation).
+      let dxp = 0;
+      let dzp = 0;
+      for (let c = 0; c < 3; c++) {
+        const bk = c === 0 ? back : c === 1 ? 0.55 : 0;
+        dxp = this.ox[i] - fx * bk + lx * side;
+        dzp = this.oz[i] - fz * bk + lz * side;
+        if (!inRoad(this.rects, dxp, dzp, 0.05)) break;
+      }
       if (dxp < this.boundMinX) dxp = this.boundMinX;
       if (dxp > this.boundMaxX) dxp = this.boundMaxX;
       if (dzp < this.boundMinZ) dzp = this.boundMinZ;
@@ -1418,8 +1483,29 @@ export class Pedestrians {
   }
 }
 
-function speedFor(body: number, r: number): number {
-  if (body === BODY_CHILD) return 1.35 + r * 0.15;
-  if (body === BODY_ELDER) return 1.0 + r * 0.12;
-  return 1.1 + r * 0.3;
+/** Walking speed in m/s by age group and sex (r is a 0..1 spread). Children and teens quick, elders slow, women a touch slower than men. */
+function speedFor(age: number, female: number, r: number): number {
+  if (age === BODY_CHILD) return 1.4 + r * 0.25;
+  if (age === BODY_TEEN) return 1.4 + r * 0.2;
+  if (age === BODY_ELDER) return (female ? 0.78 : 0.82) + r * 0.1;
+  return (female ? 1.08 : 1.15) + r * 0.28;
+}
+
+/** Grey and white hair colour indices in palettes.ts (elders). */
+const GREY_HAIR = [6, 7, 10, 11];
+
+/**
+ * Hair style by age group and sex. Styles (see personGeometry.ts): 0 short crop, 1 side parting with a fringe,
+ * 2 curly, 3 bald, 4 long to the shoulders, 5 ponytail, 6 bun, 7 bob, 8 long to the waist, 9 pigtails.
+ */
+function hairStyleFor(age: number, female: number, r: number): number {
+  if (age === BODY_CHILD) return female ? (r < 0.5 ? 9 : r < 0.75 ? 0 : 1) : r < 0.5 ? 0 : 1;
+  if (female) {
+    // Women and girls (teens included): 90 percent long, 10 percent short.
+    if (r < 0.9) return LONG_FEMALE_STYLES[Math.min(LONG_FEMALE_STYLES.length - 1, Math.floor((r / 0.9) * LONG_FEMALE_STYLES.length))];
+    return SHORT_FEMALE_STYLES[Math.min(SHORT_FEMALE_STYLES.length - 1, Math.floor(((r - 0.9) / 0.1) * SHORT_FEMALE_STYLES.length))];
+  }
+  if (age === BODY_TEEN) return r < 0.5 ? 0 : r < 0.8 ? 1 : 2;
+  if (age === BODY_ELDER) return r < 0.4 ? 3 : r < 0.7 ? 0 : r < 0.9 ? 1 : 2;
+  return r < 0.3 ? 0 : r < 0.55 ? 1 : r < 0.7 ? 2 : r < 0.9 ? 3 : 0;
 }

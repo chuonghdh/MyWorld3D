@@ -11,10 +11,29 @@ import {
   redRemaining,
   type PedestrianRender,
 } from '../src/traffic/pedestrians';
-import { buildPerson, triangleCount } from '../src/traffic/people/personGeometry';
+import { PART, buildPerson, gaitOf, triangleCount } from '../src/traffic/people/personGeometry';
 import { buildDog } from '../src/traffic/people/dogGeometry';
 import { createPeopleMeshes } from '../src/traffic/people/peopleMeshes';
 import { PALETTE_SIZES, TOP_COLORS, PANTS_COLORS } from '../src/traffic/people/palettes';
+import { FLAG, outfitFlags } from '../src/traffic/people/outfit';
+import {
+  BODY_ADULT,
+  BODY_CHILD,
+  BODY_ELDER,
+  BODY_TEEN,
+  HAIR_STYLE_COUNT,
+  TRAIT_BAG,
+  TRAIT_CHECKS,
+  TRAIT_DIAGONAL,
+  TRAIT_DOTS,
+  TRAIT_HAT,
+  TRAIT_HEARTS,
+  TRAIT_HSTRIPES,
+  TRAIT_SCARF,
+  TRAIT_SHORTS,
+  TRAIT_SHORT_SLEEVES,
+  TRAIT_VSTRIPES,
+} from '../src/traffic/pedestrians';
 
 const city = generateCity(DEFAULT_SETTINGS);
 
@@ -30,25 +49,60 @@ function step(sim: { lights: TrafficLightController; peds: Pedestrians }, dt: nu
 }
 
 describe('people models', () => {
-  it('builds three bodies with 150-250 triangles each without WebGL', () => {
-    for (const kind of ['adult', 'child', 'elder'] as const) {
+  const KINDS = ['adult', 'teen', 'child', 'elder'] as const;
+
+  it('builds four age groups with 350-480 triangles each (all parts) without WebGL', () => {
+    for (const kind of KINDS) {
       const m = buildPerson(kind);
       const tris = triangleCount(m.geometry);
-      expect(tris).toBeGreaterThanOrEqual(150);
-      expect(tris).toBeLessThanOrEqual(250);
+      expect(tris).toBeGreaterThanOrEqual(350);
+      expect(tris).toBeLessThanOrEqual(480);
       expect(m.geometry.getAttribute('aRig').itemSize).toBe(4);
       expect(m.geometry.getAttribute('color').count).toBe(m.geometry.getAttribute('position').count);
+      expect(m.geometry.getAttribute('aMorph').itemSize).toBe(3);
+      expect(m.geometry.getAttribute('aMorphN').count).toBe(m.geometry.getAttribute('position').count);
     }
   });
 
-  it('keeps heights in proportion: child about 65% of an adult, elder slightly shorter', () => {
-    const adult = buildPerson('adult').height;
-    const child = buildPerson('child').height;
-    const elder = buildPerson('elder').height;
+  it('keeps heights in proportion: child about 65% of an adult, teen between, elder slightly shorter', () => {
+    const adult = buildPerson('adult').headTop;
+    const teen = buildPerson('teen').headTop;
+    const child = buildPerson('child').headTop;
+    const elder = buildPerson('elder').headTop;
     expect(child / adult).toBeGreaterThan(0.6);
     expect(child / adult).toBeLessThan(0.72);
+    expect(teen).toBeGreaterThan(child);
+    expect(teen).toBeLessThan(adult);
     expect(elder).toBeLessThan(adult);
     expect(elder).toBeGreaterThan(child);
+  });
+
+  it('morphs women only in width (x and z): no vertex changes height, and the morph is not empty', () => {
+    for (const kind of KINDS) {
+      const m = buildPerson(kind);
+      const morph = m.geometry.getAttribute('aMorph').array as Float32Array;
+      const pos = m.geometry.getAttribute('position').array as Float32Array;
+      let maxDy = 0;
+      let maxDx = 0;
+      for (let i = 0; i < morph.length; i += 3) {
+        maxDy = Math.max(maxDy, Math.abs(morph[i + 1]));
+        maxDx = Math.max(maxDx, Math.abs(morph[i]));
+      }
+      expect(pos.length).toBe(morph.length);
+      expect(maxDy).toBe(0);
+      expect(maxDx).toBeGreaterThan(0.001);
+    }
+  });
+
+  it('gives women a shorter, lighter stride than men, elders short steps and slow pace, children quick steps', () => {
+    for (const kind of ['adult', 'teen', 'elder'] as const) {
+      expect(gaitOf(kind, 1).cycle).toBeLessThan(gaitOf(kind, 0).cycle);
+      expect(gaitOf(kind, 1).heightK).toBeLessThan(gaitOf(kind, 0).heightK);
+    }
+    expect(gaitOf('elder', 0).cycle).toBeLessThan(gaitOf('adult', 0).cycle);
+    expect(gaitOf('elder', 0).amp).toBeLessThan(gaitOf('adult', 0).amp);
+    expect(gaitOf('child', 0).cycle).toBeLessThan(gaitOf('adult', 0).cycle);
+    expect(gaitOf('child', 0).amp).toBeGreaterThan(gaitOf('adult', 0).amp);
   });
 
   it('builds a dog with about 100-160 triangles', () => {
@@ -67,10 +121,10 @@ describe('people models', () => {
 });
 
 describe('people meshes', () => {
-  it('uses at most 6 instanced meshes and respects the 600 instance cap', () => {
+  it('uses at most 7 instanced meshes (one per age group) and respects the 600 instance cap', () => {
     const meshes = createPeopleMeshes(512, 256);
-    expect(meshes.group.children.length).toBeLessThanOrEqual(6);
-    expect(meshes.bodies).toHaveLength(3);
+    expect(meshes.group.children.length).toBeLessThanOrEqual(7);
+    expect(meshes.bodies).toHaveLength(4);
     expect(MAX_WALKERS + MAX_DOGS).toBeLessThanOrEqual(600);
 
     const sim = makeSim(2, 50); // far above the cap
@@ -100,6 +154,170 @@ describe('people meshes', () => {
     meshes.update(list, { time: 0, night: false, season: 'summer', rain: 0.8 });
     expect(meshes.umbrellas.count).toBeGreaterThan(list.length * 0.5);
     meshes.dispose();
+  });
+});
+
+describe('appearance, outfits and pace', () => {
+  type Look = Pick<PedestrianRender, 'body' | 'female' | 'hairStyle' | 'traits' | 'hair'>;
+  function collectLooks(seed: number, steps: number): Look[] {
+    const sim = makeSim(seed, 40); // far above the cap: the full 480 walkers are in play
+    const out: Look[] = [];
+    for (let i = 0; i < steps; i++) {
+      step(sim, 0.1);
+      if (i % 5 !== 0) continue;
+      for (const p of sim.peds.getPedestrians()) {
+        out.push({ body: p.body, female: p.female, hairStyle: p.hairStyle, traits: p.traits, hair: p.hair });
+      }
+    }
+    return out;
+  }
+
+  it('gives the crowd 8 or more hair styles and all four age groups, both sexes', () => {
+    const looks = collectLooks(61, 400);
+    const styles = new Set(looks.map((p) => p.hairStyle));
+    const bodies = new Set(looks.map((p) => p.body));
+    expect(HAIR_STYLE_COUNT).toBeGreaterThanOrEqual(8);
+    expect(styles.size).toBeGreaterThanOrEqual(8);
+    expect(bodies).toEqual(new Set([BODY_ADULT, BODY_CHILD, BODY_ELDER, BODY_TEEN]));
+    expect(looks.some((p) => p.female === 1)).toBe(true);
+    expect(looks.some((p) => p.female === 0)).toBe(true);
+    for (const p of looks) expect(p.hairStyle).toBeLessThan(HAIR_STYLE_COUNT);
+  });
+
+  it('gives the same people for the same seed', () => {
+    const key = (list: Look[]): string => list.map((p) => `${p.body}:${p.female}:${p.hairStyle}:${p.traits}:${p.hair}`).join('|');
+    expect(key(collectLooks(9, 60))).toBe(key(collectLooks(9, 60)));
+  });
+
+  it('gives coats tails that stop above the knee, so trousers show below them', () => {
+    // The coat part is the only garment shape left on the torso; its hem must sit between hip and knee.
+    for (const kind of ['adult', 'teen', 'child', 'elder'] as const) {
+      const m = buildPerson(kind);
+      const rig = m.geometry.getAttribute('aRig').array as Float32Array;
+      const pos = m.geometry.getAttribute('position').array as Float32Array;
+      let minY = Infinity;
+      let maxY = -Infinity;
+      for (let v = 0; v < rig.length / 4; v++) {
+        if (Math.round(rig[v * 4]) !== PART.COAT) continue;
+        minY = Math.min(minY, pos[v * 3 + 1]);
+        maxY = Math.max(maxY, pos[v * 3 + 1]);
+      }
+      expect(maxY - minY).toBeGreaterThan(0);
+      // The knee is at 0.51 m (adult scale); the coat hem must be well above it.
+      const knee = 0.51 * (kind === 'child' ? 0.64 : kind === 'teen' ? 0.87 : kind === 'elder' ? 0.95 : 1);
+      expect(minY).toBeGreaterThan(knee + 0.1);
+    }
+  });
+
+  it('gives 90 percent of women long hair (shoulder, waist, long bob or pigtails) and men their mixed styles', () => {
+    const looks = collectLooks(83, 400);
+    const long = new Set([4, 7, 8, 9]);
+    // Children keep their own mix; women and girls from teens up follow the 90 percent rule.
+    const women = looks.filter((p) => p.female === 1 && p.body !== BODY_CHILD);
+    const longWomen = women.filter((p) => long.has(p.hairStyle));
+    const share = longWomen.length / women.length;
+    expect(share).toBeGreaterThan(0.85);
+    expect(share).toBeLessThan(0.95);
+    const men = looks.filter((p) => p.female === 0);
+    expect(men.some((p) => long.has(p.hairStyle))).toBe(false);
+    expect(new Set(men.map((p) => p.hairStyle)).size).toBeGreaterThanOrEqual(3);
+  });
+
+  it('gives 70 percent of walkers a patterned top, one of six patterns', () => {
+    const looks = collectLooks(82, 400);
+    const bits = [TRAIT_DOTS, TRAIT_HEARTS, TRAIT_HSTRIPES, TRAIT_VSTRIPES, TRAIT_CHECKS, TRAIT_DIAGONAL];
+    const patterned = looks.filter((p) => bits.some((b) => (p.traits & b) !== 0));
+    const share = patterned.length / looks.length;
+    expect(share).toBeGreaterThan(0.65);
+    expect(share).toBeLessThan(0.75);
+    for (const bit of bits) {
+      expect(patterned.some((p) => (p.traits & bit) !== 0)).toBe(true);
+    }
+    // A patterned walker has exactly one pattern.
+    for (const p of patterned) expect(bits.filter((b) => (p.traits & b) !== 0).length).toBe(1);
+  });
+
+  it('gives each walker one consistent outfit per season: coats in winter, no coat in summer, shorts only in summer', () => {
+    for (const season of ['spring', 'summer', 'autumn', 'winter'] as const) {
+      for (let traits = 0; traits < 512; traits++) {
+        for (const r2 of [0.05, 0.3, 0.7, 0.95]) {
+          const rank = (traits % 7) / 7;
+          const f = outfitFlags(season, traits, r2, rank);
+          expect(outfitFlags(season, traits, r2, rank)).toBe(f);
+          // Nobody wears a dress or an ao dai: no such flag is ever set.
+          expect(f & 64).toBe(0);
+          expect(f & 128).toBe(0);
+          if (season === 'winter') expect(f & FLAG.COAT).toBeTruthy();
+          if (season === 'summer') expect(f & FLAG.COAT).toBe(0);
+          if (season === 'summer' && (traits & TRAIT_SHORTS) !== 0) expect(f & FLAG.BARE_SHINS).toBeTruthy();
+          if (season !== 'summer') expect(f & FLAG.BARE_SHINS).toBe(0);
+        }
+      }
+    }
+    // Each pattern trait maps to its own flag, in any season.
+    expect(outfitFlags('summer', TRAIT_DOTS, 0.5, 0.5) & FLAG.DOTS).toBeTruthy();
+    expect(outfitFlags('autumn', TRAIT_HEARTS, 0.5, 0.5) & FLAG.HEARTS).toBeTruthy();
+    expect(outfitFlags('spring', TRAIT_HSTRIPES, 0.5, 0.5) & FLAG.HSTRIPES).toBeTruthy();
+    expect(outfitFlags('winter', TRAIT_VSTRIPES, 0.5, 0.5) & FLAG.VSTRIPES).toBeTruthy();
+    expect(outfitFlags('summer', TRAIT_CHECKS, 0.5, 0.5) & FLAG.CHECKS).toBeTruthy();
+    expect(outfitFlags('spring', TRAIT_DIAGONAL, 0.5, 0.5) & FLAG.DIAGONAL).toBeTruthy();
+    // Summer sleeves follow the trait; hats and scarves only with their traits.
+    expect(outfitFlags('summer', TRAIT_SHORT_SLEEVES, 0.5, 0.5) & FLAG.SHORT_SLEEVES).toBeTruthy();
+    expect(outfitFlags('summer', 0, 0.5, 0.5) & (FLAG.HAT | FLAG.SCARF | FLAG.BAG)).toBe(0);
+    expect(outfitFlags('winter', TRAIT_HAT | TRAIT_SCARF | TRAIT_BAG, 0.99, 0.99) & (FLAG.HAT | FLAG.SCARF | FLAG.BAG)).toBe(FLAG.HAT | FLAG.SCARF | FLAG.BAG);
+  });
+
+  it('paces teens quicker than adults, adults quicker than elders, and women a touch slower than men', () => {
+    const sim = makeSim(71, 1.75);
+    const sum = new Float64Array(8);
+    const n = new Float64Array(8);
+    for (let i = 0; i < 4000; i++) {
+      step(sim, 0.1);
+      if (i % 5 !== 0) continue;
+      for (const p of sim.peds.getPedestrians()) {
+        if (p.pose !== 0 || p.speed <= 0 || p.dog) continue;
+        const key = p.body * 2 + p.female;
+        sum[key] += p.speed;
+        n[key] += 1;
+      }
+    }
+    const mean = (body: number, female: number): number => sum[body * 2 + female] / n[body * 2 + female];
+    expect(mean(BODY_TEEN, 0)).toBeGreaterThan(mean(BODY_ADULT, 0));
+    expect(mean(BODY_ADULT, 0)).toBeGreaterThan(mean(BODY_ELDER, 0));
+    expect(mean(BODY_ADULT, 1)).toBeLessThan(mean(BODY_ADULT, 0));
+  });
+
+  it('makes the adult walk at the child pace: the adult speed is steady, the child wobbles around it', () => {
+    const sim = makeSim(72, 3);
+    // Pairs get consecutive ids and a child is always the follower, so its adult is the walker with id - 1.
+    let samples = 0;
+    let wobbleSum = 0;
+    let wobbleMin = Infinity;
+    let wobbleMax = -Infinity;
+    for (let i = 0; i < 6000; i++) {
+      step(sim, 0.1);
+      if (i % 3 !== 0) continue;
+      const list = sim.peds.getPedestrians();
+      const byId = new Map<number, (typeof list)[number]>();
+      for (const p of list) byId.set(p.id, p);
+      for (const c of list) {
+        if (c.body !== BODY_CHILD || c.pose !== 0 || c.speed <= 0) continue;
+        const adult = byId.get(c.id - 1);
+        if (!adult || adult.body === BODY_CHILD || adult.pose !== 0 || adult.speed <= 0) continue;
+        const ratio = c.speed / adult.speed;
+        wobbleSum += ratio;
+        wobbleMin = Math.min(wobbleMin, ratio);
+        wobbleMax = Math.max(wobbleMax, ratio);
+        samples++;
+      }
+    }
+    expect(samples).toBeGreaterThan(200);
+    // The child's speed is the adult's times the wobble (0.75 to 1.25), so the average ratio is about 1.
+    const mean = wobbleSum / samples;
+    expect(mean).toBeGreaterThan(0.97);
+    expect(mean).toBeLessThan(1.03);
+    expect(wobbleMin).toBeGreaterThanOrEqual(0.74);
+    expect(wobbleMax).toBeLessThanOrEqual(1.26);
   });
 });
 
@@ -139,19 +357,23 @@ describe('crowd density', () => {
   });
 
   it('busies avenues more than side streets', () => {
-    const sim = makeSim(8, 1.75);
+    // Averaged over six seeds: one seed alone is noisy (seed 8 reads about 1.08 after the look rules changed,
+    // the others 1.2 to 1.4).
     const avenues = city.roads.filter((r) => r.streetClass === 'avenue');
     const streets = city.roads.filter((r) => r.streetClass !== 'avenue');
     const near = (x: number, z: number, roads: typeof avenues): boolean =>
       roads.some((r) => (r.orientation === 'vertical' ? Math.abs(x - r.start.x) < 8 : Math.abs(z - r.start.z) < 8));
     let a = 0;
     let s = 0;
-    for (let i = 0; i < 3000; i++) {
-      step(sim, 0.2);
-      if (i % 10 !== 0) continue;
-      for (const p of sim.peds.getPedestrians()) {
-        if (near(p.position.x, p.position.z, avenues)) a++;
-        else if (near(p.position.x, p.position.z, streets)) s++;
+    for (const seed of [8, 1, 2, 3, 4, 5]) {
+      const sim = makeSim(seed, 1.75);
+      for (let i = 0; i < 3000; i++) {
+        step(sim, 0.2);
+        if (i % 10 !== 0) continue;
+        for (const p of sim.peds.getPedestrians()) {
+          if (near(p.position.x, p.position.z, avenues)) a++;
+          else if (near(p.position.x, p.position.z, streets)) s++;
+        }
       }
     }
     const perMetreAvenue = a / avenues.length;

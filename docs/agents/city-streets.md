@@ -15,14 +15,19 @@
 ## Traps
 - Draw-call budget: base streetscape is 6 meshes, decor adds 2 (`streets-shelter-glass`, `streets-fountain-water`).
 - `budget.test.ts` has limited triangle headroom (~46k main pass at the time of writing).
-- The fountain sits in the largest tree-free courtyard; hedges are not avoided, so check overlap with courtyard greenery.
+- The fountain plaza must avoid courtyard greenery: planFountain reads the greenery triangles (greeneryFootprint.ts, same generator and seed as the scene) and rejects any centre whose plaza disc (+0.3 m) touches one. Courtyards are 10 to 23 m and hedges plus beds fill most of them, so on some towns (seeds 1 and 1234 at 300 m) no fountain fits and it is omitted.
+- Tactile bars at the first crossing stripe reach into the rounded corner: clearOfKerbCorners cuts them back to the arc.
+- Sidewalk strips are 3 m (street) and 4.5 m (avenue); the 0.5 m kerb radius fits. Vertical strips are cut by the crossing sidewalk footprint (walk cut), horizontal strips by the carriageway only (carriage cut), so only horizontal strips own corners.
 - Traffic reads `lanes` and `laneOffsetFor`: moving lanes changes vehicle behaviour.
 
 ## Decisions
-- Kerb corners are a painted rounded stone over the square corner (a real rounded corner would mean carving the sidewalk box).
+- Rounded kerbs (0.5 m) are built into the sidewalk surfaces (surfaces.ts roundedKerbCorner): kerb band, sidewalk patch, arc wall, open corner left as ground. Replaces the painted stone. No new meshes; same-facing overlap count unchanged versus baseline (1874 on surfaces).
+- Fountain placement uses greenery triangles (read only) instead of tree positions alone. No edit in src/environment.
 
 ## Open items
-- Truly rounded kerb corners; fountain plaza vs courtyard hedge overlap.
+- Environment request: keep one courtyard clear (or reserve a disc) so the fountain fits on dense seeds (1 and 1234 at 300 m). Without it the fountain is omitted there.
+- Open: the open corner shows the 4 cm asphalt underlay as a gutter strip (intended, not checked by eye up close).
+- Coplanar audit tolerance (2 cm) flags many pre-existing underlay/ground pairs; not fixed here.
 
 ## Verify
-`npx vitest run tests/streets.test.ts tests/streetDecor.test.ts tests/budget.test.ts`.
+`npx vitest run tests/streets.test.ts tests/streetDecor.test.ts tests/kerbCorners.test.ts tests/budget.test.ts`.

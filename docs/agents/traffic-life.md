@@ -21,8 +21,27 @@
 - Turns: 60% straight, 20% left, 20% right. Yellow: a vehicle past the stop line continues; behind it stops (queues behind a leader). Green needs a clear crosswalk.
 - Horns: 45 s per-vehicle cooldown, 6 s city-wide gap, 50% coin flip, honk on pedestrians holding a green or hard braking.
 
+- People morph: the male and female shapes must emit identical vertex counts and order (RigBuilder skips degenerate triangles, so any zero-size part breaks it; buildPerson throws). Only x/z may change: a depth change on the stooped elder torso turns into a height change (y), so torso depth is shared.
+- Dog trail: a dog trailing its owner round a kerb could stand in the road. Fixed: candidate spots are tried until one is off the asphalt (test "never stands on asphalt" caught it).
+- Child pairs: the adult (leader) walks at the child's own base pace, so the adult follows the child's speed, slow or fast. The child's rendered speed wobbles +-25 percent around it (render only, positions unchanged). Teen followers keep a x1.1 rate. Positions mirror the leader, so feet can slide.
+- Pair ids are consecutive (follower id = leader id + 1), and a child is always a follower. The pace test relies on this.
+- Hidden parts (other hair styles, garments, facial hair) are still drawn: each person is about 376 triangles in all four age groups (was 236). Hidden parts collapse to a point in the shader.
+
+## Decisions
+- People (2026 overhaul): four age groups (adult, teen, child, elder), one mesh each, sexes by morph (aMorph/aMorphN weighted by aLook2.z). Draw calls: main 6 to 7, shadow 5 to 6.
+- Hair: 10 styles (crop, side parting with fringe, curly as the cap widened in the shader, bald, long, ponytail, bun, bob, long to the waist, pigtails). Elders mostly grey or white.
+- Outfits: pure function of season, traits and two stable values (outfit.ts), so one set per season, no flicker. A coat (winter, or 60% of autumn walkers) recolours the top and sleeves in the accent colour and shows coat tails: a short flare from the waist to the upper thigh (part COAT, hem at hip minus 0.2 m), so trousers show below. The coat tails are not a skirt.
+- Speeds (m/s): child 1.4-1.65, teen 1.4-1.6, adult men 1.15-1.43, women 1.08-1.36, elders 0.82-0.92 (women 0.78-0.88). Gait cycle shorter for children and elders.
+- Pairs: elder couples, adult couples (opposite sex), parent+child, parent+teen, teen friends.
+- No dresses and no ao dai: removed at the user's final decision. Women wear trousers and the coat tails; the dress and tunic shapes and their traits are gone.
+- Hair for women (teens and up): 90 percent long (shoulder, waist, long bob, pigtails), 10 percent short (crop, side parting, curly, ponytail, bun). Children and men keep their own mix.
+- Patterned tops: 70 percent of walkers, six patterns (dots, hearts, horizontal, vertical, checks, diagonal), drawn in the fragment shader from the model position: no textures or draw calls. Coats and bare sleeves stay plain.
+- The avenue-versus-street density test averages six seeds. Seed 8 alone dropped to 1.08 after the look rules changed (others 1.2 to 1.4), and the threshold stays at 1.15.
+- Determinism hash EXPECTED_PEDESTRIANS re-captured to '499b5c20' (intentional: looks, speeds, gait, dog fix, hair, pattern and child-pace rules, and the removed dress rolls).
+
 ## Open items
-- None queued.
+- Verified only by eye at street level in one close-up (faces, hair cap). Coat tails, hair variety and the morph were not checked by eye after the latest changes.
+- Per-person triangles could be cut by moving hair and garments into their own instanced meshes (more draw calls). Not done.
 
 ## Verify
 `npx vitest run tests/vehicle*.test.ts tests/people.test.ts` (rerun the flake alone), then the full suite.

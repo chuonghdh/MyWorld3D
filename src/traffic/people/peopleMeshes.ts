@@ -1,9 +1,11 @@
 // Instanced meshes for pedestrians and their dogs.
-//   - one InstancedMesh per body type (adult, child, elder), about 230 triangles per person,
+//   - one InstancedMesh per age group (adult, child, elder, teen), about 420 triangles per person (all parts,
+//     including the hidden hair, garments and face; see personGeometry.ts). Each mesh serves both sexes through
+//     the morph attributes and holds every hair style, garment and face,
 //   - one InstancedMesh for dogs (about 130 triangles), one for leashes, one for umbrellas.
-// That is at most 6 draw calls for all people. The walk cycle, poses and clothing colours are resolved in the
-// vertex shader from per-instance attributes (see rigShader.ts), so update() only writes matrices and a few
-// floats per instance and allocates nothing.
+// That is at most 7 draw calls for all people. The walk cycle, poses, outfits and sex are resolved in the vertex
+// shader from per-instance attributes (see rigShader.ts and outfit.ts), so update() only writes matrices and a
+// few floats per instance and allocates nothing.
 //
 // Readability: people are drawn at 1.1x scale. From the default top-down camera an adult is only about
 // 0.5 m wide, so the extra 10 percent plus wide shoulders, saturated tops and dark hair keep them readable
@@ -12,30 +14,20 @@
 // the whole-map view; at street level the boost is zero. The camera is read in onBeforeRender, no wiring needed.
 
 import * as THREE from 'three';
-import {
-  BODY_ADULT,
-  BODY_CHILD,
-  BODY_ELDER,
-  POSE_WALK,
-  TRAIT_BAG,
-  TRAIT_HAT,
-  TRAIT_SCARF,
-  TRAIT_SHORT_SLEEVES,
-  TRAIT_SHORTS,
-  type PedestrianRender,
-} from '../pedestrians';
+import { BODY_ADULT, BODY_CHILD, BODY_ELDER, BODY_TEEN, POSE_WALK, type PedestrianRender } from '../pedestrians';
 import { finish, writeInstance, type VisualContext } from '../meshKit';
 import { RigBuilder } from './rigBuilder';
-import { buildPerson, triangleCount, type BodyKind, type PersonModel } from './personGeometry';
+import { buildPerson, gaitOf, triangleCount, type BodyKind, type PersonModel } from './personGeometry';
 import { buildDog, type DogModel } from './dogGeometry';
 import { PALETTE_SIZES, type SeasonName } from './palettes';
+import { FLAG, outfitFlags } from './outfit';
 import { applySeasonPalette, createDogMaterials, createPeopleUniforms, createPersonMaterials, type PeopleUniforms } from './rigShader';
 
 export interface PeopleMeshes {
   group: THREE.Group;
   /** The adult mesh (kept for backwards compatibility). */
   pedestrians: THREE.InstancedMesh;
-  /** Adult, child and elder meshes, indexed by BODY_*. */
+  /** Adult, child, elder and teen meshes, indexed by BODY_*. */
   bodies: THREE.InstancedMesh[];
   dogs: THREE.InstancedMesh;
   leashes: THREE.InstancedMesh;
@@ -51,7 +43,8 @@ export interface PeopleMeshes {
 export const PEOPLE_READ_SCALE = 1.1;
 const DOG_SCALE = 1.15;
 const TWO_PI = Math.PI * 2;
-const KINDS: BodyKind[] = ['adult', 'child', 'elder'];
+/** Mesh order matches the BODY_* constants (index = body id). */
+const KINDS: BodyKind[] = ['adult', 'child', 'elder', 'teen'];
 const UMBRELLA_COLORS = ['#c0392b', '#2c4a9c', '#e8b030', '#2d6a3d', '#6a3a7a', '#222228', '#e07a9a', '#1f7a82', '#f1f0e8', '#d9622b'];
 
 function instancedAttr(mesh: THREE.InstancedMesh, name: string, itemSize: number, capacity: number): Float32Array {
@@ -144,7 +137,7 @@ export function createPeopleMeshes(pedestrianCapacity = 512, dogCapacity = 256):
   };
   for (const m of [...bodies, dogs]) m.onBeforeRender = readCamera;
 
-  const counts = new Int32Array(3);
+  const counts = new Int32Array(KINDS.length);
   let lastSeason: SeasonName | '' = '';
   const emissive = [materials.map((m) => m.material), [dogMats.material]].flat();
 
@@ -216,42 +209,36 @@ export function createPeopleMeshes(pedestrianCapacity = 512, dogCapacity = 256):
       const rain = ctx.rain ?? 0;
       const rainOn = rain > 0.05;
       const umbrellaShare = Math.min(0.92, 0.35 + rain * 0.8);
-      counts[0] = counts[1] = counts[2] = 0;
+      counts[0] = counts[1] = counts[2] = counts[3] = 0;
       let d = 0;
       let u = 0;
 
       for (let n = 0; n < list.length; n++) {
         const ped = list[n];
-        const bi = ped.body === BODY_CHILD ? BODY_CHILD : ped.body === BODY_ELDER ? BODY_ELDER : BODY_ADULT;
+        const bi = ped.body === BODY_CHILD ? BODY_CHILD : ped.body === BODY_ELDER ? BODY_ELDER : ped.body === BODY_TEEN ? BODY_TEEN : BODY_ADULT;
         const idx = counts[bi];
         if (idx >= pedestrianCapacity) continue;
         counts[bi] = idx + 1;
         const model = models[bi];
         const mesh = bodies[bi];
-        const scale = PEOPLE_READ_SCALE * viewBoost * ped.scale;
+        const female = ped.female ? 1 : 0;
+        const spec = gaitOf(KINDS[bi], female);
+        const scale = PEOPLE_READ_SCALE * viewBoost * ped.scale * spec.heightK;
         writeInstance(mesh, idx, ped.position.x, ped.position.z, ped.heading, ped.y, scale);
 
-        // Wardrobe by season. A second stable random value comes from the walk phase.
+        // One outfit per season (a pure function of the walker's traits), plus the umbrella bit in the rain.
         const r2 = ped.phase / TWO_PI;
-        const t = ped.traits;
-        const summer = season === 'summer';
-        const winter = season === 'winter';
-        let flags = 0;
-        if (t & TRAIT_HAT && (winter || (summer && r2 < 0.5) || r2 < 0.35)) flags |= 1;
-        if (t & TRAIT_SCARF && (winter || (season === 'autumn' && r2 < 0.5))) flags |= 2;
-        if (t & TRAIT_BAG) flags |= 4;
-        if (t & TRAIT_SHORTS && summer) flags |= 8;
-        if (t & TRAIT_SHORT_SLEEVES && summer) flags |= 16;
+        let flags = outfitFlags(season, ped.traits, r2, ped.umbrellaRank);
         const umbrella = rainOn && ped.umbrellaRank < umbrellaShare;
-        if (umbrella) flags |= 32;
+        if (umbrella) flags |= FLAG.UMBRELLA;
 
         const g = gait[bi];
         const o4 = idx * 4;
         const walking = ped.pose === POSE_WALK && ped.speed > 0.02;
-        g[o4] = walking ? (TWO_PI * ped.speed) / model.cycleLength : 0;
+        g[o4] = walking ? (TWO_PI * ped.speed) / spec.cycle : 0;
         g[o4 + 1] = ped.phase;
         g[o4 + 2] = walking ? 0 : ped.pose === POSE_WALK ? 1 : ped.pose;
-        g[o4 + 3] = model.amplitude;
+        g[o4 + 3] = spec.amp;
         const lk = look[bi];
         lk[o4] = ped.top % PALETTE_SIZES.top;
         lk[o4 + 1] = ped.pants % PALETTE_SIZES.pants;
@@ -260,8 +247,8 @@ export function createPeopleMeshes(pedestrianCapacity = 512, dogCapacity = 256):
         const l2 = look2[bi];
         l2[o4] = ped.accent % PALETTE_SIZES.accent;
         l2[o4 + 1] = flags;
-        l2[o4 + 2] = 0;
-        l2[o4 + 3] = 0;
+        l2[o4 + 2] = female;
+        l2[o4 + 3] = ped.hairStyle;
 
         if (umbrella && u < pedestrianCapacity) {
           // Held in the right hand: a little to the right and ahead, canopy above the head.
@@ -304,7 +291,7 @@ export function createPeopleMeshes(pedestrianCapacity = 512, dogCapacity = 256):
         }
       }
 
-      for (let b = 0; b < 3; b++) {
+      for (let b = 0; b < KINDS.length; b++) {
         const mesh = bodies[b];
         finish(mesh, counts[b]);
         (mesh.geometry.getAttribute('aGait') as THREE.BufferAttribute).needsUpdate = true;

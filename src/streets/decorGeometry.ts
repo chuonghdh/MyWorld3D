@@ -3,12 +3,13 @@
 //
 // Layering (no coplanar faces): road decals sit at PAINT_Y, which is clear of the lane markings by
 // construction; sidewalk decals sit at SIDEWALK_OVERLAY_Y (paving slabs, beyond tree pits and the
-// furniture band) or 6 mm above it (kerb stones and tactile bars, where they touch the band).
+// furniture band) or 6 mm above it (tactile bars, where they touch the band). Rounded kerb corners are
+// part of the sidewalk surfaces (surfaces.ts), not decals.
 
 import * as THREE from 'three';
 import { MeshBuilder } from './builder';
-import { PAINT_Y, SIDEWALK_OVERLAY_Y, SIDEWALK_TOP } from './surfaces';
-import type { DecorPlan, DecorSolid, FountainPlan } from './decor';
+import { kerbVoidDepth, PAINT_Y, SIDEWALK_OVERLAY_Y, SIDEWALK_TOP } from './surfaces';
+import type { DecorPlan, DecorSolid, FountainPlan, KerbCorner, TactileBar } from './decor';
 
 export const DECOR_COLORS = {
   iron: '#22262a',
@@ -25,7 +26,6 @@ export const DECOR_COLORS = {
   plazaA: '#d9cfbd',
   plazaB: '#c9bda6',
   plazaBorder: '#b9ab92',
-  kerb: '#b6b0a2',
   tactile: '#c9a640',
   manhole: '#2a2a2e',
   manholeRim: '#66666b',
@@ -111,22 +111,30 @@ function buildBikeRack(b: DecorBuilders, s: DecorSolid): void {
   }
 }
 
-/** Triangle with an upward normal whatever the corner order. */
-function triUp(b: MeshBuilder, a: [number, number, number], p: [number, number, number], q: [number, number, number], color: string): void {
-  const cross = (p[2] - a[2]) * (q[0] - a[0]) - (p[0] - a[0]) * (q[2] - a[2]);
-  if (cross >= 0) b.tri(a, p, q, color);
-  else b.tri(a, q, p, color);
-}
-
-function buildKerbCorner(b: MeshBuilder, x: number, z: number, sx: number, sz: number, r: number): void {
-  const y = SIDEWALK_OVERLAY_Y + 0.006;
-  const steps = 6;
-  // Local (u, v) run into the sidewalk. The arc is centred (r, r); the stone is what lies between it and the corner.
-  const arc = (k: number): [number, number, number] => {
-    const phi = (k / steps) * (Math.PI / 2);
-    return [x + sx * (r - r * Math.sin(phi)), y, z + sz * (r - r * Math.cos(phi))];
-  };
-  for (let k = 0; k < steps; k++) triUp(b, [x, y, z], arc(k), arc(k + 1), DECOR_COLORS.kerb);
+/**
+ * A tactile bar may not reach the open corner of a rounded kerb: the part of it that lies in the void is cut
+ * back to the kerb arc (the bar is a thin decal, so it stops at the depth where the arc is at its far edge).
+ */
+export function clearOfKerbCorners(t: TactileBar, corners: readonly KerbCorner[]): TactileBar {
+  let { minX, maxX, minZ, maxZ } = t;
+  for (const k of corners) {
+    const ax0 = Math.min((minX - k.x) * k.sx, (maxX - k.x) * k.sx), ax1 = Math.max((minX - k.x) * k.sx, (maxX - k.x) * k.sx);
+    const bz0 = Math.min((minZ - k.z) * k.sz, (maxZ - k.z) * k.sz), bz1 = Math.max((minZ - k.z) * k.sz, (maxZ - k.z) * k.sz);
+    // Local corner square [0, r] x [0, r]; the bar must overlap it to matter.
+    if (ax1 <= 0 || bz1 <= 0 || ax0 >= k.r || bz0 >= k.r) continue;
+    if (ax1 - ax0 <= bz1 - bz0) {
+      // Narrow across the carriageway edge: clip the lower edge along b to the arc at the bar's nearest a.
+      const lo = kerbVoidDepth(Math.max(ax0, 0), k.r);
+      if (k.sz > 0) minZ = Math.max(minZ, k.z + lo);
+      else maxZ = Math.min(maxZ, k.z - lo);
+    } else {
+      // Narrow across the curb face: clip along a to the arc at the bar's nearest b.
+      const lo = kerbVoidDepth(Math.max(bz0, 0), k.r);
+      if (k.sx > 0) minX = Math.max(minX, k.x + lo);
+      else maxX = Math.min(maxX, k.x - lo);
+    }
+  }
+  return { minX, maxX, minZ, maxZ };
 }
 
 function buildFountain(b: DecorBuilders, f: FountainPlan, benchSolid: (x: number, z: number, facing: number) => void): void {
@@ -209,8 +217,10 @@ export function buildDecor(
   for (const t of plan.paving) {
     b.overlay.rect(SIDEWALK_OVERLAY_Y, t.minX, t.maxX, t.minZ, t.maxZ, t.shade === 'dark' ? C.slabDark : C.slabLight);
   }
-  for (const k of plan.kerbCorners) buildKerbCorner(b.overlay, k.x, k.z, k.sx, k.sz, k.r);
-  for (const t of plan.tactile) b.overlay.rect(SIDEWALK_OVERLAY_Y + 0.006, t.minX, t.maxX, t.minZ, t.maxZ, C.tactile);
+  for (const t of plan.tactile) {
+    const bar = clearOfKerbCorners(t, plan.kerbCorners);
+    b.overlay.rect(SIDEWALK_OVERLAY_Y + 0.006, bar.minX, bar.maxX, bar.minZ, bar.maxZ, C.tactile);
+  }
 
   if (plan.fountain) buildFountain(b, plan.fountain, bench);
 }

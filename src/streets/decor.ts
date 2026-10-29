@@ -5,7 +5,7 @@
 //   solids      bus stops (shelter + sign), kiosks, bike racks            avenue (and rack on streets) sidewalks
 //   road decals manholes, patches, cracks, wheel-wear bands               lanes of every road
 //   paving      slab shade variation                                      avenue sidewalks
-//   curbs       rounded kerb corner stones, tactile warning bars          intersection corners, crosswalk ends
+//   curbs       tactile warning bars (kerb corners are in surfaces.ts)   crosswalk ends
 //   fountain    one fountain plaza (+ benches, static pigeons)            the best free courtyard
 //
 // Everything solid stays inside the sidewalk strip on the building side of the pedestrian walking line,
@@ -15,6 +15,7 @@
 import type { CityLayout, RoadSegment } from '../city/layout';
 import { laneOffsetFor } from '../city/generate';
 import { createRng } from '../core/rng';
+import { KERB_RADIUS } from './surfaces';
 
 // ---- Tunables ------------------------------------------------------------------------------------
 
@@ -27,8 +28,9 @@ const SOLID_EDGE = 1.0;
 /** Road decals stay this far (beyond the crossing roads' sidewalk) from junctions and crossings. */
 const DECAL_EDGE = 1.4;
 const ROAD_CELL = 20;
-const KERB_RADIUS = 0.55;
 const TACTILE_BARS = 3;
+/** Clear space the fountain plaza keeps beyond its paved radius, from courtyard greenery. */
+const GREENERY_CLEARANCE = 0.3;
 
 /** Chance per side-segment of each family at seed-independent settings. */
 export const DECOR_RATES = { busStop: 0.5, kiosk: 0.42, rackAvenue: 0.65, rackStreet: 0.3 } as const;
@@ -64,8 +66,15 @@ export interface RoadPatch { kind: PatchKind; minX: number; maxX: number; minZ: 
 
 export interface PavingTile { minX: number; maxX: number; minZ: number; maxZ: number; shade: 'dark' | 'light' }
 
-/** Corner of an intersection: (x, z) is the sidewalk corner point; (sx, sz) point into the sidewalk. */
+/**
+ * Rounded kerb corner of an intersection: (x, z) is the carriageway corner; (sx, sz) point into the sidewalk.
+ * The geometry itself is built into the sidewalk surfaces (surfaces.ts); the plan keeps the list so the tactile
+ * bars can be kept off the open corner.
+ */
 export interface KerbCorner { x: number; z: number; sx: 1 | -1; sz: 1 | -1; r: number }
+
+/** One ground-level triangle of the courtyard greenery (hedges, beds, bushes), as XZ corners. */
+export interface GreeneryTriangle { x: readonly [number, number, number]; z: readonly [number, number, number] }
 
 /** One tactile bar: an axis-aligned rectangle at a crosswalk end. */
 export interface TactileBar { minX: number; maxX: number; minZ: number; maxZ: number }
@@ -194,7 +203,11 @@ function obstaclesOf(layout: CityLayout): Circle[] {
 
 // ---- Planning ------------------------------------------------------------------------------------
 
-export function planStreetDecor(layout: CityLayout): DecorPlan {
+/**
+ * Plans every decor family. `greenery` is the courtyard greenery's ground triangles for the same layout (see
+ * courtyardGreeneryFootprint); the fountain plaza is placed where none of them lie.
+ */
+export function planStreetDecor(layout: CityLayout, greenery: readonly GreeneryTriangle[]): DecorPlan {
   const rng = createRng((Math.imul(layout.seed | 0, 2654435761) ^ 0x5eed6a3) >>> 0);
   const frames = layout.roads.map(frameOf);
   const obstacles = obstaclesOf(layout);
@@ -205,7 +218,7 @@ export function planStreetDecor(layout: CityLayout): DecorPlan {
   planRoadDecals(frames, rng, plan);
   planPaving(frames, rng, plan);
   planKerbs(layout, frames, plan);
-  plan.fountain = planFountain(layout, createRng((Math.imul(layout.seed | 0, 40503) ^ 0xf0f7a1) >>> 0));
+  plan.fountain = planFountain(layout, createRng((Math.imul(layout.seed | 0, 40503) ^ 0xf0f7a1) >>> 0), greenery);
   return plan;
 }
 
@@ -393,8 +406,31 @@ function planKerbs(layout: CityLayout, frames: readonly Frame[], plan: DecorPlan
 export const FOUNTAIN_BASIN_RADIUS = 1.75;
 export const FOUNTAIN_PLAZA_RADIUS = 3.4;
 
-function planFountain(layout: CityLayout, rng: () => number): FountainPlan | null {
+/** Distance from (px, pz) to a triangle in XZ (0 when inside). */
+export function distanceToTriangle(px: number, pz: number, t: GreeneryTriangle): number {
+  const { x, z } = t;
+  let pos = 0, neg = 0;
+  for (let i = 0; i < 3; i++) {
+    const j = (i + 1) % 3;
+    const s = (x[j] - x[i]) * (pz - z[i]) - (z[j] - z[i]) * (px - x[i]);
+    if (s >= 0) pos++;
+    if (s <= 0) neg++;
+  }
+  if (pos === 3 || neg === 3) return 0;
+  let best = Infinity;
+  for (let i = 0; i < 3; i++) {
+    const j = (i + 1) % 3;
+    const ex = x[j] - x[i], ez = z[j] - z[i];
+    const len2 = ex * ex + ez * ez;
+    const k = len2 > 0 ? Math.max(0, Math.min(1, ((px - x[i]) * ex + (pz - z[i]) * ez) / len2)) : 0;
+    best = Math.min(best, Math.hypot(px - (x[i] + ex * k), pz - (z[i] + ez * k)));
+  }
+  return best;
+}
+
+function planFountain(layout: CityLayout, rng: () => number, greenery: readonly GreeneryTriangle[]): FountainPlan | null {
   const need = FOUNTAIN_PLAZA_RADIUS + 0.9;
+  const reach = FOUNTAIN_PLAZA_RADIUS + GREENERY_CLEARANCE;
   const trees = layout.streetTrees.filter((t) => t.setting === 'courtyard');
   const ranked = layout.blocks
     .filter((b) => b.courtyard)
@@ -405,10 +441,17 @@ function planFountain(layout: CityLayout, rng: () => number): FountainPlan | nul
 
   for (const { c } of ranked) {
     const cx = (c.minX + c.maxX) / 2, cz = (c.minZ + c.maxZ) / 2;
+    // Greenery of this courtyard only: its triangles lie inside the courtyard rectangle.
+    const local = greenery.filter((t) => {
+      const xs = t.x, zs = t.z;
+      return Math.max(...xs) >= c.minX - reach && Math.min(...xs) <= c.maxX + reach
+        && Math.max(...zs) >= c.minZ - reach && Math.min(...zs) <= c.maxZ + reach;
+    });
     let best: { x: number; z: number; d: number } | null = null;
     for (let x = c.minX + need; x <= c.maxX - need + 1e-6; x += 1) {
       for (let z = c.minZ + need; z <= c.maxZ - need + 1e-6; z += 1) {
         if (trees.some((t) => Math.hypot(t.position.x - x, t.position.z - z) < need)) continue;
+        if (local.some((t) => distanceToTriangle(x, z, t) < reach)) continue;
         const d = Math.hypot(x - cx, z - cz);
         if (!best || d < best.d) best = { x, z, d };
       }

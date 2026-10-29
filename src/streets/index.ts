@@ -14,6 +14,7 @@ import { attachCloudShade } from '../environment/cloudShade';
 import { MeshBuilder } from './builder';
 import { addPoolUVs, buildBench, buildFurniture, type SignalHead } from './furniture';
 import { planStreetDecor } from './decor';
+import { courtyardGreeneryFootprint } from './greeneryFootprint';
 import { buildDecor } from './decorGeometry';
 import { createWaterMaterial } from './water';
 import { buildSurfaces } from './surfaces';
@@ -179,7 +180,7 @@ export function createStreetscape(layout: CityLayout): Streetscape {
   const decorGlass = new MeshBuilder();
   const decorWater = new MeshBuilder();
   buildDecor(
-    planStreetDecor(layout),
+    planStreetDecor(layout, courtyardGreeneryFootprint(layout)),
     { iron: furn.iron, overlay, glass: decorGlass, water: decorWater },
     (x, z, facing) => buildBench(furn.iron, x, z, facing),
   );
