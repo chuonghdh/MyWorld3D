@@ -6,13 +6,20 @@ const CONTROLS: [string, string][] = [
   ['Left drag', 'Orbit the camera'],
   ['Right drag / two fingers', 'Pan (touch: two-finger orbit and pinch zoom)'],
   ['Wheel / pinch', 'Zoom'],
-  ['Click', 'Select a house, tree or block'],
+  ['Click / tap', 'Select a house or tree (camera at or below 200 m) or a whole block (above 200 m)'],
   ['Move blocks, then click twice', 'Swap two blocks'],
   ['Space', 'Pause or resume'],
   ['1 / 2', 'Map view / street view'],
   ['W A S D', 'Walk in street mode (Shift runs)'],
   ['H or ?', 'Show or hide this help'],
   ['Esc', 'Close help, clear selection'],
+];
+
+const BLOCKS: [string, string][] = [
+  ['Mode', 'Camera above 200 m: a tap selects a block. At or below 200 m: a tap selects a house. The chip at the bottom shows the mode.'],
+  ['+ on a block', 'Shows green suggestion boxes. Tap one to merge (rectangles only, up to 4 blocks).'],
+  ['− on a merged block', 'Splits it back into its blocks.'],
+  ['Save and undo', 'Merges are saved with the layout and can be undone.'],
 ];
 
 const PANELS: [string, string][] = [
@@ -63,6 +70,15 @@ export function HelpOverlay() {
             <div className="mw-help-body">
               <dl className="mw-help-list">
                 {CONTROLS.map(([k, v]) => (
+                  <div key={k} className="mw-help-row">
+                    <dt>{k}</dt>
+                    <dd>{v}</dd>
+                  </div>
+                ))}
+              </dl>
+              <div className="mw-group-title">Block editing</div>
+              <dl className="mw-help-list">
+                {BLOCKS.map(([k, v]) => (
                   <div key={k} className="mw-help-row">
                     <dt>{k}</dt>
                     <dd>{v}</dd>

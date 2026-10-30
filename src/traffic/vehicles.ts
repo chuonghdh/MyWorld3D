@@ -218,6 +218,12 @@ interface PathModel {
   spawns: { s: number; timer: number }[];
   /** Active vehicles, leader (largest s) first. */
   list: Vehicle[];
+  /**
+   * False when the lane path starts or ends at a junction whose street was removed by a block merge (a closed
+   * end): no edge extension there, no spawn at a closed start, and a vehicle must turn at a closed end.
+   */
+  startOpen: boolean;
+  endOpen: boolean;
 }
 
 interface Vehicle {
@@ -324,6 +330,13 @@ export class VehicleSystem {
   private readonly crosswalkRects: CrosswalkRect[] = [];
   private drawBounds = { minX: -Infinity, maxX: Infinity, minZ: -Infinity, maxZ: Infinity };
   private readonly junctions: { minX: number; maxX: number; minZ: number; maxZ: number }[] = [];
+  /**
+   * Arms per junction (bits: 1 north, 2 east, 4 south, 8 west) and their count. Without block merges every
+   * junction has 4. A T junction (3) keeps its signal with turns renormalised over the allowed moves; 2 arms
+   * (straight or bend) means no signal.
+   */
+  private armMask: Uint8Array = new Uint8Array(0);
+  private armCount: Uint8Array = new Uint8Array(0);
   /** 1 while a pedestrian is on the crosswalk with that index. Refreshed once per update(). */
   private crosswalkBusy: Uint8Array = new Uint8Array(0);
   private pedestrianSource: (() => readonly PedestrianPoint[]) | null = null;
@@ -381,10 +394,13 @@ export class VehicleSystem {
 
     const orientation = new Map(layout.roads.map((r) => [r.id, r.orientation] as const));
     const lightPos = new Map(layout.trafficLights.map((l) => [l.id, l.position] as const));
+    const ext = options.edgeExtension ?? EDGE_EXTENSION;
+    const openness = pathOpenness(layout, orientation);
 
     for (const path of layout.trafficPaths) {
       if (path.waypoints.length < 2) continue;
-      const { points, cornerIdx } = filletPath(extendWaypoints(path.waypoints, options.edgeExtension ?? EDGE_EXTENSION));
+      const open = openness.get(path) ?? { start: true, end: true };
+      const { points, cornerIdx } = filletPath(extendWaypoints(path.waypoints, open.start ? ext : 0, open.end ? ext : 0));
       const cum = [0];
       for (let i = 1; i < points.length; i++) {
         cum.push(cum[i - 1] + Math.hypot(points[i].x - points[i - 1].x, points[i].z - points[i - 1].z));
@@ -418,8 +434,9 @@ export class VehicleSystem {
       }
       stops.sort((a, b) => a.s - b.s);
 
-      // Vehicles enter at the start of the (extended) path, i.e. at the edge of the map.
-      const spawns = path.spawnPoints.length > 0 ? [{ s: 0, timer: this.rng() * SPAWN_MAX_S }] : [];
+      // Vehicles enter at the start of the (extended) path, i.e. at the edge of the map. A closed start (a junction
+      // on a merged block's boundary) gets no spawn: vehicles only reach that lane by turning into it.
+      const spawns = path.spawnPoints.length > 0 && open.start ? [{ s: 0, timer: this.rng() * SPAWN_MAX_S }] : [];
 
       this.models.push({
         path,
@@ -438,11 +455,14 @@ export class VehicleSystem {
         corners,
         spawns,
         list: [],
+        startOpen: open.start,
+        endOpen: open.end,
       });
     }
     this.pathCount = this.models.length;
     this.junctionCount = layout.intersections.length;
     this.buildTurns(layout);
+    this.buildArms();
     for (let j = 0; j < this.junctionCount; j++) {
       this.grantedAt.push([]);
       this.askingAt.push([]);
@@ -480,6 +500,43 @@ export class VehicleSystem {
       }
       A.turns.sort((p, q) => p.entryS - q.entryS);
     }
+  }
+
+  /**
+   * Counts the real arms of every junction from the lane paths through it. A lane that goes on beyond the centre,
+   * or ends there with an open end (the map edge), adds an arm ahead; one that comes from beyond, or starts there
+   * with an open start, adds an arm behind. Then junctions left with 2 arms (straight or bend, after a block
+   * merge removed a street) lose their signal: their stop lines only yield to pedestrians on the crosswalk.
+   */
+  private buildArms(): void {
+    const J = this.junctionCount;
+    this.armMask = new Uint8Array(J);
+    this.armCount = new Uint8Array(J);
+    const pose = this.pose;
+    for (let a = 0; a < this.pathCount; a++) {
+      const A = this.models[a];
+      for (const p of A.passes) {
+        poseAt(A, p.sCentre, pose);
+        const ahead = armBit(pose.heading);
+        const behind = armBit(pose.heading + Math.PI);
+        if (p.sCentre < A.length - 3 || A.endOpen) this.armMask[p.junction] |= ahead;
+        if (p.sCentre > 3 || A.startOpen) this.armMask[p.junction] |= behind;
+      }
+    }
+    for (let j = 0; j < J; j++) {
+      const m = this.armMask[j];
+      this.armCount[j] = (m & 1) + ((m >> 1) & 1) + ((m >> 2) & 1) + ((m >> 3) & 1);
+    }
+    for (let a = 0; a < this.pathCount; a++) {
+      for (const line of this.models[a].stops) {
+        if (line.junction >= 0 && this.armCount[line.junction] <= 2) line.lightId = '';
+      }
+    }
+  }
+
+  /** Number of real arms of a junction (4 without block merges). For tests and tooling. */
+  junctionArms(junction: number): number {
+    return this.armCount[junction] ?? 0;
   }
 
   private makeConnector(
@@ -565,6 +622,8 @@ export class VehicleSystem {
       corners: [],
       spawns: [],
       list: [],
+      startOpen: true,
+      endOpen: true,
     };
     return { model, entryS, turn };
   }
@@ -1071,6 +1130,13 @@ export class VehicleSystem {
     v.decided = pass.junction;
     v.plan = -1;
     const roll = this.rng();
+    // A junction a block merge left with fewer arms, or the closed end of this lane: choose only among the
+    // moves that exist, with the 60/20/20 split renormalised over them (straight is impossible at a closed end).
+    const closedEnd = !pm.endOpen && pass.sCentre >= pm.length - 3;
+    if (closedEnd || this.armCount[pass.junction] < 4) {
+      this.decideAmongAllowed(pm, v, pass.junction, roll, !closedEnd);
+      return;
+    }
     if (roll < 1 - TURN_LEFT_CHANCE - TURN_RIGHT_CHANCE) {
       this.turnCounts.straight++;
       return; // straight on
@@ -1086,6 +1152,31 @@ export class VehicleSystem {
       }
     }
     this.turnCounts.straight++; // wanted a turn that does not exist here
+  }
+
+  /** Weighted pick among straight (if allowed) and the turns that exist at this junction. */
+  private decideAmongAllowed(pm: PathModel, v: Vehicle, junction: number, roll: number, straightOk: boolean): void {
+    let left: TurnOption | null = null;
+    let right: TurnOption | null = null;
+    for (let i = 0; i < pm.turns.length; i++) {
+      const t = pm.turns[i];
+      if (t.junction !== junction) continue;
+      if (t.turn === 'left') left = t;
+      else right = t;
+    }
+    const wS = straightOk ? 1 - TURN_LEFT_CHANCE - TURN_RIGHT_CHANCE : 0;
+    const wL = left ? TURN_LEFT_CHANCE : 0;
+    const wR = right ? TURN_RIGHT_CHANCE : 0;
+    const total = wS + wL + wR;
+    const r = roll * total;
+    const pick = total <= 0 || r < wS ? null : r < wS + wL ? left : right;
+    if (!pick) {
+      this.turnCounts.straight++;
+      return;
+    }
+    v.plan = pick.model;
+    v.planEntryS = pick.entryS;
+    this.turnCounts[pick.turn]++;
   }
 
   /**
@@ -1594,19 +1685,55 @@ function filletPath(wp: readonly Vec2[]): { points: Vec2[]; cornerIdx: { index: 
 
 /** Arc length along the polyline of the point closest to p. */
 /** Adds a point `ext` metres beyond each end of the polyline, in the direction the path is heading. */
-function extendWaypoints(w: readonly Vec2[], ext: number): Vec2[] {
-  if (!(ext > 0) || w.length < 2) return w.slice();
+/** Extends a polyline by extStart before its first point and extEnd after its last (0 leaves that end as is). */
+function extendWaypoints(w: readonly Vec2[], extStart: number, extEnd: number): Vec2[] {
+  if (w.length < 2 || (!(extStart > 0) && !(extEnd > 0))) return w.slice();
   const first = w[0];
   const second = w[1];
   const last = w[w.length - 1];
   const before = w[w.length - 2];
   const l0 = Math.hypot(first.x - second.x, first.z - second.z) || 1;
   const l1 = Math.hypot(last.x - before.x, last.z - before.z) || 1;
-  return [
-    { x: first.x + ((first.x - second.x) / l0) * ext, z: first.z + ((first.z - second.z) / l0) * ext },
-    ...w,
-    { x: last.x + ((last.x - before.x) / l1) * ext, z: last.z + ((last.z - before.z) / l1) * ext },
-  ];
+  const out: Vec2[] = [];
+  if (extStart > 0) out.push({ x: first.x + ((first.x - second.x) / l0) * extStart, z: first.z + ((first.z - second.z) / l0) * extStart });
+  out.push(...w);
+  if (extEnd > 0) out.push({ x: last.x + ((last.x - before.x) / l1) * extEnd, z: last.z + ((last.z - before.z) / l1) * extEnd });
+  return out;
+}
+
+/**
+ * Which ends of each lane path are open. An end is open when it lies on the outermost junction of its line (the
+ * town grid's first or last cross street), so the road goes on to the map edge. A block merge cuts a street at an
+ * inner junction: that end is closed. Without merges every end is open.
+ */
+function pathOpenness(layout: CityLayout, orientation: ReadonlyMap<string, 'horizontal' | 'vertical'>): Map<TrafficPath, { start: boolean; end: boolean }> {
+  const ext = { vertical: { min: Infinity, max: -Infinity }, horizontal: { min: Infinity, max: -Infinity } };
+  const along = (p: Vec2, o: 'horizontal' | 'vertical'): number => (o === 'vertical' ? p.z : p.x);
+  for (const path of layout.trafficPaths) {
+    if (path.waypoints.length < 2) continue;
+    const o = orientation.get(path.roadId) ?? 'vertical';
+    for (const p of [path.waypoints[0], path.waypoints[path.waypoints.length - 1]]) {
+      ext[o].min = Math.min(ext[o].min, along(p, o));
+      ext[o].max = Math.max(ext[o].max, along(p, o));
+    }
+  }
+  const out = new Map<TrafficPath, { start: boolean; end: boolean }>();
+  for (const path of layout.trafficPaths) {
+    if (path.waypoints.length < 2) continue;
+    const o = orientation.get(path.roadId) ?? 'vertical';
+    const atEdge = (p: Vec2): boolean => Math.abs(along(p, o) - ext[o].min) < 1e-6 || Math.abs(along(p, o) - ext[o].max) < 1e-6;
+    out.set(path, { start: atEdge(path.waypoints[0]), end: atEdge(path.waypoints[path.waypoints.length - 1]) });
+  }
+  return out;
+}
+
+/** Arm bit for a heading (atan2(dirX, dirZ), 0 = +Z): 1 north (+Z), 2 east (+X), 4 south, 8 west. */
+function armBit(heading: number): number {
+  const h = wrapAngle(heading);
+  if (Math.abs(h) <= Math.PI / 4) return 1;
+  if (h > Math.PI / 4 && h < (3 * Math.PI) / 4) return 2;
+  if (h < -Math.PI / 4 && h > (-3 * Math.PI) / 4) return 8;
+  return 4;
 }
 
 function projectArc(points: readonly Vec2[], cum: readonly number[], p: Vec2): number {

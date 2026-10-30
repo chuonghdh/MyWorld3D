@@ -39,9 +39,18 @@
 - The avenue-versus-street density test averages six seeds. Seed 8 alone dropped to 1.08 after the look rules changed (others 1.2 to 1.4), and the threshold stays at 1.15.
 - Determinism hash EXPECTED_PEDESTRIANS re-captured to '499b5c20' (intentional: looks, speeds, gait, dog fix, hair, pattern and child-pace rules, and the removed dress rolls).
 
+## Block merges (phase 3, traffic)
+- Lane paths: an end is open when it lies on the outermost junction of its grid line (vehicles.ts `pathOpenness`). A merge-cut end is closed: no edge extension, no spawn at a closed start, and a vehicle must turn at a closed end (`decideAmongAllowed`, straight weight 0). Without merges every end is open, so outputs and hashes are unchanged.
+- Junction arms (`buildArms`): counted from the lane paths through a junction; an open path end counts as an arm toward the map edge. 4 arms: old logic and random draws untouched. 3 arms (T): signal kept, the 60/20/20 split renormalised over the moves that exist (through road 75/25). 2 arms (straight or bend): stop lines lose their light (empty lightId), so vehicles only yield to pedestrians on the crosswalk and to the junction grant.
+- Turns into removed arms cannot happen: no lane path exists there, and `makeConnector` rejects targets that end at the junction.
+- Parking: junctions beyond a road piece's ends are ignored; they made spans across the removed part. Output without merges is identical (checked against the old code for 5 seeds).
+- Pedestrians: no code change needed. The graph comes from the remaining roads and crosswalks; the old street mouth on a boundary sidewalk becomes plain sidewalk. Doors on the merged block's new frontage sit up to about 1.5 m inside the old street area, so tests shrink the removed strips 2.5 m back from the remaining streets.
+- Tests: `tests/blockMergeTraffic.test.ts` uses a 2x2 merge (block-2-2..3-3) and a 1x3 merge (block-1-0..1-2). It covers arms, signals, the renormalised split, closed ends, parking, and 20 simulated minutes without gridlock, with nobody on removed streets or on asphalt off a crosswalk.
+- Open: signal heads are drawn by `src/streets/furniture.ts` (City & Streets) for all four arms at every remaining light. It should draw only real arms, and none at 2-arm junctions.
+
 ## Open items
 - Verified only by eye at street level in one close-up (faces, hair cap). Coat tails, hair variety and the morph were not checked by eye after the latest changes.
 - Per-person triangles could be cut by moving hair and garments into their own instanced meshes (more draw calls). Not done.
 
 ## Verify
-`npx vitest run tests/vehicle*.test.ts tests/people.test.ts` (rerun the flake alone), then the full suite.
+`npx vitest run tests/vehicle*.test.ts tests/people.test.ts tests/blockMergeTraffic.test.ts` (rerun the flake alone), then the full suite.

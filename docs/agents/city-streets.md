@@ -37,5 +37,6 @@
 - Ids: houses `block-<c>-<r>`; merged `merged-<c0>-<r0>-<c1>-<r1>` from the covered cell range. Splitting = removing the group.
 - Geometry: merged bounds = union of members; lots = perimeter of the merged bounds; courtyard = interior of the merged bounds (this includes the seams, not only the member courtyards).
 - Streets: an interior grid line of a merge is cut between the two outer streets that bound it (`splitAround`). Road pieces get ids `road-v-<i>-<k>` / `road-h-<j>-<k>`; untouched lines keep `road-v-<i>`. Junctions, crosswalks, lights, lamps, benches and street trees inside the merge are dropped.
-- Traps: traffic paths are built per piece, so a piece ends at the outer junction; vehicles will not turn into the removed street (phase 3 work for Traffic & Life). Lights at boundary junctions still point at removed arms.
+- Traffic paths are built per piece and end at the outer junction; Traffic (phase 3) handles turns, T and 2-arm junctions.
+- Junction arms: `city/junctionArms.ts` (same rule as traffic buildArms: piece continues past the centre, or ends there at the map edge). Signal heads are drawn only for real arms; junctions with 2 arms or fewer get no pole. No merges: 4 arms everywhere, output unchanged.
 - Layout key appends merges only when present; no merges keeps the old key and output (hashes checked in tests/blockMerge.test.ts).

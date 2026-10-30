@@ -62,6 +62,9 @@ export function computeParkingSpots(layout: CityLayout, options: ParkingOptions 
       const lateral = vertical ? it.center.x : it.center.z;
       if (Math.abs(lateral - axis) > 1) continue;
       const along = vertical ? it.center.z : it.center.x;
+      // Only junctions on this road piece: a block merge cuts a street into pieces, and spans built from the
+      // junctions beyond a piece's end would park cars on the removed part.
+      if (along < a0 - 1 || along > a1 + 1) continue;
       const half = (vertical ? it.sizeZ : it.sizeX) / 2;
       cuts.push({ c: along, clear: Math.max(PARKING_MIN_FROM_INTERSECTION, half + 9) });
     }

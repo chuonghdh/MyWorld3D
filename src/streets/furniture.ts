@@ -3,6 +3,7 @@
 
 import * as THREE from 'three';
 import type { CityLayout, Intersection, TrafficLight } from '../city/layout';
+import { ARM_E, ARM_N, ARM_S, ARM_W, armCount, junctionArms } from '../city/junctionArms';
 import type { LightAxis } from '../traffic/lights';
 import { MeshBuilder, placeMatrix } from './builder';
 import { SIDEWALK_TOP } from './surfaces';
@@ -142,27 +143,36 @@ export interface SignalBuild {
   heads: SignalHead[];
   /** Lamp transforms (3 per head): red, yellow, green. */
   lampMatrices: THREE.Matrix4[];
+  /** Signal poles drawn (one per corner that carries at least one head). */
+  poles: { x: number; z: number; lightId: string }[];
 }
 
 /**
- * Four corner poles per signalled intersection. Each pole carries two heads: one facing
- * along z (seen by north-south traffic approaching on that side) and one facing along x.
+ * Up to four corner poles per signalled intersection. Each pole carries up to two heads: one facing along z
+ * (seen by north-south traffic approaching on that side) and one facing along x. A head is drawn only when the
+ * arm it faces exists (junctionArms, same rule as traffic); junctions with two arms or fewer get no signal at all.
+ * Without block merges every junction has four arms, so all four poles and eight heads are drawn.
  */
 function buildSignals(layout: CityLayout, b: MeshBuilder, p: Prims): SignalBuild {
   const heads: SignalHead[] = [];
   const lampMatrices: THREE.Matrix4[] = [];
+  const poles: SignalBuild['poles'] = [];
   const y = SIDEWALK_TOP;
+  const armsAt = junctionArms(layout);
   for (const light of layout.trafficLights) {
     const it = findIntersection(light, layout.intersections);
+    const arms = armsAt(it.cx, it.cz);
+    if (armCount(arms) <= 2) continue;
     for (const sx of [-1, 1]) {
       for (const sz of [-1, 1]) {
         const px = it.cx + sx * (it.sx / 2 + 0.7);
         const pz = it.cz + sz * (it.sz / 2 + 0.7);
+        const faces: { axis: LightAxis; dx: number; dz: number }[] = [];
+        if (arms & (sz > 0 ? ARM_N : ARM_S)) faces.push({ axis: 'ns', dx: 0, dz: sz });
+        if (arms & (sx > 0 ? ARM_E : ARM_W)) faces.push({ axis: 'ew', dx: sx, dz: 0 });
+        if (faces.length === 0) continue;
         addAt(b, p.signalPole, 3.4, px, y, pz, 0, FURNITURE_COLORS.signalPole);
-        const faces: { axis: LightAxis; dx: number; dz: number }[] = [
-          { axis: 'ns', dx: 0, dz: sz },
-          { axis: 'ew', dx: sx, dz: 0 },
-        ];
+        poles.push({ x: px, z: pz, lightId: light.id });
         for (const f of faces) {
           const angle = Math.atan2(f.dx, f.dz); // local +z faces (dx, dz)
           const hx = px + f.dx * HEAD_OFFSET;
@@ -184,7 +194,7 @@ function buildSignals(layout: CityLayout, b: MeshBuilder, p: Prims): SignalBuild
       }
     }
   }
-  return { heads, lampMatrices };
+  return { heads, lampMatrices, poles };
 }
 
 export interface FurnitureBuild {

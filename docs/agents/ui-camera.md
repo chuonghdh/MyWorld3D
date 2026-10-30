@@ -31,6 +31,7 @@
 - Store: `mergeBlockGroup(group)` / `splitMergedBlock(mergedId)` commit settings.blockMerges together with a remapped `blockOrder`/`baseBlockOrder` (`store/merges.ts`, uses `getCityLayout` for the fresh ids), so Town's `setBlockOrder` effect never adds a second history step and undo/redo restore both. `swapBlocks` refuses merged blocks of different cell size.
 - DOM icons: `ui/BlockEditOverlay.tsx` registers elements in fixed anchor slots (`scene/blockEditAnchors.ts`, slot 0 = +/-, 1..4 = suggestion chips); BlockEditor projects them each frame with one preallocated vector and writes `transform` only when moved > 0.5 px. Buttons are 44 px.
 - Decals (selected, hovered, suggestions) use `depthTest: false` at y = 0.3 so they read over roofs like a map overlay.
+- Help overlay (`ui/HelpOverlay.tsx`) has a "Block editing" group: mode by height, chip, +, −, save/undo.
 - Phones: a block picked in block mode does not auto-open the full-screen panel (it would hide the map icons); Merge in the panel folds it so the suggestion boxes are visible.
 
 ### Traps
@@ -39,5 +40,11 @@
 
 ### Open items
 - Merge time for 2x2 (~2.4 s) is still a visible pause; faster needs Buildings (house build cost) or an incremental streetscape.
-- Help overlay does not mention block editing yet.
 - Traffic still uses removed street pieces logic per phase 1 (phase 3).
+
+## Boot spinner and error screen
+- `index.html` holds the boot screen inline (markup + CSS, dark body `#1c1816`) so it paints before JS. An inline script turns it into an error panel on `window` error / `unhandledrejection` (and module script `onerror`) while it is still visible.
+- `scene/FirstFrame.tsx` (in the Canvas) calls `ui/boot.ts` `bootDone()` after the first frame: 0.45 s fade, then removed; no fade or spin under `prefers-reduced-motion`.
+- `ui/ErrorBoundary.tsx` wraps `<App/>` in `main.tsx`; Canvas render errors reach it. Fallback reuses the `.mw-boot*` styles: title, message (max 400 chars), Reload. Tests: `tests/errorBoundary.test.ts` (renderToString, node env, no jsdom).
+- Dev-only check: `?mwThrow=render` makes FirstFrame throw (gated by `import.meta.env.DEV`).
+- Traps: errors in `useFrame` after the first frame are not render errors: the boundary does not see them and the boot screen is gone, so the scene just stops. In dev React also reports boundary-caught errors to `window`, so before the first frame both panels may show the same message.
