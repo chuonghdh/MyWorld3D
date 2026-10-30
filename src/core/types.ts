@@ -68,4 +68,6 @@ export interface WorldSettings {
   leafAmount: number;
   leafSize: number;
   soundEnabled: boolean;
+  /** Block merges: each group lists the ids of 2 to 4 neighbouring house blocks (see city/merge.ts). Default none. */
+  blockMerges?: string[][];
 }

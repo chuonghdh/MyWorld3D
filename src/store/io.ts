@@ -76,6 +76,11 @@ function expectOneOf<T extends string>(v: unknown, options: readonly T[], name: 
   return v as T;
 }
 
+function expectArray(v: unknown, name: string): unknown[] {
+  if (!Array.isArray(v)) fail(`${name} must be an array`);
+  return v as unknown[];
+}
+
 function expectStringArray(v: unknown, name: string): string[] {
   if (!Array.isArray(v) || !v.every((x) => typeof x === 'string')) {
     fail(`${name} must be an array of strings`);
@@ -90,6 +95,11 @@ function parseSettings(v: unknown): WorldSettings {
   const out: Record<string, unknown> = {};
   for (const key of Object.keys(DEFAULT_SETTINGS) as (keyof WorldSettings)[]) {
     const raw = o[key];
+    // Block merges arrived after the first save format: older files have none.
+    if (raw === undefined && key === 'blockMerges') {
+      out[key] = [];
+      continue;
+    }
     // Weather arrived later than version 1 files: old files fall back to the defaults.
     if (raw === undefined && (key === 'weather' || key === 'weatherIntensity' || key === 'quality')) {
       out[key] = DEFAULT_SETTINGS[key];
@@ -112,6 +122,11 @@ function parseSettings(v: unknown): WorldSettings {
         break;
       case 'soundEnabled':
         out[key] = expectBoolean(raw, 'settings.soundEnabled');
+        break;
+      case 'blockMerges':
+        out[key] = expectArray(raw, 'settings.blockMerges').map((g, i) =>
+          expectStringArray(g, `settings.blockMerges[${i}]`),
+        );
         break;
       default:
         out[key] = expectNumber(raw, `settings.${key}`);

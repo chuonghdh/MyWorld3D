@@ -139,6 +139,13 @@ export interface TrafficPath {
   trafficLightIds: string[];
 }
 
+/** A merged house block: its member block ids (see city/merge.ts) and the union of their bounds. Phase 1. */
+export interface BlockMerge {
+  id: string;
+  members: string[];
+  bounds: Rect;
+}
+
 export interface CityLayout {
   seed: number;
   /** Town extent, centred on origin. */
@@ -154,4 +161,6 @@ export interface CityLayout {
   benches: Bench[];
   crosswalks: Crosswalk[];
   intersections: Intersection[];
+  /** Block merges in force, only present when there is at least one. */
+  merges?: BlockMerge[];
 }

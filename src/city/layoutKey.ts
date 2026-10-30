@@ -8,11 +8,14 @@ import type { WorldSettings } from '../core/types';
 /** Traffic density the stable layout is generated at (spawn points are re-derived on top of it). */
 export const LAYOUT_TRAFFIC_BASE = 1;
 
-type LayoutInput = Pick<WorldSettings, 'seed' | 'townWidth' | 'townDepth' | 'streetTreeMultiplier'>;
+type LayoutInput = Pick<WorldSettings, 'seed' | 'townWidth' | 'townDepth' | 'streetTreeMultiplier' | 'blockMerges'>;
 
 /** Equal keys mean an identical layout. Deliberately ignores trafficMultiplier and every non-layout setting. */
 export function cityLayoutKey(s: LayoutInput): string {
-  return [s.seed, s.townWidth, s.townDepth, s.streetTreeMultiplier].join('|');
+  const base = [s.seed, s.townWidth, s.townDepth, s.streetTreeMultiplier].join('|');
+  const merges = s.blockMerges ?? [];
+  // Merges are appended only when present, so a town without merges keeps its key.
+  return merges.length === 0 ? base : `${base}|merges:${JSON.stringify(merges)}`;
 }
 
 /** Returns a function that regenerates the city only when cityLayoutKey changes. */

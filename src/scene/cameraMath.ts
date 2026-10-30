@@ -26,6 +26,16 @@ export const EYE_HEIGHT = 1.7;
 export const TWEEN_SECONDS = 1;
 /** Pan limit: the orbit target may leave the town bounds by this many metres. */
 export const PAN_MARGIN = 40;
+/**
+ * Block editing height: with the camera higher than this above the ground (y = 0), a tap selects a whole block
+ * (merge and split); at or below it, a tap selects a house. The only place this threshold is defined.
+ */
+export const BLOCK_EDIT_HEIGHT_M = 200;
+
+/** Tap mode for a camera at height `y` (metres above the ground). */
+export function editModeForHeight(y: number): 'house' | 'block' {
+  return y > BLOCK_EDIT_HEIGHT_M ? 'block' : 'house';
+}
 
 /**
  * Near and far clip planes for a camera at distance `dist` from the orbit target.

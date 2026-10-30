@@ -22,3 +22,22 @@
 
 ## Verify
 `npx vitest run tests/ui.test.ts tests/cameraRig.test.ts tests/selection.test.ts tests/store*.test.ts`.
+
+## Block merge UI (phase 2)
+- Edit mode by camera height: `BLOCK_EDIT_HEIGHT_M = 200` and `editModeForHeight` in `scene/cameraMath.ts` (only place). `scene/BlockEditor.tsx` checks `camera.position.y` each frame and writes `store.editMode` only on change. `ui/useBlockEdit.ts` clears a selection that no longer fits the mode (house/tree in block mode, house block in house mode). Mode chip bottom centre (`EditModeChip`).
+- Picking in block mode: one invisible plane at y = 150 m (above every roof, below any block-mode camera) over the town, mounted only in block mode and not while Move blocks is on. It stops the event (houses, trees, hover do not react), intersects the ray with y = 0 and picks the block by bounds (`scene/blockEditMath.ts`). Drags (`e.delta` > 6 px) are ignored.
+- Ids: a house-block selection is `{ type: 'block', id: <slot id> }`; monuments keep their content id (as in house mode). Swapped blocks and blocks overridden to monuments cannot merge (`canMerge`).
+- Suggestions: `mergeSuggestions(layout, id, eligible)` in `city/merge.ts` (owned by City & Streets, added with their consent): grow the current rectangle by one whole strip W/E/S/N, area <= 4, all added blocks free house blocks. `grownGroup` gives the full member list.
+- Store: `mergeBlockGroup(group)` / `splitMergedBlock(mergedId)` commit settings.blockMerges together with a remapped `blockOrder`/`baseBlockOrder` (`store/merges.ts`, uses `getCityLayout` for the fresh ids), so Town's `setBlockOrder` effect never adds a second history step and undo/redo restore both. `swapBlocks` refuses merged blocks of different cell size.
+- DOM icons: `ui/BlockEditOverlay.tsx` registers elements in fixed anchor slots (`scene/blockEditAnchors.ts`, slot 0 = +/-, 1..4 = suggestion chips); BlockEditor projects them each frame with one preallocated vector and writes `transform` only when moved > 0.5 px. Buttons are 44 px.
+- Decals (selected, hovered, suggestions) use `depthTest: false` at y = 0.3 so they read over roofs like a map overlay.
+- Phones: a block picked in block mode does not auto-open the full-screen panel (it would hide the map icons); Merge in the panel folds it so the suggestion boxes are visible.
+
+### Traps
+- Merge cost is the scene rebuild, not the layout (generateCity ~10 ms). `useTownPieces` used to drop its whole piece cache on every layout change (7.7 s per merge); the cache now survives layouts with the lots and bounds in the signature (file owned by Scene & QA, changed for this task). Measured (dev, warm): 1x1 -> 1x2 ~0.9-1.0 s, 1x2 -> 2x2 ~2.4 s; houses cost ~17 ms each (buildHouse + merge), streetscape ~170 ms. The edit runs after one paint so the chip shows "Updating blocks…".
+- Vite HMR on hook-order changes throws "Should have a queue" in App/Town; reload the page, it is not a bug.
+
+### Open items
+- Merge time for 2x2 (~2.4 s) is still a visible pause; faster needs Buildings (house build cost) or an incremental streetscape.
+- Help overlay does not mention block editing yet.
+- Traffic still uses removed street pieces logic per phase 1 (phase 3).

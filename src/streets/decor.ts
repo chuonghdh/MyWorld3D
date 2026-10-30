@@ -370,15 +370,21 @@ function planKerbs(layout: CityLayout, frames: readonly Frame[], plan: DecorPlan
   const vRoads = frames.filter((f) => f.vertical);
   const hRoads = frames.filter((f) => !f.vertical);
   for (const it of layout.intersections) {
-    const v = vRoads.find((f) => Math.abs(f.v - it.center.x) < 0.01);
-    const h = hRoads.find((f) => Math.abs(f.v - it.center.z) < 0.01);
-    if (!v || !h) continue;
+    // A grid line can be split into pieces (block merges), so each side is checked against every piece on it.
+    const vs = vRoads.filter((f) => Math.abs(f.v - it.center.x) < 0.01);
+    const hs = hRoads.filter((f) => Math.abs(f.v - it.center.z) < 0.01);
     for (const sx of [-1, 1] as const) {
       for (const sz of [-1, 1] as const) {
         // The corner square exists when both roads continue past the junction on that side.
-        const reachX = it.center.x + sx * (v.half + v.sw);
-        const reachZ = it.center.z + sz * (h.half + h.sw);
-        if (reachX < h.u0 || reachX > h.u1 || reachZ < v.u0 || reachZ > v.u1) continue;
+        let found = false;
+        for (const v of vs) {
+          for (const h of hs) {
+            const reachX = it.center.x + sx * (v.half + v.sw);
+            const reachZ = it.center.z + sz * (h.half + h.sw);
+            if (reachX >= h.u0 && reachX <= h.u1 && reachZ >= v.u0 && reachZ <= v.u1) found = true;
+          }
+        }
+        if (!found) continue;
         plan.kerbCorners.push({ x: it.center.x + sx * it.sizeX / 2, z: it.center.z + sz * it.sizeZ / 2, sx, sz, r: KERB_RADIUS });
       }
     }

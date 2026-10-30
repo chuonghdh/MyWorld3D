@@ -127,6 +127,7 @@ export const DEFAULT_SETTINGS: WorldSettings = {
   leafAmount: 1,
   leafSize: 1,
   soundEnabled: true,
+  blockMerges: [],
   weather: 'clear',
   weatherIntensity: 0.6,
   quality: 'high',

@@ -28,7 +28,9 @@ interface PieceInputs {
 }
 
 export function useTownPieces({ layout, order, base, blockOverrides, houseOverrides, smoke, seed }: PieceInputs): BlockPiece[] {
-  const cache = useMemo(() => new Map<string, BlockPiece>(), [layout]);
+  // Kept across layouts: a merge or split regenerates the layout, but blocks whose lots did not change keep their
+  // built geometry (the lots are part of the signature), so only the merged or split blocks are rebuilt.
+  const cache = useRef(new Map<string, BlockPiece>()).current;
   const previous = useRef<BlockPiece[]>([]);
 
   const pieces: BlockPiece[] = useMemo(() => {
@@ -45,7 +47,7 @@ export function useTownPieces({ layout, order, base, blockOverrides, houseOverri
       const kind = bo.kind ?? block.kind;
       const lots = lotsByBlock.get(block.id) ?? [];
       const houseOv = kind === 'houses' ? lots.map((l) => houseOverrides[l.id] ?? null) : [];
-      const signature = JSON.stringify([offset, bo, houseOv]);
+      const signature = JSON.stringify([offset, bo, houseOv, lots, block.bounds]);
       const cached = cache.get(block.id);
       if (cached && cached.signature === signature) {
         out.push(cached);
@@ -106,9 +108,14 @@ export function useTownPieces({ layout, order, base, blockOverrides, houseOverri
   }, [pieces, smoke, seed]);
 
   useEffect(() => {
-    // Free blocks that left the scene because the layout was regenerated.
-    const live = new Set(pieces);
-    for (const p of previous.current) if (!live.has(p) && !cache.has(p.blockId)) disposePiece(p);
+    // Free blocks that left the scene because the layout was regenerated (merged away or split).
+    // Pieces rebuilt in place were disposed when replaced; here only blocks whose id is gone are freed.
+    const liveIds = new Set(pieces.map((p) => p.blockId));
+    for (const [id, p] of cache) {
+      if (liveIds.has(id)) continue;
+      cache.delete(id);
+      disposePiece(p);
+    }
     previous.current = pieces;
   }, [pieces, cache]);
 

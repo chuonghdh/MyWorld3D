@@ -31,3 +31,11 @@
 
 ## Verify
 `npx vitest run tests/streets.test.ts tests/streetDecor.test.ts tests/kerbCorners.test.ts tests/budget.test.ts`.
+
+## Block merging (phase 1: data and geometry)
+- Input: `blockMerges` in the settings (default none). Each group lists 2 to 4 house block ids forming one full rectangle of grid cells (`city/merge.ts`, `resolveBlockMerges`). Other groups are rejected and ignored.
+- Ids: houses `block-<c>-<r>`; merged `merged-<c0>-<r0>-<c1>-<r1>` from the covered cell range. Splitting = removing the group.
+- Geometry: merged bounds = union of members; lots = perimeter of the merged bounds; courtyard = interior of the merged bounds (this includes the seams, not only the member courtyards).
+- Streets: an interior grid line of a merge is cut between the two outer streets that bound it (`splitAround`). Road pieces get ids `road-v-<i>-<k>` / `road-h-<j>-<k>`; untouched lines keep `road-v-<i>`. Junctions, crosswalks, lights, lamps, benches and street trees inside the merge are dropped.
+- Traps: traffic paths are built per piece, so a piece ends at the outer junction; vehicles will not turn into the removed street (phase 3 work for Traffic & Life). Lights at boundary junctions still point at removed arms.
+- Layout key appends merges only when present; no merges keeps the old key and output (hashes checked in tests/blockMerge.test.ts).
