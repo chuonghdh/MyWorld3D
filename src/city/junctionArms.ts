@@ -20,7 +20,7 @@ export function armCount(mask: number): number {
 }
 
 /** Returns a lookup `(x, z) => arm mask` for junction centres of `layout`. */
-export function junctionArms(layout: CityLayout): (x: number, z: number) => number {
+export function junctionArms(layout: Pick<CityLayout, 'roads'>): (x: number, z: number) => number {
   const ext = { v: { min: Infinity, max: -Infinity }, h: { min: Infinity, max: -Infinity } };
   const pieces = layout.roads.map((r) => {
     const vertical = r.orientation === 'vertical';

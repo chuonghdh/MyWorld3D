@@ -14,13 +14,18 @@ export interface Rect {
   maxZ: number;
 }
 
+/** Open interior of a block. `merged` is set (true) only on the courtyard of a merged block. */
+export interface CourtyardRect extends Rect {
+  merged?: true;
+}
+
 /** A rectangular area holding either houses or one monument. */
 export interface Block {
   id: string;
   kind: BlockKind;
   bounds: Rect;
   /** v2: open interior of a perimeter block, or null when the block has none (monuments, small blocks). */
-  courtyard: Rect | null;
+  courtyard: CourtyardRect | null;
 }
 
 /** A building plot inside a block. Its front faces the street. */

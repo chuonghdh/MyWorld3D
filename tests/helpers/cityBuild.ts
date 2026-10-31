@@ -5,6 +5,7 @@ import { generateCity, type Lot } from '../../src/city';
 import { buildHouse, defaultHouseParams, type HouseParams } from '../../src/buildings';
 import { mergeByMaterial, type PlacedObject } from '../../src/scene/mergeBlock';
 import { blockPresetFor, lotStyle } from '../../src/scene/cityStyle';
+import { styleKeyFor } from '../../src/scene/townBlocks';
 import { DEFAULT_SETTINGS } from '../../src/store/model';
 
 /** Mirror of lotMatrix in Town.tsx (no block offset: blocks stay in their own slot). */
@@ -18,7 +19,7 @@ export function lotMatrix(lot: Lot): THREE.Matrix4 {
 
 /** Mirror of houseParamsFor in Town.tsx without overrides. */
 export function houseParamsFor(lot: Lot, blockId: string): HouseParams {
-  const style = lotStyle(lot, blockPresetFor(blockId));
+  const style = lotStyle(lot, blockPresetFor(styleKeyFor(lot, blockId)));
   const preset = style.preset;
   const defaults = defaultHouseParams(preset, 'classic');
   const floors = preset === 'glass-tower' ? Math.max(lot.floors, 7) : lot.floors;
@@ -35,6 +36,7 @@ export function houseParamsFor(lot: Lot, blockId: string): HouseParams {
     facades: lot.facades,
     groundFloor: lot.groundFloor,
     seed: lot.seed,
+    ...(blockId.startsWith('merged-') ? { sharedCourtyard: true } : {}),
   };
 }
 

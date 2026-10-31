@@ -35,14 +35,19 @@ export function rearElevation(ctx: Ctx, seg: Segment): void {
   const sillCol = scale(c.trim, 0.85);
   const roofSurface = ctx.roofSurface === SURFACE.PLAIN ? SURFACE.ZINC : ctx.roofSurface;
 
-  // Window columns: about 55% of the front bays, irregularly spaced.
+  // A merged block's shared courtyard is seen from far across the garden, so its backs read as a second
+  // facade: nearly the front rhythm, more balconies, extensions and laundry. A private yard keeps the
+  // sparse, irregular back (and its random stream is consumed exactly as before).
+  const shared = ctx.sharedCourtyard;
+
+  // Window columns: about 55% of the front bays (85% on a shared courtyard), irregularly spaced.
   const frontBays = bayColumns(ctx, L).centres.length;
-  const nCols = Math.max(1, Math.round(frontBays * 0.55));
+  const nCols = Math.max(shared && L >= 4.5 ? 2 : 1, Math.round(frontBays * (shared ? 0.85 : 0.55)));
   const slot = (L - 0.8) / nCols;
 
-  // Extension (lean-to or stair tower) on about 40% of houses.
+  // Extension (lean-to or stair tower) on about 40% of houses (65% on a shared courtyard).
   let ext: Ext | null = null;
-  if (L >= 5 && ctx.floors >= 2 && chance(rng, 0.4)) {
+  if (L >= 5 && ctx.floors >= 2 && chance(rng, shared ? 0.65 : 0.4)) {
     const tower = ctx.floors >= 3 && L >= 6.5 && chance(rng, 0.4);
     const w = tower ? range(rng, 1.7, 2.1) : Math.min(L - 2.2, range(rng, L * 0.35, L * 0.5));
     if (w > 1.2) {
@@ -66,7 +71,7 @@ export function rearElevation(ctx: Ctx, seg: Segment): void {
   const cols: Col2[] = [];
   for (let k = 0; k < nCols; k++) {
     const cu = -L / 2 + 0.4 + (k + 0.5) * slot + range(rng, -slot * 0.12, slot * 0.12);
-    const w = Math.max(0.55, Math.min(look.win.w * range(rng, 0.65, 0.9), slot - 0.5));
+    const w = Math.max(0.55, Math.min(look.win.w * (shared ? range(rng, 0.82, 0.98) : range(rng, 0.65, 0.9)), slot - 0.5));
     cols.push({ cu, w, hMul: range(rng, 0.85, 1.1) });
   }
   const blocked = (cu: number, w: number, floor: number): boolean => {
@@ -121,8 +126,8 @@ export function rearElevation(ctx: Ctx, seg: Segment): void {
 
   // Which floors get balconies and where.
   const balcony = new Map<number, number>();
-  if (ctx.floors >= 3 && chance(rng, 0.55)) {
-    const n = chance(rng, 0.4) ? 2 : 1;
+  if (ctx.floors >= 3 && chance(rng, shared ? 0.9 : 0.55)) {
+    const n = shared ? int(rng, 2, Math.min(4, ctx.floors)) : chance(rng, 0.4) ? 2 : 1;
     for (let i = 0; i < n; i++) {
       const f = int(rng, 1, ctx.floors - 1);
       const ci = int(rng, 0, cols.length - 1);
@@ -139,7 +144,7 @@ export function rearElevation(ctx: Ctx, seg: Segment): void {
     cols.forEach((cl, ci) => {
       if (blocked(cl.cu, cl.w, f)) return;
       if (f === 0 && doorCol === cl) return;
-      if (f > 0 && chance(rng, 0.07)) return;
+      if (f > 0 && chance(rng, shared ? 0.02 : 0.07)) return;
       const isBalc = balcony.get(f) === ci;
       const stair = ci === stairCol && f > 0;
       const w = (stair ? Math.min(0.7, cl.w) : cl.w) * (isBalc ? 1.0 : range(rng, 0.92, 1.05));
@@ -214,7 +219,7 @@ export function rearElevation(ctx: Ctx, seg: Segment): void {
   }
 
   // Washing line.
-  if (ctx.floors >= 2 && L >= 5 && chance(rng, 0.25)) {
+  if (ctx.floors >= 2 && L >= 5 && chance(rng, shared ? 0.45 : 0.25)) {
     const f = int(rng, 1, ctx.floors - 1);
     const a = -L / 2 + 0.7 + range(rng, 0, L * 0.15);
     const b = a + Math.min(L - 1.6, 2.2);

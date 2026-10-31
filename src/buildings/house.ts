@@ -76,6 +76,12 @@ export interface HouseParams {
   seed?: number;
   /** Lot on an avenue: shopfronts may carry blade signs (corner lots always may). Default: false. */
   avenue?: boolean;
+  /**
+   * The back faces a large courtyard shared by a merged block (seen from far across the garden) instead of a
+   * small private yard: the rear elevation gets near-front window rhythm, more balconies, back extensions and
+   * washing lines. Default: false (unchanged output).
+   */
+  sharedCourtyard?: boolean;
 }
 
 /** Full, valid params for a preset: its default floors, roof, wall colour and shutters for the style. */
@@ -211,6 +217,7 @@ export function buildHouse(params: HouseParams): THREE.Group {
     rngSign: makeRng(hashSeed(seed, lay.preset, 'sign')),
     rngDetail: makeRng(hashSeed(seed, lay.preset, 'detail')),
     avenue: corner || params.avenue === true,
+    sharedCourtyard: params.sharedCourtyard === true,
     chimneyTops: [],
   };
 

@@ -394,6 +394,12 @@ export class VehicleSystem {
 
     const orientation = new Map(layout.roads.map((r) => [r.id, r.orientation] as const));
     const lightPos = new Map(layout.trafficLights.map((l) => [l.id, l.position] as const));
+    // A 2-arm junction (block merges) has no light; its id still marks the junction, so the stop line in front of the
+    // crosswalk is kept (buildArms clears its signal and vehicles only yield to pedestrians there).
+    for (const it of layout.intersections) {
+      const id = it.id.replace(/^intersection-/, "light-");
+      if (!lightPos.has(id)) lightPos.set(id, it.center);
+    }
     const ext = options.edgeExtension ?? EDGE_EXTENSION;
     const openness = pathOpenness(layout, orientation);
 

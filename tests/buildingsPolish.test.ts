@@ -258,3 +258,46 @@ describe('monuments stay rigid except genuinely flexible parts', () => {
     }
   });
 });
+
+describe('houses on the shared courtyard of a merged block', () => {
+  const geomKey = (g: THREE.Object3D): string => {
+    const parts: string[] = [];
+    g.traverse((o) => {
+      if (!(o instanceof THREE.Mesh)) return;
+      const p = (o.geometry as THREE.BufferGeometry).getAttribute('position');
+      let h = 0;
+      for (let i = 0; i < p.array.length; i++) h = (h * 31 + Math.round((p.array[i] as number) * 1000)) | 0;
+      parts.push(`${o.name}:${p.count}:${h}`);
+    });
+    return parts.join('|');
+  };
+  const glassOf = (g: THREE.Object3D): number => {
+    let n = 0;
+    g.traverse((o) => {
+      if (o instanceof THREE.Mesh && o.name.startsWith('glass')) n += (o.geometry as THREE.BufferGeometry).getAttribute('position').count;
+    });
+    return n;
+  };
+
+  it('sharedCourtyard: false or absent builds exactly the same house', () => {
+    for (const preset of HOUSE_PRESETS) {
+      const p = { ...defaultHouseParams(preset), floors: 5, width: 11, depth: 14, seed: 4, facades: { front: true, back: false, left: true, right: false } };
+      expect(geomKey(buildHouse({ ...p, sharedCourtyard: false }))).toBe(geomKey(buildHouse(p)));
+    }
+  });
+
+  it('gives the courtyard back more windows, deterministically', () => {
+    let richer = 0;
+    for (const preset of HOUSE_PRESETS) {
+      for (const seed of [2, 5, 9]) {
+        const facades = { front: true, back: false, left: false, right: false };
+        const p = { ...defaultHouseParams(preset), floors: 5, width: 11, depth: 14, seed, facades };
+        const a = buildHouse({ ...p, sharedCourtyard: true });
+        expect(geomKey(a)).toBe(geomKey(buildHouse({ ...p, sharedCourtyard: true })));
+        if (glassOf(a) > glassOf(buildHouse(p))) richer++;
+      }
+    }
+    // Every preset with a rear elevation gains glass on most seeds.
+    expect(richer).toBeGreaterThan(HOUSE_PRESETS.length * 2);
+  });
+});

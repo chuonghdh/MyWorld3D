@@ -54,3 +54,4 @@
 
 ## Verify
 `npx vitest run tests/vehicle*.test.ts tests/people.test.ts tests/blockMergeTraffic.test.ts` (rerun the flake alone), then the full suite.
+- 2-arm junctions have no light in `layout.trafficLights` (City & Streets, generate.ts). `lightPos` in vehicles.ts falls back to the intersection centre for the stop line when the path's light id is missing.

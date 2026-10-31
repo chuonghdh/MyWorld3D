@@ -68,7 +68,7 @@ export function lotMatrix(lot: Lot, offset: { x: number; z: number }): THREE.Mat
 }
 
 export function houseParamsFor(lot: Lot, blockId: string, ov: HouseOverride): HouseParams {
-  const style = lotStyle(lot, blockPresetFor(blockId));
+  const style = lotStyle(lot, blockPresetFor(styleKeyFor(lot, blockId)));
   const preset = ov.preset && ov.preset !== 'as-block' ? ov.preset : style.preset;
   const defaults = defaultHouseParams(preset, ov.style ?? 'classic');
   const floors = preset === 'glass-tower' ? Math.max(lot.floors, 7) : lot.floors;
@@ -85,7 +85,21 @@ export function houseParamsFor(lot: Lot, blockId: string, ov: HouseOverride): Ho
     facades: lot.facades,
     groundFloor: lot.groundFloor,
     seed: lot.seed,
+    ...(blockId.startsWith('merged-') ? { sharedCourtyard: true } : {}),
   };
+}
+
+/** Lots per style run along a merged block's perimeter (about one side of an original block). */
+const MERGED_STYLE_RUN = 5;
+
+/**
+ * Key of the dominant style of a lot. A plain block has one style; a merged block (2 to 4 times the perimeter)
+ * changes its dominant style every few lots along the ring, so long sides do not repeat one style all round.
+ */
+export function styleKeyFor(lot: Lot, blockId: string): string {
+  if (!blockId.startsWith('merged-')) return blockId;
+  const k = Number(/-lot-(\d+)$/.exec(lot.id)?.[1] ?? 0);
+  return `${blockId}:run-${Math.floor(k / MERGED_STYLE_RUN)}`;
 }
 
 /** The lot under a world point, using each lot's rotated footprint plus its street-side protrusion zone. */

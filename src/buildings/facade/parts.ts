@@ -77,6 +77,8 @@ export interface Ctx extends Layout {
   rngDetail: Rng;
   /** Corner or avenue lot: shops may carry a blade sign. */
   avenue: boolean;
+  /** Back faces a merged block's shared courtyard: richer rear elevation (see HouseParams.sharedCourtyard). */
+  sharedCourtyard: boolean;
   /** Collected chimney pot tops. */
   chimneyTops: HouseChimney[];
 }

@@ -36,6 +36,16 @@ export interface Streetscape {
   intersections: Intersection[];
 }
 
+/** Footprint radius of a courtyard tree (times its scale), used as an obstacle for courtyard greenery. */
+export const COURTYARD_TREE_RADIUS = 1.5;
+
+/** Courtyard trees as greenery obstacles: the list Scene and the fountain footprint both pass to the greenery. */
+export function courtyardTreeObstacles(trees: readonly StreetTree[]): { x: number; z: number; r: number }[] {
+  return trees
+    .filter((t) => t.setting === 'courtyard')
+    .map((t) => ({ x: t.position.x, z: t.position.z, r: COURTYARD_TREE_RADIUS * t.scale }));
+}
+
 const TREE_SPECIES: readonly TreeSpecies[] = ['maple', 'oak', 'birch', 'ginkgo'];
 
 /** Lamp spacing along one sidewalk; the two sides are staggered by half of it. */

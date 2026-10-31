@@ -10,6 +10,7 @@ import { bloomOpenness, foliageShift } from './seasons';
 export const TAG_FIXED = 0; // stone, soil, bark: never changes
 export const TAG_FOLIAGE = 1; // hedge and bush leaves
 export const TAG_BLOOM = 2; // flowers
+export const TAG_EVERGREEN = 3; // conifer needles: keep their colour, only take snow on top
 
 const DRY = new THREE.Color('#8a6a45');
 const WITHERED = new THREE.Color('#d9d3c6');
@@ -51,6 +52,8 @@ export function applySeasonPaint(geometry: THREE.BufferGeometry, state: PaintSta
       if (shift.amount > 0) c.lerp(target, shift.amount);
       if (season === 'spring' && r > 0.9) c.lerp(SPRING_FLECK, 0.7); // a few white blossom flecks
       if (shift.snow > 0 && up > 0.5) c.lerp(SNOW, shift.snow);
+    } else if (tag === TAG_EVERGREEN) {
+      if (shift.snow > 0 && up > 0.3) c.lerp(SNOW, shift.snow);
     } else if (tag === TAG_BLOOM) {
       if (open <= 0) c.lerp(up > 0.3 ? SNOW : WITHERED, 0.8);
       else if (r > open) c.lerp(DRY, 0.7); // closed or withered bloom

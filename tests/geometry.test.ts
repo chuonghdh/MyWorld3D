@@ -173,6 +173,25 @@ describe('single houses', () => {
     expect(n).toBe(40);
   }, 120_000);
 
+  it('shared-courtyard backs (merged blocks) are free of z-fights, bad winding and see-through gaps', () => {
+    const failures: string[] = [];
+    let n = 0;
+    for (const preset of HOUSE_PRESETS) {
+      for (const floors of [2, 4, 8]) {
+        for (const seed of [1, 7]) {
+          const base = defaultHouseParams(preset, 'classic');
+          const facades = seed === 1 ? FACADE_SETS.front : FACADE_SETS['front+left'];
+          const params: HouseParams = { ...base, floors, seed, facades, width: 11, depth: 15, sharedCourtyard: true };
+          const msg = check(`${preset}/shared/f${floors}/s${seed}`, params);
+          n++;
+          if (msg) failures.push(msg);
+        }
+      }
+    }
+    expect(failures.slice(0, 6).join('\n')).toBe('');
+    expect(n).toBeGreaterThan(40);
+  }, 120_000);
+
   it('stays inside the triangle budget', () => {
     const p: HouseParams = { ...defaultHouseParams('original-feuilles', 'classic'), floors: 5, width: 12, depth: 14, seed: 3 };
     const g = buildHouse(p);

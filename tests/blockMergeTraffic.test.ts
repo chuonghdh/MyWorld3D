@@ -104,6 +104,11 @@ describe('block merges: junction arms and signals', () => {
     expect(withMerge.stopLineFor('path-road-h-4-pos', 'light-3-4')).toBeNull();
     expect(withMerge.stopLineFor('path-road-v-4-pos', 'light-4-3')).toBeNull();
     expect(withMerge.stopLineFor('path-road-v-2-pos', 'light-2-2')).not.toBeNull(); // T junction keeps its signal
+    // The layout itself has no light at 2-arm junctions (generateCity, city/junctionArms) and keeps it at T junctions.
+    const ids = new Set(merged.trafficLights.map((l) => l.id));
+    expect(ids.has('light-3-4')).toBe(false);
+    expect(ids.has('light-4-3')).toBe(false);
+    expect(ids.has('light-2-2')).toBe(true);
   });
 
   it('renormalises the 60/20/20 split at a T junction: about 75 percent straight on the through road', () => {

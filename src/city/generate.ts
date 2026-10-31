@@ -8,6 +8,7 @@
 import { createRng } from '../core/rng';
 import type { BlockKind, StreetClass, Vec2, WorldSettings } from '../core/types';
 import { monumentLot, perimeterLots, type EdgeClasses } from './blocks';
+import { ARM_E, ARM_N, ARM_S, ARM_W, armCount, junctionArms } from './junctionArms';
 import { hashId, houseBlockId, mergedBlockId, memberIds, resolveBlockMerges, unionBounds, type MergeRect } from './merge';
 import type {
   Block,
@@ -295,7 +296,7 @@ export function generateCity(settings: WorldSettings): CityLayout {
       // Own random stream per merged block (keyed by its id), so no other block is affected.
       const rng = createRng((seed ^ MERGE_SALT ^ hashId(id)) >>> 0);
       const built = perimeterLots(id, bounds, classes, rng);
-      outBlocks.push({ id, kind: 'houses', bounds, courtyard: built.courtyard });
+      outBlocks.push({ id, kind: 'houses', bounds, courtyard: built.courtyard ? { ...built.courtyard, merged: true } : null });
       mergedLots.push(...built.lots);
       mergeRecords.push({ id, members, bounds });
     }
@@ -362,24 +363,39 @@ export function generateCity(settings: WorldSettings): CityLayout {
   const streetTrees = streetscape.streetTrees.filter((t) => !(t.setting === 'street' && inMerged(t.position.x, t.position.z)));
   const lamps = streetscape.lamps.filter((l) => !inMerged(l.position.x, l.position.z));
   const benches = streetscape.benches.filter((b) => !inMerged(b.position.x, b.position.z));
+  // Real arms of every junction (city/junctionArms.ts). Without merges every junction has four.
+  const armsAt = junctionArms({ roads });
+  const nearestLine = (lines: readonly GridLine[], v: number) =>
+    lines.reduce((best, l, k) => (Math.abs(l.pos - v) < Math.abs(lines[best].pos - v) ? k : best), 0);
+  // A crossing joins the two sidewalk corners on either side of the street it crosses. Those corners exist only
+  // where the perpendicular street carries on: a crossing whose far end would meet a merged block's house wall
+  // (the perpendicular arm is gone) is dropped, and its tactile bars with it (they derive from crosswalks).
   const crosswalks = streetscape.crosswalks.filter((cw) => {
     if (cw.orientation === 'horizontal') {
       const i = xs.findIndex((l) => Math.abs(l.pos - cw.center.x) < 1e-9);
-      return !(i >= 0 && vStreetGone(i, cw.center.z));
+      if (i >= 0 && vStreetGone(i, cw.center.z)) return false;
+      if (merges.length === 0 || i < 0) return true;
+      const arms = armsAt(xs[i].pos, zs[nearestLine(zs, cw.center.z)].pos);
+      return (arms & ARM_E) !== 0 && (arms & ARM_W) !== 0;
     }
     const j = zs.findIndex((l) => Math.abs(l.pos - cw.center.z) < 1e-9);
-    return !(j >= 0 && hStreetGone(j, cw.center.x));
+    if (j >= 0 && hStreetGone(j, cw.center.x)) return false;
+    if (merges.length === 0 || j < 0) return true;
+    const arms = armsAt(xs[nearestLine(xs, cw.center.x)].pos, zs[j].pos);
+    return (arms & ARM_N) !== 0 && (arms & ARM_S) !== 0;
   });
   const intersections = streetscape.intersections.filter((it) => {
     const m = /-(\d+)-(\d+)$/.exec(it.id);
     return !(m && removedJunction(Number(m[1]), Number(m[2])));
   });
 
-  // Fixed-timing traffic lights at every intersection that remains.
+  // Fixed-timing traffic lights at every intersection that remains with three or four arms. A junction a merge
+  // leaves with two arms (straight on or a bend) has no signal; without merges every junction has four arms.
   const trafficLights: TrafficLight[] = [];
   xs.forEach((vx, i) => {
     zs.forEach((hz, j) => {
       if (removedJunction(i, j)) return;
+      if (merges.length > 0 && armCount(armsAt(vx.pos, hz.pos)) <= 2) return;
       trafficLights.push({
         id: `light-${i}-${j}`,
         position: { x: vx.pos, z: hz.pos },

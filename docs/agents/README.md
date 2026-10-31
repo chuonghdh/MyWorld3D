@@ -1,6 +1,6 @@
 # Specialist agents
 
-MyWorld3D is built by a small, fixed team of specialists coordinated by the lead (the main Claude session).
+MyWorld3D is built by a small, fixed team of specialists (eight, including the architect who reviews structure and standards) coordinated by the lead (the main Claude session).
 Each specialist owns directories, keeps a handbook in this folder, and is **reused** for every new task in its area
 instead of spawning a fresh agent. That way what it learned (traps, decisions, conventions) carries over.
 
@@ -13,6 +13,7 @@ instead of spawning a fresh agent. That way what it learned (traps, decisions, c
 | 5 | Audio | `src/audio/**`, `src/ui/SoundMixer.tsx`, `docs/AUDIO.md` | [audio.md](audio.md) |
 | 6 | UI & Camera | `src/ui/**` (except SoundMixer), `src/store/**`, `src/scene/CameraRig.tsx`, `cameraMath.ts`, `Selection.tsx`, `selectionMath.ts` | [ui-camera.md](ui-camera.md) |
 | 7 | Scene & QA | `src/scene/**` (rest), `src/core/**`, `tests/helpers/**`, perf budgets, docs | [scene-qa.md](scene-qa.md) |
+| 8 | Technical Architect | Cross-cutting structure, asset pipeline, performance standards, toolchain (no feature code) | [architect.md](architect.md) |
 
 ## Rules for the lead
 

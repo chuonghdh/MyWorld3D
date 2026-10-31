@@ -3,12 +3,13 @@
 // (hedges, flower beds, bushes) sharing one material, whatever the number of courtyards.
 
 import * as THREE from 'three';
-import type { Rect } from '../city/layout';
+import type { CourtyardRect } from '../city/layout';
 import { createRng } from '../core/rng';
 import type { Season } from '../core/types';
 import { TriBuilder, makeWarp } from './forest';
 import { TAG_BLOOM, TAG_FIXED, TAG_FOLIAGE, applySeasonPaint, createPaintState, type PaintState } from './seasonalPaint';
 import { attachCloudShade } from './cloudShade';
+import { buildParkYard, isParkYard, planParkYard, type ParkObstacle } from './parkYard';
 
 const HEDGE_WIDTH = 0.7;
 const HEDGE_INSET = 0.5;
@@ -130,11 +131,11 @@ export function addFlowerBed(
   }
 }
 
-function addBush(b: TriBuilder, rng: () => number, x: number, z: number, seed: number): void {
+function addBush(b: TriBuilder, rng: () => number, x: number, z: number, seed: number, fixedSize?: number): void {
   const n = 2 + Math.floor(rng() * 2);
   const tone = BUSH_TONES[Math.floor(rng() * BUSH_TONES.length)];
   const c = new THREE.Color();
-  const size = range(rng, 0.55, 0.85);
+  const size = fixedSize ?? range(rng, 0.55, 0.85);
   b.tag = TAG_FOLIAGE;
   for (let i = 0; i < n; i++) {
     const r = size * (i === 0 ? 1 : range(rng, 0.6, 0.8));
@@ -169,8 +170,17 @@ const overlaps = (a: Placed, b: Placed, pad: number) =>
  * Hedges, flower beds and bushes for each courtyard. Returns a group of three merged meshes
  * ('greenery-hedges', 'greenery-beds', 'greenery-bushes') sharing one vertex-colour material.
  * Ground level is y = 0.
+ *
+ * Courtyards flagged `merged` (the shared yard of a merged block, see parkYard.ts `isParkYard`) are laid out as one park:
+ * groves of small trees, bushes, beds along the paths, a sitting spot and hedges along the rear lots. Smaller
+ * courtyards keep the original recipe unchanged. `obstacles` (optional) are circles to keep clear in parks, e.g. the
+ * city's own courtyard trees.
  */
-export function createCourtyardGreenery(courtyards: readonly Rect[], seed: number): THREE.Group {
+export function createCourtyardGreenery(
+  courtyards: readonly CourtyardRect[],
+  seed: number,
+  obstacles: readonly ParkObstacle[] = [],
+): THREE.Group {
   const group = new THREE.Group();
   group.name = 'courtyard-greenery';
   const hedges = new TriBuilder();
@@ -182,6 +192,25 @@ export function createCourtyardGreenery(courtyards: readonly Rect[], seed: numbe
     const w = r.maxX - r.minX;
     const d = r.maxZ - r.minZ;
     if (w < 3 || d < 3) return;
+    if (isParkYard(r)) {
+      // Own stream keyed by the yard's position, so the park does not depend on the courtyard order.
+      const parkSeed = ((seed * 7919) ^ Math.imul(Math.round(r.minX * 10), 73856093) ^ Math.imul(Math.round(r.minZ * 10), 19349663) ^ 0x5bd1e995) >>> 0;
+      const prng = createRng(parkSeed);
+      const inside = obstacles.filter((o) => o.x > r.minX && o.x < r.maxX && o.z > r.minZ && o.z < r.maxZ);
+      const plan = planParkYard(r, prng, inside);
+      buildParkYard(
+        plan,
+        { hedges, beds, bushes },
+        {
+          hedge: (b, x0, z0, x1, z1, s) => addHedge(b, prng, x0, z0, x1, z1, s),
+          bed: (b, cx, cz, bw, bd) => addFlowerBed(b, prng, cx, cz, bw, bd),
+          bush: (b, x, z, size, s) => addBush(b, prng, x, z, s, size),
+        },
+        prng,
+        parkSeed,
+      );
+      return;
+    }
     const placed: Placed[] = [];
 
     // Hedges along the four edges, each run broken by 1.2-2.2 m gaps.

@@ -8,6 +8,7 @@ import { DEFAULT_SETTINGS } from '../src/store/model';
 import { MeshBuilder } from '../src/streets/builder';
 import { buildSurfaces } from '../src/streets/surfaces';
 import { coplanarOverlaps } from './helpers/geometryAudit';
+import { ARM_E, ARM_N, ARM_S, ARM_W, junctionArms } from '../src/city/junctionArms';
 
 const SEED = DEFAULT_SETTINGS.seed;
 
@@ -108,6 +109,27 @@ describe('block merging (phase 1)', () => {
     const cells = ids.map((id) => parseHouseBlockId(id)!);
     const m = { c0: Math.min(...cells.map((c) => c.c)), c1: Math.max(...cells.map((c) => c.c)), r0: Math.min(...cells.map((c) => c.r)), r1: Math.max(...cells.map((c) => c.r)) };
     checkMerge(m, ids);
+  });
+
+  it('keeps only crossings whose both ends land on a sidewalk corner (none run into a merged wall)', () => {
+    const base = layoutOf();
+    const l = layoutOf([rectIds(base, 2, 2)]);
+    const arms = junctionArms(l);
+    const near = (vals: number[], v: number) => vals.reduce((b, x) => (Math.abs(x - v) < Math.abs(b - v) ? x : b), vals[0]);
+    const xsPos = [...new Set(l.intersections.map((it) => it.center.x))];
+    const zsPos = [...new Set(l.intersections.map((it) => it.center.z))];
+    for (const cw of l.crosswalks) {
+      if (cw.orientation === 'horizontal') {
+        const m = arms(cw.center.x, near(zsPos, cw.center.z));
+        expect((m & ARM_E) && (m & ARM_W), cw.id).toBeTruthy();
+      } else {
+        const m = arms(near(xsPos, cw.center.x), cw.center.z);
+        expect((m & ARM_N) && (m & ARM_S), cw.id).toBeTruthy();
+      }
+    }
+    // Some crossings at the new T junctions are gone, the rest of the town keeps its crossings.
+    expect(l.crosswalks.length).toBeLessThan(base.crosswalks.length);
+    expect(l.crosswalks.length).toBeGreaterThanOrEqual(base.crosswalks.length - 16);
   });
 
   it('is deterministic for the same merge and keeps the layout key stable across rebuilds', () => {

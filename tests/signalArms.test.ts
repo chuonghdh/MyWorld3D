@@ -55,7 +55,7 @@ describe('signal heads follow junction arms', () => {
     }
   });
 
-  it('draws no signal at a two-arm junction between two stacked merges', () => {
+  it('drops the light and draws no signal at a two-arm junction between two stacked merges', () => {
     const base = layoutOf();
     const { c, r } = square(base);
     const l = layoutOf([
@@ -63,11 +63,16 @@ describe('signal heads follow junction arms', () => {
       [houseBlockId(c, r + 1), houseBlockId(c + 1, r + 1)],
     ]);
     const id = `light-${c + 1}-${r + 1}`;
-    const light = l.trafficLights.find((x) => x.id === id)!;
-    expect(light, id).toBeDefined();
-    expect(armCount(junctionArms(l)(light.position.x, light.position.z))).toBe(2);
+    const it = l.intersections.find((x) => x.id === `intersection-${c + 1}-${r + 1}`)!;
+    expect(it, 'the junction itself remains').toBeDefined();
+    expect(armCount(junctionArms(l)(it.center.x, it.center.z))).toBe(2);
+    expect(l.trafficLights.some((x) => x.id === id), 'no light at a 2-arm junction').toBe(false);
+    // Every remaining light has at least three arms.
+    const arms = junctionArms(l);
+    for (const light of l.trafficLights) expect(armCount(arms(light.position.x, light.position.z)), light.id).toBeGreaterThanOrEqual(3);
     const { heads, poles } = signalsByLight(l);
     expect(heads.get(id) ?? 0).toBe(0);
     expect(poles.get(id) ?? 0).toBe(0);
   });
+
 });
