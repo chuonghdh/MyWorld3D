@@ -17,11 +17,11 @@ export interface StreetSegment {
   sidewalkWidth: number;
 }
 
-/** Camera presets a UI can request through runtime.cameraPresetRequests. */
-export type CameraPresetId = 'overview' | 'street';
+/** Camera presets a UI can request through runtime.cameraPresetRequests (defined in core/runtime). */
+export type { CameraPresetId } from '../core/runtime';
 
 export const MIN_DISTANCE = 4;
-export const MAX_DISTANCE = 600;
+export { MAX_DISTANCE } from '../core/cameraLimits';
 export const EYE_HEIGHT = 1.7;
 export const TWEEN_SECONDS = 1;
 /** Pan limit: the orbit target may leave the town bounds by this many metres. */

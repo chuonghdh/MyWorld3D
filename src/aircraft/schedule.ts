@@ -4,7 +4,7 @@
 
 import { createRng } from '../core/rng';
 import { CLOUD_TOP_MAX } from '../environment/cloudSprites';
-import { MAX_DISTANCE } from '../scene/cameraMath';
+import { MAX_DISTANCE } from '../core/cameraLimits';
 import { DAY_SECONDS } from '../store/model';
 
 /** Highest the camera can be: the orbit looking straight down at the maximum zoom-out distance. */

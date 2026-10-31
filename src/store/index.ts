@@ -1,6 +1,5 @@
 import { create } from 'zustand';
-import { getCityLayout } from '../city/layoutKey';
-import { parseMergedBlockId } from '../city/merge';
+import { parseMergedBlockId } from '../core/blockIds';
 import { remapBlockOrder, withMergeGroup, withoutMergeGroup } from './merges';
 import {
   DEFAULT_TOGGLES,
@@ -43,9 +42,9 @@ export interface WorldState extends LayoutData {
   setBlockOrder: (ids: string[]) => void;
   swapBlocks: (a: string, b: string) => void;
   /** Merges the house blocks of `group` (all member ids, absorbing any merge it grows from). Undoable. */
-  mergeBlockGroup: (group: string[]) => void;
+  mergeBlockGroup: (group: string[], idsFor: BlockIdsFor) => void;
   /** Splits a merged block back into its member blocks. Undoable. */
-  splitMergedBlock: (mergedId: string) => void;
+  splitMergedBlock: (mergedId: string, idsFor: BlockIdsFor) => void;
   /** Tap mode from the camera height (see BLOCK_EDIT_HEIGHT_M). Transient, not saved. */
   editMode: EditMode;
   setEditMode: (mode: EditMode) => void;
@@ -104,9 +103,15 @@ function sameMergeShape(a: string, b: string): boolean {
   return mergeShape(a) === mergeShape(b);
 }
 
+/**
+ * Block ids of the city generated for a list of merges. The city generator lives above the store, so the caller
+ * (UI) supplies it; the store only uses the result to keep the block order in step with the new layout.
+ */
+export type BlockIdsFor = (blockMerges: string[][]) => string[];
+
 /** Layout data with new settings whose block ids changed: the block order follows the regenerated layout. */
-function withLayoutIds(s: LayoutData, settings: WorldSettings): LayoutData {
-  const fresh = getCityLayout(settings).blocks.map((b) => b.id);
+function withLayoutIds(s: LayoutData, settings: WorldSettings, idsFor: BlockIdsFor): LayoutData {
+  const fresh = idsFor(settings.blockMerges ?? []);
   const order = s.baseBlockOrder.length > 0 ? remapBlockOrder(s.blockOrder, s.baseBlockOrder, fresh) : [...fresh];
   return { ...snapshot(s), settings, blockOrder: order, baseBlockOrder: [...fresh] };
 }
@@ -183,18 +188,18 @@ export const useWorldStore = create<WorldState>()((set, get) => {
       commit({ ...snapshot(s), blockOrder: [...ids], baseBlockOrder: [...ids] });
     },
 
-    mergeBlockGroup: (group) => {
+    mergeBlockGroup: (group, idsFor) => {
       const s = get();
       const blockMerges = withMergeGroup(s.settings.blockMerges ?? [], group);
-      commit(withLayoutIds(s, { ...s.settings, blockMerges }));
+      commit(withLayoutIds(s, { ...s.settings, blockMerges }, idsFor));
     },
 
-    splitMergedBlock: (mergedId) => {
+    splitMergedBlock: (mergedId, idsFor) => {
       const s = get();
       const before = s.settings.blockMerges ?? [];
       const blockMerges = withoutMergeGroup(before, mergedId);
       if (blockMerges.length === before.length) return;
-      commit(withLayoutIds(s, { ...s.settings, blockMerges }));
+      commit(withLayoutIds(s, { ...s.settings, blockMerges }, idsFor));
     },
 
     swapBlocks: (a, b) => {

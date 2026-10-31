@@ -4,7 +4,7 @@
 
 ## Key files
 - `house.ts`, `facade/*` (ground, upper, roof, rear, parts, layers, mesh, polish): the lot-fitted house builder.
-- `geometry.ts` (`ColorBatch`), `materials.ts` (shared body, glass and sign materials, night uniforms), `shaders/*` (surface, glass, wind).
+- `geometry.ts` (`ColorBatch`), `materials.ts` (shared body, glass and sign materials, night uniforms), `shaders/*` (surface, glass, wind); the shared cloud-shade and wet-surface patches live in `src/shaders/` (neutral, used by buildings, weather, streets and environment).
 - `monuments/*` with `kit.ts`: ten European landmark blocks.
 - `facade/polish.ts`: pure helpers shared with GLSL (window on/off schedule, wind amplitude).
 

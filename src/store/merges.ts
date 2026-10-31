@@ -1,6 +1,6 @@
 // Block merge edits on the saved layout data (phase 2, block editor). Pure functions; the store wraps them so
 // a merge or split is one undoable step together with the block order it implies.
-import { parseMergedBlockId } from '../city/merge';
+import { parseHouseBlockId, parseMergedBlockId } from '../core/blockIds';
 
 /** Merge groups after adding `group`: groups that share a block with it are absorbed (it grows from them). */
 export function withMergeGroup(merges: readonly string[][], group: readonly string[]): string[][] {
@@ -13,11 +13,8 @@ export function withoutMergeGroup(merges: readonly string[][], mergedId: string)
   const rect = parseMergedBlockId(mergedId);
   if (!rect) return merges.map((g) => [...g]);
   const inside = (id: string) => {
-    const m = /^block-(\d+)-(\d+)$/.exec(id);
-    if (!m) return false;
-    const c = Number(m[1]);
-    const r = Number(m[2]);
-    return c >= rect.c0 && c <= rect.c1 && r >= rect.r0 && r <= rect.r1;
+    const cell = parseHouseBlockId(id);
+    return cell !== null && cell.c >= rect.c0 && cell.c <= rect.c1 && cell.r >= rect.r0 && cell.r <= rect.r1;
   };
   return merges.filter((g) => !(g.length > 0 && g.every(inside))).map((g) => [...g]);
 }

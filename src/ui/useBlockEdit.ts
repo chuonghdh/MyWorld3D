@@ -1,9 +1,9 @@
 // Block editor state for the app shell: which house block is selected, its suggestions, and the merge, split
 // and grow actions shared by the map icons and the block panel.
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import type { CityLayout } from '../city';
+import { getCityLayout, type CityLayout } from '../city';
 import { grownGroup, mergedBlockId, parseHouseBlockId } from '../city/merge';
-import { useWorldStore, type OverrideTarget } from '../store';
+import { useWorldStore, type BlockIdsFor, type OverrideTarget } from '../store';
 import {
   blockById,
   cellSize,
@@ -38,6 +38,12 @@ export interface BlockEdit {
 
 const centre = (r: EditRect) => ({ x: (r.minX + r.maxX) / 2, z: (r.minZ + r.maxZ) / 2 });
 export { centre as rectCentre };
+
+/** Block ids of the city generated with these merges (the store asks for them after a merge or split). */
+const blockIdsFor: BlockIdsFor = (blockMerges) => {
+  const settings = useWorldStore.getState().settings;
+  return getCityLayout({ ...settings, blockMerges }).blocks.map((b) => b.id);
+};
 
 export function useBlockEdit(
   layout: CityLayout,
@@ -108,7 +114,7 @@ export function useBlockEdit(
       r1: Math.max(...g.map((x) => x.r)),
     });
     afterPaint(() => {
-      useWorldStore.getState().mergeBlockGroup(group);
+      useWorldStore.getState().mergeBlockGroup(group, blockIdsFor);
       select({ type: 'block', id });
     });
   };
@@ -117,7 +123,7 @@ export function useBlockEdit(
     if (!blockId || !isMergedId(blockId) || busy) return;
     const target = blockId;
     afterPaint(() => {
-      useWorldStore.getState().splitMergedBlock(target);
+      useWorldStore.getState().splitMergedBlock(target, blockIdsFor);
       select(null);
     });
   };

@@ -150,6 +150,8 @@ describe('merge groups and block order', () => {
   });
 });
 
+const idsFor = (blockMerges: string[][]) => generateCity({ ...DEFAULT_SETTINGS, blockMerges }).blocks.map((b) => b.id);
+
 describe('store merge and split', () => {
   beforeEach(() => {
     useWorldStore.setState({ ...createEmptyLayout(1), past: [], future: [], toggles: { ...DEFAULT_TOGGLES } });
@@ -164,7 +166,7 @@ describe('store merge and split', () => {
     const group = grownGroup(house.id, mergeSuggestions(layout, house.id)[0]);
     const before = [...s().baseBlockOrder];
 
-    s().mergeBlockGroup(group);
+    s().mergeBlockGroup(group, idsFor);
     expect(s().settings.blockMerges).toEqual([group]);
     const fresh = getCityLayout(s().settings).blocks.map((b) => b.id);
     expect([...s().baseBlockOrder].sort()).toEqual([...fresh].sort());
@@ -172,7 +174,7 @@ describe('store merge and split', () => {
     expect(s().blockOrder).toContain(mergedId);
     for (const id of group) expect(s().blockOrder).not.toContain(id);
 
-    s().splitMergedBlock(mergedId);
+    s().splitMergedBlock(mergedId, idsFor);
     expect(s().settings.blockMerges).toEqual([]);
     expect([...s().baseBlockOrder].sort()).toEqual([...before].sort());
 

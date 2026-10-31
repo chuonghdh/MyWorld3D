@@ -3,8 +3,36 @@
 **Owns:** `src/traffic/**` (vehicles, lights, pedestrians, parking, collision) and `src/life/**` (pigeons, flocks, cats, squirrels, butterflies, birds) with their tests.
 
 ## Key files
-- `traffic/vehicles.ts`: path models with Bezier turn connectors, junction grants, horn queue (`takeHorns()`), `turnStats`, `edgeExtension` option.
-- `traffic/lights.ts` (signals, all-red gap), `pedestrians.ts` (graph walk, crowd density curve `DENSITY_CURVE`), `collision.ts` (OBB sweep), `parking.ts`.
+- `traffic/vehicles.ts`: the `VehicleSystem` class (public API, step, horns, turn-decision hook). `traffic/lights.ts` (signals, all-red gap), `traffic/pedestrians.ts` (the `Pedestrians` class), `collision.ts` (OBB sweep), `parking.ts`.
+
+## Module map (split for size, no behaviour change)
+Hashes and tests are unchanged by the split. The class files keep their public API; methods they delegate to live in these modules as functions taking the instance (`sys`).
+
+Vehicles (`src/traffic/vehicles/`):
+- `types.ts`: render, path, vehicle and stop-line types.
+- `constants.ts`: tuning constants, `VEHICLE_SPECS`, class footprints.
+- `geometry.ts`: pure lane geometry (fillets, path extension, arc length, poses, arm bits, path openness).
+- `build.ts`: `setupSystem` (the old constructor: lane paths, stop lines, turn connectors, junction arms).
+- `junctions.ts`: junction grants, movement conflicts, `gateOpen`.
+- `turns.ts`: `decideTurn` (the manoeuvre roll over the moves that exist).
+- `conflict.ts`: stop limits behind vehicles and the swept footprint, syncing poses.
+- `motion.ts`: `advance` (the per-vehicle step), `roomBehind`, `transfer`, `resolveJam`.
+- `spawn.ts`: `create`, `release`, `trySpawns`, `isFree`, class and variant picks.
+- `render.ts`: `getVehicles` (render records for the mesh layer).
+- Existing: `builder.ts`, `models.ts` (448 lines, not split yet: model geometry), `variants.ts`.
+
+Pedestrians (`src/traffic/walkers/`):
+- `types.ts`: public render and option types, and the walking-graph types.
+- `constants.ts`: poses, trait bits, body types, states and tuning. `pedestrians.ts` re-exports the public ones.
+- `density.ts`: `DENSITY_CURVE`, `crowdDensityAt`, `redRemaining`.
+- `graph.ts`: road rectangles and the walking graph (`buildGraph`).
+- `setup.ts`: `setupSystem` (the old constructor).
+- `looks.ts`: `createPeople`, walking speed by age and sex, hair style and colour.
+- `movement.ts`: edges, turns, crossing rules, spawns at edges, `stepWalk` and friends.
+- `behaviour.ts`: benches, looking, chatting, doors, returning, moving through doors.
+- `resolve.ts`: the per-step resolution of each walker state.
+- `output.ts`: `getPedestrians` (render records).
+- Sizes: all new files are at most 283 lines; the two class files are 338 (vehicles) and 281 (pedestrians).
 
 ## Conventions
 - Determinism: the main simulation hash must not change when optional systems change. Horns use a separate RNG (`hornRng`); read-or-not of horns must not alter vehicles (tested).

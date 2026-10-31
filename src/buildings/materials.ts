@@ -18,10 +18,10 @@ import {
   GLASS_VERTEX_COMMON,
   GLASS_VERTEX_MAIN,
 } from './shaders/glass';
-import { attachWeather, patchWeather, weatherUniforms } from './shaders/weather';
+import { attachWeather, patchWeather, weatherUniforms } from '../shaders/wetSurface';
 import { WIND_VERTEX_COMMON, WIND_VERTEX_MAIN_BODY, setBuildingWind, tickBuildingWind, windUniforms } from './shaders/wind';
 import { nightClock } from './facade/polish';
-import { patchCloudShade } from '../environment/cloudShade';
+import { patchCloudShade } from '../shaders/cloudShade';
 
 let body: THREE.MeshStandardMaterial | null = null;
 let glass: THREE.MeshStandardMaterial | null = null;

@@ -4,7 +4,7 @@ import { useEffect, useMemo, useRef, type MutableRefObject } from 'react';
 import { useFrame } from '@react-three/fiber';
 import type { Season } from '../core/types';
 import type { Rgb } from '../environment/sun';
-import { runtime } from '../scene/runtime';
+import { runtime } from '../core/runtime';
 import { createSkyDome } from './dome';
 import { createGroundDisc } from './ground';
 import { computeSkyState } from './state';

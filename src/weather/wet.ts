@@ -1,8 +1,7 @@
 // Bridge from the eased weather values to the shared surface uniforms (uWet, uSnow, uWetSky).
-// The GLSL lives in src/buildings/shaders/weather.ts; materials.ts exposes attachWeather() for
-// street and ground materials that are not the shared building body.
+// The GLSL and attachWeather() live in src/shaders/wetSurface.ts (neutral shared folder).
 import * as THREE from 'three';
-import { attachWeather, weatherUniforms } from '../buildings/materials';
+import { attachWeather, weatherUniforms } from '../shaders/wetSurface';
 
 export { attachWeather, weatherUniforms };
 

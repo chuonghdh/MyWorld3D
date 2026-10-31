@@ -2,8 +2,9 @@
 // derived values ease in and out over seconds. The controller in index.ts feeds these into particles,
 // materials, lights, fog and audio.
 
-export const WEATHER_KINDS = ['clear', 'cloudy', 'rain', 'storm', 'snow', 'fog'] as const;
-export type WeatherKind = (typeof WEATHER_KINDS)[number];
+// The kinds live in core so the store can use them without importing the weather system.
+import type { WeatherKind } from '../core/weatherKinds';
+export { WEATHER_KINDS, type WeatherKind } from '../core/weatherKinds';
 
 export const WEATHER_LABEL: Record<WeatherKind, string> = {
   clear: 'Clear',

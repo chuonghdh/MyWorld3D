@@ -1,3 +1,6 @@
+// Shared shader patch (moved from buildings/shaders/weather.ts): weather look for surface materials, so
+// buildings, weather, streets and environment can use it without depending on one another.
+//
 // Weather look for shared surface materials: one `uWet` and one `uSnow` uniform (both default 0, so
 // the dry look is unchanged). Written as a generic patch that works on any MeshStandardMaterial
 // (building body, street and ground materials): it only needs the view-space normal and a world

@@ -14,7 +14,7 @@ import {
   type TreeOverride,
   type WorldSettings,
 } from './model';
-import { WEATHER_KINDS } from '../weather/weatherState';
+import { WEATHER_KINDS } from '../core/weatherKinds';
 import { QUALITY_TIERS } from './quality';
 
 export const LAYOUT_VERSION = 1;

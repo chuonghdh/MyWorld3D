@@ -48,3 +48,9 @@
 - `ui/ErrorBoundary.tsx` wraps `<App/>` in `main.tsx`; Canvas render errors reach it. Fallback reuses the `.mw-boot*` styles: title, message (max 400 chars), Reload. Tests: `tests/errorBoundary.test.ts` (renderToString, node env, no jsdom).
 - Dev-only check: `?mwThrow=render` makes FirstFrame throw (gated by `import.meta.env.DEV`).
 - Traps: errors in `useFrame` after the first frame are not render errors: the boundary does not see them and the boot screen is gone, so the scene just stops. In dev React also reports boundary-caught errors to `window`, so before the first frame both panels may show the same message.
+
+## Layering (architect fix 3)
+- `core` and `store` sit at the bottom. Store runtime imports stay in `core` and `store`; it must not import `city`, `weather`, `scene` or `ui`. `tests/layers.test.ts` checks this (type-only imports are erased and not checked).
+- `core/blockIds.ts`: block id scheme (house and merged ids, parsers). Same scheme as `city/merge.ts`; the test checks they agree. `city/merge.ts` could re-export from core (City & Streets to decide).
+- `core/weatherKinds.ts`: `WEATHER_KINDS`, `WeatherKind`; `weather/weatherState.ts` re-exports them.
+- Store block-merge actions take `idsFor(blockMerges) => ids` from the UI (`ui/useBlockEdit.ts` uses `getCityLayout`) to remap the block order; the store never calls the city generator.

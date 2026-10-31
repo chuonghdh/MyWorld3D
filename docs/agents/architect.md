@@ -88,7 +88,7 @@ Budget guard (`tests/budget.test.ts`): main tris ≤ 1,430,000 (measured 1,383,8
 1. **Draw-call guard has 10-call headroom and a dead second limit.** `tests/budget.test.ts:265` caps at 140, measured 130. Line 266 caps at 400 and never binds. Impact: next feature adding static meshes fails CI, or the second limit hides a real regression. Action: delete line 266, or make it the moving-actor estimate. Owner: Scene & QA. Measure the 140 headroom with the next merge.
 2. **Feature module imports scene.** `src/sky/SkyDome.tsx:7` imports `runtime` from `../scene/runtime`. `src/aircraft/schedule.ts:7` imports `MAX_DISTANCE` from `../scene/cameraMath`. Impact: inverted dependency; `scene/runtime.ts` also imports `../environment` and `./cameraMath`, which creates cycle risk and drags R3F into sky and aircraft tests. Action: move `runtime` state and `MAX_DISTANCE` to `src/core` (pure constants or plain objects). Owner: Sky & Environment for the two imports, Scene & QA for `runtime.ts`, UI & Camera for `cameraMath.ts`.
 3. **Store sits above feature modules.** `src/store/index.ts:2-3` imports `city/layoutKey` and `city/merge`. `src/store/merges.ts:3` imports `city/merge`. `src/store/io.ts:17` imports `weather/weatherState`. `src/store/model.ts:13` is type-only. Impact: store is documented as bottom layer; no cycle today (city does not import store), but any future city-to-store import makes one. Action: move `parseMergedBlockId` and `WEATHER_KINDS` into `src/core/types.ts` or a new `core` module. Owner: UI & Camera (store), City & Streets (`merge.ts`), Sky & Environment or Scene & QA for `weatherState`.
-4. **Shader ownership split across feature folders.** `src/weather/wet.ts:5` imports `attachWeather` from `../buildings/materials`. `src/buildings/materials.ts:24` imports `patchCloudShade` from `../environment/cloudShade`. Impact: weather depends on buildings, buildings depend on environment; shader edits cross owners. Action: move shared patches (`cloudShade`, `weather`) to a shared shader folder, e.g. `src/core/shaders/`, and keep the owner list in REPO_MAP. Owner: Buildings, Sky & Environment, Scene & QA for the move.
+4. **Shader ownership split across feature folders.** `src/weather/wet.ts:5` imports `attachWeather` from `../buildings/materials`. `src/buildings/materials.ts:24` imports `patchCloudShade` from `../environment/cloudShade`. Impact: weather depends on buildings, buildings depend on environment; shader edits cross owners. Action: move shared patches (`cloudShade`, `weather`) to a shared shader folder, e.g. `src/core/shaders/`, and keep the owner list in REPO_MAP. Owner: Buildings, Sky & Environment, Scene & QA for the move. **Status (done, uncommitted):** moved to `src/shaders/` (`wetSurface.ts`, `cloudShade.ts`). Cache keys unchanged; compiled shader output byte-identical. `environment/cloudShade.ts` re-exports the names.
 5. **Oversized files.** 29 files exceed 350 lines. Worst: `src/traffic/vehicles.ts` 1794, `src/traffic/pedestrians.ts` 1511, `src/buildings/facade/roof.ts` 1070, `src/ui/panels.css` 930, `src/life/birds.ts` 801, `src/audio/vehicles.ts` 770. Impact: merge hotspots (vehicles.ts already touched by block merge and signal arms). Action: split by concern when next touched, not now. Owner: Traffic & Life (vehicles, pedestrians, birds), Buildings (roof), Audio (vehicles), UI & Camera (panels.css).
 6. **Unseeded random persisted to saves.** `src/App.tsx:91` sets species for every street tree with `Math.random`. The result lands in `treeOverrides`, which is saved. Impact: low; the same save reloads identically, but "randomize" is not reproducible from seed. Action: use a seeded RNG from `core/rng.ts`, or keep and document it as a user action. Owner: UI & Camera (App is lead).
 7. **Save version check is strict equality.** `src/store/io.ts:208` rejects any `version !== LAYOUT_VERSION`. There is no migration path. Impact: any future save-format change makes all old saves unloadable, against the handbook rule "migration note". Action: add a `migrate` step keyed by version before bumping. Owner: UI & Camera.
@@ -98,3 +98,84 @@ Budget guard (`tests/budget.test.ts`): main tris ≤ 1,430,000 (measured 1,383,8
 
 - Owners respond to issues 1-4 before any move. Architect does not edit feature code.
 - Measure frame time and rebuild time in connected Chrome to close the performance section.
+
+## Harness research
+
+Source: https://github.com/revfactory/harness (README via WebFetch; Apache-2.0). Related: harness-100 (separate collection of
+100 prebuilt team setups), v1 A/B repo `revfactory/claude-code-harness`, project site `revfactory.github.io/harness/`.
+Not accessed: `docs/migration-v1-to-v2.md`, `skills/` source files, the v1 A/B data (only the README summary was read).
+
+What it does: a meta-skill. From a domain description it generates `.claude/agents/*.md` (who) and `.claude/skills/*`
+(how), one orchestrator skill sets order, data passes via files, schemas, messages or tasks. Modes: workflow scripts,
+persistent named agents with SendMessage, one-shot sub-agents. Six patterns (pipeline, fan-out/fan-in, expert pool,
+producer-reviewer, supervisor, hierarchical). Progressive disclosure for context. Phases 0-7; `/harness:evolve` for upkeep.
+
+Token claim: none. README claims quality only (v1 A/B, n=15: mean 49.5 to 79.3, 15/15 wins; author-measured, README
+recommends own pilot). No savings or cost figures. A multi-agent team spends more tokens per task, not fewer.
+Conflict in sources: a secondary article says Agent Teams needs `CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS=1`; the README says no flags. Unverified.
+
+Overlap with our setup: 8 fixed specialists with handbooks (= agents/skills split); SendMessage reuse (= persistent
+collaboration mode); REPO_MAP entry-file-first (= progressive disclosure); slim CLAUDE.md (= generated minimal pointer);
+shared-file coordination via dashboard (= data passing).
+
+New, and where it conflicts with our rules:
+- Auto-generate team from description: conflicts with fixed specialist roster and "reuse, do not respawn". Generation costs tokens up front.
+- `/harness:evolve` maintenance loop: rewrites agent/skill files; conflicts with "specialist owns its directory" and "commit only on request".
+- CLAUDE.md change-history section: conflicts with slim CLAUDE.md; history belongs in git.
+- Plugin install / copy into `~/.claude/skills`: a settings-level change; needs user approval, not done here.
+- Generated prompts are English-default and not CAVEMAN; output style rule (terse, no fluff) would need re-stating in every generated skill.
+
+Verdict per idea:
+
+| Idea | Verdict | Token effect | Risk | Concrete change |
+|---|---|---|---|---|
+| Meta-generator (build team from text) | Skip | Adds setup tokens, no measured saving | High: replaces roster we already tuned | None |
+| Orchestrator skill with phases and handoff schema | Adapt | Small: lead stops re-deriving file ownership per task | Low | Add a 10-line "cross-owner handoff" checklist to `docs/agents/README.md` (files, acceptance, what must not change) |
+| Progressive disclosure for context | Already have, keep | Keeps reads small | None | Keep REPO_MAP as sole index; no new skills |
+| Sub-agent one-shot for parallel searches | Adapt | Saves lead context on wide greps | Low | Use Explore agent for broad scans (already allowed by Agent tool); note in README rules |
+| Evolve/maintenance command | Skip | None | Conflicts with owner rule and commit rule | Keep handbook upkeep manual |
+| Agent Teams experimental flag | Skip | Unknown | Unverified feature, may break | None |
+| Minimal CLAUDE.md pointer with trigger rule | Already have | Keeps session start cheap | None | None |
+
+Recommendation: adopt nothing wholesale. Adapt the handoff checklist and the Explore-for-scans rule. Revisit only if the
+roster grows past 8 or a measured pilot (same task, with and without) shows fewer tokens. Pilot needs token counts from
+session usage, not present here.
+
+## Graphity research
+
+Source status: https://github.com/Graphity-Labs/graphity returned HTTP 404 (not found, private, or renamed). No README read.
+Closest matches read instead: CodeGraph (github.com/colbymchenry/codegraph, README via WebFetch) and Graphify (graphify.com
+blog page, via WebFetch). Public write-ups found via WebSearch (secondary, not fetched in full): mindstudio, hackernoon,
+levelup, enterprisedna, braindetox. If "Graphity" means another project, the name needs confirming.
+
+What the tools do (CodeGraph; Graphify is similar):
+- Parse code with tree-sitter into symbol and edge graph (calls, imports, extends). Local SQLite at `.codegraph/codegraph.db`.
+- Query via MCP tool `codegraph_explore` (returns symbol source, call paths, blast radius) or CLI (`query`, `callers`, `impact`).
+- Graphify stores `graphify-out/graph.json` plus HTML and a report; hooks nudge Claude to check the graph before grep or file reads.
+- Install: PowerShell installer or npm; `codegraph init` per project. Windows-capable.
+
+Token-savings basis:
+- CodeGraph headline: 62% fewer tokens, 88% fewer tool calls, on 7 open-source repos, median 4 runs per arm, claude -p, Opus. Maintainer-measured.
+  Savings ranged 13% (Django) to 78% (Excalidraw). Control arm reached the CLI in 26 of 28 runs until blocked, so early numbers were inflated.
+  Caveat: about 80% more retrieval context stays in the window late in multi-turn sessions (67k vs 18k on VS Code).
+- Graphify headline up to 70x is vs pasting whole repo, which almost nobody does. One independent test: 113k vs 120k tokens (about 7%) on a 10-question session.
+  Secondary reviewer: grep won the real-time comparison on simple string lookups.
+- Verdict on evidence: CodeGraph's numbers are measured but self-reported with small N; Graphify's 70x is not a fair baseline. Both anecdotal for our case.
+
+Our setup and size:
+- 166 TS/TSX files in src (38.1k LOC), 53 test files (10.9k LOC), 15 md docs, REPO_MAP 33 lines, CLAUDE.md 30 lines.
+- Repo is mid-sized. The hand-written REPO_MAP plus handbooks already route agents to the entry file per folder, so most lookups are one hop.
+- Pay-off would come from cross-folder questions (who calls what across city/streets/traffic), which our specialists handle by handbook and grep.
+
+Options:
+
+| Option | Token effect (expected) | Setup cost | Risk | Effect on our rules |
+|---|---|---|---|---|
+| A. Adopt CodeGraph as MCP (or Graphify skill + hooks) | Maybe 10-30% on cross-folder questions; little on per-folder edits. Unmeasured here | Install, per-project index, hook config in `.claude/settings.json` (needs approval) | Index staleness; hooks changing agent behavior; extra MCP surface; Graphify writes to `~/.claude/CLAUDE.md` (conflicts with slim CLAUDE.md rule) | Writes outside repo and settings: needs user approval. `.codegraph/` must be gitignored. Windows install is supported |
+| B. Use only the idea: generated graph report refreshed by script, committed or gitignored | Small; a generated `docs/CALLGRAPH.md` cuts repeated grep for imports | Low: one Node script under `tests/` or `scripts/` run on demand | Map drifts unless regenerated; generated file must be marked and not hand-edited | Fits handbooks as source of truth; output English; no commit unless asked |
+| C. Skip, keep REPO_MAP plus handbooks, add grep-first rule | None | None | Cross-folder questions stay slower | Fully compliant |
+
+Recommendation: B, but only if a measured problem shows up. Today the repo is small enough that a graph index is unlikely to
+pay back the setup and the staleness risk. Concrete next step, no install: note in `docs/agents/README.md` that cross-folder
+questions go to the Explore agent. Revisit A only if a pilot on one real cross-folder task shows a token drop of 25% or more,
+with the session usage numbers recorded. No pilot run here.

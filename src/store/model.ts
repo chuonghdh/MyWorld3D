@@ -10,7 +10,7 @@ import type {
   TreeSpecies,
   WorldSettings as CoreWorldSettings,
 } from '../core/types';
-import type { WeatherKind } from '../weather/weatherState';
+import type { WeatherKind } from '../core/weatherKinds';
 import type { QualityTier } from './quality';
 
 /** Core settings plus the weather fields (saved to JSON, old files fall back to clear). */
