@@ -33,3 +33,20 @@ Last smoke test: passed on 2026-10-29 (page title MyWorld3D, one canvas, WebGL o
 
 ## Open items
 - Round 6.5 optional backlog (tram, canal and boats, seasonal events); a real-window visual QA pass.
+
+## Session 2026-11-01
+- Review of uncommitted scene, budget and layoutKey edits. `tsc --noEmit` clean; `budget` + `layoutKey` tests pass (16/16).
+- Decision: Town.tsx leaf emitters use broadleaf only (`NATURE_TYPES[].evergreen` filter). Memo deps `[layout, settings.seed]` and effect deps `[leaves, broadleaf]` are exact.
+- Decision: `houseBaseFor` (townBlocks.ts) returns null for unknown house ids. `layout.lots` is a required array, so no null-lots guard needed.
+- Decision: budget thresholds raised to Quaternius numbers. Comment figures (1,539,195 etc.) are not re-checked against a log.
+- Trap: `natureItems` (src/streets/natureTrees.ts:94) uses `t.scale` only. The old path used `t.scale * TREE_SCALE` (1.35). City trees are about 26% smaller now. `src/dev/treeCompare/main.ts:25` still claims parity with TREE_SCALE.
+- Trap: tree species overrides (`treeOverrides`, App.tsx:91-95) no longer change the rendered city trees. `useNatureTrees` takes no overrides (src/scene/useNatureTrees.ts:50-54).
+- Open: restore scale or confirm GLB scale is intended. Decide whether overrides apply in `natureItems` or the UI is dropped.
+- Open: `useNatureTrees` load failure only logs `console.error`; the trees vanish with no fallback.
+- Open: `useNatureTrees` `empty` memo omits `season` from deps (no eslint config in package.json, so no lint warning).
+- Fix: useNatureTrees takes `treeOverrides` (passed from useTownGreenery) and calls `natureItems(layout, seed, treeOverrides)`. Needs City's optional third parameter in src/streets/natureTrees.ts; tsc fails until it lands.
+- Fix: on GLB load failure, useNatureTrees falls back to procedural `createTreeField` (scale 1.35, species overrides applied). Error still logged.
+- Verified: budget comments match a live log (main 1,539,195; shadow 549,627; draw calls 132).
+- src/dev/treeCompare/main.ts:25 already uses TREE_SCALE 1.35; left untouched (outside owned paths).
+- Wiring: App.tsx and useTownGreenery pass `treeOverrides` into useNatureTrees. `natureOverridesFor` maps species to NATURE_TYPES indices (type chosen by hashId(treeId)); `treeScale` left to the default. Compiles against City's `NatureOverrides`.
+- Fallback on GLB load failure: procedural createTreeField, scale 1.35, species applied.

@@ -179,3 +179,14 @@ Recommendation: B, but only if a measured problem shows up. Today the repo is sm
 pay back the setup and the staleness risk. Concrete next step, no install: note in `docs/agents/README.md` that cross-folder
 questions go to the Explore agent. Revisit A only if a pilot on one real cross-folder task shows a token drop of 25% or more,
 with the session usage numbers recorded. No pilot run here.
+
+## Session 2026-11-01
+- Checks: `tsc --noEmit` exit 0. `vite build` exit 0, index JS 1,650.63 kB (gzip 507.56 kB), over Vite's 500 kB warning (no baseline measured). dist 4.4 MB.
+- `public/` (2.8 MB; 56 GLB, 5 PNG, 1 JPG; Quaternius and Kenney, both CC0, LICENSE.txt present). Runtime dependency: `src/scene/useNatureTrees.ts:22,37`, `src/streets/natureTrees.ts:1`. Also read by `tests/budget.test.ts:85`. Recommend COMMIT with LICENSE files. Do not gitignore: a clean checkout loses city trees and fails the budget test.
+- `src/dev/treeCompare/` (700 lines). Not in bundle (0 matches in dist), type-checked via tsconfig `include`. Recommend COMMIT as dev harness. 6 console lines are dev-only.
+- `tree-compare.html` (root): dev-server-only second entry, not built (no multi-page input in vite.config.ts). Open: move next to `src/dev/` before commit. Do not gitignore.
+- Trap: `weatherUniforms` is shared by reference. Swap `.value` only, never replace the uniform object (`streets/index.ts:178-179`, `wetSurface.ts:91-92`).
+- Trap: `tests/budget.test.ts:81` hides `node:fs` behind string concat so tsc passes. Keep that pattern.
+- No `Math.random` in new tree, track or leaf files.
+- Open: measure GLB tree draw calls and tris against budget (140 calls, measured 130 before this session). Open: frame and rebuild cost need connected Chrome.
+- Open: code-split or raise `chunkSizeWarningLimit` with a measured reason.

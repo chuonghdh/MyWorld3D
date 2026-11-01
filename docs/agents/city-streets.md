@@ -42,3 +42,22 @@
 - Layout key appends merges only when present; no merges keeps the old key and output (hashes checked in tests/blockMerge.test.ts).
 - Crossings: with merges, a crosswalk is kept only if both ends land on a sidewalk corner (perpendicular arms E+W for a crossing over a vertical road, N+S over a horizontal one). Tactile bars follow.
 - Merged courtyards carry `courtyard.merged = true` (`CourtyardRect`). Courtyard tree obstacles for greenery: `courtyardTreeObstacles` in city/streetscape.ts (used by greeneryFootprint; Scene can reuse it).
+
+## Session 2026-11-01
+- Traps: tyre-track `DataTexture` (streets/index.ts:177) is not pushed to `textures`, so streetscape dispose() leaks it on every layout rebuild. Fix: push it.
+- Traps: evergreen snow caps (`snowLeaves`, natureTrees.ts:232) ignore leaf alpha, so opaque white slabs cover needle gaps. Needs an alpha-aware cap or a leaf-texture mask.
+- Traps: `snowCap` lifts each triangle along its own normal, so shared edges open a 0.05 lip. Harmless at range, not checked by eye.
+- Decision: tyre tracks use layout.seed ^ 0x7c3a9e11 and fixed path order (deterministic). Grid rect is the true town bounds; texel width is ceil-rounded (under 0.5 m stretch, accepted).
+- Decision: winter snow caps are hidden outside winter (`apply`); evergreen leaves stay at density 1.
+- Open: COURTYARD_TREE_RADIUS raised 1.5 to 4.7 (streetscape.ts:40, uncommitted). Undocumented here; more fountain omissions likely. Confirm with Sky & Environment owner.
+- Open: snow geometries and materials live in the nature asset cache (no per-rebuild leak). Not freed on app teardown.
+- Verify: `npx vitest run tests/streets.test.ts tests/streetDecor.test.ts tests/budget.test.ts`; add a test for tyre-track determinism and bounds.
+
+## Session 2026-11-01 (fixes)
+- Fixed: tyre-track texture pushed into `textures` (streets/index.ts), freed by dispose().
+- Fixed: `natureItems(layout, seed, overrides?)` scales by `TREE_SCALE` (1.35, exported). `NatureOverrides`: `treeScale?` replaces TREE_SCALE, `types?` maps tree id to type index. No overrides = default output.
+- Snow crowns: every type gets a leaf snow cap (`snowLeaves`) with its own `snowLeafMat` (white, alphaTest 0.5, leaf map, DoubleSide). Caps copy uv. Visible in winter only (`apply`), so bare broadleaf crowns get snow too.
+- Trap: snow leaf caps add one InstancedMesh per type (draw-call budget). Budget test still passes.
+- Open: COURTYARD_TREE_RADIUS 4.7 (streetscape.ts:40): no rationale in repo. Left unchanged, owner must confirm or revert to 1.5.
+- Verify: `npx tsc --noEmit`, `npx vitest run tests/budget.test.ts tests/layoutKey.test.ts` (passed).
+- Summer lift: uniform `uSummer` (0 or 1) on leaf material, set per season in apply(). Declared in natureTrees.ts fragment prefix. Sky must change leafVariety.ts line 68 to `float summer = uSummer;` (not done here, file not owned). Until then the shader still reads uVary.

@@ -131,27 +131,55 @@ export function addFlowerBed(
   }
 }
 
+const BUSH_HIGHLIGHT = new THREE.Color('#8fbf5a');
+
+/**
+ * Courtyard and park bush: 2 or 3 leaf-mass blobs (same count and detail as before, so the triangle cost is
+ * unchanged). The shared rng is drawn exactly as before, so the courtyard layout does not move. The extra variation
+ * (blob size, lean, lift, tone, mottling) comes from a private stream seeded by the bush seed.
+ * Shape: the lower blobs sit low, so the mass touches the ground. Colour: height light, dark ground contact, leaf
+ * mottling with a few dark pockets, and a yellow-green highlight on sun-facing tops.
+ */
 function addBush(b: TriBuilder, rng: () => number, x: number, z: number, seed: number, fixedSize?: number): void {
   const n = 2 + Math.floor(rng() * 2);
-  const tone = BUSH_TONES[Math.floor(rng() * BUSH_TONES.length)];
-  const c = new THREE.Color();
+  const baseTone = BUSH_TONES[Math.floor(rng() * BUSH_TONES.length)];
   const size = fixedSize ?? range(rng, 0.55, 0.85);
+  const local = createRng((Math.imul(seed, 2654435761) + 97) >>> 0);
+  const c = new THREE.Color();
+  const tone = new THREE.Color();
   b.tag = TAG_FOLIAGE;
   for (let i = 0; i < n; i++) {
-    const r = size * (i === 0 ? 1 : range(rng, 0.6, 0.8));
-    const ox = i === 0 ? 0 : range(rng, -0.5, 0.5) * size;
-    const oz = i === 0 ? 0 : range(rng, -0.5, 0.5) * size;
+    // Shared-stream draws, in the old order: radius, offset x and z (blobs after the first), then the yaw.
+    const r0 = i === 0 ? 1 : range(rng, 0.6, 0.8);
+    const ox0 = i === 0 ? 0 : range(rng, -0.5, 0.5);
+    const oz0 = i === 0 ? 0 : range(rng, -0.5, 0.5);
+    const yaw = rng() * Math.PI;
+    // Private stream: each blob's own variation.
+    const r = size * r0 * (i === 0 ? range(local, 0.9, 1.1) : 1);
+    const ox = ox0 * size + (i === 0 ? range(local, -0.12, 0.12) * size : 0);
+    const oz = oz0 * size + (i === 0 ? range(local, -0.12, 0.12) * size : 0);
+    const lift = i === 0 ? r * 0.7 : r * (0.55 + 0.25 * local());
     const m = new THREE.Matrix4().compose(
-      new THREE.Vector3(x + ox, r * 0.75, z + oz),
-      new THREE.Quaternion().setFromEuler(new THREE.Euler(0, rng() * Math.PI, 0)),
-      new THREE.Vector3(r, r * 0.85, r),
+      new THREE.Vector3(x + ox, lift, z + oz),
+      new THREE.Quaternion().setFromEuler(new THREE.Euler(range(local, -0.18, 0.18), yaw, range(local, -0.18, 0.18))),
+      new THREE.Vector3(r, r * 0.8, r),
     );
+    tone.copy(baseTone).offsetHSL(range(local, -0.02, 0.02), 0, range(local, -0.05, 0.05));
     const top = r * 1.6;
     b.add(
       BLOB,
       m,
-      (_f, centroid, normal) => shaded(tone, normal, rng, c).multiplyScalar(0.7 + 0.4 * Math.min(1, centroid.y / top)),
-      makeWarp(seed + i * 131, r * 0.14),
+      (_f, centroid, normal) => {
+        const shade = (0.85 + 0.25 * normal.y) * range(rng, 0.92, 1.08);
+        const height = 0.7 + 0.4 * Math.min(1, Math.max(0, centroid.y) / top);
+        const contact = 0.55 + 0.45 * Math.min(1, Math.max(0, centroid.y) / (r * 0.6));
+        const mottle = local() < 0.18 ? 0.62 : 1;
+        c.copy(tone).multiplyScalar(shade * height * contact * mottle);
+        const up = Math.max(0, normal.y);
+        if (up > 0.6) c.lerp(BUSH_HIGHLIGHT, 0.12 * up);
+        return c;
+      },
+      makeWarp(seed + i * 131, r * 0.22),
     );
   }
 }

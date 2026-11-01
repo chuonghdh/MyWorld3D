@@ -54,3 +54,25 @@
 - `core/blockIds.ts`: block id scheme (house and merged ids, parsers). Same scheme as `city/merge.ts`; the test checks they agree. `city/merge.ts` could re-export from core (City & Streets to decide).
 - `core/weatherKinds.ts`: `WEATHER_KINDS`, `WeatherKind`; `weather/weatherState.ts` re-exports them.
 - Store block-merge actions take `idsFor(blockMerges) => ids` from the UI (`ui/useBlockEdit.ts` uses `getCityLayout`) to remap the block order; the store never calls the city generator.
+
+## Session 2026-11-01 (review, no source edits)
+Traps:
+- git autocrlf=true: "LF will be replaced by CRLF" warnings are benign; working copies are all CRLF, no mixed endings.
+- ui/index.ts exports verified: all listed files exist; WALL_COLORS/SHUTTER_COLORS removed, no consumers left.
+- CameraRig.tsx is 350 lines (at the cap).
+Decisions:
+- HousePanel base = houseBaseFor(layout, id) (scene/townBlocks.ts), so the panel shows real block values; DEFAULT_HOUSE_BASE only when the house is not in the layout.
+- as-block removed from the Type choices (Original covers it).
+Open items:
+- HousePanel.tsx:91 an override saved with preset 'as-block' (still valid in io.ts) shows an empty Type select while the scene uses the block preset. Fix: map as-block to the block preset in the panel.
+- HousePanel.tsx:71-76 "New look" writes a shutter override on houses with no shutters (base null, swatch hidden). Skip shutter when base is null.
+UX (not implemented):
+- Settings: group into Light and season / Weather and wind / Town and traffic / Trees and quality / Effects.
+- House panel: Shape (type, floors, roof, style) and Colour (wall, shutter, New look) groups.
+- Swatch names on hover (title attribute with the colour name).
+- Camera reset button: push 'overview' to runtime.cameraPresetRequests.
+
+## Session 2026-11-01 follow-up (fixes)
+- Fixed HousePanel.tsx: 'as-block' override shows the block preset in the Type select (`shownPreset`); New look skips the shutter override when the block has no shutters (`hasShutters`, from base).
+- Note: src/scene/CameraRig.tsx is 350 lines (at the cap). Not refactored; split before adding code.
+- Open (Sky change pending): model.ts `leafAmount` default is 1, but leaves.ts reads it as percent of MAX_LEAVES (600), so the default shows 6 leaves. Proposed default after Sky's unit change: 100. model.ts untouched.

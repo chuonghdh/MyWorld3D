@@ -24,6 +24,7 @@ import { AudioBridge } from './audioBridge';
 import { sameTarget } from './selectionMath';
 import { AMBIENT_GAIN, HEMI_GAIN, SUN_DISTANCE, SUN_GAIN, lightDirection } from './townShadow';
 import { lotAt, monumentBaseFor, type BlockPiece } from './townBlocks';
+import { NATURE_TYPES, natureItems } from '../streets/natureTrees';
 import { useTownPieces } from './useTownPieces';
 import { useTownGreenery } from './useTownGreenery';
 import { useTownTraffic } from './useTownTraffic';
@@ -67,9 +68,14 @@ export function Town({ onSelect, selected }: { onSelect: (target: OverrideTarget
     () => createClouds({ area: layout.townBounds, count: 10, seed: settings.seed }),
     [layout.townBounds, settings.seed],
   );
+  // Only broadleaf trees shed leaves; conifers keep their needles.
+  const broadleaf = useMemo(
+    () => natureItems(layout, settings.seed).filter((t) => !NATURE_TYPES[t.type].evergreen),
+    [layout, settings.seed],
+  );
   useEffect(() => {
-    leaves.setTreePoints(layout.streetTrees.map((t) => ({ x: t.position.x, z: t.position.z })));
-  }, [leaves, layout]);
+    leaves.setTreePoints(broadleaf.map((t) => ({ x: t.position.x, z: t.position.z })));
+  }, [leaves, broadleaf]);
 
   const lighting = useMemo(() => getLightingForTime(settings.timeOfDay), [settings.timeOfDay]);
   const lightsOn = lighting.sky.lightsOn;
@@ -117,6 +123,7 @@ export function Town({ onSelect, selected }: { onSelect: (target: OverrideTarget
     settings.trafficMultiplier * preset.traffic,
     settings.seed,
     lightsOn,
+    lighting.sky.headlights,
   );
 
   const pieces = useTownPieces({ layout, order, base, blockOverrides, houseOverrides, smoke, seed: settings.seed });
@@ -162,7 +169,7 @@ export function Town({ onSelect, selected }: { onSelect: (target: OverrideTarget
   const sunColor = new THREE.Color(sky.sunColor.r, sky.sunColor.g, sky.sunColor.b);
   const skyColor = new THREE.Color(sky.sky.r, sky.sky.g, sky.sky.b);
   const moonColor = new THREE.Color(sky.moonColor.r, sky.moonColor.g, sky.moonColor.b);
-  const nightGround = new THREE.Color('#c9b48e').lerp(new THREE.Color('#3a4668'), sky.nightness);
+  const nightGround = new THREE.Color('#b9bcb6').lerp(new THREE.Color('#3a4668'), sky.nightness);
 
   function handleBlockClick(e: ThreeEvent<MouseEvent>, piece: BlockPiece) {
     e.stopPropagation();

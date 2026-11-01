@@ -138,10 +138,33 @@ describe('createVehicleMeshes', () => {
     m.update(list, { time: 0, night: false, season: 'summer' });
     expect(m.glow.count).toBe(0);
     m.setNight(true);
+    m.setHeadlights(1);
     m.update(list, { time: 0, night: true, season: 'summer' });
     // One headlight pool and one brake pool each (all braking), within the instance capacity.
     expect(m.glow.count).toBe(600);
     expect(m.glow.count).toBeLessThanOrEqual(m.glow.instanceMatrix.count);
+    m.dispose();
+  });
+
+  it('lights no headlight at level 0 and only the seeded share of cars at a partial level', () => {
+    // Same seeded threshold as vehicleMeshes.ts headlightThreshold: a car is lit while level > threshold.
+    const threshold = (id: number) => (Math.imul(id, 0x9e3779b1) >>> 0) / 4294967296;
+    const m = createVehicleMeshes(300);
+    const list: VehicleRender[] = [];
+    for (let i = 0; i < 300; i++) {
+      list.push({ id: i + 1, position: { x: i * 10, z: 0 }, heading: 0, cls: 'car', variant: 0, speed: 8, accel: -3, braking: true, indicator: 0, yawRate: 0, wheelPhase: 0, tint: 0.1 });
+    }
+    m.setNight(true);
+    m.setHeadlights(0);
+    m.update(list, { time: 0, night: true, season: 'summer' });
+    // Level 0: brake pools only (one per braking car).
+    expect(m.glow.count).toBe(300);
+    m.setHeadlights(0.5);
+    m.update(list, { time: 0, night: true, season: 'summer' });
+    const litExpected = list.filter((v) => 0.5 > threshold(v.id)).length;
+    expect(litExpected).toBeGreaterThan(0);
+    expect(litExpected).toBeLessThan(300);
+    expect(m.glow.count).toBe(300 + litExpected);
     m.dispose();
   });
 });

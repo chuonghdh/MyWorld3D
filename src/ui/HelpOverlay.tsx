@@ -24,7 +24,7 @@ const BLOCKS: [string, string][] = [
 
 const PANELS: [string, string][] = [
   ['Settings', 'Light, season, weather, wind, town size, traffic, trees, quality and effects.'],
-  ['House / Monument', 'Appears when you select a building: colours, shutters, details.'],
+  ['House / Public building', 'Appears when you select a building: colours, shutters, details.'],
   ['Time bar', 'Pause, auto day cycle, clock, the map / street view switch and Photo. The arrow folds it to the analog clock.'],
   ['Street view', 'Click the walker to walk from the centre, or drag it onto the map to start there.'],
   ['Photo', 'Saves the 3D view as a PNG without the panels.'],

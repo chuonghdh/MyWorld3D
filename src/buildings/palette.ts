@@ -23,6 +23,8 @@ export const BRICK_COLORS = {
   orange: '#a85a3e',
 } as const;
 export const BRICK_PALETTE: readonly string[] = Object.values(BRICK_COLORS);
+/** Wall colours that read as brick: the brick palette plus brick-like preset walls (lowercase). */
+export const BRICK_LIKE_WALLS: readonly string[] = [...BRICK_PALETTE, '#6e3a2c', '#7d4a36', '#b5533c'];
 
 export const SHUTTER_COLORS = {
   sage: '#5f7d63',

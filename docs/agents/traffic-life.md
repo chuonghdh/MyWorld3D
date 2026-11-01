@@ -83,3 +83,15 @@ Pedestrians (`src/traffic/walkers/`):
 ## Verify
 `npx vitest run tests/vehicle*.test.ts tests/people.test.ts tests/blockMergeTraffic.test.ts` (rerun the flake alone), then the full suite.
 - 2-arm junctions have no light in `layout.trafficLights` (City & Streets, generate.ts). `lightPos` in vehicles.ts falls back to the intersection centre for the stop line when the path's light id is missing.
+
+## Session 2026-11-01
+- Trap: `vehicle-shader-v2` cache key bump is required (new `uSnow` uniform and varyings). Keep bumping it on any shader interface change.
+- Decision: per-car headlights. `headlightThreshold(id)` is a Fibonacci hash of the id in [0,1); lit when `headlights > threshold`. Glow pool count adds only for lit cars; brake pools unaffected.
+- Decision: windscreen frost clears a fixed disc (radius 1.0 at x = +-0.45, y = 1.45, object space). It is not tied to wiper state.
+- Determinism: `EXPECTED_VEHICLES` = b0d22ec1 passes. `src/traffic/vehicles/**` and `walkers/**` match HEAD, so the hash change comes from uncommitted city/streets/environment layout edits. Confirm with those owners before commit.
+- Review: no defects found in shader varyings (declared in both stages), threshold hash, or glow loop (`gn += lit`, brake slot reuses the index).
+- Open: `vehicles.test.ts` only checks level 1 (600 = all lit). Add level 0 (300) and a partial-level case.
+- Open: wiper disc is static; parked wipers still clear glass. Acceptable approximation, not verified by eye.
+- Open: `traffic/vehicleMeshes.ts` imports `shaders/wetSurface` (cross-layer). Check against architect layering rules.
+- Follow-up: added `vehicles.test.ts` cases for headlight level 0 (300 = brake pools only) and level 0.5 (300 + lit count, lit = level > threshold(id)). 27/27 pass.
+- Hash b0d22ec1 holds on the current tree. Test imports `generateCity` (src/city, src/streets) and `store/model`, so it depends on the uncommitted city/streets/environment edits, not on src/traffic/vehicles/** (unchanged from HEAD).

@@ -1,10 +1,11 @@
+import { HOUSE_SHUTTER_OPTIONS, HOUSE_WALL_OPTIONS } from '../buildings';
 import { useWorldStore } from '../store';
 import { HOUSE_PRESETS, HOUSE_STYLES, ROOF_TYPES, type HouseOverride, type RoofType } from '../store/model';
 import type { HousePreset, HouseStyle } from '../core/types';
 import { ActionButton, HouseGlyph, Panel, Segmented, Select, Slider, Swatches } from './controls';
 
-export const WALL_COLORS = ['#d8c3a5', '#c97b5a', '#e9e2d0', '#8a9a9b', '#b9a58b', '#f0e6d2', '#7d5a4f', '#a7b8c4'];
-export const SHUTTER_COLORS = ['#4a5d4a', '#2f4a6d', '#7a2e2a', '#e0d8c4', '#3b3b3b', '#c9a227'];
+/** Presets a house can be set to. 'as-block' is not offered: "Original" already restores the block's own look. */
+const PRESET_CHOICES: readonly HousePreset[] = HOUSE_PRESETS.filter((v) => v !== 'as-block');
 
 const PRESET_LABEL: Record<HousePreset, string> = {
   'as-block': 'As the block has it',
@@ -31,28 +32,29 @@ const ROOF_LABEL: Record<RoofType, string> = {
   'step-gable': 'Step gable',
 };
 
-/** What the house shows when it has no override: the block's own values. */
+/** What the house shows when it has no override: the block's own values (see houseBaseFor in scene/townBlocks). */
 export interface HouseBase {
   preset: HousePreset;
   floors: number;
   roof: RoofType;
   style: HouseStyle;
   wallColor: string;
-  shutterColor: string;
+  /** Null when the block's style has no shutters (modern, brick, stone). */
+  shutterColor: string | null;
 }
 
 export const DEFAULT_HOUSE_BASE: HouseBase = {
-  preset: 'as-block',
+  preset: 'canal-amsterdam',
   floors: 4,
   roof: 'mansard',
   style: 'classic',
-  wallColor: WALL_COLORS[0],
-  shutterColor: SHUTTER_COLORS[0],
+  wallColor: HOUSE_WALL_OPTIONS[0],
+  shutterColor: HOUSE_SHUTTER_OPTIONS[0],
 };
 
 export interface HousePanelProps {
   houseId: string;
-  /** Values the block has before any override. Supplied by the scene side. */
+  /** Values the house has before any override. Supplied by the scene side. */
   base?: Partial<HouseBase>;
   onAction?: (action: 'newLook' | 'original', houseId: string) => void;
 }
@@ -63,16 +65,18 @@ export function HousePanel({ houseId, base, onAction }: HousePanelProps) {
   const clearOverride = useWorldStore((st) => st.clearOverride);
 
   const eff: HouseBase = { ...DEFAULT_HOUSE_BASE, ...base, ...override };
+  const hasShutters = (base?.shutterColor !== undefined ? base.shutterColor : DEFAULT_HOUSE_BASE.shutterColor) !== null;
+  // 'as-block' is not a choice: show the block's own preset so the select always has a valid option.
+  const shownPreset: HousePreset = eff.preset === 'as-block' ? (base?.preset ?? DEFAULT_HOUSE_BASE.preset) : eff.preset;
   const target = { type: 'house' as const, id: houseId };
   const patch = (p: HouseOverride) => setOverride(target, p);
 
   const newLook = () => {
     const pick = <T,>(list: readonly T[]) => list[Math.floor(Math.random() * list.length)];
-    patch({
-      wallColor: pick(WALL_COLORS),
-      shutterColor: pick(SHUTTER_COLORS),
-      roof: pick(ROOF_TYPES),
-    });
+    const look: HouseOverride = { wallColor: pick(HOUSE_WALL_OPTIONS), roof: pick(ROOF_TYPES) };
+    // No shutter override on a house whose block has no shutters (base null).
+    if (hasShutters) look.shutterColor = pick(HOUSE_SHUTTER_OPTIONS);
+    patch(look);
     onAction?.('newLook', houseId);
   };
 
@@ -86,8 +90,8 @@ export function HousePanel({ houseId, base, onAction }: HousePanelProps) {
       <Select<HousePreset>
         id="house-preset"
         label="Type"
-        value={eff.preset}
-        options={HOUSE_PRESETS.map((v) => ({ value: v, label: PRESET_LABEL[v] }))}
+        value={shownPreset}
+        options={PRESET_CHOICES.map((v) => ({ value: v, label: PRESET_LABEL[v] }))}
         onChange={(v) => patch({ preset: v })}
       />
 
@@ -129,13 +133,15 @@ export function HousePanel({ houseId, base, onAction }: HousePanelProps) {
         onChange={(v) => patch({ style: v })}
       />
 
-      <Swatches label="Wall" colors={WALL_COLORS} value={eff.wallColor} onChange={(c) => patch({ wallColor: c })} />
-      <Swatches
-        label="Shutter"
-        colors={SHUTTER_COLORS}
-        value={eff.shutterColor}
-        onChange={(c) => patch({ shutterColor: c })}
-      />
+      <Swatches label="Wall" colors={HOUSE_WALL_OPTIONS} value={eff.wallColor} onChange={(c) => patch({ wallColor: c })} />
+      {eff.shutterColor !== null && (
+        <Swatches
+          label="Shutter"
+          colors={HOUSE_SHUTTER_OPTIONS}
+          value={eff.shutterColor}
+          onChange={(c) => patch({ shutterColor: c })}
+        />
+      )}
 
       <div className="mw-button-grid mw-button-grid-2">
         <ActionButton icon="✦" onClick={newLook}>New look</ActionButton>

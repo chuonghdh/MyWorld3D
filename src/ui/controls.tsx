@@ -127,7 +127,7 @@ export function Swatches({
   onChange,
 }: {
   label: string;
-  colors: string[];
+  colors: readonly string[];
   value: string;
   onChange: (c: string) => void;
 }) {

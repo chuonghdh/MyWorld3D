@@ -126,3 +126,18 @@ export function lotAt(lots: readonly LotHit[], p: THREE.Vector3): LotHit | null 
 export function disposePiece(piece: BlockPiece): void {
   if (piece.object instanceof THREE.Group) disposeMerged(piece.object);
 }
+
+/** The values a house has as its block gives them, before any override. Null when the house is not in the layout. */
+export function houseBaseFor(layout: CityLayout, houseId: string) {
+  const lot = layout.lots.find((l) => l.id === houseId);
+  if (!lot) return null;
+  const p = houseParamsFor(lot, lot.blockId, {});
+  return {
+    preset: p.preset,
+    floors: p.floors,
+    roof: p.roof,
+    style: p.style,
+    wallColor: p.wallColor,
+    shutterColor: p.shutterColor,
+  };
+}

@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Canvas } from '@react-three/fiber';
+import * as THREE from 'three';
 import { getCityLayout } from './city';
 import {
   BlockEditOverlay, BlockPanel, DEFAULT_HOUSE_BASE, EditModeChip, HelpOverlay, HousePanel, MonumentPanel, PanelFocusContext,
@@ -9,6 +10,7 @@ import { rectCentre, useBlockEdit } from './ui/useBlockEdit';
 import { QUALITY_PRESETS, TREE_SPECIES, detectDevice, suggestQuality, useWorldStore, type OverrideTarget } from './store';
 import * as audio from './audio';
 import { Town, monumentBaseFor } from './scene/Town';
+import { houseBaseFor } from './scene/townBlocks';
 import { runtime } from './scene/runtime';
 import { CameraRig } from './scene/CameraRig';
 import { BlockEditor } from './scene/BlockEditor';
@@ -112,7 +114,7 @@ export function App() {
   const panel = selected?.type === 'house' ? (
     <HousePanel
       houseId={selected.id}
-      base={DEFAULT_HOUSE_BASE}
+      base={houseBaseFor(layout, selected.id) ?? DEFAULT_HOUSE_BASE}
       onAction={(a, id) => {
         if (a === 'original') useWorldStore.getState().clearOverride({ type: 'house', id });
       }}
@@ -144,6 +146,9 @@ export function App() {
         camera={{ position: [0, 380, 130], fov: 35, near: 1, far: 2000 }}
         onPointerMissed={() => setSelected(null)}
         onCreated={(state) => {
+          // Explicit grade (was R3F's implicit default): ACES filmic, unit exposure. Keeps the warm look.
+          state.gl.toneMapping = THREE.ACESFilmicToneMapping;
+          state.gl.toneMappingExposure = 1;
           // Suggest a quality tier from the GPU and device; the user decides whether to apply it.
           try {
             const gl = state.gl.getContext();

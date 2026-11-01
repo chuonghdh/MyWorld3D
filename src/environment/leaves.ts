@@ -1,7 +1,7 @@
 // Falling leaves and the leaf devil (a swirling vortex that lifts leaves off the road).
 // One InstancedMesh holds every particle, so the draw call count stays at 1. The particle kind
 // follows the season (see seasons.ts): spring petals, summer pollen motes, autumn leaves, none in winter.
-// The number of live leaves is bounded by leafAmount (percent of MAX_LEAVES).
+// The number of live leaves is bounded by leafAmount (fraction of MAX_LEAVES, 0-1).
 // leafSize is a multiplier on the leaf quad (1 = default size).
 
 import * as THREE from 'three';
@@ -28,7 +28,7 @@ export interface LeafBounds {
 }
 
 export interface LeafSettings {
-  /** Percent of MAX_LEAVES that may be live at once, 0-100. */
+  /** Fraction of MAX_LEAVES that may be live at once, 0-1 (UI slider value). */
   leafAmount: number;
   /** Size multiplier of each leaf, 1 = default. */
   leafSize: number;
@@ -214,8 +214,8 @@ export class LeafSystem {
 
     if (settings) {
       if (settings.leafAmount !== undefined) {
-        const pct = Math.min(100, Math.max(0, settings.leafAmount));
-        this.limit = Math.floor((MAX_LEAVES * pct) / 100);
+        const frac = Math.min(1, Math.max(0, settings.leafAmount));
+        this.limit = Math.floor(MAX_LEAVES * frac);
       }
       if (settings.leafSize !== undefined) this.size = Math.max(0.05, settings.leafSize);
       if (settings.season !== undefined && settings.season !== this.season) {
@@ -272,7 +272,7 @@ export class LeafSystem {
     }
     if (!leaf || live >= Math.floor(this.limit * p.density)) return;
     const tree = this.trees[Math.floor(this.rng() * this.trees.length)];
-    const spread = p.kind === 'pollen' ? 7 : 4;
+    const spread = p.kind === 'pollen' ? 7 : p.kind === 'leaf' ? 6 : 4;
     leaf.state = FALLING;
     leaf.x = tree.x + (this.rng() - 0.5) * spread;
     leaf.z = tree.z + (this.rng() - 0.5) * spread;

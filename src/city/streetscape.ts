@@ -37,7 +37,7 @@ export interface Streetscape {
 }
 
 /** Footprint radius of a courtyard tree (times its scale), used as an obstacle for courtyard greenery. */
-export const COURTYARD_TREE_RADIUS = 1.5;
+export const COURTYARD_TREE_RADIUS = 4.7;
 
 /** Courtyard trees as greenery obstacles: the list Scene and the fountain footprint both pass to the greenery. */
 export function courtyardTreeObstacles(trees: readonly StreetTree[]): { x: number; z: number; r: number }[] {

@@ -20,7 +20,7 @@ export interface QualityPreset {
 }
 
 export const QUALITY_PRESETS: Record<QualityTier, QualityPreset> = {
-  high: { dprMax: 2, shadowMap: 2048, bloom: 1, msaa: 4, traffic: 1 },
+  high: { dprMax: 2, shadowMap: 4096, bloom: 1, msaa: 4, traffic: 1 },
   medium: { dprMax: 1.5, shadowMap: 2048, bloom: 0.6, msaa: 4, traffic: 0.75 },
   low: { dprMax: 1, shadowMap: 1024, bloom: 0, msaa: 2, traffic: 0.5 },
 };

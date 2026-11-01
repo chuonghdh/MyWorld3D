@@ -11,10 +11,18 @@
 //  - snow: white cover that only forms on upward-facing surfaces, ragged edge from noise.
 import * as THREE from 'three';
 
+/** 1x1 empty mask: no tyre tracks until a town sets one. */
+const NO_TRACKS = new THREE.DataTexture(new Uint8Array([0, 0, 0, 0]), 1, 1, THREE.RGBAFormat);
+NO_TRACKS.needsUpdate = true;
+
 export const weatherUniforms = {
   uWet: { value: 0 },
   uSnow: { value: 0 },
   uWetSky: { value: new THREE.Color(0, 0, 0) },
+  /** Bare tyre tracks (red channel, 255 = bare). See src/streets/tyreTracks.ts. */
+  uTrackMap: { value: NO_TRACKS as THREE.Texture },
+  /** (minX, minZ, width, depth) of the track map in metres. */
+  uTrackRect: { value: new THREE.Vector4(0, 0, 1, 1) },
 };
 
 export const WEATHER_VERTEX_COMMON = /* glsl */ `
@@ -30,6 +38,8 @@ export const WEATHER_FRAGMENT_COMMON = /* glsl */ `
 uniform float uWet;
 uniform float uSnow;
 uniform vec3 uWetSky;
+uniform sampler2D uTrackMap;
+uniform vec4 uTrackRect;
 varying vec3 vWxPos;
 float wxHash(vec2 p) {
   vec3 p3 = fract(vec3(p.xyx) * 0.1031);
@@ -63,7 +73,8 @@ if (uWet > 0.001 || uSnow > 0.001) {
   }
   if (uSnow > 0.001) {
     float wxEdge = (wxBig - 0.5) * 0.5 + (wxFine - 0.5) * 0.25;
-    float wxCover = smoothstep(0.0, 1.0, clamp(uSnow * 1.35 + wxEdge, 0.0, 1.0)) * smoothstep(0.62, 0.84, wxN.y);
+    float wxTrack = texture2D(uTrackMap, (vWxPos.xz - uTrackRect.xy) / uTrackRect.zw).r;
+    float wxCover = smoothstep(0.0, 1.0, clamp(uSnow * 1.35 + wxEdge, 0.0, 1.0)) * smoothstep(0.62, 0.84, wxN.y) * (1.0 - 0.92 * wxTrack);
     diffuseColor.rgb = mix(diffuseColor.rgb, vec3(0.93, 0.95, 1.0) * (0.96 + 0.04 * wxFine), wxCover);
     roughnessFactor = mix(roughnessFactor, 0.92, wxCover);
   }
@@ -77,6 +88,8 @@ export function patchWeather(shader: ShaderLike): void {
   shader.uniforms.uWet = weatherUniforms.uWet;
   shader.uniforms.uSnow = weatherUniforms.uSnow;
   shader.uniforms.uWetSky = weatherUniforms.uWetSky;
+  shader.uniforms.uTrackMap = weatherUniforms.uTrackMap;
+  shader.uniforms.uTrackRect = weatherUniforms.uTrackRect;
   shader.vertexShader = shader.vertexShader
     .replace('#include <common>', `#include <common>\n${WEATHER_VERTEX_COMMON}`)
     .replace('#include <project_vertex>', `#include <project_vertex>\n${WEATHER_VERTEX_AFTER_PROJECT}`);

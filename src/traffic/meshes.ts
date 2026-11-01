@@ -26,6 +26,7 @@ export interface TrafficMeshes {
   people: PeopleMeshes;
   /** Night look on or off (vehicle lights, people with lights). */
   setNight(on: boolean): void;
+  setHeadlights(level: number): void;
   update(vehicles: readonly VehicleRender[], pedestrians: readonly PedestrianRender[], ctx: VisualContext): void;
   dispose(): void;
 }
@@ -41,6 +42,9 @@ export function createTrafficMeshes(options: TrafficMeshOptions = {}): TrafficMe
     group,
     vehicles,
     people,
+    setHeadlights(level) {
+      vehicles.setHeadlights(level);
+    },
     setNight(on) {
       vehicles.setNight(on);
       people.setNight(on);

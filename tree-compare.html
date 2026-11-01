@@ -1,0 +1,40 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="color-scheme" content="dark" />
+    <title>Tree compare (dev)</title>
+    <style>
+      html, body { margin: 0; height: 100%; overflow: hidden; background: #1c1816; color: #f1ebe3; font: 13px/1.4 system-ui, sans-serif; }
+      canvas { display: block; }
+      #ui {
+        position: fixed; left: 12px; top: 12px; z-index: 2; max-width: min(360px, calc(100vw - 32px));
+        padding: 10px 12px; border-radius: 10px; background: rgba(28, 24, 22, 0.85);
+        border: 1px solid rgba(255, 255, 255, 0.12); box-sizing: border-box;
+      }
+      #ui .seasons { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 6px; }
+      #ui button {
+        padding: 4px 10px; border-radius: 6px; border: 1px solid #555; background: #2a2421; color: #f1ebe3; cursor: pointer;
+      }
+      #ui button.active { background: #e8833a; border-color: #e8833a; color: #1c1816; }
+    </style>
+  </head>
+  <body>
+    <div id="ui">
+      <div>Quaternius row (leaves recoloured; winter is tinted, not snow)</div>
+      <div class="seasons">
+        <button type="button" data-season="spring">spring</button>
+        <button type="button" data-season="summer" class="active">summer</button>
+        <button type="button" data-season="autumn">autumn</button>
+        <button type="button" data-season="winter">winter</button>
+      </div>
+      <div class="seasons">
+        <button type="button" id="gallery">All 45</button>
+        <button type="button" id="shrubs">Shrubs</button>
+      </div>
+      <div id="status" style="margin-top: 6px; color: #a79c92;"></div>
+    </div>
+    <script type="module" src="/src/dev/treeCompare/main.ts"></script>
+  </body>
+</html>

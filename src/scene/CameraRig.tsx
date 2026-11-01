@@ -155,6 +155,11 @@ export function CameraRig() {
     startStreetAt(px, pz);
   };
 
+  // First load: frame the whole town. The overview tween starts from the default camera pose, so the intro is motion.
+  useEffect(() => {
+    runtime.cameraPresetRequests.push('overview');
+  }, []);
+
   // Request queue consumption happens in the frame loop; this also exposes the keyboard shortcuts.
   useEffect(() => {
     const onKeyDown = (e: KeyboardEvent) => {
@@ -333,6 +338,7 @@ export function CameraRig() {
       makeDefault
       target={[0, 0, 0]}
       enableDamping
+      dampingFactor={0.08}
       enablePan
       screenSpacePanning
       zoomToCursor

@@ -112,6 +112,8 @@ export interface SkyState {
   sunIntensity: number;
   /** Ambient light intensity, 0.15-0.7. */
   ambientIntensity: number;
+  /** Car headlight level 0..1: 0 in daylight, 1 once the sun is 8 degrees below the horizon. */
+  headlights: number;
   /** Street lamps and lit windows should be on when this is true. */
   lightsOn: boolean;
   /** 0 by day .. 1 at full night (smooth through dusk). Drives stars, moon and night fill. */
@@ -142,8 +144,8 @@ const KEYFRAMES: Keyframe[] = [
   { alt: -6, sky: hex('#26306a'), sunColor: hex('#8a6a9a'), sunIntensity: 0.14, ambientIntensity: 0.3 },
   { alt: 0, sky: hex('#e0734a'), sunColor: hex('#ff9a55'), sunIntensity: 0.6, ambientIntensity: 0.35 },
   { alt: 6, sky: hex('#f2b272'), sunColor: hex('#ffc27a'), sunIntensity: 0.9, ambientIntensity: 0.45 },
-  { alt: 16, sky: hex('#9ccfee'), sunColor: hex('#fff1dc'), sunIntensity: 1.1, ambientIntensity: 0.6 },
-  { alt: 60, sky: hex('#8ec8f0'), sunColor: hex('#fff8ef'), sunIntensity: 1.15, ambientIntensity: 0.65 },
+  { alt: 16, sky: hex('#9ccfee'), sunColor: hex('#fff7ee'), sunIntensity: 1.1, ambientIntensity: 0.6 },
+  { alt: 60, sky: hex('#8ec8f0'), sunColor: hex('#fffbf5'), sunIntensity: 1.15, ambientIntensity: 0.65 },
 ];
 
 function lerp(a: number, b: number, t: number): number {
@@ -216,6 +218,7 @@ export function getSkyState(altitudeDeg: number): SkyState {
     sunIntensity: lerp(lo.sunIntensity, hi.sunIntensity, t),
     ambientIntensity: lerp(lo.ambientIntensity, hi.ambientIntensity, t),
     lightsOn: altitudeDeg < 0,
+    headlights: Math.min(1, Math.max(0, -altitudeDeg / 8)),
     nightness: nightnessFor(altitudeDeg),
     moonFill: nightnessFor(altitudeDeg) * 0.55,
     moonColor: hex('#8fa8e8'),

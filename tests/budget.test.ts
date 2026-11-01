@@ -7,13 +7,21 @@
 // Moving actors (vehicles, walkers, birds, leaves, smoke, clouds) are instanced with a runtime count and
 // are not part of this static estimate. Draw calls are one per mesh, so the estimate is
 // main-pass meshes + shadow-pass meshes. Thresholds sit a little above the measured values.
-import { describe, expect, it } from 'vitest';
+import { beforeAll, describe, expect, it } from 'vitest';
+import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
 import * as THREE from 'three';
 import { generateCity } from '../src/city';
 import { buildHouse, buildMonument, MONUMENT_KINDS } from '../src/buildings';
 import { boxCasts, CASTER_ATTRIBUTE } from '../src/buildings/facade/mesh';
 import { createStreetscape } from '../src/streets';
-import { createTreeField, createCourtyardGreenery, createWindUniforms } from '../src/environment';
+import { createCourtyardGreenery } from '../src/environment';
+import {
+  createNatureTreeField,
+  NATURE_TYPES,
+  natureAssetFromGltf,
+  natureItems,
+  type NatureAsset,
+} from '../src/streets/natureTrees';
 import type { Rect } from '../src/city';
 import { DEFAULT_SETTINGS } from '../src/store/model';
 import { mergeByMaterial, type PlacedObject } from '../src/scene/mergeBlock';
@@ -65,7 +73,24 @@ function hash(id: string): number {
   return ((h >>> 0) % 100000) / 100000;
 }
 
-function sceneCounts(seed: number): { total: Counts; blocks: Counts } {
+/** The six city tree types, parsed from the GLBs (no textures, no sway: triangles and draws only). */
+type NodeFs = { readFileSync(path: string): Uint8Array };
+
+async function loadNatureAssetsForTest(): Promise<NatureAsset[]> {
+  // Node's fs, loaded at run time (no @types/node in this project). vitest runs from the project root.
+  const fs = (await import(/* @vite-ignore */ 'node:' + 'fs')) as unknown as NodeFs;
+  const loader = new GLTFLoader();
+  return Promise.all(
+    NATURE_TYPES.map(async (type) => {
+      const buf = fs.readFileSync(`public/models/quaternius/${type.file}.glb`);
+      const data = buf.buffer.slice(buf.byteOffset, buf.byteOffset + buf.byteLength);
+      const gltf = await loader.parseAsync(data, '');
+      return natureAssetFromGltf(type, gltf, null, null);
+    }),
+  );
+}
+
+function sceneCounts(seed: number, assets: NatureAsset[]): { total: Counts; blocks: Counts } {
   const settings = { ...DEFAULT_SETTINGS, seed };
   const layout = generateCity(settings);
   const blocks: Counts = { main: 0, shadow: 0, mainMeshes: 0, shadowMeshes: 0 };
@@ -77,11 +102,7 @@ function sceneCounts(seed: number): { total: Counts; blocks: Counts } {
     count(buildMonument(kind, { width: 30, depth: 30, seed: 1 }), total);
   }
   count(createStreetscape(layout).group, total);
-  const trees = createTreeField(
-    layout.streetTrees.map((t) => ({ id: t.id, position: t.position, species: t.species, scale: t.scale * 1.35 })),
-    { season: 'summer', uniforms: createWindUniforms(), seed },
-  );
-  count(trees.group, total);
+  count(createNatureTreeField(natureItems(layout, seed), assets, 'summer').group, total);
   count(
     createCourtyardGreenery(
       layout.blocks.filter((b) => b.kind === 'houses' && b.courtyard).map((b) => b.courtyard as Rect),
@@ -218,23 +239,29 @@ describe('shadow pass diet (task 3.1)', () => {
 });
 
 describe('render budget (seeded default city)', () => {
-  const { total, blocks } = sceneCounts(SEED);
-  const bodyAll = (() => {
+  let total: Counts;
+  let blocks: Counts;
+  let bodyAll = 0;
+  let detailMeshes = 0;
+  let shadowBefore = 0;
+  beforeAll(async () => {
+    ({ total, blocks } = sceneCounts(SEED, await loadNatureAssetsForTest()));
+    bodyAll = (() => {
     const t = { body: 0 };
     for (const b of seededBlocks()) {
       const by = trisByName(b.group);
       t.body += (by['building-body'] ?? 0) + (by['building-body-detail'] ?? 0);
     }
     return t.body;
-  })();
-
-  const detailMeshes = seededBlocks().reduce((n, b) => n + meshesOf(b.group, 'building-body-detail').length, 0);
+    })();
+    detailMeshes = seededBlocks().reduce((n, b) => n + meshesOf(b.group, 'building-body-detail').length, 0);
 
   // Measured on seed 1, default settings, static scene (task 3.1 done):
   //   main pass    1,383,853 triangles in 98 meshes (75 of them house-block meshes), unchanged by the split
   //   shadow pass    421,859 triangles in 32 meshes; before the split every body triangle cast: 1,325,327
   //   draw calls     130 (98 main + 32 shadow); before the split 115 (the 15 detail meshes are new)
-  const shadowBefore = total.shadow - blocks.shadow + bodyAll;
+    shadowBefore = total.shadow - blocks.shadow + bodyAll;
+  }, 300_000);
 
   it('measures the scene', () => {
     // eslint-disable-next-line no-console
@@ -243,26 +270,26 @@ describe('render budget (seeded default city)', () => {
   });
 
   it('main-pass triangles stay at the pre-diet level (no visible geometry removed)', () => {
-    // Measured 1,383,853; the diet moves triangles between meshes but never deletes one.
-    expect(total.main).toBeLessThanOrEqual(1_430_000);
+    // Measured 1,539,195 (Quaternius city trees, was 1,383,853); the diet moves triangles between meshes but never deletes one.
+    expect(total.main).toBeLessThanOrEqual(1_700_000);
     expect(blocks.main).toBeGreaterThanOrEqual(1_100_000);
     expect(blocks.main).toBeLessThanOrEqual(1_140_000);
   });
 
   it('shadow-pass triangles are at most 40 percent of the pre-diet level', () => {
-    // Measured 421,859 (31.8 percent of the 1,325,327 before the diet).
-    expect(total.shadow).toBeLessThanOrEqual(450_000);
+    // Measured 549,627 with Quaternius trees (was 421,859; 31.8 percent before of the 1,325,327 before the diet).
+    expect(total.shadow).toBeLessThanOrEqual(605_000);
     expect(total.shadow).toBeLessThanOrEqual(shadowBefore * 0.4);
   });
 
   it('main plus shadow triangles of the static scene stay well under the 3 M design budget', () => {
-    // Measured 1,383,853 + 421,859 = 1,805,712.
-    expect(total.main + total.shadow).toBeLessThanOrEqual(1_900_000);
+    // Measured 1,539,195 + 549,627 = 2,088,822.
+    expect(total.main + total.shadow).toBeLessThanOrEqual(2_300_000);
   });
 
   it('draw-call estimate (main meshes + shadow meshes) stays under its threshold', () => {
-    // Measured 130 = 98 + 32. The diet adds one detail mesh per house block to the main pass only.
-    expect(total.mainMeshes + total.shadowMeshes).toBeLessThanOrEqual(140);
+    // Measured 132 = 100 + 32 (was 130). The diet adds one detail mesh per house block to the main pass only.
+    expect(total.mainMeshes + total.shadowMeshes).toBeLessThanOrEqual(145);
     expect(total.mainMeshes + total.shadowMeshes).toBeLessThanOrEqual(400);
     expect(detailMeshes).toBeLessThanOrEqual(seededBlocks().length);
   });

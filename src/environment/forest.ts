@@ -13,7 +13,9 @@
 import * as THREE from 'three';
 import { createRng } from '../core/rng';
 import type { Season, TreeSpecies, Vec2 } from '../core/types';
+import { attachWeather } from '../shaders/wetSurface';
 import { attachCloudShade } from './cloudShade';
+import { autumnLeafColor } from './leafVariety';
 import { TREE_SPECIES, applyWindSway, createFoliageMaterial, type WindUniforms } from './trees';
 import {
   blossomShare,
@@ -322,30 +324,23 @@ const SHAPES: Record<TreeSpecies, SpeciesShape> = {
 // Season palettes (2-3 tones per crown)
 // ---------------------------------------------------------------------------
 
-const TONES: Record<TreeSpecies, Record<Exclude<Season, 'winter'>, string[]>> = {
-  // Maple: mid green with a warm cast in summer, flame red in autumn.
+// Green tones per species. Autumn is not per species: every crown takes the shared red/orange/yellow mix.
+const TONES: Record<TreeSpecies, Record<'spring' | 'summer', string[]>> = {
   maple: {
     spring: ['#9ccc5a', '#b6da72', '#86bd4a'],
     summer: ['#37722c', '#468a36', '#2d6126'],
-    autumn: ['#d23a26', '#e8622a', '#f2a52e'],
   },
-  // Oak: the darkest, bluish-olive summer crown, rusty brown in autumn.
   oak: {
     spring: ['#a6c86b', '#93b85a', '#bcd67f'],
     summer: ['#2c5a30', '#356838', '#244d29'],
-    autumn: ['#b8702a', '#964a28', '#d09838'],
   },
-  // Birch: light, yellow-green all year, pale gold in autumn.
   birch: {
     spring: ['#c4e886', '#b0d872', '#d4f09a'],
     summer: ['#82bc50', '#6fa842', '#94cc62'],
-    autumn: ['#e6c63a', '#f2d65a', '#d29a2a'],
   },
-  // Ginkgo: a clean emerald, vivid yellow in autumn.
   ginkgo: {
     spring: ['#8fd16a', '#7cc058', '#a6de82'],
     summer: ['#3f9a52', '#4cab5e', '#348646'],
-    autumn: ['#f2c21e', '#f7d84a', '#e3a116'],
   },
 };
 const BLOSSOM: Record<BlossomColor, THREE.Color[]> = {
@@ -355,7 +350,7 @@ const BLOSSOM: Record<BlossomColor, THREE.Color[]> = {
 };
 
 const toneCache = new Map<string, THREE.Color[]>();
-function tonesFor(species: TreeSpecies, season: Exclude<Season, 'winter'>): THREE.Color[] {
+function tonesFor(species: TreeSpecies, season: 'spring' | 'summer'): THREE.Color[] {
   const key = species + season;
   let c = toneCache.get(key);
   if (!c) {
@@ -371,7 +366,7 @@ function tonesFor(species: TreeSpecies, season: Exclude<Season, 'winter'>): THRE
 
 interface CrownGeometry {
   geometry: THREE.BufferGeometry;
-  /** Per vertex: [blobRand, faceRand, shade]. */
+  /** Per vertex: [blobRand, faceRand, shade, height 0..1]. */
   data: Float32Array;
 }
 
@@ -404,7 +399,11 @@ function buildCrown(species: TreeSpecies, rng: () => number, warpSeed: number): 
         const t = (centroid.y - minY) / Math.max(0.01, maxY - minY);
         const shade = (0.58 + 0.52 * t + 0.1 * normal.y) * range(rng, 0.9, 1.1);
         const faceRand = rng();
-        data.push(blobRand, faceRand, shade, blobRand, faceRand, shade, blobRand, faceRand, shade);
+        data.push(
+          blobRand, faceRand, shade, t,
+          blobRand, faceRand, shade, t,
+          blobRand, faceRand, shade, t,
+        );
         return white;
       },
       warp,
@@ -413,22 +412,22 @@ function buildCrown(species: TreeSpecies, rng: () => number, warpSeed: number): 
   return { geometry: b.build(), data: new Float32Array(data) };
 }
 
+const _hsl = { h: 0, s: 0, l: 0 };
+
 function recolorCrown(crown: CrownGeometry, species: TreeSpecies, season: Season): void {
   if (season === 'winter') return; // crowns are hidden
-  const tones = tonesFor(species, season);
+  const autumn = season === 'autumn';
+  const tones = autumn ? null : tonesFor(species, season);
   const blossoms = blossomShare(species, season);
   const attr = crown.geometry.getAttribute('color') as THREE.BufferAttribute;
   const arr = attr.array as Float32Array;
   const d = crown.data;
   const c = new THREE.Color();
   for (let v = 0; v < attr.count; v++) {
-    const blobRand = d[v * 3];
-    const faceRand = d[v * 3 + 1];
-    const shade = d[v * 3 + 2];
-    // Each blob has a dominant tone; ~35% of its faces take one of the other tones.
-    let idx = Math.floor(blobRand * tones.length) % tones.length;
-    if (faceRand > 0.65) idx = Math.floor(((faceRand - 0.65) / 0.35) * tones.length) % tones.length;
-    c.copy(tones[idx]);
+    const blobRand = d[v * 4];
+    const faceRand = d[v * 4 + 1];
+    const shade = d[v * 4 + 2];
+    const height = d[v * 4 + 3];
     if (blossoms && (blobRand * 7.31) % 1 < blossoms.blobShare && faceRand > blossoms.faceMin) {
       c.copy(BLOSSOM[blossoms.color][faceRand > 0.8 ? 1 : 0]);
       arr[v * 3] = c.r * Math.min(1.15, shade + 0.15);
@@ -436,9 +435,27 @@ function recolorCrown(crown: CrownGeometry, species: TreeSpecies, season: Season
       arr[v * 3 + 2] = c.b * Math.min(1.15, shade + 0.15);
       continue;
     }
-    arr[v * 3] = c.r * shade;
-    arr[v * 3 + 1] = c.g * shade;
-    arr[v * 3 + 2] = c.b * shade;
+    if (tones) {
+      // Each blob has a dominant tone; ~35% of its faces take one of the other tones.
+      let idx = Math.floor(blobRand * tones.length) % tones.length;
+      if (faceRand > 0.65) idx = Math.floor(((faceRand - 0.65) / 0.35) * tones.length) % tones.length;
+      c.copy(tones[idx]);
+      // Seeded per-island spread: hue, saturation and lightness, kept inside the green range.
+      c.getHSL(_hsl);
+      c.setHSL(
+        _hsl.h + (faceRand - 0.5) * 0.03,
+        Math.min(1, Math.max(0, _hsl.s + (blobRand - 0.5) * 0.12)),
+        Math.min(1, Math.max(0, _hsl.l + (blobRand - 0.5) * 0.08)),
+      );
+    } else {
+      // Autumn: red, orange and yellow mixed on one crown, yellow up top.
+      autumnLeafColor(height, (faceRand + blobRand * 0.37) % 1, c);
+    }
+    // Autumn leaves are lifted so the shadowed side stays red or gold, not brown.
+    const sh = autumn ? 0.8 + 0.25 * shade : shade;
+    arr[v * 3] = c.r * sh;
+    arr[v * 3 + 1] = c.g * sh;
+    arr[v * 3 + 2] = c.b * sh;
   }
   attr.needsUpdate = true;
 }
@@ -588,9 +605,9 @@ export function createTreeField(
     flatShading: true,
   });
   const bark = attachCloudShade(new THREE.MeshStandardMaterial({ vertexColors: true, flatShading: true, roughness: 0.95 }));
-  const twigs = applyWindSway(
-    new THREE.MeshStandardMaterial({ vertexColors: true, flatShading: true, roughness: 0.95 }),
-    opts.uniforms,
+  // Bare twigs take the shared snow cover (up-facing faces) like buildings and streets.
+  const twigs = attachWeather(
+    applyWindSway(new THREE.MeshStandardMaterial({ vertexColors: true, flatShading: true, roughness: 0.95 }), opts.uniforms),
   );
 
   const geometries: THREE.BufferGeometry[] = [];

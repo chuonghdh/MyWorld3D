@@ -28,7 +28,7 @@ import { SURFACE } from './surface';
 import {
   AWNING_COLORS,
   BASE_STONE,
-  BRICK_PALETTE,
+  BRICK_LIKE_WALLS,
   DOOR_COLORS,
   IRONWORK,
   ROOF_COLORS,
@@ -154,7 +154,7 @@ export function buildHouse(params: HouseParams): THREE.Group {
 
   const wallHex = params.wallColor || lay.spec.defaultWall;
   const wall = shiftLightness(wallHex, (rng() * 2 - 1) * 0.04);
-  const brick = BRICK_PALETTE.includes(wallHex) || kind === 'canal' || kind === 'brownstone';
+  const brick = BRICK_LIKE_WALLS.includes(wallHex.toLowerCase()) || kind === 'canal' || kind === 'brownstone';
   const trim: Col = kind === 'haussmann' && !modern ? shiftLightness(wallHex, 0.05) : col(look.trim);
   const [roof, roofTop] = roofColors(lay, rng);
   const colors: Colors = {

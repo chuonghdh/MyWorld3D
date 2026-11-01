@@ -9,7 +9,8 @@
 import * as THREE from 'three';
 import type { CityLayout, TrafficLight } from '../city/layout';
 import type { LightAxis, LightPhase } from '../traffic/lights';
-import { attachWeather } from '../buildings/materials';
+import { attachWeather, weatherUniforms } from '../buildings/materials';
+import { buildTyreTrackMap } from './tyreTracks';
 import { attachCloudShade } from '../environment/cloudShade';
 import { MeshBuilder } from './builder';
 import { addPoolUVs, buildBench, buildFurniture, type SignalHead } from './furniture';
@@ -18,6 +19,46 @@ import { courtyardGreeneryFootprint } from './greeneryFootprint';
 import { buildDecor } from './decorGeometry';
 import { createWaterMaterial } from './water';
 import { buildSurfaces } from './surfaces';
+
+// Road grain: world-space value noise (no texture, no extra draw) breaks the flat vertex colour of the
+// asphalt and pavement by about +/-7 %. Must run before attachWeather so both patches chain.
+const ROAD_GRAIN_VERTEX_COMMON = /* glsl */ `
+varying vec3 vRoadPos;
+`;
+const ROAD_GRAIN_VERTEX_AFTER_PROJECT = /* glsl */ `
+vRoadPos = (modelMatrix * vec4(transformed, 1.0)).xyz;
+`;
+const ROAD_GRAIN_FRAGMENT_COMMON = /* glsl */ `
+varying vec3 vRoadPos;
+float roadHash(vec2 p) { return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453); }
+float roadNoise(vec2 p) {
+  vec2 i = floor(p);
+  vec2 f = fract(p);
+  f = f * f * (3.0 - 2.0 * f);
+  return mix(mix(roadHash(i), roadHash(i + vec2(1.0, 0.0)), f.x),
+             mix(roadHash(i + vec2(0.0, 1.0)), roadHash(i + vec2(1.0, 1.0)), f.x), f.y);
+}
+`;
+const ROAD_GRAIN_FRAGMENT_COLOR = /* glsl */ `
+#include <color_fragment>
+diffuseColor.rgb *= 0.93 + 0.10 * roadNoise(vRoadPos.xz * 0.6) + 0.04 * roadNoise(vRoadPos.xz * 5.0);
+`;
+
+function attachRoadGrain(material: THREE.MeshStandardMaterial): void {
+  const prev = material.onBeforeCompile;
+  material.onBeforeCompile = (shader, renderer) => {
+    prev.call(material, shader, renderer);
+    shader.vertexShader = shader.vertexShader
+      .replace('#include <common>', `#include <common>\n${ROAD_GRAIN_VERTEX_COMMON}`)
+      .replace('#include <project_vertex>', `#include <project_vertex>\n${ROAD_GRAIN_VERTEX_AFTER_PROJECT}`);
+    shader.fragmentShader = shader.fragmentShader
+      .replace('#include <common>', `#include <common>\n${ROAD_GRAIN_FRAGMENT_COMMON}`)
+      .replace('#include <color_fragment>', ROAD_GRAIN_FRAGMENT_COLOR);
+  };
+  const prevKey = material.customProgramCacheKey;
+  material.customProgramCacheKey = () => `${prevKey.call(material)}|road-grain-v1`;
+  material.needsUpdate = true;
+}
 
 export { SIDEWALK_TOP, ASPHALT_TOP, PAINT_Y, COLORS as STREET_COLORS } from './surfaces';
 export { LAMP_HEIGHT } from './furniture';
@@ -121,6 +162,7 @@ export function createStreetscape(layout: CityLayout): Streetscape {
 
   // --- Materials (owned by this streetscape) ---
   const surfaceMat = new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.92, metalness: 0 });
+  attachRoadGrain(surfaceMat);
   const overlayMat = new THREE.MeshStandardMaterial({
     vertexColors: true,
     roughness: 0.85,
@@ -132,6 +174,10 @@ export function createStreetscape(layout: CityLayout): Streetscape {
   const furnitureMat = new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.6, metalness: 0.2 });
   attachWeather(surfaceMat);
   attachWeather(furnitureMat);
+  const tracks = buildTyreTrackMap(layout);
+  textures.push(tracks.texture);
+  weatherUniforms.uTrackMap.value = tracks.texture;
+  weatherUniforms.uTrackRect.value.copy(tracks.rect);
   // Cloud shadows fall on the road, the markings on it and the street furniture.
   attachCloudShade(surfaceMat);
   attachCloudShade(overlayMat);

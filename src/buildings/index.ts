@@ -15,6 +15,7 @@ export {
 export type { HouseParams, RoofType, HouseChimney } from './house';
 
 export { buildMonument, MONUMENT_KINDS } from './monument';
+export { HOUSE_WALL_OPTIONS, HOUSE_SHUTTER_OPTIONS } from './facade/presets';
 
 export {
   WALL_COLORS,

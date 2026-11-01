@@ -7,12 +7,12 @@ import { getNightSchedule } from '../environment/sun';
 import {
   createCourtyardGreenery,
   createStreetFlora,
-  createTreeField,
   setGreenerySeason,
   type getLightingForTime,
   type WindUniforms,
 } from '../environment';
 import { createStreetscape } from '../streets';
+import { useNatureTrees } from './useNatureTrees';
 import { useWorldStore, type TreeOverride } from '../store';
 import type { Season } from '../core/types';
 
@@ -51,13 +51,8 @@ export function useTownGreenery({ layout, treeOverrides, uniforms, seed, season,
       })),
     [layout, treeOverrides],
   );
-  const treeField = useMemo(
-    () => createTreeField(treeItems, { season, uniforms, seed }),
-    // Season changes go through setSeason below instead of rebuilding.
-    [treeItems, uniforms, seed],
-  );
-  useEffect(() => treeField.setSeason(season), [treeField, season]);
-  useEffect(() => () => treeField.dispose(), [treeField]);
+  // City trees: Quaternius GLB types (src/streets/natureTrees.ts), loaded after first paint.
+  const treeField = useNatureTrees({ layout, seed, uniforms, season, treeOverrides });
 
   const greenery = useMemo(
     () =>

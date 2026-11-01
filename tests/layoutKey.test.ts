@@ -48,7 +48,7 @@ describe('layout once, traffic out of layout', () => {
 describe('quality tiers', () => {
   it('high keeps the reference look, lower tiers only reduce', () => {
     const h = QUALITY_PRESETS.high;
-    expect(h).toMatchObject({ dprMax: 2, shadowMap: 2048, bloom: 1, traffic: 1 });
+    expect(h).toMatchObject({ dprMax: 2, shadowMap: 4096, bloom: 1, traffic: 1 });
     expect(QUALITY_PRESETS.low).toMatchObject({ dprMax: 1, shadowMap: 1024, bloom: 0, traffic: 0.5 });
     const m = QUALITY_PRESETS.medium;
     expect(m.dprMax).toBeLessThan(h.dprMax);

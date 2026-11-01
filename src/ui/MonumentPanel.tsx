@@ -28,10 +28,10 @@ export function MonumentPanel({ blockId, base = 'hospital' }: MonumentPanelProps
   const current: MonumentKind = override?.monument ?? base;
 
   return (
-    <Panel id="selection" title="Monument block" icon={<LandmarkGlyph />}>
+    <Panel id="selection" title="Public building" icon={<LandmarkGlyph />}>
       <Select<MonumentKind>
         id="monument-kind"
-        label="Monument"
+        label="Building"
         value={current}
         options={MONUMENT_KINDS.map((k) => ({ value: k, label: MONUMENT_LABEL[k] }))}
         onChange={(k) => setOverride({ type: 'block', id: blockId }, { monument: k })}

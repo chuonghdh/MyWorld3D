@@ -36,3 +36,27 @@
 
 ## Verify
 `npx vitest run tests/clouds.test.ts tests/sky.test.ts tests/weather.test.ts tests/aircraft.test.ts tests/plants.test.ts tests/environment.test.ts tests/parkYard.test.ts`. Force a render in a standalone WebGLRenderer to check shader compile.
+
+## Leaf colour variety (handover task)
+- `environment/leafVariety.ts` is the shared palette: autumn red `#b8402a` -> orange `#d8792c` -> yellow `#e6b93e` by height with seeded scatter; green accents `#7fb23a` / `#2f7f5a` for hue spread.
+- Procedural crowns (`forest.ts` recolorCrown): autumn is one mix for every species (no per-species autumn tones). Spring and summer get a per-island HSL spread. Per-tree differences come from `treeTint`.
+- Quaternius leaves (`streets/natureTrees.ts`): `applyLeafVariety` adds a shader chained after the wind sway. Per-island randoms and height are the `aIsland` vertex attribute; per-tree randoms are the instance colour. Autumn uses a white base so the luminance-matched ramp sets the colour. Chosen over vertex-colour swapping because the leaf texture carries the alpha cut-out and vein light, and a luminance-preserving hue mix keeps both.
+- Light grade: day keyframes `sun.ts` alt 16 `#fff1dc` -> `#fff7ee`, alt 60 `#fff8ef` -> `#fffbf5`. Golden stays at alt 0 and 6. Gains unchanged.
+- Open: the hemisphere ground colour `#c9b48e` (`scene/Town.tsx`) is warm beige and still adds yellow fill. Owned by Scene; not changed here.
+- Open: dev page (`src/dev/treeCompare`) shows per-island variety only (single meshes, no instance colour).
+
+## Session 2026-11-01
+- Review only (no source edits). `npx tsc --noEmit` passes.
+- Trap: `leafAmount` unit mismatch. Store default `1` (`src/store/model.ts:127`) and the slider (`src/ui/SettingsCity.tsx:217-222`, 0-1 shown as %) are fractions, but `leaves.ts:218` reads percent (`MAX_LEAVES * pct / 100`). Result: 100% shows as about 6 live leaves. Open: pick one unit and fix in `leaves.ts` or the slider.
+- Trap: `leafVariety.ts:73` `lvMatchLuma` lifts texels to luma `mix(lum, 0.42, 0.65)`. Red ramp luma is 0.14, so any texel above about 0.07 pushes red/orange channels above 1.0 linear (red about 2.1 at lum 1). Hue shifts toward pale yellow after clipping. Open: clamp the target to the ramp's own luma or clamp channels.
+- Stale comment: `leafVariety.ts:67` says "keeps texture luminance", but line 73 now lifts it.
+- Decision: `headlights = clamp(-alt / 8, 0, 1)` (`sun.ts:221`). Ramp starts at alt 0 while `lightsOn` stays at alt < 0. Good at polar edges (alt in -90..90). No guard for NaN altitude. No test covers `headlights`.
+- Decision: autumn in procedural crowns (`forest.ts`) has no luma lift; only the Quaternius path (`leafVariety.ts`) does. Keep both in sync when tuning.
+- Shared with City: `src/shaders/wetSurface.ts` adds `uTrackMap` (1x1 empty default) and `uTrackRect`. Note only.
+
+## Session 2026-11-01 (fixes)
+- `leafAmount` is now a fraction 0-1 (`leaves.ts`, `limit = floor(MAX_LEAVES * frac)`). Store default stays 1 = 600 live leaves (`src/store/model.ts:127`, not edited). Test `plants.test.ts` uses 1.
+- `lvMatchLuma` (GLSL) and `matchLuma` (CPU) clamp to [0,1] linear: no pale hue clip on red/orange.
+- Summer green lift in `leafVariety.ts`: `summer = smoothstep(0.8, 1.0, uVary)`. Couples to uVary (summer 1.0, spring 0.6). Open: a dedicated `uSummer` uniform needs `streets/natureTrees.ts` (City).
+- Procedural winter trees: crowns hidden, bare twigs had only a baked up-face tint and no dynamic cover. `forest.ts` now wraps `twigs` in `attachWeather` (shared `uSnow`). Trunk not patched. Twigs also darken in rain (`uWet`).
+- Open: procedural summer `TONES` in `forest.ts` are dark (#2c5a30 range); not changed.

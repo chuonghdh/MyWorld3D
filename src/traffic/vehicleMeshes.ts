@@ -10,6 +10,7 @@
 //  - glass and trim keep fixed colours while paint parts take the per-instance colour.
 
 import * as THREE from 'three';
+import { weatherUniforms } from '../shaders/wetSurface';
 import type { VehicleClass } from '../audio';
 import type { CityLayout } from '../city/layout';
 import type { VehicleRender } from './vehicles';
@@ -30,8 +31,10 @@ export interface VehicleMeshes {
   uniforms: { night: { value: number }; time: { value: number } };
   /** Parked cars written at creation (empty without a layout). */
   parked: readonly ParkingSpot[];
-  /** Night look on or off (headlights, tail lights, interior, ground glow). */
+  /** Night look on or off (tail lights, interior, ground glow). */
   setNight(on: boolean): void;
+  /** Headlight level 0..1 (dusk to full night). Each car has its own seeded threshold, so cars switch on one by one. */
+  setHeadlights(level: number): void;
   /** Kept for callers; the headlight glow no longer depends on the camera focus (it is always drawn). */
   setFocus(x: number, z: number): void;
   update(vehicles: readonly VehicleRender[], ctx: VisualContext): void;
@@ -41,6 +44,11 @@ export interface VehicleMeshes {
 /** One headlight pool plus one brake pool per vehicle, for every vehicle the system can hold. */
 const GLOW_CAP = 640;
 
+/** Seeded per-car threshold in [0, 1): a car has its headlights on while the headlight level is above it. */
+function headlightThreshold(id: number): number {
+  return (Math.imul(id, 0x9e3779b1) >>> 0) / 4294967296;
+}
+
 // ---- shader patch ----------------------------------------------------------------------------
 
 const VERT_PARS = /* glsl */ `
@@ -49,6 +57,11 @@ attribute vec4 aMotion;
 uniform float uNight;
 uniform float uTime;
 varying vec3 vEmit;
+// Snow: upward paint takes snow; front glass frosts outside the wiper fans.
+varying float vSnowUp;
+varying float vSnowPaint;
+varying float vFrontGlass;
+varying vec3 vBodyPos;
 `;
 
 const NORMAL_SPIN = /* glsl */ `
@@ -83,6 +96,15 @@ vec3 paintC = vec3(1.0);
 #endif
 vColor = color * paintC;
 vEmit = vec3(0.0);
+mat3 snowInst = mat3(1.0);
+#ifdef USE_INSTANCING
+  snowInst = mat3(instanceMatrix);
+#endif
+vec3 snowN = snowInst * objectNormal;
+vSnowUp = snowN.y;
+vSnowPaint = aPart.y;
+vFrontGlass = (aPart.y < 0.5 && aPart.x < 0.5 && objectNormal.z > 0.6 && color.b > color.r + 0.03) ? 1.0 : 0.0;
+vBodyPos = position;
 float pk = aPart.x;
 if (pk > 1.5) {
   float lit = aMotion.z;
@@ -105,20 +127,45 @@ if (pk > 1.5) {
 }
 `;
 
+const SNOW_FRAG = /* glsl */ `
+uniform float uSnow;
+varying float vSnowUp;
+varying float vSnowPaint;
+varying float vFrontGlass;
+varying vec3 vBodyPos;
+void vehicleSnow(inout vec3 albedo) {
+  if (uSnow < 0.001) return;
+  // Roof, bonnet and boot: white where the surface faces up, most of it at full snow.
+  float roof = smoothstep(0.6, 0.9, vSnowUp) * vSnowPaint * clamp(uSnow * 1.5, 0.0, 1.0);
+  albedo = mix(albedo, vec3(0.94, 0.96, 1.0), roof);
+  // Windscreen frost, not where the two wiper fans have just swept (fans pivot near the base corners).
+  float fanL = length(vec2(vBodyPos.x + 0.45, vBodyPos.y - 1.45));
+  float fanR = length(vec2(vBodyPos.x - 0.45, vBodyPos.y - 1.45));
+  float swept = max(step(fanL, 1.0), step(fanR, 1.0));
+  float frost = vFrontGlass * (1.0 - swept) * clamp(uSnow * 1.2, 0.0, 1.0);
+  albedo = mix(albedo, vec3(0.78, 0.82, 0.86), frost * 0.55);
+}
+`;
+
 function patchMaterial(material: THREE.MeshLambertMaterial, uniforms: VehicleMeshes['uniforms']): void {
   material.onBeforeCompile = (shader) => {
     shader.uniforms.uNight = uniforms.night;
     shader.uniforms.uTime = uniforms.time;
+    shader.uniforms.uSnow = weatherUniforms.uSnow;
     shader.vertexShader = shader.vertexShader
-      .replace('#include <common>', `#include <common>\n${VERT_PARS}`)
+      .replace('#include <common>', `#include <common>
+${VERT_PARS}`)
       .replace('#include <beginnormal_vertex>', NORMAL_SPIN)
       .replace('#include <begin_vertex>', POSITION_SPIN)
       .replace('#include <color_vertex>', COLOR_EMIT);
     shader.fragmentShader = shader.fragmentShader
-      .replace('#include <common>', '#include <common>\nvarying vec3 vEmit;')
+      .replace('#include <common>', `#include <common>
+varying vec3 vEmit;
+${SNOW_FRAG}`)
+      .replace('#include <color_fragment>', '#include <color_fragment>\nvehicleSnow(diffuseColor.rgb);')
       .replace('#include <emissivemap_fragment>', '#include <emissivemap_fragment>\ntotalEmissiveRadiance += vEmit;');
   };
-  material.customProgramCacheKey = () => 'vehicle-shader-v1';
+  material.customProgramCacheKey = () => 'vehicle-shader-v2';
 }
 
 // ---- helpers -----------------------------------------------------------------------------------
@@ -266,6 +313,7 @@ export function createVehicleMeshes(capacity = 256, layout?: CityLayout): Vehicl
   group.add(glow);
 
   let night = false;
+  let headlights = 0;
   const fill = new Array<number>(VARIANT_COUNT).fill(0);
 
   const classMesh: Record<VehicleClass, THREE.InstancedMesh> = {
@@ -286,6 +334,9 @@ export function createVehicleMeshes(capacity = 256, layout?: CityLayout): Vehicl
       night = on;
       uniforms.night.value = on ? 1 : 0;
       glow.visible = on;
+    },
+    setHeadlights(level) {
+      headlights = level;
     },
     setFocus() {
       // Intentionally empty: glow is drawn for every vehicle so it never pops at a distance.
@@ -338,7 +389,8 @@ export function createVehicleMeshes(capacity = 256, layout?: CityLayout): Vehicl
         const m = motion[vi];
         m[i * 4] = v.wheelPhase;
         m[i * 4 + 1] = v.braking ? 1 : 0;
-        m[i * 4 + 2] = 1;
+        const lit = headlights > headlightThreshold(v.id) ? 1 : 0;
+        m[i * 4 + 2] = lit;
         m[i * 4 + 3] = v.indicator;
 
         if (night && gn < GLOW_CAP - 1) {
@@ -356,7 +408,7 @@ export function createVehicleMeshes(capacity = 256, layout?: CityLayout): Vehicl
           gm[o + 8] = sy * len; gm[o + 9] = 0; gm[o + 10] = cy * len; gm[o + 11] = 0;
           gm[o + 12] = x + sy * nose; gm[o + 13] = 0.045; gm[o + 14] = z + cy * nose; gm[o + 15] = 1;
           gc[gn * 3] = 1; gc[gn * 3 + 1] = 0.9; gc[gn * 3 + 2] = 0.62;
-          gn++;
+          gn += lit;
           if (v.braking && gn < GLOW_CAP) {
             // Small red pool behind a braking vehicle: the light points backwards.
             const rl = 3.2;

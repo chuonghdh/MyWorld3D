@@ -1,7 +1,7 @@
 // Preset table: the character of each house type (DESIGN-3D 3.3), classic and modern.
 
 import type { GroundFloorUse, HousePreset } from '../../core/types';
-import { BRICK_COLORS, ROOF_COLORS, SHUTTER_COLORS, TRIM_STONE, WALL_COLORS } from '../palette';
+import { BRICK_COLORS, BRICK_PALETTE, ROOF_COLORS, SHUTTER_COLORS, SHUTTER_PALETTE, TRIM_STONE, WALL_COLORS, WALL_PALETTE } from '../palette';
 
 export type RoofType =
   | 'mansard'
@@ -385,3 +385,20 @@ export function lookFor(kind: FacadeKind, modern: boolean): Look {
       };
   }
 }
+
+function uniqueHex(list: readonly string[]): string[] {
+  return [...new Set(list.map((c) => c.toLowerCase()))];
+}
+
+/** Every wall colour a house can start from: palette, brick and each preset's classic and modern walls. */
+export const HOUSE_WALL_OPTIONS: readonly string[] = uniqueHex([
+  ...WALL_PALETTE,
+  ...BRICK_PALETTE,
+  ...Object.values(SPECS).flatMap((s) => [s.defaultWall, s.modernWall]),
+]);
+
+/** Every shutter colour a house can start from: palette plus each preset's classic shutter. */
+export const HOUSE_SHUTTER_OPTIONS: readonly string[] = uniqueHex([
+  ...SHUTTER_PALETTE,
+  ...Object.values(SPECS).flatMap((s) => (s.defaultShutter ? [s.defaultShutter] : [])),
+]);

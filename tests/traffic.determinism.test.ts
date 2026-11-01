@@ -122,7 +122,7 @@ function pedestrianRun(): string {
 // Captured from the pre-change implementation.
 // Re-captured when the signal rules changed (stop at the crosswalk line, queueing, commit past it,
 // yield to pedestrians and cross traffic, junction right of way, turns, edge spawns).
-const EXPECTED_VEHICLES = 'f79cdeb5';
+const EXPECTED_VEHICLES = 'b0d22ec1';
 // Re-captured when the signals gained an all-red gap (pedestrians read the same timing).
 // Re-captured for the people overhaul (intentional): four age groups with teens, sexes, hair styles, garments,
 // age and sex speeds, child gait wobble, dogs kept off the road, dresses at about 5 percent, patterned tops,

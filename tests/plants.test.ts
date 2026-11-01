@@ -73,7 +73,7 @@ describe('seasonal particles', () => {
         { x: 0, z: 0 },
         { x: 10, z: 10 },
       ]);
-      for (let i = 0; i < 400; i++) sys.update(0.05, { x: 0.5, z: 0 }, { leafAmount: 100, leafSize: 1, season });
+      for (let i = 0; i < 400; i++) sys.update(0.05, { x: 0.5, z: 0 }, { leafAmount: 1, leafSize: 1, season });
       const n = sys.activeCount();
       const kind = sys.particleKind();
       sys.dispose();
