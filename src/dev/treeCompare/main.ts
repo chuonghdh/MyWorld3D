@@ -24,6 +24,8 @@ type GroupName = 'tree' | 'pine' | 'birch';
 import { weatherTargets } from '../../weather/weatherState';
 import { setSurfaceWeather } from '../../weather/wet';
 
+/** City default weather intensity (weather/index.ts createWeather), so the lab snow matches the city. */
+const WEATHER_INTENSITY = 0.6;
 const WIND = { speed: 5, direction: 315 };
 const GRID_SPACING = 7;
 
@@ -158,13 +160,14 @@ function setAll(on: boolean): void {
 function setSeasonButtons(next: Season): void {
   season = next;
   for (const b of ui.seasons) b.classList.toggle('active', b.dataset.season === next);
+  applyWeather(ui.weather.value as WeatherKind);
   field?.setSeason(next);
   ui.status.textContent = `${picked.size} types shown (${season}, ${ui.weather.value})`;
 }
 
 function applyWeather(kind: WeatherKind): void {
   // The same targets the city's weather eases toward, at full intensity; written to the shared surface uniforms.
-  const t = weatherTargets(kind, 1);
+  const t = weatherTargets(kind, WEATHER_INTENSITY);
   setSurfaceWeather(t.wet, t.snowCover, { r: 0.55, g: 0.62, b: 0.7 }, 1);
 }
 

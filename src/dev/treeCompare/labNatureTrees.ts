@@ -14,7 +14,12 @@ import { createRng } from '../../core/rng';
 import type { CityLayout } from '../../city/layout';
 import { hashString, type TreeField } from '../../environment/forest';
 import { applyWindSway, seasonLeafColor, seasonLeafDensity, type WindUniforms } from '../../environment/trees';
-import { attachWeather } from '../../shaders/wetSurface';
+import { attachWeather, weatherUniforms } from '../../shaders/wetSurface';
+
+/** Lab tuning: pine snow cover starts (lo) and is full (hi) at this upward normal y (city shader: 0.62, 0.84). */
+export const PINE_SNOW_UP: readonly [number, number] = [0.85, 0.97];
+/** Lab tuning: pine snow cover ceiling (city weather gives up to 1). Only the pine leaf material uses it. */
+export const PINE_SNOW_COVER = 0.35;
 import {
   AUTUMN_ORANGE,
   AUTUMN_RED,
@@ -338,6 +343,26 @@ export function natureAssetFromGltf(
   // Wet and snow uniforms (weather), the same ones the streets and buildings react to. Chained after the sway.
   attachWeather(barkMat);
   attachWeather(leafMat);
+  if (type.evergreen) {
+    // Lab-only tuning for pine foliage: the upward threshold of the snow cover (shared shader untouched). The shared
+    // GLSL is patched after the weather code is injected, so only this material changes.
+    const [lo, hi] = PINE_SNOW_UP;
+    const prev = leafMat.onBeforeCompile;
+    leafMat.onBeforeCompile = (shader, renderer) => {
+      prev.call(leafMat, shader, renderer);
+      // Pine snow uniform: live view of the shared snow cover, capped at PINE_SNOW_COVER for this material only.
+      shader.uniforms.uSnow = {
+        get value() {
+          return Math.min(weatherUniforms.uSnow.value, PINE_SNOW_COVER);
+        },
+      };
+      shader.fragmentShader = shader.fragmentShader.replace(
+        'smoothstep(0.62, 0.84, wxN.y)',
+        `smoothstep(${lo.toFixed(3)}, ${hi.toFixed(3)}, wxN.y)`,
+      );
+    };
+    leafMat.needsUpdate = true;
+  }
   const islands = leafIslands(leaves);
   setIslandVariety(leaves, islands, hashString(type.file) >>> 0);
   applyLeafVariety(leafMat);
@@ -351,7 +376,6 @@ export function natureAssetFromGltf(
   const snowLeafMat = new THREE.MeshStandardMaterial({
     name: type.file + '-snow-leaves',
     color: SNOW,
-    map: maps?.leaf ?? null,
     alphaTest: 0.5,
     side: THREE.DoubleSide,
     roughness: 0.9,
@@ -363,7 +387,8 @@ export function natureAssetFromGltf(
     applyWindSway(snowLeafMat, uniforms);
   }
   const snowBark = snowCap(bark);
-  const snowLeaves = snowCap(leaves);
+  // Conifers: no snow geometry. Snow comes from the weather shader on the leaf material (upward faces).
+  const snowLeaves = type.evergreen ? null : snowCap(leaves);
   return { type, bark, leaves, islands, barkMat, leafMat, snowBark, snowLeaves, snowMat, snowLeafMat };
 }
 
@@ -371,7 +396,12 @@ export function natureAssetFromGltf(
  * Snow caps: the triangles of `geo` that face up (normal.y above minUp), pushed out by `lift` along their normal so
  * they never sit on the surface they cover. Returns null when no face is up.
  */
-export function snowCap(geo: THREE.BufferGeometry, minUp = 0.5, lift = 0.05): THREE.BufferGeometry | null {
+export function snowCap(
+  geo: THREE.BufferGeometry,
+  minUp = 0.5,
+  lift = 0.05,
+  axis?: { x: number; z: number },
+): THREE.BufferGeometry | null {
   const src = geo.index ? geo.toNonIndexed() : geo;
   const pos = src.getAttribute('position');
   const out: number[] = [];
@@ -388,6 +418,12 @@ export function snowCap(geo: THREE.BufferGeometry, minUp = 0.5, lift = 0.05): TH
     c.fromBufferAttribute(pos, i + 2);
     n.subVectors(b, a).cross(e.subVectors(c, a)).normalize();
     if (n.y < minUp) continue;
+    // With an axis: keep only faces whose normal points outward from it (outer, upward part of each tier).
+    if (axis) {
+      const ox = (a.x + b.x + c.x) / 3 - axis.x;
+      const oz = (a.z + b.z + c.z) / 3 - axis.z;
+      if (n.x * ox + n.z * oz < 0) continue;
+    }
     for (const v of [a, b, c]) out.push(v.x + n.x * lift, v.y + n.y * lift, v.z + n.z * lift);
     if (uvAttr) for (let k = 0; k < 3; k++) uvOut.push(uvAttr.getX(i + k), uvAttr.getY(i + k));
   }
@@ -471,6 +507,9 @@ varying vec3 vLvTree;
 #include <color_vertex>
 vLvIsland = aIsland;
 #ifdef USE_INSTANCING_COLOR
+// The instance colour is per-tree random data for leafVariety (vLvTree), not a tint. Three would also multiply it
+// into the diffuse colour (USE_COLOR), which turns spring crowns dark brown; undo that here.
+vColor.xyz = vec3(1.0);
 vLvTree = instanceColor;
 #else
 vLvTree = vec3(0.5);
@@ -576,7 +615,9 @@ export function createNatureTreeField(
   };
 
   const apply = (sNow: Season) => {
-    for (const m of snowMeshes) m.visible = sNow === 'winter';
+    // Snow caps follow the snow weather in every season (lab rule), not the calendar.
+    const snowOn = weatherUniforms.uSnow.value > 0.001;
+    for (const m of snowMeshes) m.visible = snowOn;
     for (const { mesh, asset } of shadowUsers) {
       const key = `${asset.type.file}|shadow|${sNow}`;
       let geo = cache.get(key);
