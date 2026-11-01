@@ -12,6 +12,7 @@ import type {
 } from '../core/types';
 import type { WeatherKind } from '../core/weatherKinds';
 import type { QualityTier } from './quality';
+import { buildings, uiCamera } from '../config/tuning';
 
 /** Core settings plus the weather fields (saved to JSON, old files fall back to clear). */
 export interface WorldSettings extends CoreWorldSettings {
@@ -36,31 +37,9 @@ export const ROOF_TYPES = [
 ] as const;
 export type RoofType = (typeof ROOF_TYPES)[number];
 
-export const HOUSE_PRESETS: readonly HousePreset[] = [
-  'as-block',
-  'original-feuilles',
-  'canal-amsterdam',
-  'glass-tower',
-  'brutalist-concrete',
-  'bauhaus',
-  'mediterranean',
-  'brownstone-ny',
-  'nordic-timber',
-  'shophouse-asia',
-];
+export const HOUSE_PRESETS: readonly HousePreset[] = buildings.housePresets;
 
-export const MONUMENT_KINDS: readonly MonumentKind[] = [
-  'hospital',
-  'stadium',
-  'funfair',
-  'swimming-pool',
-  'dinosaur-park',
-  'supermarket',
-  'open-air-theatre',
-  'circus',
-  'fire-station',
-  'gothic-cathedral',
-];
+export const MONUMENT_KINDS: readonly MonumentKind[] = buildings.monumentKinds;
 
 export const TREE_SPECIES: readonly TreeSpecies[] = ['maple', 'oak', 'birch', 'ginkgo'];
 export const SEASONS: readonly Season[] = ['spring', 'summer', 'autumn', 'winter'];
@@ -88,7 +67,7 @@ export interface TreeOverride {
   species?: TreeSpecies;
 }
 
-/** Everything that is saved to JSON and undone/redone. */
+/** Everything that is saved to JSON. */
 export interface LayoutData {
   settings: WorldSettings;
   /** Current order of block ids; drag-swap exchanges two entries. */
@@ -100,7 +79,7 @@ export interface LayoutData {
   treeOverrides: Record<string, TreeOverride>;
 }
 
-/** Transient UI toggles. Not saved, not undoable. */
+/** Transient UI toggles. Not saved. */
 export interface UiToggles {
   tiltShift: boolean;
   moveBlocks: boolean;
@@ -112,25 +91,25 @@ export interface UiToggles {
 }
 
 /** Real seconds one in-app day lasts in auto time (24 minutes: one in-app hour per real minute). */
-export const DAY_SECONDS = 24 * 60;
+export const DAY_SECONDS = uiCamera.dayLengthS;
 
 export const DEFAULT_SETTINGS: WorldSettings = {
-  seed: 1,
-  timeOfDay: 17.5,
+  seed: uiCamera.defaultSeed,
+  timeOfDay: uiCamera.defaultTimeOfDay,
   season: 'autumn',
-  windSpeed: 5,
-  windDirection: 315,
-  townWidth: 217,
-  townDepth: 217,
-  trafficMultiplier: 1.75,
-  streetTreeMultiplier: 1,
-  leafAmount: 1,
-  leafSize: 1,
+  windSpeed: uiCamera.defaultWindSpeed,
+  windDirection: uiCamera.defaultWindDirection,
+  townWidth: uiCamera.defaultTownWidth,
+  townDepth: uiCamera.defaultTownDepth,
+  trafficMultiplier: uiCamera.defaultTrafficMultiplier,
+  streetTreeMultiplier: uiCamera.defaultStreetTreeMultiplier,
+  leafAmount: uiCamera.defaultLeafAmount,
+  leafSize: uiCamera.defaultLeafSize,
   soundEnabled: true,
   blockMerges: [],
   weather: 'clear',
-  weatherIntensity: 0.6,
-  quality: 'high',
+  weatherIntensity: uiCamera.defaultWeatherIntensity,
+  quality: uiCamera.defaultQuality,
 };
 
 export function createDefaultSettings(seed: number = DEFAULT_SETTINGS.seed): WorldSettings {
@@ -149,5 +128,3 @@ export function createEmptyLayout(seed: number = DEFAULT_SETTINGS.seed): LayoutD
 }
 
 export const DEFAULT_TOGGLES: UiToggles = { tiltShift: false, moveBlocks: false, music: false, paused: false, autoTime: false };
-
-export const HISTORY_LIMIT = 100;

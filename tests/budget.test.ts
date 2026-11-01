@@ -278,7 +278,8 @@ describe('render budget (seeded default city)', () => {
 
   it('main-pass triangles stay at the pre-diet level (no visible geometry removed)', () => {
     // Measured 1,539,195 (Quaternius city trees, was 1,383,853); the diet moves triangles between meshes but never deletes one.
-    expect(total.main).toBeLessThanOrEqual(1_700_000);
+    // Raised from 1,700,000: broadleaf leaf clusters and falling leaves add main-pass triangles (user decision).
+    expect(total.main).toBeLessThanOrEqual(1_900_000);
     expect(blocks.main).toBeGreaterThanOrEqual(1_100_000);
     expect(blocks.main).toBeLessThanOrEqual(1_140_000);
   });
@@ -293,7 +294,8 @@ describe('render budget (seeded default city)', () => {
     // Broadleaf shadow copies (half density) sit on layer 1: in the shadow total, outside the main count.
     expect(total.shadowOnly).toBeGreaterThan(0);
     expect(total.shadowOnly).toBeLessThanOrEqual(total.shadow);
-    expect(total.main).toBeLessThanOrEqual(1_700_000);
+    // Raised from 1,700,000: broadleaf leaf clusters and falling leaves add main-pass triangles (user decision).
+    expect(total.main).toBeLessThanOrEqual(1_900_000);
   });
 
   it('main plus shadow triangles of the static scene stay well under the 3 M design budget', () => {

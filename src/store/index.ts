@@ -3,7 +3,6 @@ import { parseMergedBlockId } from '../core/blockIds';
 import { remapBlockOrder, withMergeGroup, withoutMergeGroup } from './merges';
 import {
   DEFAULT_TOGGLES,
-  HISTORY_LIMIT,
   createDefaultSettings,
   type BlockOverride,
   type HouseOverride,
@@ -25,37 +24,30 @@ export type OverrideTarget =
 export type OverridePatch = Partial<BlockOverride & HouseOverride & TreeOverride>;
 
 export interface WorldState extends LayoutData {
-  /** Undo stack, oldest first. Bounded by HISTORY_LIMIT. */
-  past: LayoutData[];
-  /** Redo stack, most recent undone step last. */
-  future: LayoutData[];
   toggles: UiToggles;
   /** Device-based tier suggestion. Transient: never applied automatically, not saved. */
   suggestedQuality: QualitySuggestion | null;
 
   setSuggestedQuality: (s: QualitySuggestion | null) => void;
-  /** Changes the quality tier. Not undoable: undo/redo keep the current tier. */
   setQuality: (tier: QualityTier) => void;
   setSetting: <K extends keyof WorldSettings>(key: K, value: WorldSettings[K]) => void;
   setOverride: (target: OverrideTarget, patch: OverridePatch) => void;
   clearOverride: (target: OverrideTarget) => void;
   setBlockOrder: (ids: string[]) => void;
   swapBlocks: (a: string, b: string) => void;
-  /** Merges the house blocks of `group` (all member ids, absorbing any merge it grows from). Undoable. */
+  /** Merges the house blocks of `group` (all member ids, absorbing any merge it grows from). */
   mergeBlockGroup: (group: string[], idsFor: BlockIdsFor) => void;
-  /** Splits a merged block back into its member blocks. Undoable. */
+  /** Splits a merged block back into its member blocks. */
   splitMergedBlock: (mergedId: string, idsFor: BlockIdsFor) => void;
   /** Tap mode from the camera height (see BLOCK_EDIT_HEIGHT_M). Transient, not saved. */
   editMode: EditMode;
   setEditMode: (mode: EditMode) => void;
   loadLayout: (layout: LayoutData) => void;
   setToggle: (key: keyof UiToggles, value: boolean) => void;
-  /** Moves the time of day forward (wraps at 24). Not undoable: it is clock ticking, not an edit. */
+  /** Moves the time of day forward (wraps at 24). */
   advanceTime: (hours: number) => void;
-  /** Sets the time of day (hours, wraps at 24). Not undoable, like advanceTime: used by camera presets. */
+  /** Sets the time of day (hours, wraps at 24). Used by camera presets. */
   setTimeOfDay: (hours: number) => void;
-  undo: () => void;
-  redo: () => void;
   resetBlocks: () => void;
   resetHouses: () => void;
   resetAll: () => void;
@@ -79,12 +71,6 @@ function snapshot(s: LayoutData): LayoutData {
     houseOverrides: s.houseOverrides,
     treeOverrides: s.treeOverrides,
   };
-}
-
-/** Undo/redo restore layout data but never the quality tier, which is a device preference. */
-function keepQuality(layout: LayoutData, quality: QualityTier): LayoutData {
-  const snap = snapshot(layout);
-  return { ...snap, settings: { ...snap.settings, quality } };
 }
 
 function sameLayout(a: LayoutData, b: LayoutData): boolean {
@@ -132,22 +118,14 @@ const initialLayout: LayoutData = {
 };
 
 export const useWorldStore = create<WorldState>()((set, get) => {
-  /** Push the current layout onto the undo stack and apply `next`. No-op if nothing changed. */
+  /** Apply `next` to the layout. No-op if nothing changed. */
   const commit = (next: LayoutData) => {
-    const state = get();
-    const cur = snapshot(state);
-    if (sameLayout(cur, next)) return;
-    set({
-      ...next,
-      past: [...state.past, cur].slice(-HISTORY_LIMIT),
-      future: [],
-    });
+    if (sameLayout(snapshot(get()), next)) return;
+    set(next);
   };
 
   return {
     ...initialLayout,
-    past: [],
-    future: [],
     toggles: { ...DEFAULT_TOGGLES },
     suggestedQuality: null,
     editMode: 'block',
@@ -229,28 +207,6 @@ export const useWorldStore = create<WorldState>()((set, get) => {
 
     setToggle: (key, value) => {
       set((s) => ({ toggles: { ...s.toggles, [key]: value } }));
-    },
-
-    undo: () => {
-      const s = get();
-      if (s.past.length === 0) return;
-      const prev = s.past[s.past.length - 1];
-      set({
-        ...keepQuality(prev, s.settings.quality),
-        past: s.past.slice(0, -1),
-        future: [snapshot(s), ...s.future].slice(0, HISTORY_LIMIT),
-      });
-    },
-
-    redo: () => {
-      const s = get();
-      if (s.future.length === 0) return;
-      const [next, ...rest] = s.future;
-      set({
-        ...keepQuality(next, s.settings.quality),
-        past: [...s.past, snapshot(s)].slice(-HISTORY_LIMIT),
-        future: rest,
-      });
     },
 
     resetBlocks: () => {

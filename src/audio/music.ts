@@ -10,6 +10,7 @@
 
 import type { SoundSystem, SoundSystemFactory, AudioFrame } from './frame';
 import { createRandom } from './synth';
+import { audio as audioTuning } from '../config/tuning';
 
 export type Mood = 'day' | 'golden' | 'night';
 export const MOODS: readonly Mood[] = ['day', 'golden', 'night'];
@@ -430,8 +431,8 @@ const MOOD_SEND: Record<Mood, { reverb: number; delay: number }> = {
   golden: { reverb: 0.4, delay: 0.25 },
   night: { reverb: 0.7, delay: 0.4 },
 };
-const MUSIC_LEVEL = 0.8;
-const DUCK_LEVEL = 0.55;
+const MUSIC_LEVEL = audioTuning.musicLevel;
+const DUCK_LEVEL = audioTuning.duckLevel;
 
 export interface MusicSystem extends SoundSystem {
   /** Current linear fade value 0..1 (for tests / debugging). */

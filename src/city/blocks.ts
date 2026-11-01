@@ -2,6 +2,7 @@
 // Pure TypeScript. All randomness comes from the rng passed in, so results are deterministic.
 
 import type { Facades, GroundFloorUse, StreetClass, Vec2 } from '../core/types';
+import { cityStreets } from '../config/tuning';
 import type { Lot, Rect } from './layout';
 
 /** Frontage range for non-corner lots, metres. */
@@ -17,11 +18,8 @@ const MIN_COURTYARD = 6;
 /** Plaza margin around a monument, metres (capped on small blocks). */
 const PLAZA_MARGIN = 5;
 
-/** Floors per street class, inclusive. */
-const FLOOR_RANGE: Record<StreetClass, [number, number]> = {
-  avenue: [5, 7],
-  street: [3, 6],
-};
+/** Floors per street class, inclusive (config cityStreets.floorRange). */
+const FLOOR_RANGE: Record<StreetClass, readonly [number, number]> = cityStreets.floorRange;
 
 export type EdgeName = 'south' | 'north' | 'west' | 'east';
 

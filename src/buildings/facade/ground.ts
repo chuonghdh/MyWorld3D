@@ -8,6 +8,7 @@ import { windowUnit } from './upper';
 import { chance, int, pick, range } from './rng';
 import { SIGNS, pickSign, signUv } from '../signs';
 import { WIND, anchorWeight } from './polish';
+import { buildings } from '../../config/tuning';
 
 /** Fascia board front and the lettering quad 3.5 cm in front of it (no shared plane). */
 const SIGN_BOARD_N = 0.12;
@@ -298,11 +299,11 @@ function shopfront(ctx: Ctx, seg: Segment, terrace: boolean): void {
       const db = cu + dw / 2;
       const yD = Math.min(2.6, gTop - 0.5);
       // Glass door and side lights.
-      pane(ctx, da, db, 0.02, yD, nG, { litChance: 0.55, dressing: false });
+      pane(ctx, da, db, 0.02, yD, nG, { litChance: buildings.litWindowShareGround, dressing: false });
       frameBars(ctx, 'modern', da, db, 0.02, yD, nG, shop);
       m.b(shop, da + 0.06, db - 0.06, 0.0, 0.35, nG, nG + 0.06, NN);
       m.b(shop, a, b, yD, yD + 0.08, nG, nG + 0.08, NN);
-      pane(ctx, a, b, yD + 0.08, gTop - 0.04, nG, { litChance: 0.55, dressing: false });
+      pane(ctx, a, b, yD + 0.08, gTop - 0.04, nG, { litChance: buildings.litWindowShareGround, dressing: false });
       for (const [sa, sb] of [
         [a, da - 0.02],
         [db + 0.02, b],
@@ -312,14 +313,14 @@ function shopfront(ctx: Ctx, seg: Segment, terrace: boolean): void {
           continue;
         }
         m.b(shop, sa, sb, 0, 0.55, -r, -0.04, NN | NY);
-        pane(ctx, sa, sb, 0.55, yD, nG, { litChance: 0.55, dressing: false });
+        pane(ctx, sa, sb, 0.55, yD, nG, { litChance: buildings.litWindowShareGround, dressing: false });
       }
       m.b(shop, a, b, gTop - 0.08, gTop, nG, nG + 0.08, NN);
     } else {
       // Display window over a stall riser, with transom lights.
       m.b(shop, a, b, 0, 0.55, -r, -0.04, NN | NY);
       m.b(scale(shop, 1.25), a, b, 0.55, 0.6, -r, 0.0, NN);
-      const lit = ctx.rngGlass() < 0.55;
+      const lit = ctx.rngGlass() < buildings.litWindowShareGround;
       pane(ctx, a, b, 0.6, gTop, nG, { lit, dressing: false });
       frameBars(ctx, 'modern', a, b, 0.6, gTop, nG, shop);
       m.b(shop, a, b, gTop - 0.55, gTop - 0.48, nG, nG + 0.08, NN);
@@ -545,7 +546,7 @@ function towerLobby(ctx: Ctx, seg: Segment): void {
   const nG = -rg + 0.03;
   const mull = ctx.modern ? col('#1a1c1f') : col('#7d858c');
   for (let k = 0; k < panels; k++) {
-    pane(ctx, a + k * pw, a + (k + 1) * pw, 0.05, glassTop, nG, { litChance: 0.6, dressing: false });
+    pane(ctx, a + k * pw, a + (k + 1) * pw, 0.05, glassTop, nG, { litChance: buildings.litWindowShareGroundAlt, dressing: false });
   }
   for (let k = 0; k <= panels; k++) {
     const u = a + k * pw;

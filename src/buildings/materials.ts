@@ -22,13 +22,14 @@ import { attachWeather, patchWeather, weatherUniforms } from '../shaders/wetSurf
 import { WIND_VERTEX_COMMON, WIND_VERTEX_MAIN_BODY, setBuildingWind, tickBuildingWind, windUniforms } from './shaders/wind';
 import { nightClock } from './facade/polish';
 import { patchCloudShade } from '../shaders/cloudShade';
+import { buildings } from '../config/tuning';
 
 let body: THREE.MeshStandardMaterial | null = null;
 let glass: THREE.MeshStandardMaterial | null = null;
 let glassLit: THREE.MeshStandardMaterial | null = null;
 
-const LIT_COLOR = '#ffcf7a';
-const NIGHT_EMISSIVE = 1.15;
+const LIT_COLOR = buildings.litWindowColor;
+const NIGHT_EMISSIVE = buildings.nightEmissive;
 
 /** Uniforms shared by both glass materials; setGlassEnvironment writes into them. */
 export const glassUniforms = {

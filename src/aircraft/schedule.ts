@@ -4,11 +4,11 @@
 
 import { createRng } from '../core/rng';
 import { CLOUD_TOP_MAX } from '../environment/cloudSprites';
-import { MAX_DISTANCE } from '../core/cameraLimits';
+import { uiCamera } from '../config/tuning';
 import { DAY_SECONDS } from '../store/model';
 
 /** Highest the camera can be: the orbit looking straight down at the maximum zoom-out distance. */
-export const MAX_CAMERA_HEIGHT = MAX_DISTANCE;
+export const MAX_CAMERA_HEIGHT = uiCamera.maxDistance;
 /** Aircraft stay at least this far below the highest possible camera. */
 export const CAMERA_SAFETY_MARGIN = 100;
 /** Cruise band: above the cloud tops (plus a margin), below the camera ceiling, capped at 300 m. */

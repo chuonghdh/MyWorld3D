@@ -4,6 +4,7 @@ import { WEATHER_KINDS, WEATHER_LABEL, type WeatherKind } from '../weather/weath
 import type { Season } from '../core/types';
 import { ActionButton, Panel, Segmented, SettingsGlyph, Slider } from './controls';
 import { SoundMixer } from './SoundMixer';
+import { uiCamera } from '../config/tuning';
 
 /** Actions that the scene handles. Store-backed toggles are also written to the store. */
 export type CityAction =
@@ -86,8 +87,8 @@ export function SettingsCity({ onAction }: SettingsCityProps) {
         label="Light"
         value={s.timeOfDay}
         min={0}
-        max={24}
-        step={0.25}
+        max={uiCamera.timeMax}
+        step={uiCamera.timeStep}
         format={(v) => `${lightLabel(v)}  ${formatHour(v)}`}
         onChange={(v) => setSetting('timeOfDay', v)}
         background={LIGHT_TRACK}
@@ -109,7 +110,7 @@ export function SettingsCity({ onAction }: SettingsCityProps) {
         onChange={(v) => {
           setSetting('weather', v);
           // Picking a weather with the slider at the bottom would show nothing: lift it to a visible level.
-          if (v !== 'clear' && s.weatherIntensity < 0.15) setSetting('weatherIntensity', 0.6);
+          if (v !== 'clear' && s.weatherIntensity < uiCamera.weatherLiftBelow) setSetting('weatherIntensity', uiCamera.weatherLiftTo);
         }}
       />
       <Slider
@@ -118,7 +119,7 @@ export function SettingsCity({ onAction }: SettingsCityProps) {
         value={s.weatherIntensity}
         min={0}
         max={1}
-        step={0.01}
+        step={uiCamera.intensityStep}
         format={(v) => `${Math.round(v * 100)}%`}
         onChange={(v) => setSetting('weatherIntensity', v)}
       />
@@ -128,8 +129,8 @@ export function SettingsCity({ onAction }: SettingsCityProps) {
         label="Wind"
         value={s.windSpeed}
         min={0}
-        max={20}
-        step={0.1}
+        max={uiCamera.windSpeedMax}
+        step={uiCamera.windSpeedStep}
         format={(v) => `${v.toFixed(1)} m/s`}
         onChange={(v) => setSetting('windSpeed', v)}
       />
@@ -158,8 +159,8 @@ export function SettingsCity({ onAction }: SettingsCityProps) {
         label="Wind direction"
         value={s.windDirection}
         min={0}
-        max={359}
-        step={1}
+        max={uiCamera.windDirectionMax}
+        step={uiCamera.windDirectionStep}
         format={(v) => `${Math.round(v)}°`}
         onChange={(v) => setSetting('windDirection', v)}
       />
@@ -170,9 +171,9 @@ export function SettingsCity({ onAction }: SettingsCityProps) {
           id="town-width"
           label="Width"
           value={s.townWidth}
-          min={100}
-          max={400}
-          step={1}
+          min={uiCamera.townMin}
+          max={uiCamera.townMax}
+          step={uiCamera.townStep}
           format={(v) => `${Math.round(v)} m`}
           onChange={(v) => setSetting('townWidth', v)}
         />
@@ -180,9 +181,9 @@ export function SettingsCity({ onAction }: SettingsCityProps) {
           id="town-depth"
           label="Depth"
           value={s.townDepth}
-          min={100}
-          max={400}
-          step={1}
+          min={uiCamera.townMin}
+          max={uiCamera.townMax}
+          step={uiCamera.townStep}
           format={(v) => `${Math.round(v)} m`}
           onChange={(v) => setSetting('townDepth', v)}
         />
@@ -193,8 +194,8 @@ export function SettingsCity({ onAction }: SettingsCityProps) {
         label="Traffic & people"
         value={s.trafficMultiplier}
         min={0}
-        max={3}
-        step={0.05}
+        max={uiCamera.multiplierMax}
+        step={uiCamera.multiplierStep}
         format={(v) => `×${v.toFixed(2)}`}
         onChange={(v) => setSetting('trafficMultiplier', v)}
       />
@@ -204,8 +205,8 @@ export function SettingsCity({ onAction }: SettingsCityProps) {
         label="Street trees"
         value={s.streetTreeMultiplier}
         min={0}
-        max={3}
-        step={0.05}
+        max={uiCamera.multiplierMax}
+        step={uiCamera.multiplierStep}
         format={(v) => `×${v.toFixed(2)}`}
         onChange={(v) => setSetting('streetTreeMultiplier', v)}
       />
@@ -217,7 +218,7 @@ export function SettingsCity({ onAction }: SettingsCityProps) {
           value={s.leafAmount}
           min={0}
           max={1}
-          step={0.01}
+          step={uiCamera.leafAmountStep}
           format={(v) => `${Math.round(v * 100)}%`}
           onChange={(v) => setSetting('leafAmount', v)}
         />
@@ -225,9 +226,9 @@ export function SettingsCity({ onAction }: SettingsCityProps) {
           id="leaf-size"
           label="Leaf size"
           value={s.leafSize}
-          min={0.5}
-          max={3}
-          step={0.1}
+          min={uiCamera.leafSizeMin}
+          max={uiCamera.leafSizeMax}
+          step={uiCamera.leafSizeStep}
           format={(v) => `×${v.toFixed(1)}`}
           onChange={(v) => setSetting('leafSize', v)}
         />

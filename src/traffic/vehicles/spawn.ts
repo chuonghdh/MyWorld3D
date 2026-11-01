@@ -76,8 +76,10 @@ export function trySpawns(sys: VehicleSystem, dt: number): void {
       const sp = pm.spawns[k];
       sp.timer -= dt;
       if (sp.timer > 0) continue;
-      sp.timer = (SPAWN_MIN_S + sys.rng() * (SPAWN_MAX_S - SPAWN_MIN_S)) / Math.max(0.25, sys.multiplier);
-      if (sys.total >= sys.capacity) continue;
+      // Spawn rate scales with the multiplier and the time-of-day density (1 when no clock is given).
+      sp.timer = (SPAWN_MIN_S + sys.rng() * (SPAWN_MAX_S - SPAWN_MIN_S)) / (Math.max(0.25, sys.multiplier) * sys.density);
+      // The active count is held to the density share of the cap, so at night vehicles leave and are not replaced.
+      if (sys.total >= sys.capacity * sys.density) continue;
       const cls = pickClass(sys);
       if (!isFree(sys, pm, sp.s, cls)) continue;
       create(sys, pi, sp.s, cls, 0.6);

@@ -1,5 +1,22 @@
 # MyWorld3D - Critic review 01
 
+Reviewed 2026-11-01 at 02b0cdc
+
+> **Status (checked 2026-11-01 against commit 02b0cdc; findings below are unchanged).** Code check only, not seen by eye.
+> - **Resolved:**
+>   - 91fdbbc (baseline): R-7 (git history), A-1 to A-4 (birds, flocks, cats, squirrels, butterflies), V-1, V-3 (parked cars), P-3 (signal-aware crossing), L-1 (near-camera leaf fade, default leaf size 1).
+>   - 6bcbe81 (Round 5): U-1 (generative music), U-2 and U-4 (positional audio), U-3 (birds, bells, crickets, rain, thunder).
+>   - b367a34 (Round 2): K-1 (sky dome), K-2 (ground beyond town).
+>   - 251fe15: K-4 (shared cloud-shadow mask, `src/environment/cloudShade.ts`).
+>   - 524f06b and 720941d (Round 3): R-1 (shadow diet and budget), R-2 (layout key ignores traffic), R-4 (shadow fit), R-5 (MSAA), R-10 (`tests/budget.test.ts`).
+>   - 6f22062 and b724525: C-1 (zoom-to-cursor, street walk, min distance), C-2 (collapsible panels), C-3 (selection highlight), C-4 (camera presets), C-5 (auto time, screenshot), C-7 (help overlay).
+>   - 2ecd085 (Round 6): R-8 (Town.tsx split, 294 lines), H-1, H-2, H-3, H-6, S-2, S-5, T-1, T-2, T-3, W-1 (flags, laundry, awnings), L-2 (petals, pollen).
+>   - 24fcdee: P-1 (people models), S-4 (rounded kerbs).
+>   - d95a663 and 720941d: V-2 (headlights), T-4 (winter snow on bark and crowns).
+>   - 8f96b8e: falling autumn leaves with rest and fade (supports L-2).
+> - **Partly resolved:** H-4 (glass Fresnel present, glint not checked), P-4, P-5 (dog model, leash not checked), P-6 and P-7 (umbrellas, seated poses present), S-3 (bus stops, kiosks, bike racks added; no fountain-plaza check), S-4 (no pedestrian refuge), T-5 (`forest.ts`, fog fade not checked), U-3 (no footsteps, cafe clatter or sirens), V-4 (wheels spin; no body roll), K-3 (moon present; moonlight fill not checked), K-6 (fog banks; no light shafts), C-4, C-6 (auto-detect only suggests a tier), R-4, R-5, R-6 (no adaptive quality; no PerformanceMonitor).
+> - **Open:** H-5 (no window boxes), S-1 (lamp pool not rechecked), S-6 (no pedestrian signal heads), V-5 (no bus destination board), L-3 (no dust column), K-5 (golden-hour clamp unchanged), W-2 (wind whistle exists in `src/audio/nature.ts`, gust detail not checked), W-3 (umbrellas and hats: not checked), R-3 (per-frame allocations not rechecked), R-9 (`roof.ts` 1070 lines, `forest.ts` 719 lines).
+
 Reviewer: Critic. Date: 2026-10-27. Scope: whole current state (live at localhost:5173, code, tests).
 Method: top-down, mid-height and street-level views by day (12:00), golden hour (17:30) and night (20:30); Summer, Autumn, Winter; Whole map; `gl.info` readings; `vitest`, `tsc`; code skim of Town.tsx, App.tsx, PostFX, traffic, pedestrians, audio, environment.
 Not verified (be honest): fps (pane was hidden), rear elevations beyond one brick wall, monument interiors, Spring, the leaf devil in action, audio output (silent here), mobile.

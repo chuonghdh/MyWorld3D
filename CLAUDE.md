@@ -11,6 +11,10 @@ Stack: Vite, TS, Three.js, R3F, zustand, vitest.
 - Commit ONLY on user prompt. Append system attribution.
 - Fix root causes. No coplanar geometry. Keep visuals/perf high.
 - Delegate to specialists via message (no respawn). Update dashboard on assign/finish.
+- Tunable values live ONLY in `src/config/tuning.ts` (split into per-section files plus `index.ts` once over 400 lines). Feature code imports them. No new knob literals in feature code.
+- Knob = a value a designer may change (density, share, count, distance, level, time window, threshold). Geometry, shader and algorithm constants stay local.
+- No duplicate values. Lab copies live only in `src/dev/treeCompare/labTuning.ts`.
+- Every new knob: one doc line in config and an entry in `tests/tuningParity.test.ts`. Index: `docs/TUNING.md`.
 
 ## QA & Terminal
 - CMD: `npx tsc --noEmit`, `npx vitest run` (rerun pedestrian flake solo), `npx vite build`.

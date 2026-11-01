@@ -134,10 +134,6 @@ describe('nature pure functions', () => {
     }
   });
 
-  it('crickets are switched off', () => {
-    expect(cricketDensity(true, 'summer', 0)).toBe(0);
-    expect(cricketDensity(true, 'autumn', 0)).toBe(0);
-  });
 
   it('counts bell strikes for every hour', () => {
     const expected = [12, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11];
@@ -237,12 +233,58 @@ describe('createNatureSounds: wind whistle', () => {
 });
 
 describe('createNatureSounds: crickets', () => {
-  it('stay silent, even on a summer night', () => {
+  it('stay silent in the day, even in summer', () => {
+    const s = setup();
+    for (let i = 0; i < 5; i++) s.run(frame({ timeOfDay: 12, season: 'summer' }));
+    expect(s.bus.emitterCount).toBe(0);
+  });
+
+  it('sing on a summer night (22:00-05:00)', () => {
     const s = setup();
     for (let i = 0; i < 5; i++) s.run(frame({ night: true, timeOfDay: 23, season: 'summer' }));
+    expect(s.bus.emitterCount).toBeGreaterThan(0);
+  });
+
+  it('stay silent from the aerial view (camera above 45 m), even on a summer night', () => {
+    const s = setup();
+    const high = { ...LIS, height: 60 };
+    for (let i = 0; i < 5; i++) s.run(frame({ listener: high, timeOfDay: 23, season: 'summer' }));
     expect(s.bus.emitterCount).toBe(0);
   });
 });
+
+describe('cricketDensity', () => {
+  it('is zero outside 22:00-05:00 and full in summer inside it', () => {
+    for (let h = 0; h < 24; h += 0.5) {
+      const inWindow = h >= 22 || h < 5;
+      const d = cricketDensity(h, 'summer', 0);
+      if (inWindow) expect(d).toBe(1);
+      else expect(d).toBe(0);
+    }
+  });
+
+  it('keeps the window edges: 21:59 silent, 22:00 on, 04:59 on, 05:00 off', () => {
+    expect(cricketDensity(21.99, 'summer', 0)).toBe(0);
+    expect(cricketDensity(22, 'summer', 0)).toBe(1);
+    expect(cricketDensity(4.99, 'summer', 0)).toBe(1);
+    expect(cricketDensity(5, 'summer', 0)).toBe(0);
+  });
+
+  it('keeps the season and rain rules', () => {
+    expect(cricketDensity(23, 'autumn', 0)).toBe(0.5);
+    expect(cricketDensity(23, 'winter', 0)).toBe(0);
+    expect(cricketDensity(23, 'summer', 0.4)).toBeCloseTo(0.4);
+    expect(cricketDensity(23, 'summer', 1)).toBe(0);
+  });
+
+  it('wraps the hour so 24 is midnight', () => {
+    expect(cricketDensity(24, 'summer', 0)).toBe(1);
+    expect(cricketDensity(-1, 'summer', 0)).toBe(1);
+  });
+});
+
+/** Church-bell tests run in winter so crickets (summer only) stay silent and the oscillator count is bells only. */
+const winterFrame = (o: Partial<AudioFrame> = {}): AudioFrame => frame({ season: 'winter', ...o });
 
 describe('createNatureSounds: church bell', () => {
   const church = { x: 100, z: -50 };
@@ -252,10 +294,10 @@ describe('createNatureSounds: church bell', () => {
   function ringHour(h: number, opts: { church?: { x: number; z: number } | null } = {}) {
     const s = setup();
     const c = opts.church === undefined ? church : opts.church;
-    s.run(frame({ timeOfDay: h - 0.04, church: c, dt: 0.2 }));
-    s.run(frame({ timeOfDay: h + 0.01, church: c, dt: 0.2 }));
+    s.run(winterFrame({ timeOfDay: h - 0.04, church: c, dt: 0.2 }));
+    s.run(winterFrame({ timeOfDay: h + 0.01, church: c, dt: 0.2 }));
     const afterTrigger = s;
-    for (let i = 0; i < 20; i++) s.run(frame({ timeOfDay: h + 0.02, church: c, dt: BELL_SPACING_S }));
+    for (let i = 0; i < 20; i++) s.run(winterFrame({ timeOfDay: h + 0.02, church: c, dt: BELL_SPACING_S }));
     return { s, strikes: osc(afterTrigger.nodes) / BELL_PARTIALS.length };
   }
 
@@ -265,8 +307,8 @@ describe('createNatureSounds: church bell', () => {
       expect(strikes).toBe(hourToStrikes(h));
     }
     const s = setup();
-    s.run(frame({ timeOfDay: 2.96, church, dt: 0.2 }));
-    s.run(frame({ timeOfDay: 3.01, church, dt: 0.2 }));
+    s.run(winterFrame({ timeOfDay: 2.96, church, dt: 0.2 }));
+    s.run(winterFrame({ timeOfDay: 3.01, church, dt: 0.2 }));
     const p = s.panners();
     expect(p).toHaveLength(1);
     expect(p[0].positionX.value).toBe(100);
@@ -275,15 +317,15 @@ describe('createNatureSounds: church bell', () => {
 
   it('does not fire at start, on a slider jump, on a backwards step, without a church, or when too far', () => {
     const first = setup();
-    first.run(frame({ timeOfDay: 12.0, church }));
+    first.run(winterFrame({ timeOfDay: 12.0, church }));
     expect(first.bus.emitterCount).toBe(0);
     const jump = setup();
-    jump.run(frame({ timeOfDay: 10, church }));
-    jump.run(frame({ timeOfDay: 12.2, church }));
+    jump.run(winterFrame({ timeOfDay: 10, church }));
+    jump.run(winterFrame({ timeOfDay: 12.2, church }));
     expect(jump.bus.emitterCount).toBe(0);
     const back = setup();
-    back.run(frame({ timeOfDay: 12.02, church }));
-    back.run(frame({ timeOfDay: 11.98, church, dt: 0.2 }));
+    back.run(winterFrame({ timeOfDay: 12.02, church }));
+    back.run(winterFrame({ timeOfDay: 11.98, church, dt: 0.2 }));
     expect(back.bus.emitterCount).toBe(0);
     expect(osc(ringHour(9, { church: null }).s.nodes)).toBe(0);
     expect(osc(ringHour(9, { church: { x: 900, z: 0 } }).s.nodes)).toBe(0);
@@ -291,28 +333,28 @@ describe('createNatureSounds: church bell', () => {
 
   it('does not re-trigger while the clock stays in the same hour or while still ringing', () => {
     const s = setup();
-    s.run(frame({ timeOfDay: 2.96, church, dt: 0.2 }));
-    s.run(frame({ timeOfDay: 3.01, church, dt: 0.2 }));
-    for (let i = 0; i < 30; i++) s.run(frame({ timeOfDay: 3.02 + i * 0.01, church, dt: BELL_SPACING_S }));
+    s.run(winterFrame({ timeOfDay: 2.96, church, dt: 0.2 }));
+    s.run(winterFrame({ timeOfDay: 3.01, church, dt: 0.2 }));
+    for (let i = 0; i < 30; i++) s.run(winterFrame({ timeOfDay: 3.02 + i * 0.01, church, dt: BELL_SPACING_S }));
     expect(osc(s.nodes) / BELL_PARTIALS.length).toBe(3);
     // crossing into 4 while the clock keeps moving rings 4 more (a new, separate ring)
-    s.run(frame({ timeOfDay: 3.98, church, dt: 0.2 }));
-    s.run(frame({ timeOfDay: 4.02, church, dt: 0.2 }));
-    for (let i = 0; i < 12; i++) s.run(frame({ timeOfDay: 4.03, church, dt: BELL_SPACING_S }));
+    s.run(winterFrame({ timeOfDay: 3.98, church, dt: 0.2 }));
+    s.run(winterFrame({ timeOfDay: 4.02, church, dt: 0.2 }));
+    for (let i = 0; i < 12; i++) s.run(winterFrame({ timeOfDay: 4.03, church, dt: BELL_SPACING_S }));
     expect(osc(s.nodes) / BELL_PARTIALS.length).toBe(7);
     expect(s.bus.emitterCount).toBe(0);
   });
 
   it('spaces strikes by about 3.2 s and cleans up its emitter', () => {
     const s = setup();
-    s.run(frame({ timeOfDay: 4.96, church, dt: 0.2 }));
-    s.run(frame({ timeOfDay: 5.01, church, dt: 0.2 }));
+    s.run(winterFrame({ timeOfDay: 4.96, church, dt: 0.2 }));
+    s.run(winterFrame({ timeOfDay: 5.01, church, dt: 0.2 }));
     expect(osc(s.nodes) / BELL_PARTIALS.length).toBe(1);
-    s.run(frame({ timeOfDay: 5.02, church, dt: 1 }));
+    s.run(winterFrame({ timeOfDay: 5.02, church, dt: 1 }));
     expect(osc(s.nodes) / BELL_PARTIALS.length).toBe(1);
-    s.run(frame({ timeOfDay: 5.02, church, dt: 2.3 }));
+    s.run(winterFrame({ timeOfDay: 5.02, church, dt: 2.3 }));
     expect(osc(s.nodes) / BELL_PARTIALS.length).toBe(2);
-    for (let i = 0; i < 12; i++) s.run(frame({ timeOfDay: 5.02, church, dt: BELL_SPACING_S }));
+    for (let i = 0; i < 12; i++) s.run(winterFrame({ timeOfDay: 5.02, church, dt: BELL_SPACING_S }));
     expect(s.bus.emitterCount).toBe(0);
   });
 });

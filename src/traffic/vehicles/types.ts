@@ -51,6 +51,8 @@ export interface VehicleSystemOptions {
   lights?: TrafficLightController;
   /** Metres the paths extend beyond their end junctions (vehicles spawn at the far end). Default 10. */
   edgeExtension?: number;
+  /** Hour of day (0-24) for the initial spawn density. Without it the density stays 1 until update() gets a clock. */
+  timeOfDay?: number;
 }
 
 export interface StopLine {

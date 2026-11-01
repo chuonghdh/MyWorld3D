@@ -1,4 +1,5 @@
 // Maps the camera to an audio listener. Pure, unit tested.
+import { audio as audioTuning } from '../config/tuning';
 
 export interface Vec3 {
   x: number;
@@ -20,6 +21,8 @@ export interface ListenerState {
 export const STREET_HEIGHT = 8;
 export const EAR_HEIGHT = 2;
 export const MAX_RAY = 400;
+/** Above this camera height (m) the city is heard only as birds, rain, thunder, music and passing aircraft; crickets stay silent. */
+export const AERIAL_HEIGHT_M = audioTuning.aerialHeightM;
 
 /**
  * Above 8 m the listener stands on the ground point the camera looks at (ray hits y = 0, at most

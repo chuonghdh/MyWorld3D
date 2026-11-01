@@ -8,15 +8,16 @@ import type { AudioBus, Emitter } from './bus';
 import type { AudioFrame, SoundSystem, SoundSystemFactory } from './frame';
 import { createRandom, playNoiseBurst, playTone, startLoopingNoise, type LoopingNoise } from './synth';
 import { createThunderSounds } from './weather';
+import { audio as audioTuning } from '../config/tuning';
 
 export type RainSurface = 'tin' | 'puddle';
 
 /** Puddle plips are kept quiet: this share of their original level. */
-export const PUDDLE_LEVEL = 0.3;
+export const PUDDLE_LEVEL = audioTuning.puddleLevel;
 
 export const RAIN_ON = 0.05;
-export const MAX_DROP_EMITTERS = 10;
-export const BED_EMITTERS = 4;
+export const MAX_DROP_EMITTERS = audioTuning.maxDropEmitters;
+export const BED_EMITTERS = audioTuning.bedEmitters;
 /** Events are scheduled this far ahead of the audio clock (s). */
 export const LOOKAHEAD = 0.18;
 const MAX_EVENTS_PER_EMITTER_PER_FRAME = 8;

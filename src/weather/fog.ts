@@ -1,4 +1,5 @@
 // Fog: a density function for scene.fog and a drifting bank of soft low sprites (1 draw call).
+import { skyEnvironment } from '../config/tuning';
 import * as THREE from 'three';
 import type { WeatherKind } from './weatherState';
 
@@ -77,7 +78,7 @@ void main() {
 }
 `;
 
-export const MAX_BANKS = 48;
+export const MAX_BANKS = skyEnvironment.weather.maxFogBanks;
 
 export interface FogBankParams {
   /** Eased fog thickness 0..1. */

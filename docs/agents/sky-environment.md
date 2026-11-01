@@ -1,71 +1,82 @@
 # Sky & Environment specialist
 
+Reviewed 2026-11-01 at 02b0cdc
+
 **Owns:** `src/sky/**`, `src/environment/**`, `src/weather/**`, `src/aircraft/**` and their tests.
 
 ## Key files
-- `sky/dome.ts` + `state.ts`: sky dome shader, sun disc (`sunRadiusFor`, `sunAppearance`), moon, stars; `MOON_RADIUS`.
-- `environment/cloudSprites.ts` (low lit cumulus, layout, drift), `cloudShade.ts` (shadow mask texture + shader patch), `clouds.ts` (controller), `forest.ts`, `trees.ts`, `greenery.ts`, `parkYard.ts` (park plan for merged-block courtyards), `streetflora.ts`, `seasons.ts`, `seasonalPaint.ts`, `leaves.ts`, `wind.ts`, `sun.ts`.
+- `sky/dome.ts` + `state.ts`: sky dome shader, sun disc (`sunRadiusFor`, `sunAppearance`), moon (`MOON_RADIUS`), stars.
+- `environment/cloudSprites.ts` (low lit cumulus, `CLOUD_BASE_MIN/MAX`, drift), `cloudShade.ts` (shadow mask texture + shader patch), `clouds.ts` (controller), `forest.ts` (procedural trees, winter twigs), `trees.ts`, `greenery.ts` (courtyard greenery, `yardKey`, `greenery-crowns` mesh), `parkYard.ts` (park plan for merged-block courtyards, `isParkYard`), `streetflora.ts`, `seasons.ts`, `seasonalPaint.ts` (`TAG_EVERGREEN`), `leaves.ts` (falling leaves), `leafVariety.ts` (shared leaf palette and GLSL), `wind.ts`, `sun.ts` (light grade, `headlights`).
 - `weather/weatherState.ts` (kinds: clear, cloudy, rain, storm, snow, fog), `Rain.ts`, `Snow.ts`, `fog.ts`, `Lightning.ts`, `wet.ts` (uWet / uSnow patches).
 - `aircraft/schedule.ts` (one flight per in-app hour, curved paths), `contrail.ts`, `planeMesh.ts`, `livery.ts`.
 
 ## Conventions
 - Weather values ease over seconds (`EASE`); particles and uniforms read the eased values.
-- Shared materials are patched with `onBeforeCompile`; every patch adds to `customProgramCacheKey` (`|cs1` for cloud shade).
+- Shared materials are patched with `onBeforeCompile`; every patch adds to `customProgramCacheKey` (`|cs1` for cloud shade and foliage sway, e.g. `environment/trees.ts:159`).
 - Cloud lifetime and aircraft schedule are pure functions of simulated time (`runtime.simTime`): paused means frozen.
 
 ## Traps
-- Clouds vanished once because Round 2 replaced the meshes with a flat decal; a decal cannot shade buildings, so shadows are a mask sampled in the building, street and foliage shaders (direct light only, parallax by height).
-- Orbit camera `maxPolarAngle` (PI/2.05) keeps the zenith out of view, so a midday sun is not seen from the orbit camera by design.
+- Clouds vanished once because a flat decal replaced the meshes; a decal cannot shade buildings. Shadows are a mask sampled in the building, street and foliage shaders (direct light only, parallax by height).
+- Orbit camera `maxPolarAngle` (`Math.PI / 2.05`, `scene/CameraRig.tsx:258`) keeps the zenith out of view, so a midday sun is not seen from the orbit camera by design.
 - `patch` is a GLSL reserved word.
-- Saves with weather `drizzle` load as `cloudy` (`store/io.ts`).
+- Saves with weather `drizzle` load as `cloudy` (`store/io.ts:115`).
 - The `|cs1` / cache keys must change whenever a patched shader changes.
+- Winter: broadleaf park crowns are TAG_FOLIAGE and must sit in their own mesh (`greenery-crowns`), or they stay green in winter. Hedges stay green with a snow tint by design.
 
 ## Decisions
-- Merged-block courtyards are parks (`parkYard.ts`): `isParkYard` = `courtyard.merged === true` (CourtyardRect flag from city/generate.ts; replaced a fragile >= 34 m size rule), so towns without merges keep byte-identical greenery. Park = edge hedges with openings at the path ends, groves (2-5 trees: round / conifer / columnar, size 0.8-1.9, clusters = area/230), bushes round groves and along hedges, beds lining the path arms, sandbox + 2 benches (compact bench pair in narrow yards). All in the 3 existing greenery meshes (no new draw call); ~19k tris for a 2x2 yard. Park rng is keyed by the yard position, not the courtyard index.
-- Park layout avoids the gravel cross + loop of `streets/surfaces.ts buildCourtyard` (formula copied in `parkKeepOut`, source checked by a test) and a 6.5 m central plaza for the fountain.
-- `TAG_EVERGREEN` (seasonalPaint): conifers keep their green, only snow on top.
-- Clouds: bases 70-100 m, tops <= ~140 m, drift 0.32x wind (min 1.2 m/s). Aircraft: 190-300 m, always below the highest camera (600 m).
-- Sun radius 0.015 at zenith, 0.031 at horizon; moon 0.018. Sun colour: the vivid gold (3.2, 1.0, 0.12); a "deeper" variant looked red and was reverted.
+- Merged-block courtyards are parks (`parkYard.ts`): `isParkYard` = `courtyard.merged === true` (`CourtyardRect` flag from `city/generate.ts`), so towns without merges keep byte-identical greenery. Park = edge hedges with openings at the path ends, groves (2-5 trees: round, conifer, columnar), bushes, beds along the path arms, sandbox and benches. All in the greenery meshes (cap: 4 per group; `tests/parkYard.test.ts` asserts it).
+- Park layout avoids the gravel cross and loop of `streets/surfaces.ts buildCourtyard` (formula copied in `parkKeepOut`) and keeps a clear central plaza for the fountain. The city reserves the fountain disc (`ParkObstacle.reserved`, `fountainReservations`).
+- Park rng and small-yard rng are keyed by footprint (`yardKey`, `greenery.ts:207`), not by list index: a merge elsewhere does not reshuffle other yards. One-time layout shift for every town.
+- Park greenery takes the city's courtyard trees as obstacles (`courtyardTreeObstacles`, passed by `scene/useTownGreenery.ts` and `streets/greeneryFootprint.ts`). Plain courtyard trees are ignored by small yards so the non-merged baseline holds.
+- `TAG_EVERGREEN` (`seasonalPaint.ts:13`): conifers keep their green, only snow on top.
+- Clouds: bases 70-100 m (`CLOUD_BASE_MIN/MAX`), tops <= ~140 m, drift 0.32x wind (min 1.2 m/s). Aircraft: 190-300 m, always below the highest camera (600 m).
+- Sun radius shrinks from horizon to zenith (`SUN_HORIZON_RADIUS`, `SUN_ZENITH_RADIUS`); moon radius = old 0.045 x `DISC_SCALE` 0.4 = 0.018. Sun colour at zenith: vivid gold (3.2, 1.0, 0.12) in `state.ts`; a "deeper" variant looked red and was reverted.
 - Cloud shadow darkness of the direct light 0.95 at the core.
 - 2 crown variants per species (4 would add 8 draw calls).
+- Headlights ramp: `headlights = clamp(-alt / 8, 0, 1)` (`sun.ts:221`). Ramp starts at alt 0; no guard for NaN altitude; no test covers it.
+
+## Falling leaves (`environment/leaves.ts`)
+- Pool: `MAX_LEAVES = 160`. Rest on the ground for `LEAF_REST_SECONDS` = 10, then fade over the last second. When the pool is full, the oldest resting leaf is recycled. Resting leaves do not count against the seasonal density gate.
+- Live count: `leafAmount` is a fraction 0-1 (`limit = floor(MAX_LEAVES * frac)`). Store default 1 = the full 160-leaf pool (`store/model.ts:127`). The slider (`ui/SettingsCity.tsx:217-222`, 0-1 shown as %) matches.
+- Spawn: autumn leaves spawn inside crown discs at crown height (`setCrownDiscs`, from `crownDiscsFromGroup`). Other seasons keep the trunk-point spawn.
+- Camera gate: `setCameraView(camera, focus, radius)` once per frame (`scene/useTownFrame.ts`). A crown spawns only if its sphere is in the frustum and its centre is within `FOCUS_RADIUS_DEFAULT` = 100 m of the focus on the ground plane. Without a call, every crown is eligible.
+- Landing: `setSurfaces(SurfaceBox[])`, called from `scene/Town.tsx:125` with `pavementSurfaces(layout)`. A leaf lands on the highest box under it (sidewalk top 0.15). Road stays at `GROUND_Y` (local const 0.05 in leaves.ts).
+- Look: leaf outline with a notch, curl, lengthwise bend, brown `veinMesh` (`#6b4a2b`), `LEAF_SCALE` = 1.3 x 0.7. `veinMesh` must be added to the scene next to `mesh` (`Town.tsx:288`), or the midrib is missing.
+- Wind and season behaviour unchanged; only autumn leaves have crown spawn, rest, vein and landing.
+
+## Leaf colour variety
+- `environment/leafVariety.ts` is the shared palette: autumn red `#b8402a` -> orange `#d8792c` -> yellow `#e6b93e` by height with seeded scatter; green accents `#7fb23a` / `#2f7f5a`.
+- Procedural crowns (`forest.ts` recolorCrown): autumn is one mix for every species. Spring and summer get a per-island HSL spread. Per-tree differences come from `treeTint`.
+- Quaternius leaves (`streets/natureTrees.ts`): `applyLeafVariety` shader chained after the wind sway. Autumn uses a white base so the luminance-matched ramp sets the colour. Luminance matching (`lvMatchLuma` in GLSL, `matchLuma` on CPU) clamps to [0,1] linear, so red and orange do not clip to pale yellow.
+- Summer: `uSummer` (0 or 1) set per season in `streets/natureTrees.ts:679`, read in `leafVariety.ts:68` (slight brightness and saturation lift). Procedural summer tones in `forest.ts` (oak `#3a7438 / #44823f / #2f6a35`).
+- Light grade: day keyframes in `sun.ts` alt 16 `#fff1dc` -> `#fff7ee`, alt 60 `#fff8ef` -> `#fffbf5`. Golden stays at alt 0 and 6. Gains unchanged.
+- Keep procedural (`forest.ts`) and Quaternius (`leafVariety.ts`) autumn in sync when tuning; procedural autumn has no luma lift.
+
+## Winter and evergreens
+- Procedural winter trees: crowns hidden; bare twigs wrapped in `attachWeather` (shared `uSnow`, also darken in rain via `uWet`). Trunk not patched.
+- Park crowns (broadleaf round and column) live in `greenery-crowns`, hidden in winter (`greenery.ts` `setSeason`). Trunks and conifers stay in `greenery-bushes`.
+- Pine snow: weather-shader snow on the conifer leaf material (`PINE_SNOW_UP`, `PINE_SNOW_COVER` in `streets/natureTrees.ts:18-19`). Do not split conifer geometry for snow (user rejected it).
+
+## Shared with other areas
+- `src/shaders/wetSurface.ts` adds `uTrackMap` (1x1 empty default) and `uTrackRect`; City uses them for tyre tracks.
+- `src/dev/treeCompare` (lab) wraps the city leaf system (`labLeaves.ts`): pool, rest, vein, surfaces and gates are the same code. Change `leaves.ts` and the lab follows.
 
 ## Open items
-- Park greenery does not know the city's courtyard trees (`streetscape.ts`, 2-6 random trees per courtyard): `createCourtyardGreenery(courtyards, seed, obstacles)` accepts them, but `scene/useTownGreenery.ts` and `streets/greeneryFootprint.ts` must both pass the same list (owners: Scene, City & Streets).
-- Small courtyards still take their rng from the courtyard index, so a merge reshuffles the greenery of yards after it in the list.
-- 4 crown variants per species (needs approval); shadow caster height is a single value.
+- User to confirm the in-game falling-leaf look (not yet confirmed).
+- Car-roof and bonnet landing: deferred (`traffic/vehicleSurfaces.ts` exists, not wired).
+- Hemisphere ground colour `#c9b48e` (`scene/Town.tsx`) is warm beige and adds yellow fill. Owned by Scene; not changed.
+- Procedural summer `TONES` in `forest.ts` still need a look against a screenshot.
+- Lab instance-colour fix landed in c14349b; re-check the dev page variety by eye.
+- Shadow caster height is a single value; 4 crown variants per species needs approval.
+- Street-tree winter crowns come from `streets/natureTrees.ts` (City), not from this area.
 
 ## Verify
-`npx vitest run tests/clouds.test.ts tests/sky.test.ts tests/weather.test.ts tests/aircraft.test.ts tests/plants.test.ts tests/environment.test.ts tests/parkYard.test.ts`. Force a render in a standalone WebGLRenderer to check shader compile.
+`npx vitest run tests/clouds.test.ts tests/sky.test.ts tests/weather.test.ts tests/aircraft.test.ts tests/plants.test.ts tests/environment.test.ts tests/parkYard.test.ts tests/budget.test.ts`. Force a render in a standalone WebGLRenderer to check shader compile. Do not rely on the built-in pane for frames.
 
-## Leaf colour variety (handover task)
-- `environment/leafVariety.ts` is the shared palette: autumn red `#b8402a` -> orange `#d8792c` -> yellow `#e6b93e` by height with seeded scatter; green accents `#7fb23a` / `#2f7f5a` for hue spread.
-- Procedural crowns (`forest.ts` recolorCrown): autumn is one mix for every species (no per-species autumn tones). Spring and summer get a per-island HSL spread. Per-tree differences come from `treeTint`.
-- Quaternius leaves (`streets/natureTrees.ts`): `applyLeafVariety` adds a shader chained after the wind sway. Per-island randoms and height are the `aIsland` vertex attribute; per-tree randoms are the instance colour. Autumn uses a white base so the luminance-matched ramp sets the colour. Chosen over vertex-colour swapping because the leaf texture carries the alpha cut-out and vein light, and a luminance-preserving hue mix keeps both.
-- Light grade: day keyframes `sun.ts` alt 16 `#fff1dc` -> `#fff7ee`, alt 60 `#fff8ef` -> `#fffbf5`. Golden stays at alt 0 and 6. Gains unchanged.
-- Open: the hemisphere ground colour `#c9b48e` (`scene/Town.tsx`) is warm beige and still adds yellow fill. Owned by Scene; not changed here.
-- Open: dev page (`src/dev/treeCompare`) shows per-island variety only (single meshes, no instance colour).
+## Session 2026-11-01 (review)
+- Fixed since the last review: `leafAmount` unit (fraction now); GLSL and CPU luma clamp; `uSummer` hookup; courtyard tree obstacles wired; small-yard rng keyed by footprint; park crowns in their own mesh; reserved fountain disc.
+- Test status: `tests/streetDecor.test.ts` passed 11/11 in this review (the earlier "fountain test fails" trap is stale).
+- Not re-run in this review: the rest of the listed suites, and the full `npx vitest run`.
 
-## Session 2026-11-01
-- Review only (no source edits). `npx tsc --noEmit` passes.
-- Trap: `leafAmount` unit mismatch. Store default `1` (`src/store/model.ts:127`) and the slider (`src/ui/SettingsCity.tsx:217-222`, 0-1 shown as %) are fractions, but `leaves.ts:218` reads percent (`MAX_LEAVES * pct / 100`). Result: 100% shows as about 6 live leaves. Open: pick one unit and fix in `leaves.ts` or the slider.
-- Trap: `leafVariety.ts:73` `lvMatchLuma` lifts texels to luma `mix(lum, 0.42, 0.65)`. Red ramp luma is 0.14, so any texel above about 0.07 pushes red/orange channels above 1.0 linear (red about 2.1 at lum 1). Hue shifts toward pale yellow after clipping. Open: clamp the target to the ramp's own luma or clamp channels.
-- Stale comment: `leafVariety.ts:67` says "keeps texture luminance", but line 73 now lifts it.
-- Decision: `headlights = clamp(-alt / 8, 0, 1)` (`sun.ts:221`). Ramp starts at alt 0 while `lightsOn` stays at alt < 0. Good at polar edges (alt in -90..90). No guard for NaN altitude. No test covers `headlights`.
-- Decision: autumn in procedural crowns (`forest.ts`) has no luma lift; only the Quaternius path (`leafVariety.ts`) does. Keep both in sync when tuning.
-- Shared with City: `src/shaders/wetSurface.ts` adds `uTrackMap` (1x1 empty default) and `uTrackRect`. Note only.
-
-## Session 2026-11-01 (fixes)
-- `leafAmount` is now a fraction 0-1 (`leaves.ts`, `limit = floor(MAX_LEAVES * frac)`). Store default stays 1 = 600 live leaves (`src/store/model.ts:127`, not edited). Test `plants.test.ts` uses 1.
-- `lvMatchLuma` (GLSL) and `matchLuma` (CPU) clamp to [0,1] linear: no pale hue clip on red/orange.
-- Summer green lift in `leafVariety.ts`: `summer = smoothstep(0.8, 1.0, uVary)`. Couples to uVary (summer 1.0, spring 0.6). Open: a dedicated `uSummer` uniform needs `streets/natureTrees.ts` (City).
-- Procedural winter trees: crowns hidden, bare twigs had only a baked up-face tint and no dynamic cover. `forest.ts` now wraps `twigs` in `attachWeather` (shared `uSnow`). Trunk not patched. Twigs also darken in rain (`uWet`).
-- Open: procedural summer `TONES` in `forest.ts` are dark (#2c5a30 range); not changed.
-
-## Session 2026-11-01 (lead task)
-- Courtyard trees: already wired. `city/streetscape.ts` `courtyardTreeObstacles` feeds `createCourtyardGreenery` in `scene/useTownGreenery.ts` and `streets/greeneryFootprint.ts`; park groves keep clear of them. No Town.tsx change needed. Open item closed.
-- Small-courtyard rng: keyed by a footprint hash (`yardKey` in `environment/greenery.ts`), not list index. A merge elsewhere no longer reshuffles other yards. One-time layout shift for every town.
-- Summer tone: oak summer lifted to `#3a7438 / #44823f / #2f6a35` (`environment/forest.ts`). `uSummer` hookup already in `streets/natureTrees.ts`. Open item closed.
-- Scene imports: `sky/SkyDome.tsx` imports `core/runtime`, `aircraft/schedule.ts` imports `environment/cloudSprites`. Neither imports `src/scene`. Architect finding already resolved in code.
-- Trap: `tests/streetDecor.test.ts` "fountain in free courtyard space" fails after the rng change (fountain null on one layout). Owner: City & Streets / Scene. Not fixed here.
-- Full `npx vitest run`: 679 pass, 1 fail (above). 4 files flagged FAIL under full run pass solo.
-- Verify: `npx tsc --noEmit` passes. Owned-area suites (7 files, 112 tests) pass.
+## Tuning rule (step 8)
+- Sky & Environment knobs live in `skyEnvironment` in `src/config/tuning.ts` (leaves, dusk ramps, weather caps, sun and moon disc sizes, clouds). Modules import them; geometry and shader algorithm constants stay in their files. Parity is checked in `tests/tuningParity.test.ts`.

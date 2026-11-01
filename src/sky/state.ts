@@ -1,23 +1,24 @@
 // Pure sky state: turns the time of day and the weather overlay into the plain numbers the sky
 // and ground shaders need. No WebGL here, so it is unit-testable.
 
+import { skyEnvironment } from '../config/tuning';
 import type { Season } from '../core/types';
 import { getLightingForTime, getMoonPhase, type Rgb, type SunQuery } from '../environment/sun';
 
 export type Vec3 = [number, number, number];
 
 /** Previous (pre-shrink) radii, kept only to express the current ones as ratios. */
-export const OLD_MOON_RADIUS = 0.045;
-export const OLD_SUN_RADIUS = 0.05;
-export const OLD_SUN_HORIZON_GROWTH = 0.55;
+export const OLD_MOON_RADIUS = skyEnvironment.sky.oldMoonRadius;
+export const OLD_SUN_RADIUS = skyEnvironment.sky.oldSunRadius;
+export const OLD_SUN_HORIZON_GROWTH = skyEnvironment.sky.sunHorizonGrowth;
 /** Both discs are drawn at 40% of their old angular size. */
-export const DISC_SCALE = 0.4;
+export const DISC_SCALE = skyEnvironment.sky.discScale;
 /** Angular radius of the moon disc (sine of the angle, about 1 degree). Shared with the dome shader. */
 export const MOON_RADIUS = OLD_MOON_RADIUS * DISC_SCALE;
 /** Sun radius on the horizon: 40% of the old horizon radius (old base 0.05 grown by 55%). */
 export const SUN_HORIZON_RADIUS = OLD_SUN_RADIUS * (1 + OLD_SUN_HORIZON_GROWTH) * DISC_SCALE;
 /** Sun radius at the zenith: 30% of the old base radius. */
-export const SUN_ZENITH_RADIUS = OLD_SUN_RADIUS * 0.3;
+export const SUN_ZENITH_RADIUS = OLD_SUN_RADIUS * skyEnvironment.sky.sunZenithFactor;
 /** Kept for compatibility: the sun radius high in the sky. */
 export const SUN_RADIUS = SUN_ZENITH_RADIUS;
 

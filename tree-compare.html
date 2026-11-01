@@ -9,31 +9,49 @@
       html, body { margin: 0; height: 100%; overflow: hidden; background: #1c1816; color: #f1ebe3; font: 13px/1.4 system-ui, sans-serif; }
       canvas { display: block; }
       #ui {
-        position: fixed; left: 12px; top: 12px; z-index: 2; max-width: min(360px, calc(100vw - 32px));
-        padding: 10px 12px; border-radius: 10px; background: rgba(28, 24, 22, 0.85);
-        border: 1px solid rgba(255, 255, 255, 0.12); box-sizing: border-box;
+        position: fixed; left: 12px; top: 12px; z-index: 2; width: min(340px, calc(100vw - 32px));
+        max-height: calc(100vh - 24px); display: flex; flex-direction: column; box-sizing: border-box;
+        padding: 8px 12px 10px; border-radius: 10px; background: rgba(28, 24, 22, 0.85);
+        border: 1px solid rgba(255, 255, 255, 0.12);
       }
-      #ui .seasons { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 6px; }
-      #ui button {
+      #ui .head { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+      #ui .head b { font-size: 13px; }
+      #body { overflow-y: auto; min-height: 0; padding-right: 4px; margin-top: 4px; }
+      #ui.collapsed { width: auto; max-height: none; }
+      #ui.collapsed #body { display: none; }
+      #ui h4 { margin: 8px 0 4px; font-size: 12px; color: #a79c92; font-weight: 600; }
+      #ui .row { display: flex; flex-wrap: wrap; gap: 6px; }
+      #ui button, #ui select {
         padding: 4px 10px; border-radius: 6px; border: 1px solid #555; background: #2a2421; color: #f1ebe3; cursor: pointer;
       }
       #ui button.active { background: #e8833a; border-color: #e8833a; color: #1c1816; }
+      #types label { display: block; margin: 2px 0; }
     </style>
   </head>
   <body>
     <div id="ui">
-      <div>Quaternius row (leaves recoloured; winter is tinted, not snow)</div>
-      <div class="seasons">
+      <div class="head">
+        <b>Tree lab</b>
+        <button type="button" id="toggle" aria-expanded="true" aria-controls="body">hide</button>
+      </div>
+      <div id="body">
+      <h4>Season</h4>
+      <div class="row">
         <button type="button" data-season="spring">spring</button>
         <button type="button" data-season="summer" class="active">summer</button>
         <button type="button" data-season="autumn">autumn</button>
         <button type="button" data-season="winter">winter</button>
       </div>
-      <div class="seasons">
-        <button type="button" id="gallery">All 45</button>
-        <button type="button" id="shrubs">Shrubs</button>
+      <h4>Weather</h4>
+      <div class="row"><select id="weather"></select></div>
+      <h4>Tree types (city slots)</h4>
+      <div class="row">
+        <button type="button" id="all">all</button>
+        <button type="button" id="none">none</button>
       </div>
+      <div id="types"></div>
       <div id="status" style="margin-top: 6px; color: #a79c92;"></div>
+      </div>
     </div>
     <script type="module" src="/src/dev/treeCompare/main.ts"></script>
   </body>

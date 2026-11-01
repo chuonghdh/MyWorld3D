@@ -8,6 +8,7 @@ import * as THREE from 'three';
 import type { OrbitControls as OrbitControlsImpl } from 'three-stdlib';
 import { getCityLayout } from '../city';
 import { useWorldStore } from '../store';
+import { uiCamera } from '../config/tuning';
 import { runtime } from './runtime';
 import {
   EYE_HEIGHT,
@@ -225,7 +226,7 @@ export function CameraRig() {
       // Orbit: keep the pan target near the town and on or above the ground, moving the camera with it.
       const t = controls.target;
       const c = clampToBounds(t.x, t.z, bounds, -PAN_MARGIN);
-      const ty = clamp(t.y, 0, 40);
+      const ty = clamp(t.y, 0, uiCamera.targetHeightMax);
       if (c.x !== t.x || c.z !== t.z || ty !== t.y) {
         camera.position.x += c.x - t.x;
         camera.position.z += c.z - t.z;
@@ -251,11 +252,11 @@ export function CameraRig() {
       makeDefault
       target={[0, 0, 0]}
       enableDamping
-      dampingFactor={0.08}
+      dampingFactor={uiCamera.dampingFactor}
       enablePan
       screenSpacePanning
       zoomToCursor
-      maxPolarAngle={Math.PI / 2.05}
+      maxPolarAngle={uiCamera.maxPolarAngle}
       minDistance={MIN_DISTANCE}
       maxDistance={MAX_DISTANCE}
     />

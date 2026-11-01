@@ -1,14 +1,15 @@
 // Thunder and lightning. The scheduling, flash envelope, thunder queue and bolt geometry are plain
 // logic (testable without a GPU); LightningBolt is the one mesh that shows the bolt.
+import { skyEnvironment } from '../config/tuning';
 import * as THREE from 'three';
 import { SPEED_OF_SOUND, thunderDelay } from './weatherState';
 
 export { SPEED_OF_SOUND, thunderDelay };
 
-export const FLASH_MIN_S = 0.15;
-export const FLASH_MAX_S = 0.4;
+export const FLASH_MIN_S = skyEnvironment.weather.lightningFlashMinS;
+export const FLASH_MAX_S = skyEnvironment.weather.lightningFlashMaxS;
 /** Strikes farther than this are only heard and seen as a sky flash, no bolt mesh. */
-export const BOLT_VISIBLE_DISTANCE = 700;
+export const BOLT_VISIBLE_DISTANCE = skyEnvironment.weather.boltVisibleM;
 
 export interface Strike {
   /** Distance from the camera in metres (drives the thunder delay and the flash strength). */

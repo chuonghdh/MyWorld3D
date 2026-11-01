@@ -15,6 +15,8 @@ import type { AudioBus, Emitter } from './bus';
 import type { AudioFrame, SoundSystem, SoundSystemFactory } from './frame';
 import type { Season } from '../core/types';
 import { clamp01 } from './math';
+import { AERIAL_HEIGHT_M } from './listener';
+import { audio as audioTuning } from '../config/tuning';
 import { createRandom, makeNoiseBuffer, playNoiseBurst, randRange } from './synth';
 
 // ---------------------------------------------------------------------------------------------
@@ -29,9 +31,9 @@ export const RUSTLE_NEAREST = 5;
 export const RUSTLE_DURATION_MIN_S = 1.6;
 export const RUSTLE_DURATION_MAX_S = 3.4;
 /** How far away (m) a tree can still rustle. */
-export const RUSTLE_RANGE_M = 70;
+export const RUSTLE_RANGE_M = audioTuning.rustleRangeM;
 /** Output scale of one rustle voice before the emitter distance model. */
-export const RUSTLE_GAIN = 0.55;
+export const RUSTLE_GAIN = audioTuning.rustleGain;
 /** Seconds of the one-pole smoothing that follows the wind level. */
 /** Wind whistles: wind speed (m/s) where they start and reach full probability; ring 15-70 m around the listener. */
 export const WHISTLE_MIN_WIND = 8;
@@ -41,17 +43,17 @@ export const WHISTLE_MIN_M = 15;
 export const WHISTLE_MAX_M = 70;
 export const WHISTLE_Y = 8;
 /** Crickets: max voices, ring around the listener (m), chirp carrier range (Hz), per-voice level. */
-export const CRICKET_MAX = 4;
-export const CRICKET_MIN_M = 10;
-export const CRICKET_MAX_M = 60;
+export const CRICKET_MAX = audioTuning.cricketMax;
+export const CRICKET_MIN_M = audioTuning.cricketMinM;
+export const CRICKET_MAX_M = audioTuning.cricketMaxM;
 export const CRICKET_PULSE_HZ = 30;
-export const CRICKET_LEVEL = 0.1;
+export const CRICKET_LEVEL = audioTuning.cricketLevel;
 /** Church bell: fundamental, spacing between strikes (s), maximum hearing distance (m), emitter height (m). */
 export const BELL_HZ = 230;
-export const BELL_SPACING_S = 3.2;
-export const BELL_RANGE_M = 400;
+export const BELL_SPACING_S = audioTuning.bellSpacingS;
+export const BELL_RANGE_M = audioTuning.bellRangeM;
 export const BELL_Y = 25;
-export const BELL_LEVEL = 0.14;
+export const BELL_LEVEL = audioTuning.bellLevel;
 export const BELL_MAX_STEP_H = 0.1;
 export const BELL_MAX_RATE_H_PER_S = 0.5;
 const MAX_DT = 2;
@@ -141,13 +143,22 @@ export function planWhistle(rand: () => number): WhistlePlan {
   return { dur: randRange(rand, 1.5, 4), f0, fMid, f1, q: randRange(rand, 18, 35) };
 }
 
-/** Crickets are switched off: they cluttered the soundscape. Set to true to bring them back. */
-export const CRICKETS_ENABLED = false;
+/** Crickets are on. Set to false to silence them (they play only in the 22:00-05:00 window, see cricketDensity). */
+export const CRICKETS_ENABLED = audioTuning.cricketsEnabled;
 
-/** Cricket density 0..1: summer nights full, autumn nights half, otherwise none; fades out with rain. */
-export function cricketDensity(night: boolean, season: Season, rain: number): number {
-  if (!CRICKETS_ENABLED || !night) return 0;
-  const s = season === 'summer' ? 1 : season === 'autumn' ? 0.5 : 0;
+/** Crickets sing only in the window [CRICKET_START_H, CRICKET_END_H) on the in-app clock (wraps midnight). */
+export const CRICKET_START_H = audioTuning.cricketStartH;
+export const CRICKET_END_H = audioTuning.cricketEndH;
+
+/**
+ * Cricket density 0..1 for a clock hour (0..24): zero outside the window; inside it, summer and autumn use the
+ * tuned densities, otherwise none; fades out with rain.
+ */
+export function cricketDensity(hour: number, season: Season, rain: number): number {
+  if (!CRICKETS_ENABLED) return 0;
+  const h = ((Math.floor(hour) % 24) + 24) % 24;
+  if (!(h >= CRICKET_START_H || h < CRICKET_END_H)) return 0;
+  const s = season === 'summer' ? audioTuning.cricketSummerDensity : season === 'autumn' ? audioTuning.cricketAutumnDensity : 0;
   return s * clamp01(1 - 1.5 * rain);
 }
 
@@ -470,7 +481,8 @@ export function createNatureSoundsWith(ctx: AudioContext, bus: AudioBus, opts: N
     if (rate > 0 && whistles.length < WHISTLE_MAX && rand() < rate * dt) spawnWhistle(frame);
 
     // ---- Crickets ----
-    const density = cricketDensity(frame.night, frame.season, frame.rain);
+    // Ground-only: from the aerial view (camera above AERIAL_HEIGHT_M) the crickets stay silent.
+    const density = frame.listener.height > AERIAL_HEIGHT_M ? 0 : cricketDensity(frame.timeOfDay, frame.season, frame.rain);
     const want = Math.round(CRICKET_MAX * density);
     while (crickets.length < want) addCricket(l);
     while (crickets.length > want) killCricket(crickets.pop() as CricketVoice);

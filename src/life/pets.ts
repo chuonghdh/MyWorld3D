@@ -3,6 +3,7 @@
 import * as THREE from 'three';
 import { createRng } from '../core/rng';
 import type { CityLayout } from '../city/layout';
+import { trafficLife } from '../config/tuning';
 import { angleDiff, clamp, scaledCount, setPose } from './common';
 import type { EmitFn, LifeContext, LifeQuality } from './common';
 import { buildButterflyGeometry, buildCatGeometry, buildSquirrelGeometry } from './geometry';
@@ -62,7 +63,7 @@ export class CatSystem {
     this.emit = emit;
     const place = createRng((seed ^ 0xca7ca7) >>> 0);
     this.rng = createRng((seed ^ 0x1badcafe) >>> 0);
-    const n = scaledCount(14, quality);
+    const n = scaledCount(trafficLife.catCount, quality);
     this.capacity = n;
     const geo = buildCatGeometry();
     this.triangles = triCount(geo);
@@ -302,7 +303,7 @@ export class SquirrelSystem {
     const place = createRng((seed ^ 0x5017e1) >>> 0);
     this.rng = createRng((seed ^ 0x2468ace) >>> 0);
     this.bounds = layout.townBounds;
-    const n = layout.streetTrees.length > 0 ? scaledCount(10, quality) : 0;
+    const n = layout.streetTrees.length > 0 ? scaledCount(trafficLife.squirrelCount, quality) : 0;
     this.capacity = n;
     const geo = buildSquirrelGeometry();
     this.triangles = triCount(geo);
@@ -536,7 +537,7 @@ export class ButterflySystem {
 
   constructor(layout: CityLayout, seed: number, quality: LifeQuality) {
     const place = createRng((seed ^ 0xb077e5) >>> 0);
-    const n = scaledCount(30, quality);
+    const n = scaledCount(trafficLife.butterflyCount, quality);
     this.capacity = n;
     const geo = buildButterflyGeometry();
     this.triangles = triCount(geo);

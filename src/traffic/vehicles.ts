@@ -14,6 +14,7 @@ import { create, release, trySpawns, isFree } from './vehicles/spawn';
 import { updateGrants } from './vehicles/junctions';
 import { transfer, advance } from './vehicles/motion';
 import { takeHorns, tryHorn } from './vehicles/horns';
+import { trafficDensityAt } from './trafficDensity';
 
 export class VehicleSystem {
 
@@ -105,6 +106,9 @@ export class VehicleSystem {
 
   multiplier!: number;
 
+  /** Time-of-day spawn factor 0..1 (see trafficDensity.ts). 1 until a clock is given. */
+  density = 1;
+
   constructor(layout: CityLayout, options: VehicleSystemOptions) {
     setupSystem(this, layout, options);
   }
@@ -153,8 +157,10 @@ export class VehicleSystem {
   /**
    * Advances every vehicle and the signal clock by dt seconds.
    * Vehicles reaching the end of their path are removed; new ones spawn at spawn points.
+   * env.timeOfDay (hours) sets the spawn density; omit it to keep the current density.
    */
-  update(dt: number): void {
+  update(dt: number, env?: { timeOfDay: number }): void {
+    if (env) this.density = trafficDensityAt(env.timeOfDay);
     if (!(dt > 0)) return;
     this.refreshCrosswalks();
     let remaining = dt;

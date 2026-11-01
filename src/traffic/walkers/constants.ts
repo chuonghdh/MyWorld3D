@@ -1,5 +1,7 @@
 // Constants of the pedestrian simulation: poses, trait bits, body types, states and tuning.
 
+import { trafficLife } from '../../config/tuning';
+
 /** Pose ids written to PedestrianRender.pose. */
 export const POSE_WALK = 0;
 
@@ -74,7 +76,7 @@ export const CROSS_MARGIN = 2.0; // seconds of red that must remain after a cros
 
 export const GIVE_UP_WAIT = 150; // seconds after which a waiting walker turns back
 
-export const DOG_CHANCE = 0.22;
+export const DOG_CHANCE = trafficLife.dogShare;
 
 export const PAIR_CHANCE = 0.2;
 

@@ -3,6 +3,7 @@
 // walls and rooftop clutter on flat roofs.
 
 import { HOUSE_FRAME, NN, NY, PN, PY, col, scale, type Col, type Frame, type P3 } from './mesh';
+import { buildings } from '../../config/tuning';
 import {
   MANSARD_LOWER_H,
   MANSARD_LOWER_INSET,
@@ -844,7 +845,7 @@ function gableWindows(ctx: Ctx, seg: Segment, h: number): void {
     const yt = wallTop + h - inset * 1.4;
     const half = (seg.L / 2 - inset) * (1 - 0.25 / h);
     if (yt - yb > 0.8) {
-      const lit = ctx.rngGlass() < 0.4;
+      const lit = ctx.rngGlass() < buildings.litWindowShareRoof;
       m.prismUY(c.glassTop, [[-half, yb], [half, yb], [0, yt]], 0.0, 0.04, false, lit ? 'glassLit' : 'glass');
       m.b(c.frame, -half, half, yb - 0.06, yb + 0.04, 0, 0.08, NN);
       for (const t of [-0.5, 0, 0.5]) m.b(c.frame, t * half - 0.03, t * half + 0.03, yb, yb + (yt - yb) * (1 - Math.abs(t)), 0, 0.08, NN);

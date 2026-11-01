@@ -12,6 +12,7 @@ import {
   createClouds,
   createSmoke,
   createWindUniforms,
+  crownDiscsFromGroup,
   getLightingForTime,
   LeafSystem,
   type WindUniforms,
@@ -30,7 +31,9 @@ import { useTownGreenery } from './useTownGreenery';
 import { useTownTraffic } from './useTownTraffic';
 import { useTownAircraft } from './useTownAircraft';
 import { useTownFrame } from './useTownFrame';
+import { pavementSurfaces } from '../streets/pavementSurfaces';
 import { SHADOW_LAYER } from '../streets/natureTrees';
+import { skyEnvironment } from '../config/tuning';
 
 export { shadowHalfExtent } from './townShadow';
 export { monumentBaseFor };
@@ -66,7 +69,7 @@ export function Town({ onSelect, selected }: { onSelect: (target: OverrideTarget
   const uniforms: WindUniforms = useMemo(() => createWindUniforms(10), []);
   const leaves = useMemo(() => new LeafSystem({ bounds: layout.townBounds }), [layout.townBounds]);
   const clouds = useMemo(
-    () => createClouds({ area: layout.townBounds, count: 10, seed: settings.seed }),
+    () => createClouds({ area: layout.townBounds, count: skyEnvironment.clouds.sceneCount, seed: settings.seed }),
     [layout.townBounds, settings.seed],
   );
   // Only broadleaf trees shed leaves; conifers keep their needles.
@@ -113,6 +116,15 @@ export function Town({ onSelect, selected }: { onSelect: (target: OverrideTarget
     lightsOn,
     lighting,
   });
+  // Fallen leaves land on the crowns of the city's trees (the Quaternius field or the procedural fallback).
+  useEffect(() => {
+    leaves.setCrownDiscs(crownDiscsFromGroup(treeField.group));
+  }, [leaves, treeField]);
+  // Leaves land on pavement surfaces (not vehicle roofs yet).
+  const pavement = useMemo(() => pavementSurfaces(layout), [layout]);
+  useEffect(() => {
+    leaves.setSurfaces(pavement);
+  }, [leaves, pavement]);
   // Sound: one reusable frame per render frame; trees feed the leaf-rustle sources.
   const audioBridge = useMemo(() => new AudioBridge(), []);
   const audioTrees = useMemo(() => treeItems.map((t) => ({ x: t.position.x, z: t.position.z, scale: t.scale })), [treeItems]);
@@ -274,6 +286,7 @@ export function Town({ onSelect, selected }: { onSelect: (target: OverrideTarget
       <primitive object={aircraft.group} />
       <primitive object={weather.group} />
       <primitive object={leaves.mesh} />
+      <primitive object={leaves.veinMesh} />
       <primitive object={smoke.mesh} />
       <primitive object={trafficMeshes.group} />
       <primitive object={life.group} />

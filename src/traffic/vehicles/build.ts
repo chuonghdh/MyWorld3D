@@ -4,6 +4,7 @@ import type { CityLayout } from '../../city/layout';
 import type { Vec2 } from '../../core/types';
 import { createRng } from '../../core/rng';
 import { TrafficLightController, axisForOrientation } from '../lights';
+import { trafficDensityAt } from '../trafficDensity';
 import type { VehicleSystemOptions, StopLine, Corner, PathModel } from './types';
 import { EDGE_EXTENSION, DRAW_MARGIN, LEFT_TURN_SPEED, RIGHT_TURN_SPEED, STOP_BACK, STOP_MARGIN, CROSSWALK_REACH, CROSSWALK_LATERAL, SPAWN_MAX_S } from './constants';
 import { filletPath, extendWaypoints, pathOpenness, armBit, projectArc, projectArcDist, poseAt, wrapAngle } from './geometry';
@@ -12,6 +13,7 @@ import type { VehicleSystem } from '../vehicles';
 
 export function setupSystem(sys: VehicleSystem, layout: CityLayout, options: VehicleSystemOptions) {
   sys.multiplier = Math.max(0, options.trafficMultiplier);
+  sys.density = options.timeOfDay === undefined ? 1 : trafficDensityAt(options.timeOfDay);
   sys.rng = createRng(options.seed ?? 1);
   sys.hornRng = createRng(((options.seed ?? 1) ^ 0x68c0ffee) >>> 0);
   sys.lights = options.lights ?? new TrafficLightController(layout.trafficLights);

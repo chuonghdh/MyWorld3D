@@ -1,6 +1,7 @@
 // Sun and moon position, and sky colour/intensity curves.
 // Pure logic (no WebGL). Uses suncalc for astronomical positions.
 
+import { skyEnvironment } from '../config/tuning';
 import { getMoonIllumination, getMoonPosition, getPosition } from 'suncalc';
 
 export interface GeoLocation {
@@ -180,13 +181,13 @@ export function nightnessFor(altitudeDeg: number): number {
  */
 export function getNightSchedule(timeOfDay: number, altitudeDeg: number): { lamps: number; shops: number; windows: number } {
   const dark = nightnessFor(altitudeDeg);
-  const lamps = smoothstep(4, -2, altitudeDeg);
-  const shops = smoothstep(2, -4, altitudeDeg) * (1 - smoothstep(23, 24, timeOfDay) * 0.6);
+  const lamps = smoothstep(skyEnvironment.lights.houseLampsOnDeg, skyEnvironment.lights.houseLampsFullDeg, altitudeDeg);
+  const shops = smoothstep(skyEnvironment.lights.shopLightsOnDeg, skyEnvironment.lights.shopLightsFullDeg, altitudeDeg) * (1 - smoothstep(23, 24, timeOfDay) * 0.6);
   const h = ((timeOfDay % 24) + 24) % 24;
   // Late night: from 22:00 windows go out gradually down to 30% by 02:00; they come back at 04:00-06:00.
   const t = h < 12 ? h + 24 : h;
   const late = 1 - 0.7 * smoothstep(22, 26, t) + 0.7 * smoothstep(28, 30, t);
-  const windows = (0.15 + 0.85 * dark) * late * smoothstep(8, -2, altitudeDeg);
+  const windows = (0.15 + 0.85 * dark) * late * smoothstep(skyEnvironment.lights.windowsOnDeg, skyEnvironment.lights.windowsFullDeg, altitudeDeg);
   return { lamps, shops, windows };
 }
 
@@ -217,8 +218,8 @@ export function getSkyState(altitudeDeg: number): SkyState {
     sunColor: lerpRgb(lo.sunColor, hi.sunColor, t),
     sunIntensity: lerp(lo.sunIntensity, hi.sunIntensity, t),
     ambientIntensity: lerp(lo.ambientIntensity, hi.ambientIntensity, t),
-    lightsOn: altitudeDeg < 0,
-    headlights: Math.min(1, Math.max(0, -altitudeDeg / 8)),
+    lightsOn: altitudeDeg < skyEnvironment.lights.lightsOnBelowDeg,
+    headlights: Math.min(1, Math.max(0, -altitudeDeg / -skyEnvironment.lights.headlightFullDeg)),
     nightness: nightnessFor(altitudeDeg),
     moonFill: nightnessFor(altitudeDeg) * 0.55,
     moonColor: hex('#8fa8e8'),

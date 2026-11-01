@@ -7,12 +7,13 @@
 import type { AudioBus, Emitter } from './bus';
 import type { AudioFrame, AudioThunder, SoundSystem } from './frame';
 import { makeNoiseBuffer, createRandom } from './synth';
+import { audio as audioTuning } from '../config/tuning';
 
 /** Farthest placement of a thunder emitter (m): beyond this the clap only gets darker and quieter. */
 export const THUNDER_MAX_PLACE_DISTANCE = 450;
 /** Height of the thunder emitter above the ground (m): thunder comes from the sky. */
 export const THUNDER_HEIGHT = 60;
-export const THUNDER_LOUDNESS = 2;
+export const THUNDER_LOUDNESS = audioTuning.thunderLoudness;
 export const THUNDER_LENGTH_SCALE = 1.3;
 
 /** Loudness and low-pass cutoff of a thunder clap for a distance in metres. Pure, tested. */

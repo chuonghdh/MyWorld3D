@@ -70,13 +70,12 @@ describe('quality tiers', () => {
     expect(importLayout(JSON.stringify(old)).ok).toBe(false);
   });
 
-  it('quality is not undoable and survives undo', () => {
+  it('setQuality changes only the quality tier', () => {
     const st = useWorldStore.getState();
     st.setSetting('windSpeed', 9);
     st.setQuality('low');
-    useWorldStore.getState().undo();
     expect(useWorldStore.getState().settings.quality).toBe('low');
-    expect(useWorldStore.getState().settings.windSpeed).not.toBe(9);
+    expect(useWorldStore.getState().settings.windSpeed).toBe(9);
     useWorldStore.getState().setQuality('high');
   });
 

@@ -5,11 +5,12 @@
 import { AudioBus, type Category, type Group, type PartialVolumes, type VolumeSettings, defaultVolumes } from './bus';
 import type { AudioFrame, SoundSystem, AudioVehicleClass } from './frame';
 import { SOUND_SYSTEM_FACTORIES } from './systems';
+import { AERIAL_HEIGHT_M } from './listener';
 
 export type VehicleClass = AudioVehicleClass;
 export type { AudioFrame, SoundSystem, SoundSystemFactory } from './frame';
 export type { Category, Group, VolumeSettings } from './bus';
-export { listenerFromCamera, type ListenerState } from './listener';
+export { listenerFromCamera, AERIAL_HEIGHT_M, type ListenerState } from './listener';
 
 type AudioWindow = {
   AudioContext?: typeof AudioContext;
@@ -83,9 +84,6 @@ export function init(): boolean {
 export function isReady(): boolean {
   return ctx !== null;
 }
-
-/** Above this camera height (m) the city is heard only as birds, rain, thunder, music and passing aircraft. */
-export const AERIAL_HEIGHT_M = 45;
 
 /** The frame with every ground source and the wind removed, so those systems fade out; rain and thunder stay. */
 export function quietFrame(f: AudioFrame): AudioFrame {

@@ -6,6 +6,7 @@ import * as THREE from 'three';
 import { ColorBatch, frustum, gable, type ColorTarget, type V3 } from '../geometry';
 import { createRng } from '../../core/rng';
 import { WIND, anchorWeight } from '../facade/polish';
+import { buildings } from '../../config/tuning';
 
 export type C = THREE.ColorRepresentation;
 
@@ -333,7 +334,7 @@ export function wing(k: Kit, o: WingOptions): number {
   const bay = o.bay ?? 2.8;
   const winW = o.winW ?? 1.2;
   const winH = o.winH ?? 1.9;
-  const litP = o.litP ?? 0.35;
+  const litP = o.litP ?? buildings.litWindowShareMonument;
   k.box(o.wall, o.w, H, o.d, o.x, 0, o.z);
   k.box(o.base, o.w + 0.16, 0.9, o.d + 0.16, o.x, 0, o.z);
   for (let f = 1; f < o.floors; f++) {

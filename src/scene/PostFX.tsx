@@ -11,6 +11,7 @@ import { UnrealBloomPass } from 'three/examples/jsm/postprocessing/UnrealBloomPa
 import { OutputPass } from 'three/examples/jsm/postprocessing/OutputPass.js';
 import { HorizontalTiltShiftShader } from 'three/examples/jsm/shaders/HorizontalTiltShiftShader.js';
 import { VerticalTiltShiftShader } from 'three/examples/jsm/shaders/VerticalTiltShiftShader.js';
+import { sceneQa } from '../config/tuning';
 
 /**
  * Clamps the HDR scene colour and replaces NaN before the bloom blur. One bad pixel in a half-float
@@ -90,9 +91,10 @@ export function PostFX({
     fx.tiltH.enabled = tiltShift;
     fx.tiltV.enabled = tiltShift;
     fx.bloom.enabled = bloomScale > 0 && !DEBUG.has('nobloom');
-    fx.bloom.strength = (night ? 0.5 : 0.15) * bloomScale;
-    fx.bloom.threshold = night ? 0.7 : 0.92;
-    fx.bloom.radius = night ? 0.6 : 0.4;
+    const nb = sceneQa.nightBloom;
+    fx.bloom.strength = (night ? nb.strengthNight : nb.strengthDay) * bloomScale;
+    fx.bloom.threshold = night ? nb.thresholdNight : nb.thresholdDay;
+    fx.bloom.radius = night ? nb.radiusNight : nb.radiusDay;
   }, [fx, tiltShift, night, bloomScale]);
 
   useEffect(() => () => fx.composer.dispose(), [fx]);

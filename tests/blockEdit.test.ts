@@ -154,12 +154,12 @@ const idsFor = (blockMerges: string[][]) => generateCity({ ...DEFAULT_SETTINGS, 
 
 describe('store merge and split', () => {
   beforeEach(() => {
-    useWorldStore.setState({ ...createEmptyLayout(1), past: [], future: [], toggles: { ...DEFAULT_TOGGLES } });
+    useWorldStore.setState({ ...createEmptyLayout(1), toggles: { ...DEFAULT_TOGGLES } });
     const ids = getCityLayout(useWorldStore.getState().settings).blocks.map((b) => b.id);
     useWorldStore.setState({ blockOrder: ids, baseBlockOrder: ids });
   });
 
-  it('merges, splits and undoes as single steps with a matching block order', () => {
+  it('merges and splits with a matching block order', () => {
     const s = useWorldStore.getState;
     const layout = getCityLayout(s().settings);
     const house = layout.blocks.find((b) => b.kind === 'houses' && mergeSuggestions(layout, b.id).length > 0)!;
@@ -177,12 +177,6 @@ describe('store merge and split', () => {
     s().splitMergedBlock(mergedId, idsFor);
     expect(s().settings.blockMerges).toEqual([]);
     expect([...s().baseBlockOrder].sort()).toEqual([...before].sort());
-
-    s().undo();
-    expect(s().settings.blockMerges).toEqual([group]);
-    s().undo();
-    expect(s().settings.blockMerges).toEqual([]);
-    expect(s().baseBlockOrder).toEqual(before);
   });
 
   it('does not swap a merged block with a block of another size', () => {

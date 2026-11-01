@@ -1,5 +1,6 @@
 // Pure camera math for CameraRig: clip planes, framing, bounds, easing, street start.
 // No Three.js and no DOM, so every function is unit-tested in tests/cameraRig.test.ts.
+import { uiCamera } from '../config/tuning';
 
 export type V3 = [number, number, number];
 
@@ -20,17 +21,18 @@ export interface StreetSegment {
 /** Camera presets a UI can request through runtime.cameraPresetRequests (defined in core/runtime). */
 export type { CameraPresetId } from '../core/runtime';
 
-export const MIN_DISTANCE = 4;
-export { MAX_DISTANCE } from '../core/cameraLimits';
-export const EYE_HEIGHT = 1.7;
-export const TWEEN_SECONDS = 1;
+// Camera values live in src/config/tuning.ts (section uiCamera). These names are aliases for the rig and tests.
+export const MIN_DISTANCE = uiCamera.minDistance;
+export const MAX_DISTANCE = uiCamera.maxDistance;
+export const EYE_HEIGHT = uiCamera.eyeHeight;
+export const TWEEN_SECONDS = uiCamera.tweenSeconds;
 /** Pan limit: the orbit target may leave the town bounds by this many metres. */
-export const PAN_MARGIN = 40;
+export const PAN_MARGIN = uiCamera.panMargin;
 /**
  * Block editing height: with the camera higher than this above the ground (y = 0), a tap selects a whole block
- * (merge and split); at or below it, a tap selects a house. The only place this threshold is defined.
+ * (merge and split); at or below it, a tap selects a house. The only place this threshold is read.
  */
-export const BLOCK_EDIT_HEIGHT_M = 200;
+export const BLOCK_EDIT_HEIGHT_M = uiCamera.blockEditHeightM;
 
 /** Tap mode for a camera at height `y` (metres above the ground). */
 export function editModeForHeight(y: number): 'house' | 'block' {
@@ -109,12 +111,12 @@ export function wholeMapFraming(input: FramingInput): Framing {
   const { townSize, fovDeg, viewW, viewH, rightInset } = input;
   const inset = clamp(rightInset, 0, viewW * 0.5);
   const freeW = Math.max(1, viewW - inset);
-  const dir: V3 = [0, 1.75, 0.45];
+  const dir: V3 = [...uiCamera.overviewDirection] as V3;
   const baseDist = Math.hypot(dir[1], dir[2]) * townSize;
   const tanV = Math.tan((fovDeg * Math.PI) / 360);
   const tanH = tanV * (viewW / Math.max(1, viewH));
-  // Width the town needs at the target distance, with a 6% margin; the free area is freeW of viewW pixels.
-  const fitDist = (townSize * 1.06) / (2 * tanH * (freeW / viewW));
+  // Width the town needs at the target distance, with the fit margin; the free area is freeW of viewW pixels.
+  const fitDist = (townSize * uiCamera.fitMargin) / (2 * tanH * (freeW / viewW));
   const distance = Math.max(baseDist, fitDist);
   const k = distance / Math.hypot(dir[1], dir[2]);
   // World metres per pixel across the target plane, then half the inset in metres.
@@ -211,7 +213,7 @@ export function walkStep(
   bounds: Bounds,
   margin = 2,
 ): { x: number; z: number } {
-  const speed = run ? 6 : 2.5;
+  const speed = run ? uiCamera.walkRunSpeed : uiCamera.walkSpeed;
   const f = dirFromYaw(yaw);
   // Right vector of the forward direction on the ground plane.
   const rx = -f.z;

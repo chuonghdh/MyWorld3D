@@ -6,6 +6,7 @@
 
 import { distanceLowpassHz, zoomAttenuation, clamp01 } from './math';
 import type { ListenerState } from './listener';
+import { audio as audioTuning } from '../config/tuning';
 
 export { VoiceBudget } from './voiceBudget';
 export type { VoiceCandidate, VoiceBudgetOptions } from './voiceBudget';
@@ -68,7 +69,7 @@ export type PartialVolumes = Partial<{
 export function defaultVolumes(): VolumeSettings {
   const categories = {} as Record<Category, number>;
   for (const c of CATEGORIES) categories[c] = 1;
-  return { master: 0.8, groups: { effects: 1, nature: 1, music: 1 }, categories };
+  return { master: audioTuning.masterVolumeDefault, groups: { effects: 1, nature: 1, music: 1 }, categories };
 }
 
 export interface EmitterOptions {
