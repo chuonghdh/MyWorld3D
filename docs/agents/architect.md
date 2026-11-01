@@ -59,6 +59,23 @@ the specialists implement. Edits docs and budgets/guard tests only, and only whe
 `npx tsc --noEmit`, `npx vitest run` (rerun pedestrian flake alone), `npx vite build`. For performance claims, measure in
 Chrome with the scene graph and draw-call counts, and state plainly what was not checked by eye.
 
+## Assignments (lead decision, open)
+
+| # | Finding | Owner | Status |
+|---|---|---|---|
+| 1 | Feature modules import scene: `sky/SkyDome.tsx:7`, `aircraft/schedule.ts:7`. Move `runtime` state and `MAX_DISTANCE` to `src/core` | Sky & Environment (imports); Scene & QA (`runtime.ts`); UI & Camera (`cameraMath.ts`) | Assigned, not started |
+| 2 | Store imports city and weather: `store/index.ts`, `store/merges.ts:3`, `store/io.ts:17`. Move `parseMergedBlockId` and `WEATHER_KINDS` to `core` | UI & Camera (store); City & Streets (`merge.ts`); Sky & Environment or Scene & QA (`weatherState`) | Assigned, not started |
+| 3 | Draw-call guard: 130 of 140, dead 400 limit at `tests/budget.test.ts:266` | Scene & QA | Assigned, not started |
+| 4 | 29 files over 350 lines. Each owner splits its own large files, only where safe and with no behaviour change. `traffic/vehicles.ts` now 338 lines (Traffic split horns into `vehicles/horns.ts`), so no longer over the limit; the 1794 figure is stale | Each owner | Assigned, not started |
+
+| 5 | Save version check is strict equality, no migration path (`store/io.ts:208`). Low priority, after #2. Add migration only if a test needs it | UI & Camera | Assigned, not started |
+
+Also rejected: `vehicleMeshes.ts` importing `shaders/wetSurface`. Done by Traffic: import removed, `setSnow` added. Closed by lead.
+
+Git state (checked 2026-11-01): no untracked files. Modified, uncommitted: `docs/agents/README.md`, `docs/agents/architect.md`, `docs/agents/audio.md`, `docs/agents/city-streets.md`, `src/city/streetscape.ts`, `src/scene/useNatureTrees.ts`, `src/traffic/vehicleMeshes.ts`. `public/`, `src/shaders/`, `src/dev/treeCompare/` and `tree-compare.html` are already committed (lead confirmed). Lead decision: no commits from architect; the earlier "uncommitted" list is stale.
+
+Architect role for these: review diffs when owners report; update this section and close items. No feature code by architect. No commits without user request.
+
 ## Review findings (first pass)
 
 Scope: repo structure, module graph, asset pipeline, caching, budgets. Measured with grep, wc and git ls-files. Not measured:

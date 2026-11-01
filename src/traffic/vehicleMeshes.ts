@@ -10,7 +10,6 @@
 //  - glass and trim keep fixed colours while paint parts take the per-instance colour.
 
 import * as THREE from 'three';
-import { weatherUniforms } from '../shaders/wetSurface';
 import type { VehicleClass } from '../audio';
 import type { CityLayout } from '../city/layout';
 import type { VehicleRender } from './vehicles';
@@ -27,14 +26,16 @@ export interface VehicleMeshes {
   variants: THREE.InstancedMesh[];
   /** Additive soft headlight pools on the road ahead of moving cars (night only). */
   glow: THREE.InstancedMesh;
-  /** Shared shader uniforms: night 0/1 and time in seconds. */
-  uniforms: { night: { value: number }; time: { value: number } };
+  /** Shared shader uniforms: night 0/1, time in seconds, snow cover 0..1 (set by setSnow). */
+  uniforms: { night: { value: number }; time: { value: number }; snow: { value: number } };
   /** Parked cars written at creation (empty without a layout). */
   parked: readonly ParkingSpot[];
   /** Night look on or off (tail lights, interior, ground glow). */
   setNight(on: boolean): void;
   /** Headlight level 0..1 (dusk to full night). Each car has its own seeded threshold, so cars switch on one by one. */
   setHeadlights(level: number): void;
+  /** Snow cover 0..1 (eased weather value). Drives roof snow and windscreen frost. */
+  setSnow(level: number): void;
   /** Kept for callers; the headlight glow no longer depends on the camera focus (it is always drawn). */
   setFocus(x: number, z: number): void;
   update(vehicles: readonly VehicleRender[], ctx: VisualContext): void;
@@ -72,6 +73,14 @@ if (aPart.x > 0.5 && aPart.x < 1.5) {
   float ws = sin(wa);
   objectNormal = vec3(objectNormal.x, objectNormal.y * wc - objectNormal.z * ws, objectNormal.y * ws + objectNormal.z * wc);
 }
+// Snow reads the final normal; color_vertex runs before this chunk, so it lives here.
+mat3 snowInst = mat3(1.0);
+#ifdef USE_INSTANCING
+  snowInst = mat3(instanceMatrix);
+#endif
+vec3 snowN = snowInst * objectNormal;
+vSnowUp = snowN.y;
+vFrontGlass = (aPart.y < 0.5 && aPart.x < 0.5 && objectNormal.z > 0.6 && color.b > color.r + 0.03) ? 1.0 : 0.0;
 #ifdef USE_TANGENT
   vec3 objectTangent = vec3( tangent.xyz );
 #endif
@@ -96,14 +105,7 @@ vec3 paintC = vec3(1.0);
 #endif
 vColor = color * paintC;
 vEmit = vec3(0.0);
-mat3 snowInst = mat3(1.0);
-#ifdef USE_INSTANCING
-  snowInst = mat3(instanceMatrix);
-#endif
-vec3 snowN = snowInst * objectNormal;
-vSnowUp = snowN.y;
 vSnowPaint = aPart.y;
-vFrontGlass = (aPart.y < 0.5 && aPart.x < 0.5 && objectNormal.z > 0.6 && color.b > color.r + 0.03) ? 1.0 : 0.0;
 vBodyPos = position;
 float pk = aPart.x;
 if (pk > 1.5) {
@@ -151,7 +153,7 @@ function patchMaterial(material: THREE.MeshLambertMaterial, uniforms: VehicleMes
   material.onBeforeCompile = (shader) => {
     shader.uniforms.uNight = uniforms.night;
     shader.uniforms.uTime = uniforms.time;
-    shader.uniforms.uSnow = weatherUniforms.uSnow;
+    shader.uniforms.uSnow = uniforms.snow;
     shader.vertexShader = shader.vertexShader
       .replace('#include <common>', `#include <common>
 ${VERT_PARS}`)
@@ -250,7 +252,7 @@ function glowMaterial(night: { value: number }): THREE.ShaderMaterial {
 export function createVehicleMeshes(capacity = 256, layout?: CityLayout): VehicleMeshes {
   const group = new THREE.Group();
   group.name = 'vehicles';
-  const uniforms = { night: { value: 0 }, time: { value: 0 } };
+  const uniforms = { night: { value: 0 }, time: { value: 0 }, snow: { value: 0 } };
   const material = new THREE.MeshLambertMaterial({ vertexColors: true });
   patchMaterial(material, uniforms);
 
@@ -337,6 +339,9 @@ export function createVehicleMeshes(capacity = 256, layout?: CityLayout): Vehicl
     },
     setHeadlights(level) {
       headlights = level;
+    },
+    setSnow(level) {
+      uniforms.snow.value = Math.min(1, Math.max(0, level));
     },
     setFocus() {
       // Intentionally empty: glow is drawn for every vehicle so it never pops at a distance.

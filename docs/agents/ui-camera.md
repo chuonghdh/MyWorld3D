@@ -15,7 +15,7 @@
 ## Traps
 - Camera: near/far tied to the target distance; `MAX_DISTANCE` 600 m (aircraft altitude band depends on it); `maxPolarAngle` PI/2.05.
 - Overview rotates around the map centre; street view is entered by dragging the view switch onto the map (ray to y=0).
-- Keep every file in `src/scene` <= 350 lines (`CameraRig.tsx` is at 344).
+- Keep every file in `src/scene` <= 350 lines. `CameraRig.tsx` is 263 lines; keyboard, orbit-interrupt and street-drag input is in `scene/cameraInput.ts` (`useCameraInput`, also owns `Tween`/`StreetState` types).
 
 ## Open items
 - Mobile touch pass was done at 390 px; re-check after adding panels.
@@ -74,5 +74,6 @@ UX (not implemented):
 
 ## Session 2026-11-01 follow-up (fixes)
 - Fixed HousePanel.tsx: 'as-block' override shows the block preset in the Type select (`shownPreset`); New look skips the shutter override when the block has no shutters (`hasShutters`, from base).
-- Note: src/scene/CameraRig.tsx is 350 lines (at the cap). Not refactored; split before adding code.
-- Open (Sky change pending): model.ts `leafAmount` default is 1, but leaves.ts reads it as percent of MAX_LEAVES (600), so the default shows 6 leaves. Proposed default after Sky's unit change: 100. model.ts untouched.
+- Split CameraRig.tsx (350 -> 263 lines): input effects moved to `scene/cameraInput.ts`. Behaviour unchanged.
+- leafAmount: unit is a 0-1 fraction (`leaves.ts` clamps 0-1, `SettingsCity` slider shows `round(v*100)%`). Default 1 = 100%, correct. Earlier "default shows 6 leaves" note was wrong; no change to model.ts.
+- Store layering checked: store imports only `core/` and `store/` (no city/weather/scene/ui). `io.ts` imports `core/weatherKinds`. No change needed.

@@ -12,7 +12,7 @@
 // clear of lamps, trees, benches, bins, crossings, crossing roads' sidewalks and the carriageway
 // (so parked cars and lanes are untouched). Decals are flat and sit between the lane markings.
 
-import type { CityLayout, RoadSegment } from '../city/layout';
+import type { CityLayout, CourtyardRect, RoadSegment } from '../city/layout';
 import { laneOffsetFor } from '../city/generate';
 import { createRng } from '../core/rng';
 import { KERB_RADIUS } from './surfaces';
@@ -434,16 +434,46 @@ export function distanceToTriangle(px: number, pz: number, t: GreeneryTriangle):
   return best;
 }
 
-function planFountain(layout: CityLayout, rng: () => number, greenery: readonly GreeneryTriangle[]): FountainPlan | null {
+/** Courtyards that can hold a fountain plaza, largest first. */
+function fountainCourtyards(layout: CityLayout): CourtyardRect[] {
   const need = FOUNTAIN_PLAZA_RADIUS + 0.9;
-  const reach = FOUNTAIN_PLAZA_RADIUS + GREENERY_CLEARANCE;
-  const trees = layout.streetTrees.filter((t) => t.setting === 'courtyard');
-  const ranked = layout.blocks
+  return layout.blocks
     .filter((b) => b.courtyard)
     .map((b) => b.courtyard!)
     .map((c) => ({ c, area: (c.maxX - c.minX) * (c.maxZ - c.minZ) }))
     .filter(({ c }) => c.maxX - c.minX >= need * 2 + 1 && c.maxZ - c.minZ >= need * 2 + 1)
-    .sort((a, b) => b.area - a.area);
+    .sort((a, b) => b.area - a.area)
+    .map(({ c }) => c);
+}
+
+/**
+ * Fountain disc reserved before the courtyard greenery is laid out: the tree-free centre of the largest
+ * courtyard that can hold a plaza. Uses only courtyards and street trees, never greenery, so greenery
+ * can avoid it without a circular dependency. Empty when no courtyard fits.
+ */
+export function fountainReservations(layout: CityLayout): { x: number; z: number; r: number; reserved: true }[] {
+  const need = FOUNTAIN_PLAZA_RADIUS + 0.9;
+  const trees = layout.streetTrees.filter((t) => t.setting === 'courtyard');
+  for (const c of fountainCourtyards(layout)) {
+    const cx = (c.minX + c.maxX) / 2, cz = (c.minZ + c.maxZ) / 2;
+    let best: { x: number; z: number; d: number } | null = null;
+    for (let x = c.minX + need; x <= c.maxX - need + 1e-6; x += 1) {
+      for (let z = c.minZ + need; z <= c.maxZ - need + 1e-6; z += 1) {
+        if (trees.some((t) => Math.hypot(t.position.x - x, t.position.z - z) < need)) continue;
+        const d = Math.hypot(x - cx, z - cz);
+        if (!best || d < best.d) best = { x, z, d };
+      }
+    }
+    if (best) return [{ x: best.x, z: best.z, r: FOUNTAIN_PLAZA_RADIUS + GREENERY_CLEARANCE, reserved: true }];
+  }
+  return [];
+}
+
+function planFountain(layout: CityLayout, rng: () => number, greenery: readonly GreeneryTriangle[]): FountainPlan | null {
+  const need = FOUNTAIN_PLAZA_RADIUS + 0.9;
+  const reach = FOUNTAIN_PLAZA_RADIUS + GREENERY_CLEARANCE;
+  const trees = layout.streetTrees.filter((t) => t.setting === 'courtyard');
+  const ranked = fountainCourtyards(layout).map((c) => ({ c }));
 
   for (const { c } of ranked) {
     const cx = (c.minX + c.maxX) / 2, cz = (c.minZ + c.maxZ) / 2;

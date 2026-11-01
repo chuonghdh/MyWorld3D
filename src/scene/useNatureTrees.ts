@@ -118,7 +118,7 @@ export function useNatureTrees({
     // eslint-disable-next-line react-hooks/exhaustive-deps
     [failed, layout, treeOverrides, uniforms, seed],
   );
-  const empty = useMemo(() => createNatureTreeField([], [], season), []);
+  const empty = useMemo(() => createNatureTreeField([], [], season), [season]);
   const active = field ?? procedural ?? empty;
   useEffect(() => active.setSeason(season), [active, season]);
   useEffect(() => {

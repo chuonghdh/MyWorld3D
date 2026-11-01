@@ -72,11 +72,12 @@ export interface ParkPlan {
   benches: { x: number; z: number; yaw: number }[];
 }
 
-/** Circle to keep clear (e.g. an existing courtyard tree). */
+/** Circle to keep clear (e.g. an existing courtyard tree). `reserved` discs (the fountain plaza) are also respected by small yards. */
 export interface ParkObstacle {
   x: number;
   z: number;
   r: number;
+  reserved?: true;
 }
 
 const range = (rng: () => number, lo: number, hi: number) => lo + (hi - lo) * rng();
@@ -339,7 +340,8 @@ function tone(base: THREE.Color, normal: THREE.Vector3, rng: () => number, out: 
   return out.copy(base).multiplyScalar((0.85 + 0.25 * normal.y) * range(rng, 0.93, 1.07));
 }
 
-function addTree(b: TriBuilder, t: ParkTree, rng: () => number, seed: number): void {
+/** Broadleaf crowns go to `crowns` (hidden in winter); trunks and conifers stay in `b` (conifers keep their green). */
+function addTree(b: TriBuilder, t: ParkTree, rng: () => number, seed: number, crowns: TriBuilder): void {
   const c = new THREE.Color();
   const s = t.size;
   const yaw = rng() * Math.PI * 2;
@@ -350,7 +352,7 @@ function addTree(b: TriBuilder, t: ParkTree, rng: () => number, seed: number): v
   b.add(BOX, compose(t.x, trunkH / 2 - 0.05, t.z, trunkW, trunkH + 0.1, trunkW, yaw), (_f, _c, n) => tone(BARK, n, rng, c));
   if (t.kind === 'round') {
     const base = ROUND_TONES[Math.floor(rng() * ROUND_TONES.length)];
-    b.tag = TAG_FOLIAGE;
+    crowns.tag = TAG_FOLIAGE;
     const blobs = 3;
     for (let i = 0; i < blobs; i++) {
       const rr = s * (i === 0 ? 1.15 : range(rng, 0.7, 0.9));
@@ -360,7 +362,7 @@ function addTree(b: TriBuilder, t: ParkTree, rng: () => number, seed: number): v
       const z = t.z + Math.sin(a) * off;
       const y = trunkH + rr * (i === 0 ? 0.75 : 0.55);
       const top = trunkH + 2.2 * s;
-      b.add(
+      crowns.add(
         BLOB,
         compose(x, y, z, rr, rr * 0.9, rr, yaw + i),
         (_f, centroid, n) => tone(base, n, rng, c).multiplyScalar(0.75 + 0.35 * Math.min(1, (centroid.y - trunkH) / (top - trunkH))),
@@ -379,9 +381,9 @@ function addTree(b: TriBuilder, t: ParkTree, rng: () => number, seed: number): v
     }
   } else {
     const base = COLUMN_TONES[Math.floor(rng() * COLUMN_TONES.length)];
-    b.tag = TAG_FOLIAGE;
+    crowns.tag = TAG_FOLIAGE;
     const rr = 0.72 * s;
-    b.add(
+    crowns.add(
       BLOB,
       compose(t.x, trunkH + 1.9 * s, t.z, rr, 2.2 * s, rr, yaw),
       (_f, centroid, n) => tone(base, n, rng, c).multiplyScalar(0.8 + 0.25 * Math.min(1, (centroid.y - trunkH) / (4 * s))),
@@ -426,6 +428,8 @@ export interface ParkBuilders {
   hedges: TriBuilder;
   beds: TriBuilder;
   bushes: TriBuilder;
+  /** Broadleaf park crowns: a separate mesh so winter can hide them (bare trunks stay). */
+  crowns: TriBuilder;
 }
 
 /** Callbacks into greenery.ts for the pieces shared with small courtyards. */
@@ -439,7 +443,7 @@ export interface ParkPieces {
 export function buildParkYard(plan: ParkPlan, out: ParkBuilders, pieces: ParkPieces, rng: () => number, seed: number): void {
   plan.hedges.forEach(([ax, az, bx, bz], i) => pieces.hedge(out.hedges, ax, az, bx, bz, seed + i * 97));
   for (const bed of plan.beds) pieces.bed(out.beds, bed.cx, bed.cz, bed.w, bed.d);
-  plan.trees.forEach((t, i) => addTree(out.bushes, t, rng, seed + i * 131));
+  plan.trees.forEach((t, i) => addTree(out.bushes, t, rng, seed + i * 131, out.crowns));
   plan.bushes.forEach((bu, i) => pieces.bush(out.bushes, bu.x, bu.z, bu.size, seed + 5000 + i * 7));
   if (plan.play) addSandbox(out.beds, plan.play, rng);
   for (const bench of plan.benches) addBench(out.beds, bench.x, bench.z, bench.yaw, rng);

@@ -50,3 +50,10 @@ Last smoke test: passed on 2026-10-29 (page title MyWorld3D, one canvas, WebGL o
 - src/dev/treeCompare/main.ts:25 already uses TREE_SCALE 1.35; left untouched (outside owned paths).
 - Wiring: App.tsx and useTownGreenery pass `treeOverrides` into useNatureTrees. `natureOverridesFor` maps species to NATURE_TYPES indices (type chosen by hashId(treeId)); `treeScale` left to the default. Compiles against City's `NatureOverrides`.
 - Fallback on GLB load failure: procedural createTreeField, scale 1.35, species applied.
+
+## Session 2026-11-01 (lead tasks a-d)
+- (a) Courtyard tree obstacles: `courtyardTreeObstacles` (city/streetscape.ts) already feeds `createCourtyardGreenery` via `useTownGreenery.ts`. No Sky consumer exists in `src/sky`. Town.tsx and useNatureTrees.ts unchanged: a tree field is not greenery.
+- (b) `useNatureTrees` empty memo now `[season]`.
+- (c) Dead `<= 400` assertion removed from budget.test.ts; draw-call guard is `<= 140`. Measured 132 (100 main + 32 shadow).
+- (d) `#c9b48e` is not in code (grep clean). Hemisphere ground is `nightGround`: `#b9bcb6` lerped to `#3a4668` by nightness. Sky-environment handbook entry is stale.
+- Open: `tests/streetDecor.test.ts` "puts the fountain in free courtyard space" fails solo. Likely from City's uncommitted streetscape.ts edit (footprint uses courtyardTreeObstacles). Not my file; not fixed.

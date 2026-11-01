@@ -19,6 +19,7 @@ Vehicles (`src/traffic/vehicles/`):
 - `motion.ts`: `advance` (the per-vehicle step), `roomBehind`, `transfer`, `resolveJam`.
 - `spawn.ts`: `create`, `release`, `trySpawns`, `isFree`, class and variant picks.
 - `render.ts`: `getVehicles` (render records for the mesh layer).
+- `horns.ts`: `tryHorn` and `takeHorns` (cooldown, city-wide gap, queue). `VehicleSystem` methods delegate here.
 - Existing: `builder.ts`, `models.ts` (448 lines, not split yet: model geometry), `variants.ts`.
 
 Pedestrians (`src/traffic/walkers/`):
@@ -92,6 +93,8 @@ Pedestrians (`src/traffic/walkers/`):
 - Review: no defects found in shader varyings (declared in both stages), threshold hash, or glow loop (`gn += lit`, brake slot reuses the index).
 - Open: `vehicles.test.ts` only checks level 1 (600 = all lit). Add level 0 (300) and a partial-level case.
 - Open: wiper disc is static; parked wipers still clear glass. Acceptable approximation, not verified by eye.
-- Open: `traffic/vehicleMeshes.ts` imports `shaders/wetSurface` (cross-layer). Check against architect layering rules.
+- Done: `traffic/vehicleMeshes.ts` no longer imports `shaders/wetSurface`. Snow comes in through `setSnow(level)` (VehicleMeshes, TrafficMeshes), called from `scene/useTownFrame.ts` with `wx.snow`. The shader reads the module's own `uniforms.snow`, so the value is identical to the old shared `weatherUniforms.uSnow`.
+- Done: horn logic moved to `vehicles/horns.ts` (no behaviour change; determinism hash and horn tests pass).
+- Note: `vehicles.ts` is 338 lines, not the 1794 quoted in the architect finding. Recheck the architect's count.
 - Follow-up: added `vehicles.test.ts` cases for headlight level 0 (300 = brake pools only) and level 0.5 (300 + lit count, lit = level > threshold(id)). 27/27 pass.
 - Hash b0d22ec1 holds on the current tree. Test imports `generateCity` (src/city, src/streets) and `store/model`, so it depends on the uncommitted city/streets/environment edits, not on src/traffic/vehicles/** (unchanged from HEAD).

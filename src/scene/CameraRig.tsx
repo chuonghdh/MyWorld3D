@@ -1,5 +1,6 @@
 // CameraRig: owns all camera behaviour (orbit with zoom-to-cursor and pan, clip planes, tweened presets,
 // street walk). Mounted inside the Canvas, before <Town/> so the camera is final when the town reads it.
+// Keyboard, orbit-interrupt and street-drag input live in cameraInput.ts.
 import { useEffect, useRef } from 'react';
 import { useFrame, useThree } from '@react-three/fiber';
 import { OrbitControls } from '@react-three/drei';
@@ -28,36 +29,20 @@ import {
   type V3,
 } from './cameraMath';
 
-import { RIGHT_PANEL_ATTR, isTyping, measureRightInset } from './cameraDom';
+import { RIGHT_PANEL_ATTR, measureRightInset } from './cameraDom';
+import { useCameraInput, type StreetState, type Tween } from './cameraInput';
 
 export { RIGHT_PANEL_ATTR, measureRightInset };
 
-interface Tween {
-  t: number;
-  fromPos: V3;
-  toPos: V3;
-  fromTarget: V3;
-  toTarget: V3;
-  /** True when the tween ends in the street walk (orbit controls are off while it runs). */
-  toStreet: boolean;
-  /** Yaw to adopt on arrival in the street walk. */
-  yaw: number;
-}
-
 /** Ground plane (y = 0) used to turn a dropped point on the map into world coordinates. */
 const GROUND = new THREE.Plane(new THREE.Vector3(0, 1, 0), 0);
-
-const PRESET_KEYS: Record<string, CameraPresetId> = {
-  Digit1: 'overview',
-  Digit2: 'street',
-};
 
 export function CameraRig() {
   const camera = useThree((s) => s.camera) as THREE.PerspectiveCamera;
   const gl = useThree((s) => s.gl);
   const controlsRef = useRef<OrbitControlsImpl>(null);
   const tween = useRef<Tween | null>(null);
-  const street = useRef({ active: false, yaw: 0, pitch: 0, x: 0, z: 0 });
+  const street = useRef<StreetState>({ active: false, yaw: 0, pitch: 0, x: 0, z: 0 });
   const keys = useRef(new Set<string>());
   const lastTarget = useRef(new THREE.Vector3());
   // Overview keeps the pivot on the map centre and shifts the picture instead (camera view offset).
@@ -160,79 +145,7 @@ export function CameraRig() {
     runtime.cameraPresetRequests.push('overview');
   }, []);
 
-  // Request queue consumption happens in the frame loop; this also exposes the keyboard shortcuts.
-  useEffect(() => {
-    const onKeyDown = (e: KeyboardEvent) => {
-      if (isTyping(e.target)) return;
-      if (e.ctrlKey || e.metaKey || e.altKey) return;
-      const preset = PRESET_KEYS[e.code];
-      if (preset && !e.repeat) {
-        runtime.cameraPresetRequests.push(preset);
-        return;
-      }
-      if (e.code === 'Escape' && (street.current.active || tween.current?.toStreet)) {
-        cancelTween();
-        leaveStreet();
-        return;
-      }
-      keys.current.add(e.code);
-      if (street.current.active && e.code.startsWith('Arrow')) e.preventDefault();
-    };
-    const onKeyUp = (e: KeyboardEvent) => keys.current.delete(e.code);
-    const onBlur = () => keys.current.clear();
-    window.addEventListener('keydown', onKeyDown);
-    window.addEventListener('keyup', onKeyUp);
-    window.addEventListener('blur', onBlur);
-    return () => {
-      window.removeEventListener('keydown', onKeyDown);
-      window.removeEventListener('keyup', onKeyUp);
-      window.removeEventListener('blur', onBlur);
-    };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
-
-  // Orbit input interrupts a running tween.
-  useEffect(() => {
-    const controls = controlsRef.current;
-    if (!controls) return;
-    const onStart = () => {
-      if (tween.current && !tween.current.toStreet) tween.current = null;
-    };
-    controls.addEventListener('start', onStart);
-    return () => controls.removeEventListener('start', onStart);
-  }, []);
-
-  // Street walk: drag to look; any pointer/wheel input also interrupts the walk-in tween.
-  useEffect(() => {
-    const el = gl.domElement;
-    let dragging = false;
-    const onDown = (e: PointerEvent) => {
-      if (tween.current?.toStreet) {
-        cancelTween();
-        return;
-      }
-      if (!street.current.active) return;
-      dragging = true;
-      el.setPointerCapture?.(e.pointerId);
-    };
-    const onMove = (e: PointerEvent) => {
-      if (!dragging || !street.current.active) return;
-      street.current.yaw -= e.movementX * 0.004;
-      street.current.pitch = clamp(street.current.pitch - e.movementY * 0.004, -1.2, 1.2);
-    };
-    const onUp = () => {
-      dragging = false;
-    };
-    el.addEventListener('pointerdown', onDown);
-    el.addEventListener('pointermove', onMove);
-    window.addEventListener('pointerup', onUp);
-    return () => {
-      el.removeEventListener('pointerdown', onDown);
-      el.removeEventListener('pointermove', onMove);
-      window.removeEventListener('pointerup', onUp);
-    };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [gl]);
+  useCameraInput({ controlsRef, tween, street, keys, cancelTween, leaveStreet });
 
   useFrame((_state, frameDt) => {
     const controls = controlsRef.current;

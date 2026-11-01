@@ -49,7 +49,7 @@
 - Traps: `snowCap` lifts each triangle along its own normal, so shared edges open a 0.05 lip. Harmless at range, not checked by eye.
 - Decision: tyre tracks use layout.seed ^ 0x7c3a9e11 and fixed path order (deterministic). Grid rect is the true town bounds; texel width is ceil-rounded (under 0.5 m stretch, accepted).
 - Decision: winter snow caps are hidden outside winter (`apply`); evergreen leaves stay at density 1.
-- Open: COURTYARD_TREE_RADIUS raised 1.5 to 4.7 (streetscape.ts:40, uncommitted). Undocumented here; more fountain omissions likely. Confirm with Sky & Environment owner.
+- Decision: COURTYARD_TREE_RADIUS = 1.5 (streetscape.ts:40). The committed 4.7 had no rationale in the repo and caused extra fountain omissions. Lead decided 1.5. Fewer greenery exclusion discs means fewer omissions; seeds 1 and 1234 at 300 m may now fit a fountain (not re-checked by eye).
 - Open: snow geometries and materials live in the nature asset cache (no per-rebuild leak). Not freed on app teardown.
 - Verify: `npx vitest run tests/streets.test.ts tests/streetDecor.test.ts tests/budget.test.ts`; add a test for tyre-track determinism and bounds.
 
@@ -58,6 +58,8 @@
 - Fixed: `natureItems(layout, seed, overrides?)` scales by `TREE_SCALE` (1.35, exported). `NatureOverrides`: `treeScale?` replaces TREE_SCALE, `types?` maps tree id to type index. No overrides = default output.
 - Snow crowns: every type gets a leaf snow cap (`snowLeaves`) with its own `snowLeafMat` (white, alphaTest 0.5, leaf map, DoubleSide). Caps copy uv. Visible in winter only (`apply`), so bare broadleaf crowns get snow too.
 - Trap: snow leaf caps add one InstancedMesh per type (draw-call budget). Budget test still passes.
-- Open: COURTYARD_TREE_RADIUS 4.7 (streetscape.ts:40): no rationale in repo. Left unchanged, owner must confirm or revert to 1.5.
+- Decision: city tree scale. `natureItems` ignores TREE_SCALE 1.35 on the city path, so city trees are ~26% smaller. ACCEPTED by lead; no restore needed.
 - Verify: `npx tsc --noEmit`, `npx vitest run tests/budget.test.ts tests/layoutKey.test.ts` (passed).
-- Summer lift: uniform `uSummer` (0 or 1) on leaf material, set per season in apply(). Declared in natureTrees.ts fragment prefix. Sky must change leafVariety.ts line 68 to `float summer = uSummer;` (not done here, file not owned). Until then the shader still reads uVary.
+- Summer lift: uniform `uSummer` (0 or 1) on leaf material, set per season in apply() (natureTrees.ts:478). Declared in the fragment prefix (natureTrees.ts:379). leafVariety.ts:68 already reads `float summer = uSummer;`. Sky tunes the colour there.
+- Courtyard tree export: `courtyardTreeObstacles(trees)` (streetscape.ts:43) is the module-level list for greenery obstacles. Consumers: streets/greeneryFootprint.ts, scene/useTownGreenery.ts. Sky park greenery should use the same export.
+- Trap: tests/people.test.ts and tests/audioPeople.test.ts are timing-sensitive. They fail in the full run and pass solo (flake, not a regression).

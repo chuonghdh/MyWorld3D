@@ -163,7 +163,7 @@ describe('park courtyards of merged blocks', () => {
     }
   });
 
-  it('is deterministic, independent of the courtyard order, and stays within three meshes and a triangle cap', () => {
+  it('is deterministic, independent of the courtyard order, and stays within four meshes and a triangle cap', () => {
     const small: Rect = { minX: -20, maxX: 0, minZ: -20, maxZ: 0 };
     const a = createCourtyardGreenery([small, BIG], 4);
     const b = createCourtyardGreenery([small, BIG], 4);
@@ -185,7 +185,8 @@ describe('park courtyards of merged blocks', () => {
       if (o instanceof THREE.Mesh) trisB += o.geometry.getAttribute('position').count / 3;
     });
     expect(trisB).toBeGreaterThan(trisA);
-    expect(a.children.length).toBeLessThanOrEqual(3);
+    // Four meshes: hedges, beds, bushes and crowns. Winter crowns need their own mesh so they can be hidden.
+    expect(a.children.length).toBeLessThanOrEqual(4);
     expect(trisA).toBeLessThan(26_000);
     expect(box.min.x).toBeGreaterThanOrEqual(BIG.minX);
     expect(box.max.z).toBeLessThanOrEqual(BIG.maxZ);

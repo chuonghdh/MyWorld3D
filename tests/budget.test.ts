@@ -44,6 +44,8 @@ interface Counts {
   mainMeshes: number;
   /** Meshes drawn into the shadow map. */
   shadowMeshes: number;
+  /** Triangles of shadow-only meshes (layers exclude 0): in the shadow total, never in the main pass. */
+  shadowOnly: number;
 }
 
 function trisOf(mesh: THREE.Mesh): number {
@@ -57,11 +59,16 @@ function count(root: THREE.Object3D, into: Counts): Counts {
     if (!(o instanceof THREE.Mesh) || !o.visible) return;
     const t = trisOf(o);
     if (t === 0) return;
-    into.main += t;
-    into.mainMeshes++;
+    // The main camera only draws layer 0; shadow-only copies (natureTrees.ts SHADOW_LAYER) are not main-pass work.
+    const inMain = o.layers.isEnabled(0);
+    if (inMain) {
+      into.main += t;
+      into.mainMeshes++;
+    }
     if (o.castShadow) {
       into.shadow += t;
       into.shadowMeshes++;
+      if (!inMain) into.shadowOnly += t;
     }
   });
   return into;
@@ -93,7 +100,7 @@ async function loadNatureAssetsForTest(): Promise<NatureAsset[]> {
 function sceneCounts(seed: number, assets: NatureAsset[]): { total: Counts; blocks: Counts } {
   const settings = { ...DEFAULT_SETTINGS, seed };
   const layout = generateCity(settings);
-  const blocks: Counts = { main: 0, shadow: 0, mainMeshes: 0, shadowMeshes: 0 };
+  const blocks: Counts = { main: 0, shadow: 0, mainMeshes: 0, shadowMeshes: 0, shadowOnly: 0 };
   for (const b of seed === SEED ? seededBlocks() : buildCityBlocks(seed)) count(b.group, blocks);
   const total = { ...blocks };
   for (const block of layout.blocks) {
@@ -282,6 +289,13 @@ describe('render budget (seeded default city)', () => {
     expect(total.shadow).toBeLessThanOrEqual(shadowBefore * 0.4);
   });
 
+  it('shadow-only leaf copies are counted in the shadow total, not in the main pass', () => {
+    // Broadleaf shadow copies (half density) sit on layer 1: in the shadow total, outside the main count.
+    expect(total.shadowOnly).toBeGreaterThan(0);
+    expect(total.shadowOnly).toBeLessThanOrEqual(total.shadow);
+    expect(total.main).toBeLessThanOrEqual(1_700_000);
+  });
+
   it('main plus shadow triangles of the static scene stay well under the 3 M design budget', () => {
     // Measured 1,539,195 + 549,627 = 2,088,822.
     expect(total.main + total.shadow).toBeLessThanOrEqual(2_300_000);
@@ -289,8 +303,7 @@ describe('render budget (seeded default city)', () => {
 
   it('draw-call estimate (main meshes + shadow meshes) stays under its threshold', () => {
     // Measured 132 = 100 + 32 (was 130). The diet adds one detail mesh per house block to the main pass only.
-    expect(total.mainMeshes + total.shadowMeshes).toBeLessThanOrEqual(145);
-    expect(total.mainMeshes + total.shadowMeshes).toBeLessThanOrEqual(400);
+    expect(total.mainMeshes + total.shadowMeshes).toBeLessThanOrEqual(140);
     expect(detailMeshes).toBeLessThanOrEqual(seededBlocks().length);
   });
 });

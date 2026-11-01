@@ -31,4 +31,4 @@
 ## Verify
 `npx vitest run tests/audio*.test.ts`; render a system in an `OfflineAudioContext` in the dev page and check the peak (< 0.5) and no NaN.
 
-Session 2026-11-01: no changes in owned area (src/audio, src/ui/SoundMixer.tsx, docs/AUDIO.md).
+Session 2026-11-01: no changes in owned area (src/audio, src/ui/SoundMixer.tsx, docs/AUDIO.md). Scope confirmed by lead: `src/scene/audioBridge.ts` and `tests/audio*.test.ts`, `tests/helpers/fakeAudio.ts` are Audio-owned (listed in Owns above). No code change, no commit.

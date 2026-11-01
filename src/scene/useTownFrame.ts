@@ -102,6 +102,7 @@ export function useTownFrame(f: TownFrameInputs): void {
       lightLevel: Math.min(1, lighting.sky.ambientIntensity),
       skyColor: lighting.sky.sky,
     });
+    trafficMeshes.setSnow(wx.snow);
     overlay.current.cloudiness = wx.cloudiness;
     overlay.current.flash = wx.flash;
     clouds.setCoverage(wx.cloudiness);

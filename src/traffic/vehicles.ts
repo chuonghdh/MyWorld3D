@@ -7,12 +7,13 @@ import type { VehicleClass } from '../audio';
 import { TrafficLightController } from './lights';
 import { Obb } from './collision';
 import type { VehicleRender, VehicleSystemOptions, TurnOption, PathModel, Vehicle, HornEvent, CrosswalkRect, PedestrianPoint, Pose } from './vehicles/types';
-import { TURN_LEFT_CHANCE, TURN_RIGHT_CHANCE, HORN_COOLDOWN_S, HORN_GLOBAL_GAP_S, HORN_CHANCE, HORN_QUEUE_MAX, VEHICLES_PER_PATH, MAX_STEP } from './vehicles/constants';
+import { TURN_LEFT_CHANCE, TURN_RIGHT_CHANCE, VEHICLES_PER_PATH, MAX_STEP } from './vehicles/constants';
 import { setupSystem } from './vehicles/build';
 import { getVehicles } from './vehicles/render';
 import { create, release, trySpawns, isFree } from './vehicles/spawn';
 import { updateGrants } from './vehicles/junctions';
 import { transfer, advance } from './vehicles/motion';
+import { takeHorns, tryHorn } from './vehicles/horns';
 
 export class VehicleSystem {
 
@@ -230,39 +231,14 @@ export class VehicleSystem {
     return line ? line.s : null;
   }
 
-  /**
-   * Horn requests raised since the last call. The returned array and its records are reused: read them now and do
-   * not keep references. Reading clears the queue.
-   */
+  /** Horn requests raised since the last call (see vehicles/horns.ts). Reading clears the queue. */
   takeHorns(): readonly HornEvent[] {
-    const out = this.hornOut;
-    out.length = 0;
-    for (let i = 0; i < this.hornQueueLen; i++) out.push(this.hornQueue[i]);
-    this.hornQueueLen = 0;
-    return out;
+    return takeHorns(this);
   }
 
   /** Queues a horn for v, subject to the per-vehicle cooldown, the city-wide gap and a coin flip (see HORN_*). */
   tryHorn(v: Vehicle): void {
-    const now = this.hornClock;
-    if (now - v.lastHornAt < HORN_COOLDOWN_S) return;
-    if (now - this.lastHornGlobal < HORN_GLOBAL_GAP_S) return;
-    if (this.hornQueueLen >= HORN_QUEUE_MAX) return;
-    if (this.hornRng() >= HORN_CHANCE) {
-      v.lastHornAt = now - HORN_COOLDOWN_S + 10; // reconsiders in 10 s rather than on the very next frame
-      return;
-    }
-    v.lastHornAt = now;
-    this.lastHornGlobal = now;
-    let e = this.hornQueue[this.hornQueueLen];
-    if (!e) {
-      e = { x: 0, z: 0, cls: 'car' };
-      this.hornQueue[this.hornQueueLen] = e;
-    }
-    e.x = v.x;
-    e.z = v.z;
-    e.cls = v.cls;
-    this.hornQueueLen++;
+    tryHorn(this, v);
   }
 
   step(dt: number): void {

@@ -81,12 +81,32 @@ export interface NatureSlot {
 }
 
 /** One type and yaw per street, avenue, courtyard and plaza tree, in layout order: two draws per slot, always. */
+/** Conifers are about a tenth of the city: only on the outer sidewalk ring, plazas and merged-block yards. */
+export const PINE_SHARE = 0.6;
+/** Outer sidewalk ring depth (m) from the town edge, where street trees count as the pedestrian border. */
+export const BORDER_DEPTH = 6;
+
+const BROADLEAF_TYPES = NATURE_TYPES.flatMap((t, i) => (t.evergreen ? [] : [i]));
+const CONIFER_TYPES = NATURE_TYPES.flatMap((t, i) => (t.evergreen ? [i] : []));
+
+/** One tree type and yaw per street tree, in layout order. Each slot draws the same numbers whatever its setting. */
 export function natureSlots(layout: CityLayout, seed: number): NatureSlot[] {
   const rng = createRng((seed ^ NATURE_SALT) >>> 0);
-  return layout.streetTrees.map(() => {
-    const type = Math.floor(rng() * NATURE_TYPES.length);
+  const b = layout.townBounds;
+  const mergedYards = layout.blocks.flatMap((blk) => (blk.courtyard?.merged ? [blk.courtyard] : []));
+  const inYard = (x: number, z: number) =>
+    mergedYards.some((c) => x >= c.minX && x <= c.maxX && z >= c.minZ && z <= c.maxZ);
+  return layout.streetTrees.map((t) => {
+    const x = t.position.x;
+    const z = t.position.z;
+    const edge = Math.min(x - b.minX, b.maxX - x, z - b.minZ, b.maxZ - z);
+    const coniferSpot =
+      t.setting === 'plaza' || (t.setting === 'street' && edge < BORDER_DEPTH) || (t.setting === 'courtyard' && inYard(x, z));
+    const broadleaf = BROADLEAF_TYPES[Math.floor(rng() * BROADLEAF_TYPES.length)];
+    const conifer = CONIFER_TYPES[Math.floor(rng() * CONIFER_TYPES.length)];
+    const takeConifer = coniferSpot && rng() < PINE_SHARE;
     const yaw = rng() * Math.PI * 2;
-    return { type, yaw };
+    return { type: takeConifer ? conifer : broadleaf, yaw };
   });
 }
 
@@ -183,6 +203,82 @@ export function thinnedLeaves(asset: NatureAsset, density: number): THREE.Buffer
   return subsetGeometry(asset.leaves, kept.flatMap((i) => asset.islands[i]).sort((a, b) => a - b));
 }
 
+/** Layer of the broadleaf shadow copies: drawn only by the sun's shadow camera (Town.tsx enables it there). */
+export const SHADOW_LAYER = 1;
+/** Share of the (seasonal) broadleaf leaves that cast shadows. The main pass draws all of them. */
+export const SHADOW_LEAF_FRACTION = 0.5;
+
+/** Bark islands that do not touch the trunk and start above this height are foliage clusters, not wood. */
+export const FOLIAGE_MIN_Y = 2.5;
+
+/** Bounding box of an island's vertices (metres). */
+function islandBox(tris: number[], pos: THREE.BufferAttribute | THREE.InterleavedBufferAttribute, idx: ArrayLike<number>): { size: number[]; count: number } {
+  const lo = [Infinity, Infinity, Infinity];
+  const hi = [-Infinity, -Infinity, -Infinity];
+  const seen = new Set<number>();
+  for (const t of tris) {
+    for (let k = 0; k < 3; k++) {
+      const v = idx[3 * t + k];
+      if (seen.has(v)) continue;
+      seen.add(v);
+      const p = [pos.getX(v), pos.getY(v), pos.getZ(v)];
+      for (let c = 0; c < 3; c++) {
+        lo[c] = Math.min(lo[c], p[c]);
+        hi[c] = Math.max(hi[c], p[c]);
+      }
+    }
+  }
+  return { size: [hi[0] - lo[0], hi[1] - lo[1], hi[2] - lo[2]], count: seen.size };
+}
+
+/** A compact clump (not a twig or a sheet): every side at most 3 m, shortest side at least 40% of the longest, 30+ vertices. */
+function isCluster(box: { size: number[]; count: number }): boolean {
+  const max = Math.max(...box.size);
+  const min = Math.min(...box.size);
+  return box.count >= 30 && max <= 3 && min >= 0.4 * max;
+}
+
+/**
+ * The Quaternius "Bark" primitives also carry crown clusters: floating islands high in the crown that are
+ * not joined to the trunk. They move to the leaf geometry, so winter hides them with the leaves and the trunk
+ * and connected branches stay. Indexed input only; returns the bark unchanged when there is nothing to move.
+ */
+export function splitFoliage(bark: THREE.BufferGeometry): { bark: THREE.BufferGeometry; foliage: THREE.BufferGeometry | null } {
+  if (!bark.index) return { bark, foliage: null };
+  const pos = bark.getAttribute('position');
+  const idx = bark.index.array;
+  const islands = leafIslands(bark);
+  let trunk = -1;
+  let trunkY = Infinity;
+  const minY = islands.map((tris, i) => {
+    let y = Infinity;
+    for (const t of tris) for (let k = 0; k < 3; k++) y = Math.min(y, pos.getY(idx[3 * t + k]));
+    if (y < trunkY) {
+      trunkY = y;
+      trunk = i;
+    }
+    return y;
+  });
+  const foliageTris: number[] = [];
+  const woodTris: number[] = [];
+  islands.forEach((tris, i) => {
+    if (i !== trunk && minY[i] >= FOLIAGE_MIN_Y && isCluster(islandBox(tris, pos, idx))) foliageTris.push(...tris);
+    else woodTris.push(...tris);
+  });
+  if (foliageTris.length === 0) return { bark, foliage: null };
+  const withIndex = (tris: number[]): THREE.BufferGeometry => {
+    const g = bark.clone();
+    const index = new Uint32Array(tris.length * 3);
+    tris.forEach((t, n) => {
+      for (let k = 0; k < 3; k++) index[3 * n + k] = idx[3 * t + k];
+    });
+    g.setIndex(new THREE.BufferAttribute(index, 1));
+    g.computeBoundingSphere();
+    return g;
+  };
+  return { bark: withIndex(woodTris), foliage: withIndex(foliageTris) };
+}
+
 /**
  * Builds a NatureAsset from a parsed GLB. Bakes node transforms into the geometry, splits bark and leaf meshes by
  * material name, and sets materials. `maps` null leaves the materials untextured (tests); `uniforms` null skips sway.
@@ -209,8 +305,10 @@ export function natureAssetFromGltf(
     if (!merged) throw new Error(`${type.file}: merge failed`);
     return merged;
   };
-  const bark = join(barkParts);
-  const leaves = join(leafParts);
+  const barkAll = join(barkParts);
+  const split = type.evergreen ? { bark: barkAll, foliage: null } : splitFoliage(barkAll);
+  const bark = split.bark;
+  const leaves = join(split.foliage ? [...leafParts, split.foliage] : leafParts);
   bark.computeBoundingSphere();
   leaves.computeBoundingSphere();
 
@@ -405,6 +503,7 @@ export function createNatureTreeField(
   group.name = 'nature-trees';
   const ours = new Set<THREE.Object3D>();
   const leafUsers: { mesh: THREE.InstancedMesh; asset: NatureAsset }[] = [];
+  const shadowUsers: { mesh: THREE.InstancedMesh; asset: NatureAsset }[] = [];
   const snowMeshes: THREE.InstancedMesh[] = [];
   const cache = new Map<string, THREE.BufferGeometry | null>();
   const up = new THREE.Vector3(0, 1, 0);
@@ -437,6 +536,16 @@ export function createNatureTreeField(
     if (items.length === 0) return;
     add(asset.bark, asset.barkMat, items, `nature-bark-${asset.type.file}`);
     const leaves = add(asset.leaves, asset.leafMat, items, `nature-leaves-${asset.type.file}`);
+    if (!asset.type.evergreen) {
+      // Broadleaf shadows come from a thinner copy on the shadow layer: the main pass draws the full leaves, the sun pass
+      // only the shadow copy (Town.tsx enables SHADOW_LAYER on the sun's shadow camera).
+      leaves.castShadow = false;
+      const shadow = add(asset.leaves, asset.leafMat, items, `nature-leaves-shadow-${asset.type.file}`);
+      shadow.castShadow = true;
+      shadow.receiveShadow = false;
+      shadow.layers.set(SHADOW_LAYER);
+      shadowUsers.push({ mesh: shadow, asset });
+    }
     // Per-tree seeded randoms (instance colour, read by the leaf shader): each tree differs in hue and brightness.
     const c = new THREE.Color();
     items.forEach((t, i) => {
@@ -446,7 +555,8 @@ export function createNatureTreeField(
     if (leaves.instanceColor) leaves.instanceColor.needsUpdate = true;
     leafUsers.push({ mesh: leaves, asset });
     if (asset.snowBark) snowMeshes.push(add(asset.snowBark, asset.snowMat, items, 'nature-snow-bark-' + asset.type.file));
-    if (asset.snowLeaves) snowMeshes.push(add(asset.snowLeaves, asset.snowLeafMat, items, 'nature-snow-leaves-' + asset.type.file));
+    // Broadleaf crowns are bare in winter; a snow cap on their full leaf geometry would draw the green leaf map. Conifers keep their crowns.
+    if (asset.snowLeaves && asset.type.evergreen) snowMeshes.push(add(asset.snowLeaves, asset.snowLeafMat, items, 'nature-snow-leaves-' + asset.type.file));
   });
 
   const leafFor = (asset: NatureAsset, sNow: Season): THREE.BufferGeometry | null => {
@@ -461,6 +571,16 @@ export function createNatureTreeField(
 
   const apply = (sNow: Season) => {
     for (const m of snowMeshes) m.visible = sNow === 'winter';
+    for (const { mesh, asset } of shadowUsers) {
+      const key = `${asset.type.file}|shadow|${sNow}`;
+      let geo = cache.get(key);
+      if (geo === undefined) {
+        geo = thinnedLeaves(asset, seasonLeafDensity(sNow) * SHADOW_LEAF_FRACTION);
+        cache.set(key, geo);
+      }
+      mesh.visible = geo !== null;
+      if (geo) mesh.geometry = geo;
+    }
     for (const { mesh, asset } of leafUsers) {
       const geo = leafFor(asset, sNow);
       mesh.visible = geo !== null;

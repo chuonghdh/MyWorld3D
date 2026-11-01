@@ -6,6 +6,7 @@ import * as THREE from 'three';
 import type { CityLayout, Rect } from '../city/layout';
 import { createCourtyardGreenery } from '../environment/greenery';
 import type { GreeneryTriangle } from './decor';
+import { fountainReservations } from './decor';
 import { courtyardTreeObstacles } from '../city/streetscape';
 
 /** Triangles of every greenery mesh of `layout`, in world XZ. Deterministic for one layout. */
@@ -14,7 +15,8 @@ export function courtyardGreeneryFootprint(layout: CityLayout): GreeneryTriangle
     .filter((b) => b.kind === 'houses' && b.courtyard)
     .map((b) => b.courtyard as Rect);
   // Same obstacles as scene/useTownGreenery.ts, so the footprint matches the greenery the scene builds.
-  const group = createCourtyardGreenery(courtyards, layout.seed, courtyardTreeObstacles(layout.streetTrees));
+  const obstacles = [...courtyardTreeObstacles(layout.streetTrees), ...fountainReservations(layout)];
+  const group = createCourtyardGreenery(courtyards, layout.seed, obstacles);
   const out: GreeneryTriangle[] = [];
   group.updateMatrixWorld(true);
   group.traverse((o) => {

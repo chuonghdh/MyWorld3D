@@ -10,7 +10,7 @@ instead of spawning a fresh agent. That way what it learned (traps, decisions, c
 | 2 | City & Streets | `src/city/**`, `src/streets/**` | [city-streets.md](city-streets.md) |
 | 3 | Traffic & Life | `src/traffic/**`, `src/life/**` | [traffic-life.md](traffic-life.md) |
 | 4 | Sky & Environment | `src/sky/**`, `src/environment/**`, `src/weather/**`, `src/aircraft/**` | [sky-environment.md](sky-environment.md) |
-| 5 | Audio | `src/audio/**`, `src/ui/SoundMixer.tsx`, `docs/AUDIO.md` | [audio.md](audio.md) |
+| 5 | Audio | `src/audio/**`, `src/scene/audioBridge.ts`, `src/ui/SoundMixer.tsx`, `docs/AUDIO.md`, audio tests (`tests/audio*.test.ts`, `tests/helpers/fakeAudio.ts`) | [audio.md](audio.md) |
 | 6 | UI & Camera | `src/ui/**` (except SoundMixer), `src/store/**`, `src/scene/CameraRig.tsx`, `cameraMath.ts`, `Selection.tsx`, `selectionMath.ts` | [ui-camera.md](ui-camera.md) |
 | 7 | Scene & QA | `src/scene/**` (rest), `src/core/**`, `tests/helpers/**`, perf budgets, docs | [scene-qa.md](scene-qa.md) |
 | 8 | Technical Architect | Cross-cutting structure, asset pipeline, performance standards, toolchain (no feature code) | [architect.md](architect.md) |

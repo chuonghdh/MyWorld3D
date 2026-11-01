@@ -332,7 +332,7 @@ const TONES: Record<TreeSpecies, Record<'spring' | 'summer', string[]>> = {
   },
   oak: {
     spring: ['#a6c86b', '#93b85a', '#bcd67f'],
-    summer: ['#2c5a30', '#356838', '#244d29'],
+    summer: ['#3a7438', '#44823f', '#2f6a35'],
   },
   birch: {
     spring: ['#c4e886', '#b0d872', '#d4f09a'],

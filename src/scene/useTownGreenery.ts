@@ -2,6 +2,7 @@
 import { useEffect, useMemo } from 'react';
 import type { CityLayout, Rect } from '../city';
 import { courtyardTreeObstacles } from '../city/streetscape';
+import { fountainReservations } from '../streets/decor';
 import { setNightClock, setNightLights } from '../buildings/materials';
 import { getNightSchedule } from '../environment/sun';
 import {
@@ -60,7 +61,7 @@ export function useTownGreenery({ layout, treeOverrides, uniforms, seed, season,
         layout.blocks.filter((b) => b.kind === 'houses' && b.courtyard).map((b) => b.courtyard as Rect),
         seed,
         // Courtyard trees are obstacles, so park groves never overlap them.
-        courtyardTreeObstacles(layout.streetTrees),
+        [...courtyardTreeObstacles(layout.streetTrees), ...fountainReservations(layout)],
       ),
     [layout, seed],
   );

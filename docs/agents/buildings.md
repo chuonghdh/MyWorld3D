@@ -45,9 +45,9 @@
 
 ## Session 2026-11-01
 - Reviewed `HOUSE_WALL_OPTIONS` / `HOUSE_SHUTTER_OPTIONS` (`facade/presets.ts:388-404`) and the `index.ts` re-export. `tsc --noEmit` clean for buildings. Lists are deduped and lowercased, no name clash.
-- Trap: brick flag is exact-hex `BRICK_PALETTE.includes(wallHex)` (`house.ts:157`). Swatch options add brick-like walls outside that palette (tower modern `#6e3a2c`, brownstone modern `#7d4a36`, nordic default `#b5533c`), so they get stone bases instead of brick. Open: derive brick from kind or extend the palette.
+- Trap: brick flag is exact-hex `BRICK_PALETTE.includes(wallHex)` (`house.ts:157`). Swatch options add brick-like walls outside that palette (tower modern `#6e3a2c`, brownstone modern `#7d4a36`, nordic default `#b5533c`), so they get stone bases instead of brick (resolved, see Fixed below).
 - Trap: options are lowercase; `house.ts` compares case-sensitively. Keep any new hex lowercase.
 - Decision: swatch lists derive from `SPECS`, so new presets reach `HousePanel` without edits there.
 - Open: CRLF/LF warning on `presets.ts` and `index.ts` (eol normalisation, not a code defect).
-- Not run: vitest (review only, no source edits).
+- Tests run: `tests/buildings.test.ts`, `buildingsPolish`, `materials`, `monuments`, `geometry` = 5 files, 283/283 pass (about 6 min, geometry is the slow part). H-4 stays open: no test or measurement proves glass flatness.
 - Fixed: brick flag uses `BRICK_LIKE_WALLS` (palette.ts: brick palette + `#6e3a2c`, `#7d4a36`, `#b5533c`) with `wallHex.toLowerCase()`. Side effect: nordic default `#b5533c` now gets brick base.

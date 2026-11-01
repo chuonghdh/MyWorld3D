@@ -60,3 +60,12 @@
 - Summer green lift in `leafVariety.ts`: `summer = smoothstep(0.8, 1.0, uVary)`. Couples to uVary (summer 1.0, spring 0.6). Open: a dedicated `uSummer` uniform needs `streets/natureTrees.ts` (City).
 - Procedural winter trees: crowns hidden, bare twigs had only a baked up-face tint and no dynamic cover. `forest.ts` now wraps `twigs` in `attachWeather` (shared `uSnow`). Trunk not patched. Twigs also darken in rain (`uWet`).
 - Open: procedural summer `TONES` in `forest.ts` are dark (#2c5a30 range); not changed.
+
+## Session 2026-11-01 (lead task)
+- Courtyard trees: already wired. `city/streetscape.ts` `courtyardTreeObstacles` feeds `createCourtyardGreenery` in `scene/useTownGreenery.ts` and `streets/greeneryFootprint.ts`; park groves keep clear of them. No Town.tsx change needed. Open item closed.
+- Small-courtyard rng: keyed by a footprint hash (`yardKey` in `environment/greenery.ts`), not list index. A merge elsewhere no longer reshuffles other yards. One-time layout shift for every town.
+- Summer tone: oak summer lifted to `#3a7438 / #44823f / #2f6a35` (`environment/forest.ts`). `uSummer` hookup already in `streets/natureTrees.ts`. Open item closed.
+- Scene imports: `sky/SkyDome.tsx` imports `core/runtime`, `aircraft/schedule.ts` imports `environment/cloudSprites`. Neither imports `src/scene`. Architect finding already resolved in code.
+- Trap: `tests/streetDecor.test.ts` "fountain in free courtyard space" fails after the rng change (fountain null on one layout). Owner: City & Streets / Scene. Not fixed here.
+- Full `npx vitest run`: 679 pass, 1 fail (above). 4 files flagged FAIL under full run pass solo.
+- Verify: `npx tsc --noEmit` passes. Owned-area suites (7 files, 112 tests) pass.

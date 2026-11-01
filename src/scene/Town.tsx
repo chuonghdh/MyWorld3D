@@ -30,6 +30,7 @@ import { useTownGreenery } from './useTownGreenery';
 import { useTownTraffic } from './useTownTraffic';
 import { useTownAircraft } from './useTownAircraft';
 import { useTownFrame } from './useTownFrame';
+import { SHADOW_LAYER } from '../streets/natureTrees';
 
 export { shadowHalfExtent } from './townShadow';
 export { monumentBaseFor };
@@ -137,6 +138,10 @@ export function Town({ onSelect, selected }: { onSelect: (target: OverrideTarget
     light.shadow.map?.dispose();
     light.shadow.map = null;
   }, [shadowMapSize]);
+  // Broadleaf shadow copies live on SHADOW_LAYER (streets/natureTrees.ts): only the sun's shadow pass draws them.
+  useEffect(() => {
+    sunLight.current?.shadow.camera.layers.enable(SHADOW_LAYER);
+  }, []);
 
   // The church bell rings from the Gothic cathedral monument, wherever swapping has put it.
   const church = useMemo(() => {

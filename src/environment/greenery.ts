@@ -3,7 +3,7 @@
 // (hedges, flower beds, bushes) sharing one material, whatever the number of courtyards.
 
 import * as THREE from 'three';
-import type { CourtyardRect } from '../city/layout';
+import type { CourtyardRect, Rect } from '../city/layout';
 import { createRng } from '../core/rng';
 import type { Season } from '../core/types';
 import { TriBuilder, makeWarp } from './forest';
@@ -191,8 +191,27 @@ interface Placed {
   maxZ: number;
 }
 
+/** Distance from point (px, pz) to segment (ax, az)-(bx, bz). */
+function distToSegment(px: number, pz: number, ax: number, az: number, bx: number, bz: number): number {
+  const dx = bx - ax;
+  const dz = bz - az;
+  const len2 = dx * dx + dz * dz;
+  const t = len2 > 0 ? Math.max(0, Math.min(1, ((px - ax) * dx + (pz - az) * dz) / len2)) : 0;
+  return Math.hypot(px - (ax + dx * t), pz - (az + dz * t));
+}
+
 const overlaps = (a: Placed, b: Placed, pad: number) =>
   a.minX - pad < b.maxX && a.maxX + pad > b.minX && a.minZ - pad < b.maxZ && a.maxZ + pad > b.minZ;
+
+/** Stable 32-bit key of a yard from its footprint (rounded to 0.1 m). Independent of list order. */
+function yardKey(r: Rect): number {
+  return (
+    Math.imul(Math.round(r.minX * 10), 73856093) ^
+    Math.imul(Math.round(r.minZ * 10), 19349663) ^
+    Math.imul(Math.round(r.maxX * 10), 83492791) ^
+    Math.imul(Math.round(r.maxZ * 10), 1000003)
+  ) >>> 0;
+}
 
 /**
  * Hedges, flower beds and bushes for each courtyard. Returns a group of three merged meshes
@@ -214,9 +233,12 @@ export function createCourtyardGreenery(
   const hedges = new TriBuilder();
   const beds = new TriBuilder();
   const bushes = new TriBuilder();
+  const crowns = new TriBuilder();
 
-  courtyards.forEach((r, ci) => {
-    const rng = createRng((seed * 7919 + ci * 104729 + 17) >>> 0);
+  courtyards.forEach((r) => {
+    // Stable per-yard key from its footprint, not its list index: a merge elsewhere in the list must not reshuffle this yard.
+    const key = yardKey(r);
+    const rng = createRng((Math.imul(seed, 7919) ^ Math.imul(key, 104729) ^ 17) >>> 0);
     const w = r.maxX - r.minX;
     const d = r.maxZ - r.minZ;
     if (w < 3 || d < 3) return;
@@ -228,7 +250,7 @@ export function createCourtyardGreenery(
       const plan = planParkYard(r, prng, inside);
       buildParkYard(
         plan,
-        { hedges, beds, bushes },
+        { hedges, beds, bushes, crowns },
         {
           hedge: (b, x0, z0, x1, z1, s) => addHedge(b, prng, x0, z0, x1, z1, s),
           bed: (b, cx, cz, bw, bd) => addFlowerBed(b, prng, cx, cz, bw, bd),
@@ -240,6 +262,14 @@ export function createCourtyardGreenery(
       return;
     }
     const placed: Placed[] = [];
+    // Reserved discs (the fountain plaza) touching this yard: bounding boxes for beds and bushes, a distance test for
+    // hedge runs. Other obstacles (courtyard trees) are not respected by small yards; that keeps their layout unchanged.
+    const near = obstacles.filter(
+      (o) => o.reserved === true && o.x + o.r > r.minX && o.x - o.r < r.maxX && o.z + o.r > r.minZ && o.z - o.r < r.maxZ,
+    );
+    for (const o of near) placed.push({ minX: o.x - o.r, maxX: o.x + o.r, minZ: o.z - o.r, maxZ: o.z + o.r });
+    const hitsObstacle = (ax: number, az: number, bx: number, bz: number) =>
+      near.some((o) => distToSegment(o.x, o.z, ax, az, bx, bz) < o.r + HEDGE_WIDTH / 2);
 
     // Hedges along the four edges, each run broken by 1.2-2.2 m gaps.
     if (w >= 6 && d >= 6) {
@@ -261,8 +291,9 @@ export function createCourtyardGreenery(
         let k = 0;
         while (s < len - 0.8) {
           const seg = Math.min(range(rng, 3, 6), len - s);
-          if (seg >= 1) {
-            addHedge(hedges, rng, ax + ux * s, az + uz * s, ax + ux * (s + seg), az + uz * (s + seg), seed + ci * 977 + ri * 97 + k++);
+          const [sx0, sz0, sx1, sz1] = [ax + ux * s, az + uz * s, ax + ux * (s + seg), az + uz * (s + seg)];
+          if (seg >= 1 && !hitsObstacle(sx0, sz0, sx1, sz1)) {
+            addHedge(hedges, rng, sx0, sz0, sx1, sz1, seed + Math.imul(key, 977) + ri * 97 + k++);
           }
           s += seg + range(rng, 1.2, 2.2);
         }
@@ -309,7 +340,7 @@ export function createCourtyardGreenery(
       const box = { minX: x - 0.9, maxX: x + 0.9, minZ: z - 0.9, maxZ: z + 0.9 };
       if (placed.some((p) => overlaps(p, box, 0.3))) continue;
       placed.push(box);
-      addBush(bushes, rng, x, z, seed + ci * 31 + made * 7);
+      addBush(bushes, rng, x, z, seed + Math.imul(key, 31) + made * 7);
       made++;
     }
   });
@@ -320,10 +351,13 @@ export function createCourtyardGreenery(
     [hedges, 'greenery-hedges'],
     [beds, 'greenery-beds'],
     [bushes, 'greenery-bushes'],
+    [crowns, 'greenery-crowns'],
   ];
+  let crownMesh: THREE.Mesh | null = null;
   for (const [builder, name] of parts) {
     if (builder.triangleCount === 0) continue;
     const mesh = new THREE.Mesh(builder.build(), material);
+    if (name === 'greenery-crowns') crownMesh = mesh;
     mesh.name = name;
     mesh.castShadow = true;
     mesh.receiveShadow = true;
@@ -333,6 +367,8 @@ export function createCourtyardGreenery(
   /** Recolours hedges, bush leaves and blooms for a season (summer is the built-in look). */
   group.userData.setSeason = (season: Season) => {
     for (const [mesh, state] of states) applySeasonPaint(mesh.geometry, state, season);
+    // Broadleaf park crowns drop their leaves in winter; the bare trunks stay.
+    if (crownMesh) crownMesh.visible = season !== 'winter';
   };
   return group;
 }
