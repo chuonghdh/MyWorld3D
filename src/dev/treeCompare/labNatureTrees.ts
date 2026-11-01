@@ -176,6 +176,53 @@ export function leafIslands(geo: THREE.BufferGeometry): number[][] {
 }
 
 /** Non-indexed copy of the given triangles, all attributes kept. */
+/** Lab only: share of broadleaf leaf clusters that get a rotated copy (more clusters, more triangles). */
+export const LAB_CLUSTER_EXTRA = 0.5;
+/** Lab only: rotation (rad) of the copied clusters around the trunk axis. */
+const LAB_CLUSTER_TURN = (15 * Math.PI) / 180;
+/** Lab only: height (m) the copied clusters drop, so they sit lower in the crown. */
+const LAB_CLUSTER_DROP = 0.7;
+
+/**
+ * Lab only. Adds rotated copies of every second leaf cluster (island) around the trunk axis, so crowns read denser.
+ * Copies are separate islands (own vertices) with their own index, so thinning and variety work as for the originals.
+ * Conifers are returned unchanged.
+ */
+function addLeafClusters(leaves: THREE.BufferGeometry, conifer: boolean): THREE.BufferGeometry {
+  if (conifer || !leaves.index) return leaves;
+  const pos = leaves.getAttribute('position');
+  const idx = leaves.index.array;
+  const islands = leafIslands(leaves);
+  const picked = islands.filter((_, i) => i % Math.round(1 / LAB_CLUSTER_EXTRA) === 0);
+  const tris = picked.flat();
+  if (tris.length === 0) return leaves;
+  let ax = 0;
+  let az = 0;
+  for (let i = 0; i < pos.count; i++) {
+    ax += pos.getX(i);
+    az += pos.getZ(i);
+  }
+  ax /= pos.count;
+  az /= pos.count;
+  const copy = leaves.clone();
+  const cp = copy.getAttribute('position');
+  const c = Math.cos(LAB_CLUSTER_TURN);
+  const s = Math.sin(LAB_CLUSTER_TURN);
+  for (let i = 0; i < cp.count; i++) {
+    const x = cp.getX(i) - ax;
+    const z = cp.getZ(i) - az;
+    cp.setXYZ(i, ax + x * c - z * s, cp.getY(i) - LAB_CLUSTER_DROP, az + x * s + z * c);
+  }
+  cp.needsUpdate = true;
+  const index = new Uint32Array(tris.length * 3);
+  tris.forEach((t, n) => {
+    for (let k = 0; k < 3; k++) index[3 * n + k] = idx[3 * t + k];
+  });
+  copy.setIndex(new THREE.BufferAttribute(index, 1));
+  const merged = mergeGeometries([leaves, copy], false);
+  return merged ?? leaves;
+}
+
 function subsetGeometry(src: THREE.BufferGeometry, tris: number[]): THREE.BufferGeometry {
   const idx = src.index ? src.index.array : null;
   const out = new THREE.BufferGeometry();
@@ -316,7 +363,7 @@ export function natureAssetFromGltf(
   const barkAll = join(barkParts);
   const split = type.evergreen ? { bark: barkAll, foliage: null } : splitFoliage(barkAll);
   const bark = split.bark;
-  const leaves = join(split.foliage ? [...leafParts, split.foliage] : leafParts);
+  const leaves = addLeafClusters(join(split.foliage ? [...leafParts, split.foliage] : leafParts), type.evergreen === true);
   bark.computeBoundingSphere();
   leaves.computeBoundingSphere();
 
@@ -557,6 +604,8 @@ export function createNatureTreeField(
   const p = new THREE.Vector3();
 
   const add = (geo: THREE.BufferGeometry, mat: THREE.Material, items: readonly NatureTreeItem[], name: string) => {
+    // Geometries made by clone or merge can lack a bounding sphere; InstancedMesh.computeBoundingSphere copies it.
+    if (!geo.boundingSphere) geo.computeBoundingSphere();
     const mesh = new THREE.InstancedMesh(geo, mat, items.length);
     const m = new THREE.Matrix4();
     items.forEach((t, i) => {

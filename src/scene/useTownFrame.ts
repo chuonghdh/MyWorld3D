@@ -57,6 +57,8 @@ export interface TownFrameInputs {
   ambLight: MutableRefObject<THREE.AmbientLight | null>;
 }
 
+const _camDir = new THREE.Vector3();
+
 export function useTownFrame(f: TownFrameInputs): void {
   const { ground, townSize, lighting, lightsOn, shadowMapSize, uniforms, leaves, clouds, smoke, weather, aircraft } = f;
   const { traffic, walkers, trafficMeshes, streetscape, life, audioBridge, audioTrees, churchRef, overlay } = f;
@@ -135,6 +137,9 @@ export function useTownFrame(f: TownFrameInputs): void {
       sunColor: lighting.sky.sunColor,
       ambient: lighting.sky.ambientIntensity,
     });
+    // Crown gates: focus is 12 m ahead on the view direction, the same convention CameraRig uses for its target.
+    const camDir = state.camera.getWorldDirection(_camDir);
+    leaves.setCameraView(state.camera, { x: state.camera.position.x + camDir.x * 12, z: state.camera.position.z + camDir.z * 12 });
     leaves.update(dt, wind, { leafAmount, leafSize, season: season as Season });
 
     traffic.update(dt);

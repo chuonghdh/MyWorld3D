@@ -11,6 +11,8 @@ import { createWindUniforms, updateWindUniforms, type WindUniforms } from '../..
 import type { TreeField } from '../../environment/forest';
 import { gustStrength, triggerGust, windVector, type GustEvent } from '../../environment/wind';
 import { loadNatureAssets } from './labLoader';
+import { LabLeafEmitter } from './labLeaves';
+import { crownDiscsFromGroup } from '../../environment/leaves';
 import {
   createNatureTreeField,
   NATURE_TYPES,
@@ -84,6 +86,8 @@ const picked = new Set<number>(NATURE_TYPES.map((_, i) => i));
 let season: Season = 'summer';
 let assets: NatureAsset[] = [];
 let field: TreeField | null = null;
+// Lab-only falling leaves from the crowns, autumn only (labLeaves.ts). The city does not use it.
+const leafEmitter = new LabLeafEmitter(scene);
 
 /** One representative tree per type; columns are groups, rows the types inside each group. */
 const representatives: NatureTreeItem[] = NATURE_TYPES.map((_, k) => {
@@ -107,6 +111,7 @@ function rebuild(): void {
   const shown = representatives.filter((t) => picked.has(t.type));
   field = createNatureTreeField(shown, assets, season);
   scene.add(field.group);
+  leafEmitter.setDiscs(crownDiscsFromGroup(field.group));
   controls.target.set(GRID_SPACING * 2, 4, GRID_SPACING * 1.5);
   camera.position.set(GRID_SPACING * 2, 10, GRID_SPACING * 1.5 + 26);
   controls.update();
@@ -159,6 +164,7 @@ function setAll(on: boolean): void {
 
 function setSeasonButtons(next: Season): void {
   season = next;
+  leafEmitter.setEnabled(next === 'autumn');
   for (const b of ui.seasons) b.classList.toggle('active', b.dataset.season === next);
   applyWeather(ui.weather.value as WeatherKind);
   field?.setSeason(next);
@@ -202,6 +208,7 @@ const clock = new THREE.Clock();
 renderer.setAnimationLoop(() => {
   const t = clock.getElapsedTime();
   updateWindUniforms(uniforms, t, windVector(t, WIND, gusts), gustStrength(t, gusts));
+  leafEmitter.update(t, windVector(t, WIND, gusts), camera, { x: controls.target.x, z: controls.target.z });
   controls.update();
   renderer.render(scene, camera);
 });

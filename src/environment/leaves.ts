@@ -10,7 +10,7 @@ import type { Season } from '../core/types';
 import { particleProfile, type ParticleProfile } from './seasons';
 
 /** Hard cap on the number of leaf instances. */
-export const MAX_LEAVES = 600;
+export const MAX_LEAVES = 160;
 /** Distance in metres from the camera within which leaves fade out by shrinking. */
 const LEAF_NEAR_FADE = 10;
 
@@ -19,6 +19,94 @@ const WIND_DRAG = 0.5; // 1/s, how fast a leaf adopts the wind velocity
 const DEVIL_RADIUS = 5; // m
 const DEVIL_HEIGHT = 9; // m, top of the vortex
 const DEVIL_SPEED = 2.2; // m/s, roaming speed of the vortex centre
+/** Default distance (metres, ground plane) from the camera focus within which crowns spawn leaves. */
+const FOCUS_RADIUS_DEFAULT = 100;
+/** Seconds an autumn leaf lies on the ground before it fades out. */
+const LEAF_REST_SECONDS = 10;
+/** Height of a resting leaf above the ground, so it does not z-fight the ground plane. */
+const REST_LIFT = 0.01;
+/** Leaf silhouette scale (outline, curl, bend and vein together): 70% of the earlier 1.3 x size (about 0.29 m by 0.35 m). */
+const LEAF_SCALE = 1.3 * 0.7;
+/** Edge lift along the midrib at the outer edge, metres before LEAF_SCALE. */
+const LEAF_CURL = 0.05;
+/** Lengthwise bend towards the concave (upper) side, metres at the tip and stem ends, before LEAF_SCALE. */
+const LEAF_BEND = 0.04;
+/** Vein lift above the crest, metres before LEAF_SCALE. */
+const VEIN_LIFT = 0.006;
+const VEIN_COLOR = '#6b4a2b';
+
+/** A crown: world centre and radius of one broadleaf tree's leaf mass. Autumn leaves fall from inside these discs. */
+export interface CrownDisc {
+  x: number;
+  y: number;
+  z: number;
+  r: number;
+}
+
+/** A solid a leaf can rest on: world-space footprint and the height of its top surface (metres). */
+export interface SurfaceBox {
+  minX: number;
+  maxX: number;
+  minZ: number;
+  maxZ: number;
+  top: number;
+}
+
+/** Lengthwise bend along leaf-local y (midrib centre at y = -0.06): tip and stem lift, the middle stays down. */
+function leafBendZ(y: number): number {
+  const u = (y + 0.06) / 0.19;
+  return LEAF_BEND * Math.min(1, u * u);
+}
+
+/** Leaf outline with a notched tip, a stem at the base, a fold along the midrib and a bend along its length. */
+function leafGeometry(): THREE.ShapeGeometry {
+  const s = new THREE.Shape();
+  s.moveTo(0, -0.25);
+  s.bezierCurveTo(0.15, -0.15, 0.16, 0.05, 0.05, 0.13);
+  s.lineTo(0, 0.07);
+  s.lineTo(-0.05, 0.13);
+  s.bezierCurveTo(-0.16, 0.05, -0.15, -0.15, 0, -0.25);
+  const geo = new THREE.ShapeGeometry(s, 4);
+  const pos = geo.getAttribute('position') as THREE.BufferAttribute;
+  for (let i = 0; i < pos.count; i++) {
+    pos.setZ(i, (LEAF_CURL * Math.abs(pos.getX(i))) / 0.16 + leafBendZ(pos.getY(i)));
+  }
+  for (let i = 0; i < pos.count; i++) {
+    pos.setXYZ(i, pos.getX(i) * LEAF_SCALE, pos.getY(i) * LEAF_SCALE, pos.getZ(i) * LEAF_SCALE);
+  }
+  pos.needsUpdate = true;
+  geo.computeVertexNormals();
+  return geo;
+}
+
+/** Main vein: a thin brown strip down the midrib, following the leaf's bend and lifted just above the crest. */
+function veinGeometry(): THREE.PlaneGeometry {
+  const g = new THREE.PlaneGeometry(0.012, 0.32, 1, 10);
+  const pos = g.getAttribute('position') as THREE.BufferAttribute;
+  for (let i = 0; i < pos.count; i++) {
+    const y = pos.getY(i) - 0.06;
+    pos.setXYZ(i, pos.getX(i) * LEAF_SCALE, y * LEAF_SCALE, (leafBendZ(y) + VEIN_LIFT) * LEAF_SCALE);
+  }
+  pos.needsUpdate = true;
+  g.computeVertexNormals();
+  return g;
+}
+
+/** Shrinks each instance to nothing near the camera (see LEAF_NEAR_FADE). Shared by the leaf and vein meshes. */
+function applyNearFade(material: THREE.MeshStandardMaterial): void {
+  material.onBeforeCompile = (shader) => {
+    shader.vertexShader = shader.vertexShader.replace(
+      '#include <begin_vertex>',
+      `#include <begin_vertex>
+#ifdef USE_INSTANCING
+  vec3 leafWorld = (modelMatrix * instanceMatrix * vec4(0.0, 0.0, 0.0, 1.0)).xyz;
+  float leafDist = distance(leafWorld, cameraPosition);
+  transformed *= smoothstep(${LEAF_NEAR_FADE.toFixed(1)} * 0.35, ${LEAF_NEAR_FADE.toFixed(1)}, leafDist);
+#endif`,
+    );
+  };
+  material.customProgramCacheKey = () => 'leaf-near-fade-v1';
+}
 
 export interface LeafBounds {
   minX: number;
@@ -77,8 +165,36 @@ interface Leaf {
   captor: Devil | null;
 }
 
+/**
+ * Crown discs read from a broadleaf tree group (streets/natureTrees.ts names its leaf meshes `nature-leaves-<type>`;
+ * the shadow copies are skipped). Each instance gives its leaf sphere transformed by its matrix. Empty when the group
+ * has no leaf meshes (procedural trees or assets not loaded yet).
+ */
+export function crownDiscsFromGroup(group: THREE.Object3D): CrownDisc[] {
+  const out: CrownDisc[] = [];
+  const m = new THREE.Matrix4();
+  const sc = new THREE.Vector3();
+  group.traverse((o) => {
+    if (!(o instanceof THREE.InstancedMesh)) return;
+    if (!o.name.startsWith('nature-leaves-') || o.name.startsWith('nature-leaves-shadow-')) return;
+    const geo = o.geometry as THREE.BufferGeometry;
+    if (!geo.boundingSphere) geo.computeBoundingSphere();
+    const sphere = geo.boundingSphere;
+    if (!sphere) return;
+    for (let i = 0; i < o.count; i++) {
+      o.getMatrixAt(i, m);
+      const c = sphere.center.clone().applyMatrix4(m);
+      sc.setFromMatrixScale(m);
+      out.push({ x: c.x, y: c.y, z: c.z, r: sphere.radius * Math.max(sc.x, sc.y, sc.z) });
+    }
+  });
+  return out;
+}
+
 export class LeafSystem {
   readonly mesh: THREE.InstancedMesh;
+  /** Brown midrib strips, one per leaf, driven by the same matrices as `mesh`. Add it to the scene beside `mesh`. */
+  readonly veinMesh: THREE.InstancedMesh;
   private readonly leaves: Leaf[] = [];
   private readonly devils: Devil[] = [];
   private readonly rng: () => number;
@@ -86,6 +202,18 @@ export class LeafSystem {
   private readonly dummy = new THREE.Object3D();
   private readonly color = new THREE.Color();
   private trees: Point2[] = [];
+  private crowns: CrownDisc[] = [];
+  private surfaces: SurfaceBox[] = [];
+  /** Camera view for the crown gates (setCameraView). Null until a frame gives one: then every crown is eligible. */
+  private view: { focusX: number; focusZ: number; radius: number } | null = null;
+  private readonly frustum = new THREE.Frustum();
+  private readonly projScreen = new THREE.Matrix4();
+  private readonly sphere = new THREE.Sphere();
+  /** Crowns passing both gates this frame, rebuilt at most once per frame and only when a leaf is due to spawn. */
+  private eligible: CrownDisc[] = [];
+  private eligibleStale = true;
+  /** Highest surface top in `surfaces`, so falling leaves skip the scan until they are that low. */
+  private maxSurfaceTop = GROUND_Y;
   private limit = 0;
   private size = 1;
   private season: Season = 'autumn';
@@ -99,29 +227,21 @@ export class LeafSystem {
     this.rng = createRng(opts.seed ?? 1337);
     this.colorRng = createRng((opts.seed ?? 1337) + 99);
 
-    const geometry = new THREE.PlaneGeometry(0.5, 0.35);
-    const material = new THREE.MeshStandardMaterial({
-      roughness: 0.7,
-      side: THREE.DoubleSide,
-    });
     // A leaf that drifts close to the camera would fill the screen as a giant slab, so each leaf
     // shrinks to nothing within LEAF_NEAR_FADE metres of the camera.
-    material.onBeforeCompile = (shader) => {
-      shader.vertexShader = shader.vertexShader.replace(
-        '#include <begin_vertex>',
-        `#include <begin_vertex>
-#ifdef USE_INSTANCING
-  vec3 leafWorld = (modelMatrix * instanceMatrix * vec4(0.0, 0.0, 0.0, 1.0)).xyz;
-  float leafDist = distance(leafWorld, cameraPosition);
-  transformed *= smoothstep(${LEAF_NEAR_FADE.toFixed(1)} * 0.35, ${LEAF_NEAR_FADE.toFixed(1)}, leafDist);
-#endif`,
-      );
-    };
-    material.customProgramCacheKey = () => 'leaf-near-fade-v1';
-    this.mesh = new THREE.InstancedMesh(geometry, material, MAX_LEAVES);
+    const material = new THREE.MeshStandardMaterial({ roughness: 0.7, side: THREE.DoubleSide });
+    applyNearFade(material);
+    this.mesh = new THREE.InstancedMesh(leafGeometry(), material, MAX_LEAVES);
     this.mesh.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
     this.mesh.frustumCulled = false;
     this.mesh.count = 0;
+
+    const veinMaterial = new THREE.MeshStandardMaterial({ color: VEIN_COLOR, roughness: 0.8, side: THREE.DoubleSide });
+    applyNearFade(veinMaterial);
+    this.veinMesh = new THREE.InstancedMesh(veinGeometry(), veinMaterial, MAX_LEAVES);
+    this.veinMesh.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
+    this.veinMesh.frustumCulled = false;
+    this.veinMesh.count = 0;
 
     for (let i = 0; i < MAX_LEAVES; i++) {
       this.leaves.push({
@@ -163,6 +283,62 @@ export class LeafSystem {
     this.trees = points.map((p) => ({ x: p.x, z: p.z }));
   }
 
+  /**
+   * Crown discs of the broadleaf trees. In autumn, leaves spawn inside these discs at crown height; with none set,
+   * they fall from the trunk points given to setTreePoints (the old behaviour).
+   */
+  setCrownDiscs(discs: readonly CrownDisc[]): void {
+    this.crowns = discs.filter((d) => d.r > 0);
+    this.eligibleStale = true;
+  }
+
+  /**
+   * Camera gates for crown spawning, called once per frame. A crown spawns leaves only when its bounding sphere is in
+   * the camera frustum and its centre is within `radius` metres (ground plane) of the focus point. Without a call,
+   * every crown is eligible.
+   */
+  setCameraView(camera: THREE.Camera, focus: { x: number; z: number }, radius = FOCUS_RADIUS_DEFAULT): void {
+    this.projScreen.multiplyMatrices(camera.projectionMatrix, camera.matrixWorldInverse);
+    this.frustum.setFromProjectionMatrix(this.projScreen);
+    this.view = { focusX: focus.x, focusZ: focus.z, radius };
+    this.eligibleStale = true;
+  }
+
+  /** Crowns that pass the camera gates this frame. Rebuilt at most once per frame. */
+  private eligibleCrowns(): CrownDisc[] {
+    if (!this.eligibleStale) return this.eligible;
+    const view = this.view;
+    this.eligible = this.crowns.filter((c) => {
+      if (view) {
+        if (Math.hypot(c.x - view.focusX, c.z - view.focusZ) > view.radius + c.r) return false;
+        this.sphere.center.set(c.x, c.y, c.z);
+        this.sphere.radius = c.r;
+        if (!this.frustum.intersectsSphere(this.sphere)) return false;
+      }
+      return true;
+    });
+    this.eligibleStale = false;
+    return this.eligible;
+  }
+
+  /**
+   * Solids leaves can land on (pavement and kerb tops, car roofs and bonnets). Ground outside every box is the road at
+   * GROUND_Y. Moving vehicles: resting leaves stay where they landed.
+   */
+  setSurfaces(boxes: readonly SurfaceBox[]): void {
+    this.surfaces = boxes.slice();
+    this.maxSurfaceTop = this.surfaces.reduce((m, b) => Math.max(m, b.top), GROUND_Y);
+  }
+
+  /** Top of the highest surface under (x, z) that a leaf falling from `fromY` has not yet passed through; GROUND_Y otherwise. */
+  private surfaceTop(x: number, z: number, fromY: number): number {
+    let top = GROUND_Y;
+    for (const b of this.surfaces) {
+      if (b.top > top && b.top <= fromY + 0.05 && x >= b.minX && x <= b.maxX && z >= b.minZ && z <= b.maxZ) top = b.top;
+    }
+    return top;
+  }
+
   /** Number of leaves currently in use (falling, resting or in a devil). */
   activeCount(): number {
     let n = 0;
@@ -200,6 +376,7 @@ export class LeafSystem {
     this.spawnAcc = 0;
     this.time = 0;
     this.mesh.count = 0;
+    this.veinMesh.count = 0;
   }
 
   /**
@@ -234,7 +411,7 @@ export class LeafSystem {
     const windSpeed = Math.hypot(wind.x, wind.z);
 
     // Spawn particles from trees at a rate that fills the seasonal share of the limit in about 12s.
-    if (this.profile.density > 0 && this.trees.length > 0) {
+    if (this.profile.density > 0 && (this.trees.length > 0 || this.crowns.length > 0)) {
       this.spawnAcc += step * ((this.limit * this.profile.density) / 12);
       while (this.spawnAcc >= 1) {
         this.spawnAcc -= 1;
@@ -257,9 +434,11 @@ export class LeafSystem {
   }
 
   dispose(): void {
-    this.mesh.geometry.dispose();
-    (this.mesh.material as THREE.Material).dispose();
-    this.mesh.dispose();
+    for (const m of [this.mesh, this.veinMesh]) {
+      m.geometry.dispose();
+      (m.material as THREE.Material).dispose();
+      m.dispose();
+    }
   }
 
   private spawnFromTree(): void {
@@ -267,21 +446,49 @@ export class LeafSystem {
     let leaf: Leaf | undefined;
     let live = 0;
     for (let i = 0; i < this.limit; i++) {
-      if (this.leaves[i].state === INACTIVE) leaf ??= this.leaves[i];
-      else live++;
+      const s = this.leaves[i];
+      if (s.state === INACTIVE) leaf ??= s;
+      // Resting leaves do not count against the seasonal share: they are recycled when the pool runs out.
+      else if (s.state !== GROUND) live++;
     }
+    // Pool full: recycle the resting leaf closest to fading out.
+    leaf ??= this.oldestResting();
     if (!leaf || live >= Math.floor(this.limit * p.density)) return;
-    const tree = this.trees[Math.floor(this.rng() * this.trees.length)];
+    const fromCrown = p.kind === 'leaf' && this.crowns.length > 0;
     const spread = p.kind === 'pollen' ? 7 : p.kind === 'leaf' ? 6 : 4;
-    leaf.state = FALLING;
-    leaf.x = tree.x + (this.rng() - 0.5) * spread;
-    leaf.z = tree.z + (this.rng() - 0.5) * spread;
-    leaf.y = p.spawnLow + this.rng() * (p.spawnHigh - p.spawnLow);
+    if (fromCrown) {
+      // Autumn: only crowns that pass the camera gates; none in view means no spawn this tick.
+      const eligible = this.eligibleCrowns();
+      if (eligible.length === 0) return;
+      leaf.state = FALLING;
+      // A random point inside a random eligible crown disc, at crown height.
+      const d = eligible[Math.floor(this.rng() * eligible.length)];
+      const a = this.rng() * Math.PI * 2;
+      const rad = Math.sqrt(this.rng()) * d.r * 0.9;
+      leaf.x = d.x + Math.cos(a) * rad;
+      leaf.z = d.z + Math.sin(a) * rad;
+      leaf.y = d.y + (this.rng() - 0.5) * d.r * 0.4;
+    } else {
+      leaf.state = FALLING;
+      const tree = this.trees[Math.floor(this.rng() * this.trees.length)];
+      leaf.x = tree.x + (this.rng() - 0.5) * spread;
+      leaf.z = tree.z + (this.rng() - 0.5) * spread;
+      leaf.y = p.spawnLow + this.rng() * (p.spawnHigh - p.spawnLow);
+    }
     leaf.vx = 0;
     leaf.vy = -p.fallSpeed;
     leaf.vz = 0;
     leaf.rot = this.rng() * Math.PI * 2;
     leaf.timer = p.airLife;
+  }
+
+  private oldestResting(): Leaf | undefined {
+    let best: Leaf | undefined;
+    for (let i = 0; i < this.limit; i++) {
+      const s = this.leaves[i];
+      if (s.state === GROUND && (!best || s.timer < best.timer)) best = s;
+    }
+    return best;
   }
 
   private stepLeaf(leaf: Leaf, dt: number, wind: { x: number; z: number }, windSpeed: number): void {
@@ -302,15 +509,19 @@ export class LeafSystem {
           return;
         }
       }
+      const fromY = leaf.y;
       leaf.x += (leaf.vx + flutter) * dt;
       leaf.z += (leaf.vz + flutter * 0.5) * dt;
       leaf.y += leaf.vy * dt;
       leaf.rot += dt * (1 + windSpeed * 0.2);
-      if (leaf.y <= GROUND_Y) {
-        leaf.y = GROUND_Y;
+      // Land on the highest surface under the leaf (pavement, car roof or road), never below it.
+      const top = leaf.y <= this.maxSurfaceTop ? this.surfaceTop(leaf.x, leaf.z, fromY) : GROUND_Y;
+      if (leaf.y <= top) {
+        leaf.y = top;
         if (p.groundLifetime > 0) {
           leaf.state = GROUND;
-          leaf.timer = p.groundLifetime * (0.7 + 0.6 * this.rng());
+          // Autumn leaves lie flat for a short fixed time; other kinds keep their seasonal lifetime.
+          leaf.timer = p.kind === 'leaf' ? LEAF_REST_SECONDS * (0.9 + 0.2 * this.rng()) : p.groundLifetime * (0.7 + 0.6 * this.rng());
         } else {
           leaf.state = INACTIVE;
         }
@@ -407,6 +618,8 @@ export class LeafSystem {
   private writeInstances(): void {
     const limit = this.limit;
     this.mesh.count = limit;
+    this.veinMesh.count = limit;
+    const base = this.size * this.profile.sizeScale;
     for (let i = 0; i < limit; i++) {
       const leaf = this.leaves[i];
       const d = this.dummy;
@@ -414,14 +627,21 @@ export class LeafSystem {
         d.position.set(0, -1000, 0);
         d.rotation.set(0, 0, 0);
         d.scale.setScalar(0);
+      } else if (leaf.state === GROUND) {
+        // Resting: lies flat on the ground and fades out over its last second.
+        d.position.set(leaf.x, leaf.y + REST_LIFT, leaf.z);
+        d.rotation.set(-Math.PI / 2, leaf.rot, 0, 'YXZ');
+        d.scale.setScalar(base * Math.max(0, Math.min(1, leaf.timer)));
       } else {
         d.position.set(leaf.x, leaf.y, leaf.z);
         d.rotation.set(-Math.PI / 2 + Math.sin(leaf.rot) * 0.5, leaf.rot, 0);
-        d.scale.setScalar(this.size * this.profile.sizeScale);
+        d.scale.setScalar(base);
       }
       d.updateMatrix();
       this.mesh.setMatrixAt(i, d.matrix);
+      this.veinMesh.setMatrixAt(i, d.matrix);
     }
     this.mesh.instanceMatrix.needsUpdate = true;
+    this.veinMesh.instanceMatrix.needsUpdate = true;
   }
 }

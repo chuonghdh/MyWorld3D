@@ -12,7 +12,11 @@ import { createRng } from '../core/rng';
 import type { CityLayout } from '../city/layout';
 import { hashString, type TreeField } from '../environment/forest';
 import { applyWindSway, seasonLeafColor, seasonLeafDensity, type WindUniforms } from '../environment/trees';
-import { attachWeather } from '../shaders/wetSurface';
+import { attachWeather, weatherUniforms } from '../shaders/wetSurface';
+
+/** Pine snow: upward threshold of the snow cover (smoothstep lo..hi on the normal y) and the cover ceiling for pines. */
+export const PINE_SNOW_UP: readonly [number, number] = [0.85, 0.97];
+export const PINE_SNOW_COVER = 0.35;
 import {
   AUTUMN_ORANGE,
   AUTUMN_RED,
@@ -169,6 +173,53 @@ export function leafIslands(geo: THREE.BufferGeometry): number[][] {
 }
 
 /** Non-indexed copy of the given triangles, all attributes kept. */
+/** share of broadleaf leaf clusters that get a rotated copy (more clusters, more triangles). */
+export const CLUSTER_EXTRA = 0.5;
+/** rotation (rad) of the copied clusters around the trunk axis. */
+const CLUSTER_TURN = (15 * Math.PI) / 180;
+/** height (m) the copied clusters drop, so they sit lower in the crown. */
+const CLUSTER_DROP = 0.7;
+
+/**
+ * Adds rotated copies of every second leaf cluster (island) around the trunk axis, so crowns read denser.
+ * Copies are separate islands (own vertices) with their own index, so thinning and variety work as for the originals.
+ * Conifers are returned unchanged.
+ */
+function addLeafClusters(leaves: THREE.BufferGeometry, conifer: boolean): THREE.BufferGeometry {
+  if (conifer || !leaves.index) return leaves;
+  const pos = leaves.getAttribute('position');
+  const idx = leaves.index.array;
+  const islands = leafIslands(leaves);
+  const picked = islands.filter((_, i) => i % Math.round(1 / CLUSTER_EXTRA) === 0);
+  const tris = picked.flat();
+  if (tris.length === 0) return leaves;
+  let ax = 0;
+  let az = 0;
+  for (let i = 0; i < pos.count; i++) {
+    ax += pos.getX(i);
+    az += pos.getZ(i);
+  }
+  ax /= pos.count;
+  az /= pos.count;
+  const copy = leaves.clone();
+  const cp = copy.getAttribute('position');
+  const c = Math.cos(CLUSTER_TURN);
+  const s = Math.sin(CLUSTER_TURN);
+  for (let i = 0; i < cp.count; i++) {
+    const x = cp.getX(i) - ax;
+    const z = cp.getZ(i) - az;
+    cp.setXYZ(i, ax + x * c - z * s, cp.getY(i) - CLUSTER_DROP, az + x * s + z * c);
+  }
+  cp.needsUpdate = true;
+  const index = new Uint32Array(tris.length * 3);
+  tris.forEach((t, n) => {
+    for (let k = 0; k < 3; k++) index[3 * n + k] = idx[3 * t + k];
+  });
+  copy.setIndex(new THREE.BufferAttribute(index, 1));
+  const merged = mergeGeometries([leaves, copy], false);
+  return merged ?? leaves;
+}
+
 function subsetGeometry(src: THREE.BufferGeometry, tris: number[]): THREE.BufferGeometry {
   const idx = src.index ? src.index.array : null;
   const out = new THREE.BufferGeometry();
@@ -309,7 +360,7 @@ export function natureAssetFromGltf(
   const barkAll = join(barkParts);
   const split = type.evergreen ? { bark: barkAll, foliage: null } : splitFoliage(barkAll);
   const bark = split.bark;
-  const leaves = join(split.foliage ? [...leafParts, split.foliage] : leafParts);
+  const leaves = addLeafClusters(join(split.foliage ? [...leafParts, split.foliage] : leafParts), type.evergreen === true);
   bark.computeBoundingSphere();
   leaves.computeBoundingSphere();
 
@@ -336,6 +387,26 @@ export function natureAssetFromGltf(
   // Wet and snow uniforms (weather), the same ones the streets and buildings react to. Chained after the sway.
   attachWeather(barkMat);
   attachWeather(leafMat);
+  if (type.evergreen) {
+    // Pine foliage: the upward threshold of the snow cover. The shared GLSL is patched after the weather code is
+    // injected, so only this material changes.
+    const [lo, hi] = PINE_SNOW_UP;
+    const prev = leafMat.onBeforeCompile;
+    leafMat.onBeforeCompile = (shader, renderer) => {
+      prev.call(leafMat, shader, renderer);
+      // Pine snow uniform: live view of the shared snow cover, capped at PINE_SNOW_COVER for this material only.
+      shader.uniforms.uSnow = {
+        get value() {
+          return Math.min(weatherUniforms.uSnow.value, PINE_SNOW_COVER);
+        },
+      };
+      shader.fragmentShader = shader.fragmentShader.replace(
+        'smoothstep(0.62, 0.84, wxN.y)',
+        `smoothstep(${lo.toFixed(3)}, ${hi.toFixed(3)}, wxN.y)`,
+      );
+    };
+    leafMat.needsUpdate = true;
+  }
   const islands = leafIslands(leaves);
   setIslandVariety(leaves, islands, hashString(type.file) >>> 0);
   applyLeafVariety(leafMat);
@@ -361,7 +432,8 @@ export function natureAssetFromGltf(
     applyWindSway(snowLeafMat, uniforms);
   }
   const snowBark = snowCap(bark);
-  const snowLeaves = snowCap(leaves);
+  // Conifers: no snow geometry; snow comes from the weather shader on the leaf material (upward faces).
+  const snowLeaves = type.evergreen ? null : snowCap(leaves);
   return { type, bark, leaves, islands, barkMat, leafMat, snowBark, snowLeaves, snowMat, snowLeafMat };
 }
 
@@ -469,6 +541,9 @@ varying vec3 vLvTree;
 #include <color_vertex>
 vLvIsland = aIsland;
 #ifdef USE_INSTANCING_COLOR
+// The instance colour is per-tree random data for leafVariety (vLvTree), not a tint. Three would also multiply it
+// into the diffuse colour (USE_COLOR), which turns spring crowns dark brown; undo that here.
+vColor.xyz = vec3(1.0);
 vLvTree = instanceColor;
 #else
 vLvTree = vec3(0.5);
@@ -516,6 +591,8 @@ export function createNatureTreeField(
   const p = new THREE.Vector3();
 
   const add = (geo: THREE.BufferGeometry, mat: THREE.Material, items: readonly NatureTreeItem[], name: string) => {
+    // Geometries made by clone or merge can lack a bounding sphere; InstancedMesh.computeBoundingSphere copies it.
+    if (!geo.boundingSphere) geo.computeBoundingSphere();
     const mesh = new THREE.InstancedMesh(geo, mat, items.length);
     const m = new THREE.Matrix4();
     items.forEach((t, i) => {
