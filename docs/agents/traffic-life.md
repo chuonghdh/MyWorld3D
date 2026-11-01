@@ -106,3 +106,14 @@ Pedestrians (`src/traffic/walkers/`):
 - Note: `vehicles.ts` is 338 lines. The architect's 1794-line figure is wrong, so recheck it.
 - Open: the full vitest run timed out on module loads (15 files, "Timeout calling fetch"). Rerun the full suite on a quiet machine. Owned suites pass (76/76).
 - Open: `vehicleMeshes.ts` (447 lines) is the next split candidate: shader patch and glow mesh could move to `vehicles/` modules.
+
+## Commit 8f96b8e (Phase 2: car snow fix, horn split, vehicle surfaces)
+- Bug: cars showed only shadows. Snow code in `vehicleMeshes.ts` failed shader compile with "objectNormal undeclared", so the car material was not drawn.
+- Fix: snow code moved into `NORMAL_SPIN`, which replaces `#include <beginnormal_vertex>`. Adds uniforms `mat3 snowInst`, varyings `vSnowUp`, `vFrontGlass`.
+- Trap: r170 MeshLambert runs `color_vertex` before `beginnormal_vertex`. Any code that reads `objectNormal` or `color` must sit after `NORMAL_SPIN`. Placing it earlier fails compile or reads stale values.
+- Decision: `src/traffic/vehicles/horns.ts` holds horn logic. No behaviour change.
+- Decision: `src/traffic/vehicleSurfaces.ts` exports `vehicleSurfaces(vehicles, parked?, out?)`, returning `SurfaceBox`-shaped boxes. Re-exported from `src/traffic/index.ts` (`VehicleSurfaceBox` type too). NOT wired into any consumer. Verified by grep.
+- Decision: car-roof leaf landing is deferred by the user. Leaves rest on sidewalk tops only (`streets/pavementSurfaces.ts`).
+- Wiring: `scene/useTownFrame.ts` calls `trafficMeshes.setSnow(wx.snow)` right after `weather.update`.
+- Open: wire `vehicleSurfaces` only when the user asks for car-roof landing. Keep the boxes the same shape as `SurfaceBox` so no leaf code changes.
+- Verify: check shader compile in a standalone renderer, not by eye. Built-in pane cannot paint frames.

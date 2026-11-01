@@ -79,3 +79,35 @@
 - Open: street-tree crowns in winter come from `streets/natureTrees.ts` (City). Not environment. Procedural `forest.ts` path already hides crowns in winter.
 - Open: tests/streetDecor.test.ts "puts the fountain in free courtyard space" fails until City's reservation and picker land (City, a7bb761c4b40ec3c8).
 - Verify: `npx tsc --noEmit`; environment suites + `tests/parkYard.test.ts` + `tests/budget.test.ts` pass.
+
+## Session 2026-11-01 (phase 2 close-out, commit 8f96b8e)
+### Falling-leaf system (`src/environment/leaves.ts`)
+- Pool: `MAX_LEAVES = 160`. Rest on the ground: 10 s (`LEAF_REST_SECONDS`), then fade over the last second. When the pool is full, the oldest resting leaf is recycled. Resting leaves do not count against the seasonal density gate.
+- Spawn: autumn leaves spawn inside crown discs at crown height (`setCrownDiscs`, read from the tree group with `crownDiscsFromGroup`). Other seasons keep the trunk-point spawn.
+- Camera gate: `setCameraView(camera, focus, radius)` once per frame. A crown spawns only if its sphere is in the frustum and its centre is within `FOCUS_RADIUS_DEFAULT = 100` m of the focus on the ground plane. Without a call, every crown is eligible.
+- Landing: `setSurfaces(SurfaceBox[])`. A leaf lands on the highest box under it (pavement top 0.15 from `streets/pavementSurfaces.ts`); road stays at `GROUND_Y`.
+- Look: leaf outline with a notch, curl, lengthwise bend, brown `veinMesh` (`#6b4a2b`), scaled to 70% of the earlier size (`LEAF_SCALE = 1.3 * 0.7`).
+- Decision: the wind and season behaviour are unchanged; only autumn leaves gained the crown, rest, vein and landing behaviour.
+- Trap: `veinMesh` must be added to the scene next to `mesh` (Town.tsx). Without it the midrib is missing.
+- Open: the user has not yet confirmed the in-game leaf look. Car-roof and bonnet landing is deferred (vehicle surfaces on hold per the lead; `traffic/vehicleSurfaces.ts` exists, not wired).
+- Open: the Town.tsx `setSurfaces(pavementSurfaces(layout))` effect is with Scene (a4850c47dba776fa1); verify it is wired before judging the pavement landing in game.
+
+### Lab wrapper rule (`src/dev/treeCompare/labLeaves.ts`)
+- The lab does not have its own emitter. `LabLeafEmitter` wraps the city `LeafSystem`, so pool, rest, vein, surfaces, crowns and camera gates are the same code. Lab pool 160, culling 100 m.
+- Reason: a separate lab emitter drifted from the city (pool, culling and rest values differed). Do not reintroduce a lab copy of the leaf logic. Change `leaves.ts` and the lab follows.
+
+### Pine snow via weather shader (`src/dev/treeCompare/labNatureTrees.ts`)
+- Constants: `PINE_SNOW_UP = [0.85, 0.97]` (smoothstep on the normal's y), `PINE_SNOW_COVER = 0.35`. Commit c14349b.
+- Decision: pine snow comes from the weather shader on the existing conifer geometry. The user rejected the attempts that split the geometry; do not split conifers again for snow.
+- Note: values are lab-side only; the city's conifer snow uses the shared weather patches (`TAG_EVERGREEN` only takes snow on top, see above).
+
+### Shadow budget
+- The budget test counts main-pass meshes only; shadow-only meshes (broadleaf shadow copies on SHADOW_LAYER) are excluded. Park crowns sit in their own mesh (cap 4 per greenery group).
+- Trap: any new main-pass mesh in environment or a house can break the budget even when its geometry is fine. Check `tests/budget.test.ts` after adding a mesh.
+
+### Open items (summary)
+- User to confirm the in-game falling-leaf look.
+- Car-roof and bonnet landing (deferred; needs the vehicle export and a refresh cadence decision).
+- Confirm Town.tsx wiring of `veinMesh` and `setSurfaces(pavementSurfaces(layout))` with Scene.
+- Street-tree winter crowns (full foliage seen in a screenshot) come from `streets/natureTrees.ts` (City), not from this area.
+- Hedges stay green in winter with a snow tint, by design; confirm with lead.

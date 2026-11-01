@@ -66,3 +66,30 @@ Last smoke test: passed on 2026-10-29 (page title MyWorld3D, one canvas, WebGL o
 - streetDecor fountain test ("free courtyard space") failed after City's streetscape edit. It passes now (11/11 solo). Fix landed outside my files.
 - Hemisphere ground `#c9b48e` is not in code. Ground is `nightGround` (`#b9bcb6` to `#3a4668` by nightness). Sky-environment handbook entry is stale.
 - Open: real-window visual QA; optional Round 6.5 backlog; `useNatureTrees` load failure still console-only (fallback exists).
+
+## Session 2026-11-01 (dev, commit 8f96b8e: tree lab, autumn leaves, budget)
+Budgets (`tests/budget.test.ts`)
+- MAIN limit 1,900,000 (raised from 1,700,000). SHADOW limit 605,000.
+- Measured: main 1,696,611, shadow 576,007, 132 draw calls.
+- Shadow copies of broadleaf use `SHADOW_LAYER` at half density.
+- Trap: the main-count test must skip shadow-only meshes, or the shadow copies inflate the main total.
+- Decision: the draw-call guard stays `<= 140`. Do not raise it to pass a test.
+
+Park test (`tests/parkYard.test.ts`)
+- Mesh cap raised 3 to 4 after the winter park-crowns mesh. User approved.
+
+Tree lab (`src/dev/treeCompare`, isolated clone)
+- `labNatureTrees.ts` clones `src/streets/natureTrees.ts`. `labLoader.ts` clones `loadNatureAssets` without the React hook. City files are not touched.
+- `labLeaves.ts` is a thin wrapper over the city `LeafSystem` (pool 160, culling 100 m). The lab runs the same leaf code as the city.
+- Trap: `computeBoundingSphere` TypeError. Clone and merge geometry can lack a bounding sphere. Fixed by computing the sphere in `add()` when missing.
+- Decision: the lab stays a clone, not an import of city code, so city edits cannot break the lab page silently.
+
+Known flake
+- `tests/people` or `audioPeople` "600 walkers" timing test fails under load and passes solo. Rerun it solo per CLAUDE.md before calling a failure real.
+
+Verification order
+- `npx tsc --noEmit`, `npx vitest run`, `npx vite build`. Print only failures and summaries.
+
+Open items
+- Rerun the flake solo on every full vitest run. Consider a looser threshold or a fixed-time harness if it keeps failing.
+- Real-window visual QA of the tree lab and autumn leaves is not done. Scene graph and shader checks only.

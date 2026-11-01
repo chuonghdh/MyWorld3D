@@ -224,3 +224,24 @@ with the session usage numbers recorded. No pilot run here.
 - No `Math.random` in new tree, track or leaf files.
 - Open: measure GLB tree draw calls and tris against budget (140 calls, measured 130 before this session). Open: frame and rebuild cost need connected Chrome.
 - Open: code-split or raise `chunkSizeWarningLimit` with a measured reason.
+
+## Status check (2026-11-01)
+
+Verified this session by grep, wc and git on HEAD `8f96b8e`. Architect fixes 2-5 are in commit `6a89651`. No code edited, no commit. `tsc`, `vitest` and `vite build` not re-run this check.
+
+| # | Finding | Verified status |
+|---|---|---|
+| 1 | Feature modules import scene | Closed. No `../scene` imports in sky, aircraft, feature folders or store. `sky/SkyDome.tsx:7` uses `core/runtime`; `aircraft/schedule.ts:7` uses `core/cameraLimits` |
+| 2 | Store imports city/weather | Closed. No city or weather imports in `src/store`. `core/blockIds.ts` and `core/weatherKinds.ts` exist |
+| 3 | Draw-call guard, dead 400 limit | Closed. No 400 limit in `tests/budget.test.ts`; cap 140 at line 308. Stale comments: line 269 says 130, line 307 says 132. Not re-measured |
+| 4 | Shader ownership split | Closed. `src/shaders/wetSurface.ts` and `src/shaders/cloudShade.ts` exist. `weather/wet.ts` imports `../shaders/wetSurface`; no buildings-to-environment or weather-to-buildings imports |
+| 5 | Files over 350 lines | Open. 32 files over 350 (was 29 at first pass; new files counted). `traffic/vehicles.ts` 314 lines (was 1794), `traffic/pedestrians.ts` 281 (was 1511). Largest now: `buildings/facade/roof.ts` 1070, `ui/panels.css` 930, `life/birds.ts` 801, `audio/vehicles.ts` 770 |
+| 6 | `Math.random` for tree species (`App.tsx:93`, "switchTrees" user action) | Accepted, not a bug. Random species on purpose; species travel with the exported layout via `exportLayout`/`importLayout` in `store/io.ts` |
+| 7 | Import version check strict equality (`store/io.ts:208`, user-picked files) | Low priority. No migration path; no save feature exists, only user-triggered export/import |
+| 8 | Signature `JSON.stringify` per block | Open, unmeasured. `src/scene/useTownPieces.ts:50` |
+
+Git state: only `docs/agents/{city-streets,scene-qa,sky-environment,traffic-life}.md` modified. `src/**` and `docs/agents/architect.md` clean. The "Git state" paragraph above (listing `src/city/streetscape.ts`, `src/scene/useNatureTrees.ts`, `src/traffic/vehicleMeshes.ts` as uncommitted) is stale.
+
+New minor finding: `src/core/runtime.ts:4` imports a type from `environment/wind`. Type-only, erased at build. Core should not depend on feature modules; move `GustEvent` to `core/types.ts`. Owner: Scene & QA.
+
+Blocker: none for structure. Frame time and rebuild time still need connected Chrome; not measured.

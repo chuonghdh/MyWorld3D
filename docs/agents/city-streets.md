@@ -82,3 +82,14 @@ The tree-compare page is a lab. It reads only these clones, so lab edits never c
 - `src/dev/treeCompare/labLoader.ts`: clone of `loadNatureAssets` from `src/scene/useNatureTrees.ts`, without the React hook.
 - City files left untouched by the lab: `src/streets/natureTrees.ts`, `src/scene/useNatureTrees.ts`. No city file imports the lab.
 - Not cloned (shared): `environment/trees.ts`, `environment/forest.ts`, `environment/leafVariety.ts`, `environment/wind.ts`, `shaders/wetSurface.ts`, `weather/*`. Lab edits there would reach the city.
+
+## Phase 2 review (commit 8f96b8e, dev)
+- Pavement landing: `pavementSurfaces(layout)` (streets/pavementSurfaces.ts:34) returns `SurfaceBox[]` for sidewalks and kerbs by running `buildSurfaces` with a `PavementRecorder`. Top at `SIDEWALK_TOP` 0.15. Used so falling autumn leaves rest on sidewalks (reported ~284 boxes at default; not re-counted).
+- Constants (streets/surfaces.ts:10-21): `GROUND_Y` 0, `ASPHALT_TOP` 0.04, `UNDERLAY_TOP` = asphalt - 0.01, `PAINT_Y` = asphalt + 0.02, `SIDEWALK_TOP` 0.15, `SIDEWALK_OVERLAY_Y` = sidewalk + 0.015. Use these names, not literals.
+- Note: `pavementSurfaces` lists sidewalk and kerb boxes only. Asphalt is not in the list, so the road is not a landing surface (not checked in game).
+- Decision: `fountainReservations(layout)` (streets/decor.ts:454) returns `{x, z, r: FOUNTAIN_PLAZA_RADIUS + GREENERY_CLEARANCE = 3.4 + 0.3 = 3.7, reserved: true}` for the largest courtyard that fits `need` = 4.3 m on each side. Centre = tree-free point closest to the courtyard centre. Appended after the tree obstacles in `greeneryFootprint.ts:18` (`[...courtyardTreeObstacles, ...fountainReservations]`), before greenery fills courtyards. Reason: fountain test failed on seed 98765 when greenery filled courtyards. The user chose a mandatory fountain. Reserved disc uses courtyards and street trees only, so no circular dependency on greenery.
+- Decision: `COURTYARD_TREE_RADIUS = 1.5` (city/streetscape.ts:40). Used by `courtyardTreeObstacles` (streetscape.ts:46), scaled by tree scale.
+- Decision: small-yard rng keyed by footprint hash (`yardKey` in environment/greenery.ts:207, from commit 720941d, not 8f96b8e). Key = rounded (0.1 m) min/max corners, mixed with `Math.imul`. Yard output no longer depends on list index, so a merge elsewhere does not reshuffle other yards. Park yards (`isParkYard`) keep their own recipe.
+- Open: car-roof landing is deferred and not wired. `src/traffic/vehicleSurfaces.ts` (added in 8f96b8e, wired via `src/traffic/index.ts`) belongs to Traffic & Life, not City & Streets. Leaves on cars do not rest yet.
+- Open: fountain reservation covers the seeds in the test, but not checked by eye.
+- Verify: `npx vitest run tests/streets.test.ts tests/streetDecor.test.ts tests/budget.test.ts`; a leaf-rest test on `pavementSurfaces` is not yet written.
