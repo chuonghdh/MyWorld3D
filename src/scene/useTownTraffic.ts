@@ -15,7 +15,7 @@ export function useTownTraffic(
   // Only these two follow the slider (and the quality tier's traffic factor); the layout stays put.
   const trafficLayout = useMemo(() => retargetTraffic(layout, trafficMultiplier), [layout, trafficMultiplier]);
   const traffic = useMemo(
-    () => new VehicleSystem(trafficLayout, { trafficMultiplier }),
+    () => new VehicleSystem(trafficLayout, { trafficMultiplier, timeOfDay: useWorldStore.getState().settings.timeOfDay }),
     [trafficLayout, trafficMultiplier],
   );
   const walkers = useMemo(

@@ -322,26 +322,27 @@ describe('appearance, outfits and pace', () => {
 });
 
 describe('crowd density', () => {
-  it('peaks at the rush hours and drops at night', () => {
-    expect(crowdDensityAt(8.5)).toBeGreaterThan(0.9);
-    expect(crowdDensityAt(17.5)).toBeGreaterThan(0.9);
-    expect(crowdDensityAt(3)).toBeLessThan(0.15);
-    expect(crowdDensityAt(12)).toBeGreaterThan(crowdDensityAt(3) * 4);
-    expect(crowdDensityAt(22)).toBeGreaterThan(0.6); // the evening crowd holds until 22:00
-    expect(crowdDensityAt(23)).toBeLessThan(0.15); // and has thinned to a few by 23:00
+  it('peaks at 11:00 and 19:00 and sits at the quiet floor at night', () => {
+    // Shared curve: see src/traffic/trafficDensity.ts and tests/trafficDensity.test.ts.
+    expect(crowdDensityAt(11)).toBeGreaterThan(0.95);
+    expect(crowdDensityAt(19)).toBeGreaterThan(0.95);
+    expect(crowdDensityAt(3)).toBeLessThan(0.25);
+    expect(crowdDensityAt(11)).toBeGreaterThan(crowdDensityAt(3) * 4);
+    expect(crowdDensityAt(23)).toBeLessThan(0.25); // quiet by 23:00
     expect(crowdDensityAt(6)).toBeGreaterThan(crowdDensityAt(5)); // the morning build-up starts at 05:00
     expect(crowdDensityAt(-1)).toBeCloseTo(crowdDensityAt(23), 6);
   });
 
-  it('shows many more walkers at 08:30 than at 03:00', () => {
-    const rush = makeSim(5, 1.75, 8.5);
+  it('shows many more walkers at 11:00 than at 03:00', () => {
+    const rush = makeSim(5, 1.75, 11);
     const night = makeSim(5, 1.75, 3);
     for (let i = 0; i < 600; i++) {
-      step(rush, 0.1, 8.5);
+      step(rush, 0.1, 11);
       step(night, 0.1, 3);
     }
     expect(rush.peds.count).toBeGreaterThan(night.peds.count * 4);
-    expect(night.peds.count).toBeLessThan(40);
+    // Night holds the 0.2 floor: about a fifth of the 11:00 crowd.
+    expect(night.peds.count).toBeLessThan(rush.peds.count * 0.35);
   });
 
   it('thins out when the clock moves into the night and refills in the morning', () => {
@@ -350,7 +351,7 @@ describe('crowd density', () => {
     const noon = sim.peds.count;
     for (let i = 0; i < 4000; i++) step(sim, 0.1, 3);
     const night = sim.peds.count;
-    for (let i = 0; i < 4000; i++) step(sim, 0.1, 8.5);
+    for (let i = 0; i < 4000; i++) step(sim, 0.1, 11);
     const morning = sim.peds.count;
     expect(night).toBeLessThan(noon * 0.4);
     expect(morning).toBeGreaterThan(noon * 0.8);

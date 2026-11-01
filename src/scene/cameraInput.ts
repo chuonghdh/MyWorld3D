@@ -2,6 +2,7 @@
 import { useEffect, type MutableRefObject } from 'react';
 import { useThree } from '@react-three/fiber';
 import type { OrbitControls as OrbitControlsImpl } from 'three-stdlib';
+import { uiCamera } from '../config/tuning';
 import { runtime } from './runtime';
 import { clamp, type CameraPresetId, type V3 } from './cameraMath';
 import { isTyping } from './cameraDom';
@@ -101,8 +102,12 @@ export function useCameraInput({ controlsRef, tween, street, keys, cancelTween, 
     };
     const onMove = (e: PointerEvent) => {
       if (!dragging || !street.current.active) return;
-      street.current.yaw -= e.movementX * 0.004;
-      street.current.pitch = clamp(street.current.pitch - e.movementY * 0.004, -1.2, 1.2);
+      street.current.yaw -= e.movementX * uiCamera.lookSensitivity;
+      street.current.pitch = clamp(
+        street.current.pitch - e.movementY * uiCamera.lookSensitivity,
+        -uiCamera.pitchLimit,
+        uiCamera.pitchLimit,
+      );
     };
     const onUp = () => {
       dragging = false;

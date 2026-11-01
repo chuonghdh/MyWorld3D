@@ -142,8 +142,9 @@ export function useTownFrame(f: TownFrameInputs): void {
     leaves.setCameraView(state.camera, { x: state.camera.position.x + camDir.x * 12, z: state.camera.position.z + camDir.z * 12 });
     leaves.update(dt, wind, { leafAmount, leafSize, season: season as Season });
 
-    traffic.update(dt);
-    walkers.update(dt, { timeOfDay: useWorldStore.getState().settings.timeOfDay, rain: wx.rain });
+    const clockHour = useWorldStore.getState().settings.timeOfDay;
+    traffic.update(dt, { timeOfDay: clockHour });
+    walkers.update(dt, { timeOfDay: clockHour, rain: wx.rain });
     const vehicles = traffic.getVehicles();
     trafficMeshes.update(vehicles, walkers.getPedestrians(), {
       time: t,

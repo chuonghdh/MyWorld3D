@@ -3,6 +3,7 @@
 // materials, lights, fog and audio.
 
 // The kinds live in core so the store can use them without importing the weather system.
+import { skyEnvironment } from '../config/tuning';
 import type { WeatherKind } from '../core/weatherKinds';
 export { WEATHER_KINDS, type WeatherKind } from '../core/weatherKinds';
 
@@ -51,8 +52,8 @@ export function clamp01(v: number): number {
 const RAIN_CAP: Record<WeatherKind, number> = {
   clear: 0,
   cloudy: 0,
-  rain: 0.75,
-  storm: 1,
+  rain: skyEnvironment.weather.rainCapRain,
+  storm: skyEnvironment.weather.rainCapStorm,
   snow: 0,
   fog: 0,
 };

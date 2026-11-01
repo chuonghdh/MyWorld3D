@@ -7,6 +7,7 @@ import type { AudioFrame, AudioAircraft, SoundSystemFactory } from './frame';
 import { VoiceBudget, type Emitter, type AudioBus } from './bus';
 import { dopplerRatio } from './math';
 import { makeNoiseBuffer } from './synth';
+import { audio as audioTuning } from '../config/tuning';
 
 /** Simultaneous voiced aircraft. */
 export const AIRCRAFT_MAX_VOICES = 2;
@@ -17,7 +18,7 @@ export const AIRCRAFT_MAX_DISTANCE = 2500;
 export const FADE_IN_S = 3;
 export const FADE_OUT_S = 2.5;
 /** Overall voice level before the distance model: low, this is a high-altitude airliner. */
-export const JET_GAIN = 0.55;
+export const JET_GAIN = audioTuning.jetGain;
 
 /** Pitch/filter ratio from the radial speed between the listener and a plane (approaching = higher). */
 export function jetDoppler(

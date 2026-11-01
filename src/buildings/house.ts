@@ -34,6 +34,7 @@ import {
   ROOF_COLORS,
   SHOPFRONT_COLORS,
 } from './palette';
+import { buildings } from '../config/tuning';
 
 /** Distance each non-facade side is pulled in from the lot line (m), so neighbouring walls never share a plane. */
 export const PARTY_GAP = 0.025;
@@ -41,18 +42,7 @@ export const PARTY_GAP = 0.025;
 export type { RoofType, HouseChimney };
 export { ROOF_TYPES, FALLBACK_PRESET, MIN_FLOORS, MAX_FLOORS, resolvePreset };
 
-export const HOUSE_PRESETS: readonly HousePreset[] = [
-  'as-block',
-  'original-feuilles',
-  'canal-amsterdam',
-  'glass-tower',
-  'brutalist-concrete',
-  'bauhaus',
-  'mediterranean',
-  'brownstone-ny',
-  'nordic-timber',
-  'shophouse-asia',
-];
+export const HOUSE_PRESETS: readonly HousePreset[] = buildings.housePresets;
 
 export interface HouseParams {
   preset: HousePreset;

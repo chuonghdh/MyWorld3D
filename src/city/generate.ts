@@ -6,6 +6,7 @@
 // plazas, and street furniture data. See docs/DESIGN-3D.md section 4.
 
 import { createRng } from '../core/rng';
+import { cityStreets } from '../config/tuning';
 import type { BlockKind, StreetClass, Vec2, WorldSettings } from '../core/types';
 import { monumentLot, perimeterLots, type EdgeClasses } from './blocks';
 import { ARM_E, ARM_N, ARM_S, ARM_W, armCount, junctionArms } from './junctionArms';
@@ -38,7 +39,7 @@ const CELL_MAX = 60;
 const MIN_BLOCK = 6;
 
 // Block kind.
-export const MONUMENT_CHANCE = 0.1;
+export const MONUMENT_CHANCE = cityStreets.monumentChance;
 
 // Independent RNG streams.
 const GRID_SALT = 0x51ed270b;
@@ -48,16 +49,10 @@ const FURNITURE_SALT = 0x7f4a7c15;
 const MERGE_SALT = 0x3c6ef372;
 
 // Traffic.
-const TRAFFIC_SPAWN_SPACING = 60; // metres of path per spawn point at trafficMultiplier = 1
+const TRAFFIC_SPAWN_SPACING = cityStreets.trafficSpawnSpacing; // metres of path per spawn point at trafficMultiplier = 1
 const LANES_PER_ROAD = 2;
 
-const LIGHT_TIMING: TrafficLightTiming = {
-  cycleSeconds: 40,
-  nsGreenSeconds: 16,
-  ewGreenSeconds: 16,
-  yellowSeconds: 2,
-  allRedSeconds: 2,
-};
+const LIGHT_TIMING: TrafficLightTiming = cityStreets.lightTiming;
 
 /**
  * Distance from an avenue's centre line to its lane centres. Avenues have parked cars along both

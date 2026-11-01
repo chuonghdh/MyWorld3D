@@ -1,4 +1,5 @@
 # Specialist agents
+Reviewed 2026-11-01 at 02b0cdc
 
 MyWorld3D is built by a small, fixed team of specialists (eight, including the architect who reviews structure and standards) coordinated by the lead (the main Claude session).
 Each specialist owns directories, keeps a handbook in this folder, and is **reused** for every new task in its area
@@ -11,9 +12,18 @@ instead of spawning a fresh agent. That way what it learned (traps, decisions, c
 | 3 | Traffic & Life | `src/traffic/**`, `src/life/**` | [traffic-life.md](traffic-life.md) |
 | 4 | Sky & Environment | `src/sky/**`, `src/environment/**`, `src/weather/**`, `src/aircraft/**` | [sky-environment.md](sky-environment.md) |
 | 5 | Audio | `src/audio/**`, `src/scene/audioBridge.ts`, `src/ui/SoundMixer.tsx`, `docs/AUDIO.md`, audio tests (`tests/audio*.test.ts`, `tests/helpers/fakeAudio.ts`) | [audio.md](audio.md) |
-| 6 | UI & Camera | `src/ui/**` (except SoundMixer), `src/store/**`, `src/scene/CameraRig.tsx`, `cameraMath.ts`, `Selection.tsx`, `selectionMath.ts` | [ui-camera.md](ui-camera.md) |
-| 7 | Scene & QA | `src/scene/**` (rest), `src/core/**`, `tests/helpers/**`, perf budgets, docs | [scene-qa.md](scene-qa.md) |
-| 8 | Technical Architect | Cross-cutting structure, asset pipeline, performance standards, toolchain (no feature code) | [architect.md](architect.md) |
+| 6 | UI & Camera | `src/ui/**` (except SoundMixer), `src/store/**`, `src/scene/CameraRig.tsx`, `cameraInput.ts`, `cameraDom.ts`, `cameraMath.ts`, `Selection.tsx`, `selectionMath.ts`, block edit (`BlockEditor.tsx`, `blockEditMath.ts`, `blockEditAnchors.ts`) | [ui-camera.md](ui-camera.md) |
+| 7 | Scene & QA | `src/scene/**` (rest), `src/core/**`, `src/App.tsx`, `src/main.tsx`, `src/dev/treeCompare/**`, `tree-compare.html`, `dashboard/`, `public/models/**`, `tests/helpers/**`, perf budgets, docs | [scene-qa.md](scene-qa.md) |
+| 8 | Technical Architect | Cross-cutting structure, asset pipeline, performance standards, toolchain (no feature code). Reviews `src/shaders/**` | [architect.md](architect.md) |
+
+Shared, no single owner: `src/shaders/**` (cloud shade and wet surface patches). Buildings and Sky & Environment both use it; changes need both owners and an architect review.
+
+Tunable values in one place (owners per row): [docs/TUNING.md](../TUNING.md)
+
+**Tuning rule (all specialists):** every knob a designer may change lives in `src/config/tuning.ts` in your section.
+Import it, never re-type it. Geometry and shader constants stay local. No duplicate values; lab copies only in
+`src/dev/treeCompare/labTuning.ts`. Add each new knob to `tests/tuningParity.test.ts` and to `docs/TUNING.md`.
+When a change touches a knob, the owner updates the config, the parity test and the index in the same task.
 
 ## Rules for the lead
 

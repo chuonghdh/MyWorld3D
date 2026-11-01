@@ -3,6 +3,7 @@
 import type { VehicleClass } from '../../audio';
 import { VARIANT_FOOTPRINT } from '../collision';
 import type { VehicleSpec } from './types';
+import { trafficLife } from '../../config/tuning';
 
 export const VEHICLE_SPECS: Record<VehicleClass, VehicleSpec> = {
   car: { cruiseSpeed: 11, length: 4.5, accel: 2.5, weight: 0.55, gap: 6, speedVar: [0.85, 1.12] },
@@ -21,9 +22,9 @@ export const EDGE_EXTENSION = 28;
 export const DRAW_MARGIN = 3;
 
 /** What a vehicle does at a junction: straight 60 %, left 20 %, right 20 %. */
-export const TURN_LEFT_CHANCE = 0.2;
+export const TURN_LEFT_CHANCE = trafficLife.turnLeftChance;
 
-export const TURN_RIGHT_CHANCE = 0.2;
+export const TURN_RIGHT_CHANCE = trafficLife.turnRightChance;
 
 /** A vehicle picks its manoeuvre this far before the junction centre, metres. */
 export const DECIDE_DISTANCE = 40;
@@ -52,12 +53,12 @@ export const STUCK_PUSH_S = 40;
 export const HORN_PED_HOLD_S = 5;
 
 /** A vehicle honks at most once per 45 s, and the whole city at most once per 6 s (horns are meant to be rare). */
-export const HORN_COOLDOWN_S = 45;
+export const HORN_COOLDOWN_S = trafficLife.hornCooldownS;
 
-export const HORN_GLOBAL_GAP_S = 6;
+export const HORN_GLOBAL_GAP_S = trafficLife.hornGlobalGapS;
 
 /** Only this share of the situations that could make a driver honk actually does. */
-export const HORN_CHANCE = 0.5;
+export const HORN_CHANCE = trafficLife.hornChance;
 
 /** Smoothed deceleration (m/s^2) below which a braking vehicle counts as braking hard. */
 export const HORN_HARD_BRAKE = -3;
@@ -86,9 +87,9 @@ export const JUNCTION_SPEED = 6;
 export const ONCOMING_REACH = 32;
 
 /** Speed through a turn, m/s. */
-export const LEFT_TURN_SPEED = 5.5;
+export const LEFT_TURN_SPEED = trafficLife.leftTurnSpeed;
 
-export const RIGHT_TURN_SPEED = 4.5;
+export const RIGHT_TURN_SPEED = trafficLife.rightTurnSpeed;
 
 /** Fallback stop line (no crosswalk found): this far before the light centre, along the path. */
 export const STOP_BACK = 5;
@@ -123,12 +124,12 @@ export const MAX_DECEL = 7;
 export const COMMIT_MIN_SPEED = 1.5;
 
 /** Vehicles per path at trafficMultiplier 1. The active cap is this times the path count times the multiplier. */
-export const VEHICLES_PER_PATH = 2;
+export const VEHICLES_PER_PATH = trafficLife.vehiclesPerPath;
 
 /** Seconds between spawn attempts at one spawn point, range at trafficMultiplier 1. */
-export const SPAWN_MIN_S = 4;
+export const SPAWN_MIN_S = trafficLife.spawnMinS;
 
-export const SPAWN_MAX_S = 10;
+export const SPAWN_MAX_S = trafficLife.spawnMaxS;
 
 /** Largest simulation step; longer frames are split so vehicles cannot skip a stop line. */
 export const MAX_STEP = 1 / 30;

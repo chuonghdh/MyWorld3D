@@ -18,6 +18,7 @@ import type { Layout, Segment } from './layout';
 import { extAt } from './layout';
 import type { FrameKind, Look } from './presets';
 import { chance, pick, range, type Rng } from './rng';
+import { buildings } from '../../config/tuning';
 import { CURTAIN_COLORS } from '../palette';
 import { SURFACE } from '../surface';
 
@@ -160,7 +161,7 @@ export function pane(
   opts: { lit?: boolean; litChance?: number; dressing?: boolean } = {},
 ): boolean {
   const g = ctx.rngGlass;
-  const lit = opts.lit ?? g() < (opts.litChance ?? 0.35);
+  const lit = opts.lit ?? g() < (opts.litChance ?? buildings.litWindowShare);
   const t: Target = lit ? 'glassLit' : 'glass';
   const m = ctx.m;
   const jitter = 0.85 + g() * 0.3;

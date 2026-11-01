@@ -8,6 +8,7 @@
 
 import * as THREE from 'three';
 import type { CityLayout, TrafficLight } from '../city/layout';
+import { cityStreets } from '../config/tuning';
 import type { LightAxis, LightPhase } from '../traffic/lights';
 import { attachWeather, weatherUniforms } from '../buildings/materials';
 import { buildTyreTrackMap } from './tyreTracks';
@@ -74,7 +75,7 @@ export interface Streetscape {
   dispose(): void;
 }
 
-export const LAMP_GLASS_NIGHT_INTENSITY = 2.4;
+export const LAMP_GLASS_NIGHT_INTENSITY = cityStreets.lampGlassNightIntensity;
 
 const SIGNAL_BASE: Record<LightPhase, THREE.Color> = {
   red: new THREE.Color('#ff2a1a'),
@@ -82,8 +83,8 @@ const SIGNAL_BASE: Record<LightPhase, THREE.Color> = {
   green: new THREE.Color('#2bff6a'),
 };
 const PHASE_ORDER: readonly LightPhase[] = ['red', 'yellow', 'green'];
-const SIGNAL_ON_GAIN = 2.2;
-const SIGNAL_OFF_GAIN = 0.1;
+const SIGNAL_ON_GAIN = cityStreets.signalOnGain;
+const SIGNAL_OFF_GAIN = cityStreets.signalOffGain;
 
 export const MESH_NAMES = {
   surfaces: 'streets-surfaces',

@@ -3,6 +3,7 @@
 // always consumes the same number of draws, so a higher streetTreeMultiplier gives a superset.
 
 import type { StreetClass, TreeSpecies, Vec2 } from '../core/types';
+import { cityStreets } from '../config/tuning';
 import type { Bench, Crosswalk, Intersection, Rect, StreetLamp, StreetTree } from './layout';
 
 /** One road centre line of the jittered grid. */
@@ -37,7 +38,7 @@ export interface Streetscape {
 }
 
 /** Footprint radius of a courtyard tree (times its scale), used as an obstacle for courtyard greenery. */
-export const COURTYARD_TREE_RADIUS = 1.5;
+export const COURTYARD_TREE_RADIUS = cityStreets.courtyardTreeRadius;
 
 /** Courtyard trees as greenery obstacles: the list Scene and the fountain footprint both pass to the greenery. */
 export function courtyardTreeObstacles(trees: readonly StreetTree[]): { x: number; z: number; r: number }[] {
@@ -49,26 +50,26 @@ export function courtyardTreeObstacles(trees: readonly StreetTree[]): { x: numbe
 const TREE_SPECIES: readonly TreeSpecies[] = ['maple', 'oak', 'birch', 'ginkgo'];
 
 /** Lamp spacing along one sidewalk; the two sides are staggered by half of it. */
-export const LAMP_SPACING = 18;
+export const LAMP_SPACING = cityStreets.streetLampSpacing;
 /** Tree slot spacing; slots sit halfway between lamps and lamp-to-lamp midpoints. */
 export const TREE_SPACING = LAMP_SPACING / 2;
 /** Lamp pole distance from the curb. */
 const LAMP_INSET = 0.6;
 /** Chance a tree slot is planted at streetTreeMultiplier = 1. */
-const TREE_RATE: Record<StreetClass, number> = { avenue: 1, street: 0.35 };
-const COURTYARD_TREE_MIN = 2;
-const COURTYARD_TREE_MAX = 6;
+const TREE_RATE: Record<StreetClass, number> = cityStreets.treeRate;
+const COURTYARD_TREE_MIN = cityStreets.courtyardTreeMin;
+const COURTYARD_TREE_MAX = cityStreets.courtyardTreeMax;
 /** Slots per courtyard; covers COURTYARD_TREE_MAX at multiplier 2. */
 const COURTYARD_SLOTS = 12;
 const COURTYARD_TREE_GAP = 4;
 const COURTYARD_INSET = 2;
-const PLAZA_TREE_SPACING = 8;
-const PLAZA_TREE_RATE = 0.7;
+const PLAZA_TREE_SPACING = cityStreets.plazaTreeSpacing;
+const PLAZA_TREE_RATE = cityStreets.plazaTreeRate;
 /** Width of a zebra crossing band. */
 export const CROSSWALK_WIDTH = 3;
 /** Extra clearance after the crossing road's sidewalk before furniture starts. */
 const CORNER_CLEARANCE = 1;
-const BENCH_CHANCE = 0.6;
+const BENCH_CHANCE = cityStreets.benchChance;
 
 /** Distance from a crossing line's centre beyond which furniture may stand on the roads it crosses. */
 export function cornerClearance(line: GridLine): number {

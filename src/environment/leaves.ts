@@ -8,11 +8,12 @@ import * as THREE from 'three';
 import { createRng } from '../core/rng';
 import type { Season } from '../core/types';
 import { particleProfile, type ParticleProfile } from './seasons';
+import { skyEnvironment } from '../config/tuning';
 
 /** Hard cap on the number of leaf instances. */
-export const MAX_LEAVES = 160;
+export const MAX_LEAVES = skyEnvironment.leaves.maxLeaves;
 /** Distance in metres from the camera within which leaves fade out by shrinking. */
-const LEAF_NEAR_FADE = 10;
+const LEAF_NEAR_FADE = skyEnvironment.leaves.nearFadeM;
 
 const GROUND_Y = 0.05;
 const WIND_DRAG = 0.5; // 1/s, how fast a leaf adopts the wind velocity
@@ -20,13 +21,13 @@ const DEVIL_RADIUS = 5; // m
 const DEVIL_HEIGHT = 9; // m, top of the vortex
 const DEVIL_SPEED = 2.2; // m/s, roaming speed of the vortex centre
 /** Default distance (metres, ground plane) from the camera focus within which crowns spawn leaves. */
-const FOCUS_RADIUS_DEFAULT = 100;
+const FOCUS_RADIUS_DEFAULT = skyEnvironment.leaves.focusRadiusM;
 /** Seconds an autumn leaf lies on the ground before it fades out. */
-const LEAF_REST_SECONDS = 10;
+const LEAF_REST_SECONDS = skyEnvironment.leaves.restS;
 /** Height of a resting leaf above the ground, so it does not z-fight the ground plane. */
 const REST_LIFT = 0.01;
 /** Leaf silhouette scale (outline, curl, bend and vein together): 70% of the earlier 1.3 x size (about 0.29 m by 0.35 m). */
-const LEAF_SCALE = 1.3 * 0.7;
+const LEAF_SCALE = skyEnvironment.leaves.leafScale;
 /** Edge lift along the midrib at the outer edge, metres before LEAF_SCALE. */
 const LEAF_CURL = 0.05;
 /** Lengthwise bend towards the concave (upper) side, metres at the tip and stem ends, before LEAF_SCALE. */

@@ -1,5 +1,6 @@
 // Layering: core and store sit at the bottom. Their runtime imports stay inside core and store: store must not
-// import city, weather, scene or ui. Type-only imports are erased at build time and are not checked.
+// import city, weather, scene or ui. store may import the tuning config (src/config, a bottom module of plain values).
+// Type-only imports are erased at build time and are not checked.
 // Also checks that the block id scheme in core matches the city generator's (city/merge.ts).
 import { describe, expect, it } from 'vitest';
 import * as core from '../src/core/blockIds';
@@ -26,7 +27,7 @@ describe('layers', () => {
       const inCore = path.includes('/core/');
       for (const spec of runtimeImports(text)) {
         if (!spec.startsWith('.')) continue;
-        const ok = inCore ? spec.startsWith('./') : spec.startsWith('./') || spec.startsWith('../core/');
+        const ok = inCore ? spec.startsWith('./') : spec.startsWith('./') || spec.startsWith('../core/') || spec.startsWith('../config/');
         if (!ok) bad.push(`${path} -> ${spec}`);
       }
     }

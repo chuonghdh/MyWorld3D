@@ -33,6 +33,7 @@ import { useTownAircraft } from './useTownAircraft';
 import { useTownFrame } from './useTownFrame';
 import { pavementSurfaces } from '../streets/pavementSurfaces';
 import { SHADOW_LAYER } from '../streets/natureTrees';
+import { skyEnvironment } from '../config/tuning';
 
 export { shadowHalfExtent } from './townShadow';
 export { monumentBaseFor };
@@ -68,7 +69,7 @@ export function Town({ onSelect, selected }: { onSelect: (target: OverrideTarget
   const uniforms: WindUniforms = useMemo(() => createWindUniforms(10), []);
   const leaves = useMemo(() => new LeafSystem({ bounds: layout.townBounds }), [layout.townBounds]);
   const clouds = useMemo(
-    () => createClouds({ area: layout.townBounds, count: 10, seed: settings.seed }),
+    () => createClouds({ area: layout.townBounds, count: skyEnvironment.clouds.sceneCount, seed: settings.seed }),
     [layout.townBounds, settings.seed],
   );
   // Only broadleaf trees shed leaves; conifers keep their needles.

@@ -123,7 +123,8 @@ export interface SignalHead {
 
 export const SIGNAL_HEAD_Y = 2.75;
 const HEAD_OFFSET = 0.3;
-const LAMP_SPACING = 0.28;
+/** Vertical pitch of the three lamp discs on a signal head (not the street lamp spacing, see city/streetscape.ts). */
+const SIGNAL_LAMP_PITCH = 0.28;
 
 function findIntersection(light: TrafficLight, intersections: readonly Intersection[]): { cx: number; cz: number; sx: number; sz: number } {
   let best: Intersection | null = null;
@@ -183,7 +184,7 @@ function buildSignals(layout: CityLayout, b: MeshBuilder, p: Prims): SignalBuild
           b.boxRot(hx, hz, hy - 0.46, hy + 0.46, 0.32, 0.22, angle, FURNITURE_COLORS.signalHousing);
           const index = lampMatrices.length;
           for (let k = 0; k < 3; k++) {
-            const ly = hy + LAMP_SPACING * (1 - k);
+            const ly = hy + SIGNAL_LAMP_PITCH * (1 - k);
             const vx = hx + f.dx * 0.15, vz = hz + f.dz * 0.15;
             b.boxRot(vx, vz, ly + 0.1, ly + 0.13, 0.24, 0.1, angle, FURNITURE_COLORS.signalHousing);
             // Lamp disc: cylinder axis turned to local z, then yaw to face the approach.

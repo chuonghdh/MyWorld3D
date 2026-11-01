@@ -19,7 +19,6 @@ const BLOCKS: [string, string][] = [
   ['Mode', 'Camera above 200 m: a tap selects a block. At or below 200 m: a tap selects a house. The chip at the bottom shows the mode.'],
   ['+ on a block', 'Shows green suggestion boxes. Tap one to merge (rectangles only, up to 4 blocks).'],
   ['− on a merged block', 'Splits it back into its blocks.'],
-  ['Save and undo', 'Merges are saved with the layout and can be undone.'],
 ];
 
 const PANELS: [string, string][] = [

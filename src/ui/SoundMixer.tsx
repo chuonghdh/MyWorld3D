@@ -2,6 +2,7 @@ import { useState } from 'react';
 import * as audio from '../audio';
 import type { Category } from '../audio/bus';
 import { Slider } from './controls';
+import { audio as audioTuning } from '../config/tuning';
 
 /** Mixer levels as whole percent, 0..100. */
 export interface MixerSettings {
@@ -15,8 +16,8 @@ export type MixerKey = keyof MixerSettings;
 
 export const MIXER_KEYS: readonly MixerKey[] = ['master', 'effects', 'nature', 'music'];
 export const MIXER_STORAGE_KEY = 'myworld3d.mixer.v1';
-/** Master default 80 % matches the audio bus default. */
-export const MIXER_DEFAULTS: MixerSettings = { master: 80, effects: 100, nature: 100, music: 100 };
+/** Starting levels (config audio.mixerDefaults); master matches the audio bus default (audio.masterVolumeDefault). */
+export const MIXER_DEFAULTS: MixerSettings = audioTuning.mixerDefaults;
 export const MIXER_LABEL: Record<MixerKey, string> = {
   master: 'Master',
   effects: 'Effects',
@@ -43,7 +44,7 @@ export const SOUND_ROWS: readonly { group: 'Effects' | 'Nature'; category: Categ
   { group: 'Nature', category: 'wind', label: 'Wind' },
   { group: 'Nature', category: 'rain', label: 'Rain' },
   { group: 'Nature', category: 'thunder', label: 'Thunder' },
-  { group: 'Nature', category: 'ambience', label: 'Bells & crickets' },
+  { group: 'Nature', category: 'ambience', label: 'Church bells & crickets' },
 ];
 export const CATEGORY_STORAGE_KEY = 'myworld3d.mixer.sounds.v1';
 

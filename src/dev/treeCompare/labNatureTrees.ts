@@ -15,11 +15,12 @@ import type { CityLayout } from '../../city/layout';
 import { hashString, type TreeField } from '../../environment/forest';
 import { applyWindSway, seasonLeafColor, seasonLeafDensity, type WindUniforms } from '../../environment/trees';
 import { attachWeather, weatherUniforms } from '../../shaders/wetSurface';
+import { LAB_TUNING } from './labTuning';
 
 /** Lab tuning: pine snow cover starts (lo) and is full (hi) at this upward normal y (city shader: 0.62, 0.84). */
-export const PINE_SNOW_UP: readonly [number, number] = [0.85, 0.97];
+export const PINE_SNOW_UP: readonly [number, number] = LAB_TUNING.pineSnowUp;
 /** Lab tuning: pine snow cover ceiling (city weather gives up to 1). Only the pine leaf material uses it. */
-export const PINE_SNOW_COVER = 0.35;
+export const PINE_SNOW_COVER = LAB_TUNING.pineSnowCover;
 import {
   AUTUMN_ORANGE,
   AUTUMN_RED,
@@ -73,7 +74,7 @@ export interface NatureAsset {
 }
 
 /** City tree scale on top of the layout scale. Same value as useTownGreenery.ts TREE_SCALE. */
-export const TREE_SCALE = 1.35;
+export const TREE_SCALE = LAB_TUNING.treeScale;
 
 /** Optional overrides for natureItems. Default (undefined) keeps the layout scale and slot types. */
 export interface NatureOverrides {
@@ -90,9 +91,9 @@ export interface NatureSlot {
 
 /** One type and yaw per street, avenue, courtyard and plaza tree, in layout order: two draws per slot, always. */
 /** Conifers are about a tenth of the city: only on the outer sidewalk ring, plazas and merged-block yards. */
-export const PINE_SHARE = 0.6;
+export const PINE_SHARE = LAB_TUNING.pineShare;
 /** Outer sidewalk ring depth (m) from the town edge, where street trees count as the pedestrian border. */
-export const BORDER_DEPTH = 6;
+export const BORDER_DEPTH = LAB_TUNING.borderDepth;
 
 const BROADLEAF_TYPES = NATURE_TYPES.flatMap((t, i) => (t.evergreen ? [] : [i]));
 const CONIFER_TYPES = NATURE_TYPES.flatMap((t, i) => (t.evergreen ? [i] : []));
@@ -177,7 +178,7 @@ export function leafIslands(geo: THREE.BufferGeometry): number[][] {
 
 /** Non-indexed copy of the given triangles, all attributes kept. */
 /** Lab only: share of broadleaf leaf clusters that get a rotated copy (more clusters, more triangles). */
-export const LAB_CLUSTER_EXTRA = 0.5;
+export const LAB_CLUSTER_EXTRA = LAB_TUNING.clusterExtra;
 /** Lab only: rotation (rad) of the copied clusters around the trunk axis. */
 const LAB_CLUSTER_TURN = (15 * Math.PI) / 180;
 /** Lab only: height (m) the copied clusters drop, so they sit lower in the crown. */
@@ -261,7 +262,7 @@ export function thinnedLeaves(asset: NatureAsset, density: number): THREE.Buffer
 /** Layer of the broadleaf shadow copies: drawn only by the sun's shadow camera (Town.tsx enables it there). */
 export const SHADOW_LAYER = 1;
 /** Share of the (seasonal) broadleaf leaves that cast shadows. The main pass draws all of them. */
-export const SHADOW_LEAF_FRACTION = 0.5;
+export const SHADOW_LEAF_FRACTION = LAB_TUNING.shadowLeafFraction;
 
 /** Bark islands that do not touch the trunk and start above this height are foliage clusters, not wood. */
 export const FOLIAGE_MIN_Y = 2.5;

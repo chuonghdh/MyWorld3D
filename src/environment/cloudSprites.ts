@@ -7,21 +7,22 @@
 // The clusters live in a wrapping square domain centred on the town, so they drift forever without
 // respawning, and fade by cloud amount, domain edge, camera distance and fog so nothing pops.
 
+import { skyEnvironment } from '../config/tuning';
 import * as THREE from 'three';
 import { createRng } from '../core/rng';
 
 /** Lowest cluster base and highest puff top, metres above the ground (birds fly at 26..44 m). */
-export const CLOUD_BASE_MIN = 70;
-export const CLOUD_BASE_MAX = 100;
-export const CLOUD_TOP_MAX = 140;
+export const CLOUD_BASE_MIN = skyEnvironment.clouds.baseMinM;
+export const CLOUD_BASE_MAX = skyEnvironment.clouds.baseMaxM;
+export const CLOUD_TOP_MAX = skyEnvironment.clouds.topMaxM;
 /** Mean spacing of cluster centres in metres; the domain is split into a grid of this cell size. */
-export const CLOUD_CELL = 90;
+export const CLOUD_CELL = skyEnvironment.clouds.cellM;
 /** Darkest the ground may get under a cloud shadow (0.35 = 35% darker). */
-export const CLOUD_MAX_DARKNESS = 0.35;
+export const CLOUD_MAX_DARKNESS = skyEnvironment.clouds.maxDarkness;
 /** Clouds drift this fraction of the wind speed, never slower than the minimum or faster than the maximum (m/s). */
-export const CLOUD_WIND_FACTOR = 0.32;
-export const CLOUD_MIN_DRIFT = 1.2;
-export const CLOUD_MAX_DRIFT = 4;
+export const CLOUD_WIND_FACTOR = skyEnvironment.clouds.windFactor;
+export const CLOUD_MIN_DRIFT = skyEnvironment.clouds.minDriftMs;
+export const CLOUD_MAX_DRIFT = skyEnvironment.clouds.maxDriftMs;
 /** Kept for older callers: the gentle drift that applies in calm air. */
 export const CLOUD_BASE_DRIFT = CLOUD_MIN_DRIFT;
 

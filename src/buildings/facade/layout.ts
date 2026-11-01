@@ -4,9 +4,10 @@
 import type { Facades, GroundFloorUse, HousePreset, HouseStyle } from '../../core/types';
 import type { Frame } from './mesh';
 import { SPECS, type ConcretePreset, type PresetSpec, type RoofType } from './presets';
+import { buildings } from '../../config/tuning';
 
-export const MIN_FLOORS = 2;
-export const MAX_FLOORS = 8;
+export const MIN_FLOORS = buildings.minFloors;
+export const MAX_FLOORS = buildings.maxFloors;
 
 /**
  * Used when a preset is 'as-block' and the caller has not resolved the block default.

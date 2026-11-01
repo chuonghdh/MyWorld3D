@@ -1,8 +1,9 @@
 // Snowfall: one THREE.Points draw call, animated entirely in the vertex shader inside a box that
 // follows the camera. Flakes drift with the wind and swirl a little; the count scales with intensity.
+import { skyEnvironment } from '../config/tuning';
 import * as THREE from 'three';
 
-export const MAX_FLAKES = 12000;
+export const MAX_FLAKES = skyEnvironment.weather.maxSnowFlakes;
 
 const VERT = /* glsl */ `
 attribute float aW;

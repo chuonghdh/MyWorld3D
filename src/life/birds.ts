@@ -4,6 +4,7 @@
 
 import * as THREE from 'three';
 import { createRng } from '../core/rng';
+import { trafficLife } from '../config/tuning';
 import type { CityLayout } from '../city/layout';
 import { angleDiff, clamp, scaledCount, setPose } from './common';
 import type { EmitFn, LifeContext, LifeQuality } from './common';
@@ -76,7 +77,7 @@ export class PigeonSystem {
   constructor(layout: CityLayout, seed: number, quality: LifeQuality, emit: EmitFn) {
     this.emit = emit;
     this.bounds = layout.townBounds;
-    const n = scaledCount(80, quality);
+    const n = scaledCount(trafficLife.pigeonCount, quality);
     this.capacity = n;
     const place = createRng((seed ^ 0x51a7e1) >>> 0);
     this.rng = createRng((seed ^ 0x7777aa) >>> 0);

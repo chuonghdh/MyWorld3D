@@ -2,6 +2,7 @@
 import { useEffect, useMemo } from 'react';
 import type { CityLayout, Rect } from '../city';
 import { courtyardTreeObstacles } from '../city/streetscape';
+import { cityStreets } from '../config/tuning';
 import { fountainReservations } from '../streets/decor';
 import { setNightClock, setNightLights } from '../buildings/materials';
 import { getNightSchedule } from '../environment/sun';
@@ -17,8 +18,8 @@ import { useNatureTrees } from './useNatureTrees';
 import { useWorldStore, type TreeOverride } from '../store';
 import type { Season } from '../core/types';
 
-/** Street trees read too small from the top-down camera at their botanical size. */
-const TREE_SCALE = 1.35;
+/** Street trees read too small from the top-down camera at their botanical size (config: cityStreets.treeScale). */
+const TREE_SCALE = cityStreets.treeScale;
 
 interface GreeneryInputs {
   layout: CityLayout;

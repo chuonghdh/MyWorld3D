@@ -2,12 +2,13 @@
 import * as THREE from 'three';
 import { getSignAtlasTexture } from './atlas';
 import { WIND_VERTEX_ATTR_SIGN, WIND_VERTEX_COMMON, WIND_VERTEX_MAIN_SIGN, windUniforms } from '../shaders/wind';
+import { buildings } from '../../config/tuning';
 
 export * from './layout';
 
 let signMaterial: THREE.MeshStandardMaterial | null = null;
 
-const SIGN_NIGHT_EMISSIVE = 1.0;
+const SIGN_NIGHT_EMISSIVE = buildings.signNightEmissive;
 
 /** Shared material for all shop signs. Without a canvas (node) it has no map. */
 export function getSignMaterial(): THREE.MeshStandardMaterial {

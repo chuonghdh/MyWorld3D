@@ -1,5 +1,5 @@
 // Block merge edits on the saved layout data (phase 2, block editor). Pure functions; the store wraps them so
-// a merge or split is one undoable step together with the block order it implies.
+// a merge or split is one update together with the block order it implies.
 import { parseHouseBlockId, parseMergedBlockId } from '../core/blockIds';
 
 /** Merge groups after adding `group`: groups that share a block with it are absorbed (it grows from them). */

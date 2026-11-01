@@ -1,12 +1,13 @@
 // Sun light constants and the shadow-frustum fit used by the town.
 import * as THREE from 'three';
 import type { Rect } from '../city';
+import { sceneQa } from '../config/tuning';
 
 // The sun module returns intensities on a 0-1.2 scale; three.js lights are physically based,
-// so they are scaled up here to give a bright, warm miniature look.
-export const SUN_GAIN = 3.4;
-export const HEMI_GAIN = 3;
-export const AMBIENT_GAIN = 0.5;
+// so they are scaled up (config: sceneQa.sunGain, hemiGain, ambientGain) for a bright, warm miniature look.
+export const SUN_GAIN = sceneQa.sunGain;
+export const HEMI_GAIN = sceneQa.hemiGain;
+export const AMBIENT_GAIN = sceneQa.ambientGain;
 
 /**
  * Lowest elevation used for the shadow-casting light. Real golden-hour sun is only a few degrees

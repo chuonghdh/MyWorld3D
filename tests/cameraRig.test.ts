@@ -140,12 +140,10 @@ describe('street walk', () => {
 });
 
 describe('setTimeOfDay', () => {
-  it('sets the hour without touching undo history', () => {
-    const before = useWorldStore.getState().past.length;
+  it('sets the hour', () => {
     useWorldStore.getState().setTimeOfDay(17.5);
     expect(useWorldStore.getState().settings.timeOfDay).toBe(17.5);
     useWorldStore.getState().setTimeOfDay(22);
     expect(useWorldStore.getState().settings.timeOfDay).toBe(22);
-    expect(useWorldStore.getState().past.length).toBe(before);
   });
 });

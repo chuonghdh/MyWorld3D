@@ -9,18 +9,19 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import * as THREE from 'three';
 import { useFrame, useThree, type ThreeEvent } from '@react-three/fiber';
 import { useWorldStore } from '../store';
+import { uiCamera } from '../config/tuning';
 import { editModeForHeight } from './cameraMath';
 import { blockAnchors, ANCHOR_SLOTS } from './blockEditAnchors';
 import { blockAt, rectIndexAt, type EditLayout, type EditRect } from './blockEditMath';
 import { buildHighlightGeometry } from './selectionMath';
 
-/** Height of the pick plane: above the tallest building, below the lowest block-mode camera (200 m). */
-const PICK_Y = 150;
-/** Decals float this high and ignore depth, so they read over the roofs like a map overlay. */
-const DECAL_Y = 0.3;
+/** Height of the pick plane (uiCamera.pickHeightM): above the tallest building, below the block-mode camera. */
+const PICK_Y = uiCamera.pickHeightM;
+/** Decals float this high (uiCamera.decalHeightM) and ignore depth, so they read over the roofs like a map overlay. */
+const DECAL_Y = uiCamera.decalHeightM;
 const RENDER_ORDER = 30;
-/** A press that moved further than this (px) was an orbit drag, not a tap. */
-const TAP_SLOP_PX = 6;
+/** A press that moved further than this (px, uiCamera.tapSlopPx) was an orbit drag, not a tap. */
+const TAP_SLOP_PX = uiCamera.tapSlopPx;
 const SELECT_COLOR = '#e8833a';
 const SUGGEST_COLOR = '#4fc3b0';
 

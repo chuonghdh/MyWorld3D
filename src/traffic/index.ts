@@ -5,6 +5,7 @@ export { TrafficLightController, lightStateAt, axisForOrientation } from './ligh
 export type { LightPhase, LightAxis } from './lights';
 export { Pedestrians } from './pedestrians';
 export type { PedestrianRender, DogRender, PedestriansOptions } from './pedestrians';
+export { trafficDensityAt, TRAFFIC_DENSITY_CURVE, TRAFFIC_DENSITY_FLOOR } from './trafficDensity';
 export { vehicleSurfaces } from './vehicleSurfaces';
 export type { VehicleSurfaceBox } from './vehicleSurfaces';
 export { createTrafficMeshes } from './meshes';

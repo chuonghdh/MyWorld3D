@@ -5,23 +5,13 @@
 
 import * as THREE from 'three';
 import type { MonumentKind } from '../core/types';
+import { buildings } from '../config/tuning';
 import { Kit, type Site } from './monuments/kit';
 import { fireStation, hospital, supermarket } from './monuments/civic';
 import { circus, funfair, stadium, swimmingPool } from './monuments/leisure';
 import { dinosaurPark, gothicCathedral, openAirTheatre } from './monuments/culture';
 
-export const MONUMENT_KINDS: readonly MonumentKind[] = [
-  'hospital',
-  'stadium',
-  'funfair',
-  'swimming-pool',
-  'dinosaur-park',
-  'supermarket',
-  'open-air-theatre',
-  'circus',
-  'fire-station',
-  'gothic-cathedral',
-];
+export const MONUMENT_KINDS: readonly MonumentKind[] = buildings.monumentKinds;
 
 export interface MonumentOptions {
   /** Block width along x in metres. Default 34. */

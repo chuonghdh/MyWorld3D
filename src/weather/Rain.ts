@@ -2,10 +2,11 @@
 // per frame, positions are computed in the vertex shader from a static per-instance seed, wrapped
 // inside a box that follows the camera. Streaks: 1 draw call, up to MAX_STREAKS instances.
 // Ripples: 1 draw call, up to MAX_RIPPLES flat rings just above the ground.
+import { skyEnvironment } from '../config/tuning';
 import * as THREE from 'three';
 
-export const MAX_STREAKS = 14000;
-export const MAX_RIPPLES = 280;
+export const MAX_STREAKS = skyEnvironment.weather.maxRainStreaks;
+export const MAX_RIPPLES = skyEnvironment.weather.maxRainRipples;
 
 const STREAK_VERT = /* glsl */ `
 attribute vec4 aSeed;
