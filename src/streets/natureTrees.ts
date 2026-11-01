@@ -12,6 +12,7 @@ import { createRng } from '../core/rng';
 import type { CityLayout } from '../city/layout';
 import { hashString, type TreeField } from '../environment/forest';
 import { applyWindSway, seasonLeafColor, seasonLeafDensity, type WindUniforms } from '../environment/trees';
+import { attachWeather } from '../shaders/wetSurface';
 import {
   AUTUMN_ORANGE,
   AUTUMN_RED,
@@ -332,6 +333,9 @@ export function natureAssetFromGltf(
     applyWindSway(barkMat, uniforms);
     applyWindSway(leafMat, uniforms);
   }
+  // Wet and snow uniforms (weather), the same ones the streets and buildings react to. Chained after the sway.
+  attachWeather(barkMat);
+  attachWeather(leafMat);
   const islands = leafIslands(leaves);
   setIslandVariety(leaves, islands, hashString(type.file) >>> 0);
   applyLeafVariety(leafMat);

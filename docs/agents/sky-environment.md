@@ -69,3 +69,13 @@
 - Trap: `tests/streetDecor.test.ts` "fountain in free courtyard space" fails after the rng change (fountain null on one layout). Owner: City & Streets / Scene. Not fixed here.
 - Full `npx vitest run`: 679 pass, 1 fail (above). 4 files flagged FAIL under full run pass solo.
 - Verify: `npx tsc --noEmit` passes. Owned-area suites (7 files, 112 tests) pass.
+
+## Session 2026-11-01 (phase 2)
+- Park crowns: broadleaf park crowns (round and column) moved to their own `greenery-crowns` mesh, hidden in winter (`greenery.ts` setSeason). Trunks and conifers stay in `greenery-bushes`. Trap: park crowns were TAG_FOLIAGE in the always-visible mesh, so they stayed green in winter.
+- Mesh cap: a courtyard greenery group is now at most 4 meshes (hedges, beds, bushes, crowns). `tests/parkYard.test.ts` asserts 4. Winter crowns need their own mesh; do not fold them back into bushes.
+- Reserved fountain disc: `ParkObstacle.reserved?: true` (`environment/parkYard.ts`). Small yards respect only reserved discs (beds and bushes via boxes, hedges via segment distance). Plain courtyard trees stay ignored for small yards, so the non-merged baseline holds. City appends the fountain disc as `{x, z, r, reserved: true}`.
+- Footprint-keyed yards: `yardKey` (`greenery.ts`) hashes the rect corners. Small-yard rng, hedge and bush seeds no longer use the list index, so merges do not reshuffle other yards. One-time layout shift for every town.
+- Open: summer tones (`forest.ts` TONES) still need a look against the screenshot. Hedges (`greenery.ts` addHedge, TAG_FOLIAGE) stay green in winter with a snow tint, by design; confirm with lead.
+- Open: street-tree crowns in winter come from `streets/natureTrees.ts` (City). Not environment. Procedural `forest.ts` path already hides crowns in winter.
+- Open: tests/streetDecor.test.ts "puts the fountain in free courtyard space" fails until City's reservation and picker land (City, a7bb761c4b40ec3c8).
+- Verify: `npx tsc --noEmit`; environment suites + `tests/parkYard.test.ts` + `tests/budget.test.ts` pass.

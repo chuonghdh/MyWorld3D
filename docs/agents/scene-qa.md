@@ -57,3 +57,12 @@ Last smoke test: passed on 2026-10-29 (page title MyWorld3D, one canvas, WebGL o
 - (c) Dead `<= 400` assertion removed from budget.test.ts; draw-call guard is `<= 140`. Measured 132 (100 main + 32 shadow).
 - (d) `#c9b48e` is not in code (grep clean). Hemisphere ground is `nightGround`: `#b9bcb6` lerped to `#3a4668` by nightness. Sky-environment handbook entry is stale.
 - Open: `tests/streetDecor.test.ts` "puts the fountain in free courtyard space" fails solo. Likely from City's uncommitted streetscape.ts edit (footprint uses courtyardTreeObstacles). Not my file; not fixed.
+
+## Phase 2 (branch dev)
+- Draw-call guard: `budget.test.ts` `<= 140`, measured 132 (100 main + 32 shadow). Dead `<= 400` assertion removed. Do not raise draw calls to pass a test.
+- Counting rule: shadow-only copies of meshes are counted in the shadow total, not the main total. Keep this split when adding casters.
+- Courtyard obstacles: `courtyardTreeObstacles` (city/streetscape.ts) feeds `createCourtyardGreenery` through `useTownGreenery.ts`. No Sky consumer in `src/sky`. Town.tsx and useNatureTrees.ts are unchanged for this.
+- `useNatureTrees` empty memo deps now `[season]`.
+- streetDecor fountain test ("free courtyard space") failed after City's streetscape edit. It passes now (11/11 solo). Fix landed outside my files.
+- Hemisphere ground `#c9b48e` is not in code. Ground is `nightGround` (`#b9bcb6` to `#3a4668` by nightness). Sky-environment handbook entry is stale.
+- Open: real-window visual QA; optional Round 6.5 backlog; `useNatureTrees` load failure still console-only (fallback exists).

@@ -50,4 +50,10 @@
 - Decision: swatch lists derive from `SPECS`, so new presets reach `HousePanel` without edits there.
 - Open: CRLF/LF warning on `presets.ts` and `index.ts` (eol normalisation, not a code defect).
 - Tests run: `tests/buildings.test.ts`, `buildingsPolish`, `materials`, `monuments`, `geometry` = 5 files, 283/283 pass (about 6 min, geometry is the slow part). H-4 stays open: no test or measurement proves glass flatness.
+
+## Phase 2 (commit 720941d, dev)
+- No `src/buildings` source changed in phase 2. Winter bare broadleaf trees, conifer rule, fountain reservation and the shadow budget live in Environment, Streets and Scene; do not treat them as buildings work.
+- Trap: the budget test's main count now excludes shadow-only meshes, and park crowns sit in their own mesh (cap 4). A house or monument that adds a mesh to the main pass can break the budget even if its own geometry is fine.
+- Open: H-4 glass flatness at golden hour (needs a visual or measured check; no test proves it). H-5 shop goods, door mats, bikes.
+- Verify: the five-file buildings suite (283/283 at last run), then `npx tsc --noEmit` and `npx vite build`.
 - Fixed: brick flag uses `BRICK_LIKE_WALLS` (palette.ts: brick palette + `#6e3a2c`, `#7d4a36`, `#b5533c`) with `wallHex.toLowerCase()`. Side effect: nordic default `#b5533c` now gets brick base.

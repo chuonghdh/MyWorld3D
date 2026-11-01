@@ -77,3 +77,5 @@ UX (not implemented):
 - Split CameraRig.tsx (350 -> 263 lines): input effects moved to `scene/cameraInput.ts`. Behaviour unchanged.
 - leafAmount: unit is a 0-1 fraction (`leaves.ts` clamps 0-1, `SettingsCity` slider shows `round(v*100)%`). Default 1 = 100%, correct. Earlier "default shows 6 leaves" note was wrong; no change to model.ts.
 - Store layering checked: store imports only `core/` and `store/` (no city/weather/scene/ui). `io.ts` imports `core/weatherKinds`. No change needed.
+- Open (low priority): `io.ts` `importLayout` rejects any `version` other than `LAYOUT_VERSION` (1). A future version bump drops old saves unless a migration step is added before the check.
+- Work branch: `dev` (commits only on user request).

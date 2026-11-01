@@ -72,6 +72,23 @@ Chrome with the scene graph and draw-call counts, and state plainly what was not
 
 Also rejected: `vehicleMeshes.ts` importing `shaders/wetSurface`. Done by Traffic: import removed, `setSnow` added. Closed by lead.
 
+## Phase 2 review (lead, branch `dev`)
+
+| # | Finding | Status |
+|---|---|---|
+| 1 | Feature modules importing scene | Closed: scene imports removed |
+| 2 | Store importing city and weather | Closed: store clean |
+| 3 | Draw-call guard 130/140, dead 400 limit | Closed: budget guard fixed |
+| 4 | Files over 350 lines | Open. `traffic/vehicles.ts` now 338 lines (horns split to `vehicles/horns.ts`). Other owners still to split |
+| 5 | Save version check strict equality | Open, low priority, UI & Camera. No migration code unless a test needs it |
+
+Rule: owners must not add feature code to architect. The architect role reviews and records only; feature code stays with the owning specialist.
+
+## Structural rule: lab clones
+
+The tree-compare page is a lab. It reads clones only (`src/dev/treeCompare/labNatureTrees.ts`, `labLoader.ts`). City files are untouched. Shared modules the lab does not clone are listed in `docs/agents/city-streets.md` under "Lab clones".
+Rule: lab clones stay separate from the city until the user approves a merge.
+
 Git state (checked 2026-11-01): no untracked files. Modified, uncommitted: `docs/agents/README.md`, `docs/agents/architect.md`, `docs/agents/audio.md`, `docs/agents/city-streets.md`, `src/city/streetscape.ts`, `src/scene/useNatureTrees.ts`, `src/traffic/vehicleMeshes.ts`. `public/`, `src/shaders/`, `src/dev/treeCompare/` and `tree-compare.html` are already committed (lead confirmed). Lead decision: no commits from architect; the earlier "uncommitted" list is stale.
 
 Architect role for these: review diffs when owners report; update this section and close items. No feature code by architect. No commits without user request.

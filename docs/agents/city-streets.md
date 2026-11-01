@@ -56,10 +56,29 @@
 ## Session 2026-11-01 (fixes)
 - Fixed: tyre-track texture pushed into `textures` (streets/index.ts), freed by dispose().
 - Fixed: `natureItems(layout, seed, overrides?)` scales by `TREE_SCALE` (1.35, exported). `NatureOverrides`: `treeScale?` replaces TREE_SCALE, `types?` maps tree id to type index. No overrides = default output.
-- Snow crowns: every type gets a leaf snow cap (`snowLeaves`) with its own `snowLeafMat` (white, alphaTest 0.5, leaf map, DoubleSide). Caps copy uv. Visible in winter only (`apply`), so bare broadleaf crowns get snow too.
-- Trap: snow leaf caps add one InstancedMesh per type (draw-call budget). Budget test still passes.
+- Snow crowns (SUPERSEDED in phase 2, see below): this built a leaf snow cap for every type. It caused the winter trap below.
 - Decision: city tree scale. `natureItems` ignores TREE_SCALE 1.35 on the city path, so city trees are ~26% smaller. ACCEPTED by lead; no restore needed.
 - Verify: `npx tsc --noEmit`, `npx vitest run tests/budget.test.ts tests/layoutKey.test.ts` (passed).
 - Summer lift: uniform `uSummer` (0 or 1) on leaf material, set per season in apply() (natureTrees.ts:478). Declared in the fragment prefix (natureTrees.ts:379). leafVariety.ts:68 already reads `float summer = uSummer;`. Sky tunes the colour there.
 - Courtyard tree export: `courtyardTreeObstacles(trees)` (streetscape.ts:43) is the module-level list for greenery obstacles. Consumers: streets/greeneryFootprint.ts, scene/useTownGreenery.ts. Sky park greenery should use the same export.
 - Trap: tests/people.test.ts and tests/audioPeople.test.ts are timing-sensitive. They fail in the full run and pass solo (flake, not a regression).
+
+## Phase 2 (winter, pines, shadows)
+- Trap (winter green crowns): `snowLeafMat` keeps the leaf map, so white snow caps on full leaf geometry draw green. Fixed: leaf snow caps exist for conifers only (`asset.type.evergreen`). Broadleaf trees get bark snow and are bare in winter (their leaves are hidden by `thinnedLeaves` at density 0).
+- Decision: conifers keep their green all year (phase 1 design; the user confirmed the green crowns are not pines). Do not hide conifer foliage in winter.
+- Decision: pine share ~10%. `natureSlots` picks a conifer only on plaza trees, street trees within `BORDER_DEPTH` (6 m) of `townBounds` (outer ring), and courtyard trees inside merged courtyards (`courtyard.merged`), with `PINE_SHARE` 0.6 on those spots. Default city: 15 of 170 (8.8%), all on border street and plaza, none in merged yards (0 merged at default). Five seeds: 8.8%.
+- Decision: broadleaf foliage in the shadow pass is half density. A shadow-only copy of the leaves sits on `SHADOW_LAYER` (1), with `SHADOW_LEAF_FRACTION` 0.5 of the seasonal density. The main pass draws the full leaves (castShadow off). `Town.tsx` enables `SHADOW_LAYER` on the sun's shadow camera. Without that line the shadow copies cast nothing.
+- Budget test (tests/budget.test.ts): the main count skips meshes whose layers exclude 0; `shadowOnly` counts their triangles in the shadow total. Shadow 528,583 (limit 605,000), main 1,604,879 (limit 1,700,000).
+- Trap: `splitFoliage` (bark islands not touching the trunk, >= 2.5 m, compact clusters) moves crown-like bark islands to the leaf geometry. It is a geometric guess; not checked by eye. The dev page (tree-compare) uses its own name-based split and does not run this path.
+- Fountain: `fountainReservations(layout)` (streets/decor.ts) reserves one tree-free disc in the largest courtyard that fits, with `reserved: true`. It is appended to the obstacles in `greeneryFootprint.ts` and `useTownGreenery.ts`, so greenery keeps clear without depending on greenery's output. Seed 98765 at 217 m had no free courtyard before this; the fountain now appears on all four SEEDS.
+- Open: the fountain test expects a fountain on every SEEDS seed. It passes now, but the reserved site depends on courtyards and trees only.
+- Open: shadow-only copies are visible only in the sun's shadow pass; check by eye in the game that the thinner shadows look right.
+- Open: the `splitFoliage` cluster rule (30+ vertices, sides <= 3 m, shortest >= 40% of longest) needs a visual check in winter.
+- Open: `tests/people.test.ts` timing flake (see above).
+
+## Lab clones (tree-compare)
+The tree-compare page is a lab. It reads only these clones, so lab edits never change the city until the user approves a merge.
+- `src/dev/treeCompare/labNatureTrees.ts`: clone of `src/streets/natureTrees.ts` (natureAssetFromGltf, splitFoliage, natureSlots, createNatureTreeField, TREE_SCALE, SHADOW_LAYER, NATURE_TYPES). Its imports from environment, shaders, core and city are the shared modules, not cloned.
+- `src/dev/treeCompare/labLoader.ts`: clone of `loadNatureAssets` from `src/scene/useNatureTrees.ts`, without the React hook.
+- City files left untouched by the lab: `src/streets/natureTrees.ts`, `src/scene/useNatureTrees.ts`. No city file imports the lab.
+- Not cloned (shared): `environment/trees.ts`, `environment/forest.ts`, `environment/leafVariety.ts`, `environment/wind.ts`, `shaders/wetSurface.ts`, `weather/*`. Lab edits there would reach the city.

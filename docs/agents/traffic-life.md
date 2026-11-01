@@ -98,3 +98,11 @@ Pedestrians (`src/traffic/walkers/`):
 - Note: `vehicles.ts` is 338 lines, not the 1794 quoted in the architect finding. Recheck the architect's count.
 - Follow-up: added `vehicles.test.ts` cases for headlight level 0 (300 = brake pools only) and level 0.5 (300 + lit count, lit = level > threshold(id)). 27/27 pass.
 - Hash b0d22ec1 holds on the current tree. Test imports `generateCity` (src/city, src/streets) and `store/model`, so it depends on the uncommitted city/streets/environment edits, not on src/traffic/vehicles/** (unchanged from HEAD).
+
+## Phase 2 (snow, horns, handbook)
+- Trap: in three r170 `color_vertex` runs before `beginnormal_vertex`. Snow code that reads the final normal or `color` must sit in the normal chunk (`NORMAL_SPIN`), after the normal is set. Placing it earlier reads stale values.
+- Decision: snow is set by `setSnow(level)` (VehicleMeshes, TrafficMeshes). `scene/useTownFrame.ts` calls it with `wx.snow` after `weather.update`. The module owns `uniforms.snow`; it no longer imports `shaders/wetSurface`.
+- Decision: horn logic lives in `vehicles/horns.ts` (`tryHorn`, `takeHorns`). `VehicleSystem` methods delegate, so the API is unchanged.
+- Note: `vehicles.ts` is 338 lines. The architect's 1794-line figure is wrong, so recheck it.
+- Open: the full vitest run timed out on module loads (15 files, "Timeout calling fetch"). Rerun the full suite on a quiet machine. Owned suites pass (76/76).
+- Open: `vehicleMeshes.ts` (447 lines) is the next split candidate: shader patch and glow mesh could move to `vehicles/` modules.
