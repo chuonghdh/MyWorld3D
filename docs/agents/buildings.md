@@ -49,3 +49,13 @@ Reviewed 2026-11-01 at 02b0cdc
 - Trap: the budget test's main count excludes shadow-only meshes, and park crowns sit in their own mesh (cap 4). A house or monument that adds a mesh to the main pass can break the budget even if its own geometry is fine.
 - Fixed: brick flag uses `BRICK_LIKE_WALLS` (`palette.ts`: brick palette plus `#6e3a2c`, `#7d4a36`, `#b5533c`) with `wallHex.toLowerCase()`. Side effect: nordic default `#b5533c` now gets a brick base.
 - Last recorded run: five-file buildings suite 283/283 (about 6 min; geometry is the slow part). Not re-run in this review.
+
+## Public buildings pass (branch optimize_02, see docs/agents/public-buildings-review.md)
+- Monument kinds are 12 now (`city-hall`, `school` added). `monumentBaseFor` (`src/scene/townBlocks.ts`) hashes into 12, so every town's block-to-monument mapping changed.
+- Shared helpers in `monuments/kit.ts`: `waterBasin(k, {w, d, coping}, depth, colour)` (recessed water with coping; draws 0.05 below its floor, so the floor must stay at y >= 0.05 or the basin lifts the monument); `notchedBox(...)` with `bayOpenings` (recessed bay doors, used by the fire station).
+- Trap: a monument whose body sits below y = 0 is lifted by `monument.ts` (`lift`), which moves the whole monument. Keep sinks above the ground plane.
+- Decision: monument bodies do NOT cast shadows. Set in `src/scene/useTownPieces.ts` (Scene & QA file), not in `buildings`. Reason: shadow headroom was 12.7k against about 5k per monument. Houses, streets and trees keep their shadows.
+- Decision: dinosaur pond is raised on a stone base, not sunk, because the lawn sits at 0.08 m and a sunk pond would cut the lawn. Deviation from the review plan.
+- RNG stream shift: cathedral, open-air theatre, dinosaur park and pool changed their builder call order (new features draw from the same kit RNG), so their random colours, lit windows and crowds differ from before. Do not expect old screenshots to match.
+- Knobs: 18 monument knobs in `buildings` (civic, leisure, culture odds and crowds) plus the City Hall and School knobs. Each has a parity entry in `tests/tuningParity.test.ts` and a row in `docs/TUNING.md`.
+- Open: circus body sag not done; no close, medium or night look was checked by eye for the new kinds.

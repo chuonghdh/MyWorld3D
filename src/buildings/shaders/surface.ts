@@ -190,6 +190,43 @@ vec3 patStone(vec3 c, vec2 p, float px, out float h) {
   return mix(c * 0.985, full, f);
 }
 
+// Weathered ashlar: the ashlar pattern, darker grime at the foot fading upward, faint vertical rain
+// streaks and a few lighter weathered patches. wy is the object-space height in metres.
+vec3 patStoneAged(vec3 c, vec2 p, float wy, float px, out float h) {
+  vec3 s = patStone(c, p, px, h);
+  float grime = 0.22 * (1.0 - smoothstep(0.0, 4.5, wy));
+  float st = vnoise(vec2(p.x * 11.0, p.y * 0.3));
+  float streakAmp = (1.0 - smoothstep(0.03, 0.12, px)) * smoothstep(0.55, 0.85, st) * 0.10 * smoothstep(0.0, 6.0, wy);
+  float weather = 1.0 + (vnoise(p * 0.35 + 7.0) - 0.5) * 0.10;
+  return s * (1.0 - grime) * (1.0 - streakAmp) * weather;
+}
+
+// Weathered roofs (cathedral): the slate or zinc pattern, then moss and lichen toward the eaves and on
+// the north-facing side (object frame), soft streaks down the slope, and a faded, warmer upper slope.
+// wy is the object-space height (m), nrm the object-space normal.
+vec3 ageRoof(vec3 s, vec2 p, float wy, vec3 nrm, float px) {
+  float eave = 1.0 - smoothstep(12.0, 18.0, wy);
+  float north = smoothstep(0.2, -0.6, nrm.z);
+  float lichen = smoothstep(0.45, 0.75, vnoise(p * 1.7));
+  float moss = eave * (0.35 + 0.65 * north) * lichen * 0.55;
+  vec3 mossCol = s * vec3(0.72, 0.86, 0.55);
+  vec3 r = mix(s, mossCol, moss);
+  float st = vnoise(vec2(p.x * 14.0, p.y * 0.2));
+  float streakAmp = (1.0 - smoothstep(0.03, 0.12, px)) * smoothstep(0.55, 0.85, st) * 0.08;
+  r *= 1.0 - streakAmp;
+  float upper = smoothstep(12.0, 24.0, wy);
+  r = mix(r, r * vec3(1.06, 1.0, 0.92), upper * 0.5);
+  return r * (1.0 - 0.06 * upper);
+}
+vec3 patSlateAged(vec3 c, vec2 p, float wy, vec3 nrm, float px, out float h) {
+  vec3 s = patSlate(c, p, px, h);
+  return ageRoof(s, p, wy, nrm, px);
+}
+vec3 patZincAged(vec3 c, vec2 p, float wy, vec3 nrm, float px, out float h) {
+  vec3 s = patZinc(c, p, px, h);
+  return ageRoof(s, p, wy, nrm, px);
+}
+
 // Raw concrete: 0.3 m shuttering boards, tie holes, vertical streaks.
 vec3 patConcrete(vec3 c, vec2 p, float px, out float h) {
   float row = floor(p.y / 0.3);
@@ -231,6 +268,9 @@ gSurfH = 0.0;
     else if (vSurface < 6.5) sc = patStone(sc, sp, surfPx, sh);
     else if (vSurface < 7.5) sc = patConcrete(sc, sp, surfPx, sh);
     else if (vSurface < 8.5) sc = patZinc(sc, sp, surfPx, sh);
+    else if (vSurface < 9.5) sc = patStoneAged(sc, sp, vObjPos.y, surfPx, sh);
+    else if (vSurface < 10.5) sc = patSlateAged(sc, sp, vObjPos.y, sn, surfPx, sh);
+    else if (vSurface < 11.5) sc = patZincAged(sc, sp, vObjPos.y, sn, surfPx, sh);
   }
   diffuseColor.rgb = sc;
   gSurfH = sh;

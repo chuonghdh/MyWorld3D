@@ -60,3 +60,9 @@ Last smoke test: passed on 2026-10-29 (page title MyWorld3D, one canvas, WebGL o
 
 ## How to verify
 `npx tsc --noEmit`, `npx vitest run` (rerun the pedestrian flake solo), `npx vite build`. Budget numbers: `tests/budget.test.ts`. Visual claims: connected Chrome only, and say what was not seen by eye.
+
+## Public buildings pass (branch optimize_02)
+- Monument shadows are OFF: `src/scene/useTownPieces.ts` sets `castShadow = false` on every mesh of a monument group after `buildMonument`. Houses, streets and trees keep their shadows. Reason: shadow headroom was 12.7k against about 5k per monument (see docs/agents/public-buildings-review.md, X1).
+- `tests/budget.test.ts` builds every monument block of the seeded town (seed 1 has one: swimming-pool, about 4.9k shadow triangles) and counts ALL monument bodies as shadow casters, although the real render stops monster shadows in useTownPieces.ts. So the test is conservative for monuments: real shadow pass = test total minus the monuments that do not cast. Its numbers now: main 1,582,611; shadow 592,995; draw calls 132.
+- Config split: `src/config/tuning/` (one file per section, `index.ts` re-exports). `tests/tuningParity.test.ts` reads the folder as one text (`source('src/config/tuning.ts')` maps to it).
+- Pre-existing failures on dev 86f0c15, not from this work: three tests fail on dev too: blockMerge default-town hash, blockMerge invalid group, and the city streetTreeMultiplier superset at `tests/city.test.ts:106`. Do not attribute them to monuments or the config split.

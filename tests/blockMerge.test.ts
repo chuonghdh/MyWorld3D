@@ -18,8 +18,11 @@ function fnv(s: string): string {
   return (h >>> 0).toString(16);
 }
 
-/** Hashes of the default-town layout before block merging existed (seeds 1, 7, 1234). */
-const BASELINE: Record<number, string> = { 1: 'f9487df1', 7: '1b197b0', 1234: 'f5a24f41' };
+/**
+ * Hashes of the default-town layout with no merges (seeds 1, 7, 1234). Re-pinned after the even street-tree
+ * spread and the public-building kinds (city-hall, school) changed the layout on purpose.
+ */
+const BASELINE: Record<number, string> = { 1: '18e146da', 7: '3207db4', 1234: '4aab4349' };
 
 function layoutOf(blockMerges: string[][] = []): CityLayout {
   return generateCity({ ...DEFAULT_SETTINGS, seed: SEED, blockMerges });

@@ -10,6 +10,8 @@ import { Kit, type Site } from './monuments/kit';
 import { fireStation, hospital, supermarket } from './monuments/civic';
 import { circus, funfair, stadium, swimmingPool } from './monuments/leisure';
 import { dinosaurPark, gothicCathedral, openAirTheatre } from './monuments/culture';
+import { cityHall } from './monuments/municipal';
+import { school } from './monuments/education';
 
 export const MONUMENT_KINDS: readonly MonumentKind[] = buildings.monumentKinds;
 
@@ -37,6 +39,8 @@ const BUILDERS: Record<MonumentKind, Builder> = {
   circus,
   'fire-station': fireStation,
   'gothic-cathedral': gothicCathedral,
+  'city-hall': cityHall,
+  school,
 };
 
 function hashKind(kind: string): number {

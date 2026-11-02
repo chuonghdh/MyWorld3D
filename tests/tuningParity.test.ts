@@ -1,4 +1,4 @@
-// Tuning parity: asserts every knob in src/config/tuning.ts keeps the value recorded here (see docs/TUNING.md).
+// Tuning parity: asserts every knob in src/config/tuning/ keeps the value recorded here (see docs/TUNING.md).
 // Values are read from source text (not imported), so this test works before any value moves and needs no
 // production change. When a value moves, the entry switches to the config module; the expected value stays.
 import { describe, expect, it } from 'vitest';
@@ -9,7 +9,16 @@ const RAW = import.meta.glob(['/src/**/*.{ts,tsx}', '/tests/*.ts'], { query: '?r
   string
 >;
 
+/** Config path: the section files under src/config/tuning/ read as one text (the old single-file path still names the whole config). */
+const CONFIG_DIR = 'src/config/tuning/';
 function source(rel: string): string {
+  if (rel === 'src/config/tuning.ts') {
+    return Object.keys(RAW)
+      .filter((k) => k.startsWith(`/${CONFIG_DIR}`))
+      .sort()
+      .map((k) => RAW[k])
+      .join('\n');
+  }
   const text = RAW[`/${rel}`];
   if (text === undefined) throw new Error(`${rel}: not found`);
   return text;
@@ -325,7 +334,7 @@ const LAB_MIRROR: Entry[] = [
 /** Duplicate lists (plan section 3): each copy must equal the expected list. */
 const DUPLICATE_LISTS = [
   { name: 'HOUSE_PRESETS', prop: 'housePresets', files: ['src/store/model.ts', 'src/buildings/house.ts'], count: 10 },
-  { name: 'MONUMENT_KINDS', prop: 'monumentKinds', files: ['src/store/model.ts', 'src/buildings/monument.ts'], count: 10 },
+  { name: 'MONUMENT_KINDS', prop: 'monumentKinds', files: ['src/store/model.ts', 'src/buildings/monument.ts'], count: 12 },
 ];
 
 /** The list owned by config (`buildings.<prop>`), read from source text. */
@@ -424,5 +433,48 @@ describe('sky and environment knobs in config (step 8)', () => {
 });
 
 export const SKY_ASSERTED_COUNT = SKY_CONFIG.length + SKY_CODE.length + 1;
+
+// Monument knobs (step 9, public buildings review): literal odds and crowd counts moved to the buildings section.
+// Config value equals the baseline literal; the monument builder reads it as buildings.<name>.
+const MONUMENT_KNOBS: { name: string; file: string; value: string }[] = [
+  { name: 'hospitalDormerLitShare', file: 'src/buildings/monuments/civic.ts', value: '0.3' },
+  { name: 'hospitalCrowd', file: 'src/buildings/monuments/civic.ts', value: '8' },
+  { name: 'fireDoorLitShare', file: 'src/buildings/monuments/civic.ts', value: '0.6' },
+  { name: 'fireTowerLitShare', file: 'src/buildings/monuments/civic.ts', value: '0.25' },
+  { name: 'supermarketPaneLitShare', file: 'src/buildings/monuments/civic.ts', value: '0.85' },
+  { name: 'carParkRowAOccupancy', file: 'src/buildings/monuments/civic.ts', value: '0.6' },
+  { name: 'carParkRowBOccupancy', file: 'src/buildings/monuments/civic.ts', value: '0.55' },
+  { name: 'carParkRowBForwardShare', file: 'src/buildings/monuments/civic.ts', value: '0.7' },
+  { name: 'stadiumCrowd', file: 'src/buildings/monuments/leisure.ts', value: '14' },
+  { name: 'funfairCrowd', file: 'src/buildings/monuments/leisure.ts', value: '22' },
+  { name: 'poolLoungerPersonShare', file: 'src/buildings/monuments/leisure.ts', value: '0.4' },
+  { name: 'poolFacadeLitShare', file: 'src/buildings/monuments/leisure.ts', value: '0.5' },
+  { name: 'circusCrowd', file: 'src/buildings/monuments/leisure.ts', value: '10' },
+  { name: 'circusWagonLitShare', file: 'src/buildings/monuments/leisure.ts', value: '0.5' },
+  { name: 'cathedralApseLitShare', file: 'src/buildings/monuments/culture.ts', value: '0.4' },
+  { name: 'cathedralNaveLitShare', file: 'src/buildings/monuments/culture.ts', value: '0.35' },
+  { name: 'cathedralWestTowerLitShare', file: 'src/buildings/monuments/culture.ts', value: '0.4' },
+  { name: 'cathedralCrowd', file: 'src/buildings/monuments/culture.ts', value: '12' },
+  { name: 'cathedralStonePalette', file: 'src/buildings/monuments/culture.ts', value: "['#b3a286', '#a89c88', '#b8a683'] as readonly string[]" },
+  { name: 'cathedralStoneJitter', file: 'src/buildings/monuments/culture.ts', value: '0.04' },
+  { name: 'cathedralRoofJitter', file: 'src/buildings/monuments/culture.ts', value: '0.03' },
+  { name: 'cathedralRoofSlate', file: 'src/buildings/monuments/culture.ts', value: "'#3a414c'" },
+  { name: 'cathedralRoofZinc', file: 'src/buildings/monuments/culture.ts', value: "'#5d8076'" },
+  { name: 'cathedralRoseLitShare', file: 'src/buildings/monuments/culture.ts', value: '0.5' },
+  { name: 'dinosaurFernCount', file: 'src/buildings/monuments/culture.ts', value: '10' },
+  { name: 'theatreAudienceCount', file: 'src/buildings/monuments/culture.ts', value: '24' },
+  { name: 'theatreDoorLitShare', file: 'src/buildings/monuments/culture.ts', value: '1' },
+  { name: 'monumentShadowKinds', file: 'src/scene/useTownPieces.ts', value: "['gothic-cathedral'] as readonly MonumentKind[]" },
+  { name: 'cityHallWindowLitShare', file: 'src/buildings/monuments/municipal.ts', value: '0.4' },
+  { name: 'schoolTreeCount', file: 'src/buildings/monuments/education.ts', value: '6' },
+];
+describe('monument knobs in config (public buildings review, A1)', () => {
+  it.each(MONUMENT_KNOBS.map((e) => [e.name, e] as const))('config value: %s', (_name, e) => {
+    expect(propValue(CONFIG_FILE, e.name)).toBe(e.value);
+  });
+  it.each(MONUMENT_KNOBS.map((e) => [e.name, e] as const))('code reads config: %s', (_name, e) => {
+    expect(norm(source(e.file))).toContain(`buildings.${e.name}`);
+  });
+});
 
 export const ASSERTED_VALUE_COUNT = VALUES.length + FRAGMENTS.length + LAB_MIRROR.length + DUPLICATE_LISTS.length + 1;

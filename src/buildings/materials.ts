@@ -79,7 +79,7 @@ export function getBodyMaterial(): THREE.MeshStandardMaterial {
     body.name = 'building-body';
     body.onBeforeCompile = (shader) => patchBody(shader as unknown as ShaderLike);
     body.onBeforeRender = tickBuildingWind;
-    body.customProgramCacheKey = () => 'building-body-v4';
+    body.customProgramCacheKey = () => 'building-body-v6';
   }
   return body;
 }
