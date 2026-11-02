@@ -1,5 +1,4 @@
-// Tuning parity baseline (docs/TUNING-PLAN.md section 2, step 1).
-// Captures every knob that the plan moves to src/config/tuning.ts, using the literal values in the code NOW.
+// Tuning parity: asserts every knob in src/config/tuning.ts keeps the value recorded here (see docs/TUNING.md).
 // Values are read from source text (not imported), so this test works before any value moves and needs no
 // production change. When a value moves, the entry switches to the config module; the expected value stays.
 import { describe, expect, it } from 'vitest';

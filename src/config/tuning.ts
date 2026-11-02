@@ -1,5 +1,4 @@
-// Central tuning values (one source of truth). Skeleton: sections are empty.
-// Values move here one owner at a time, see docs/TUNING-PLAN.md.
+// Central tuning values (one source of truth). Index and owners: docs/TUNING.md.
 // This module imports nothing except types from core; feature modules import it, never the reverse.
 
 import type { HousePreset, MonumentKind } from '../core/types';

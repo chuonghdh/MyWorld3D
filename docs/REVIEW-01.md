@@ -305,7 +305,7 @@ Goal: it can rain, snow, storm, and the sky and night look beautiful.
 | Hidden or background pane gives bad fps data | Medium | Low | Measure with a visible window; rely on draw calls and triangles when hidden |
 | Audio autoplay and mobile Safari quirks | Medium | Low | Keep `audio.init()` on first pointerdown; test on iOS later |
 
-### Measure after every round (record in a table appended to this file or `docs/PLAN.md`)
+### Measure after every round (record in a table appended to this file)
 | Metric | How | Target |
 |---|---|---|
 | Draw calls, triangles (full frame and main pass only) | `gl.info` with `autoReset=false`, `reset()`, two rAFs, read `render`; also with `scene.traverse` counting | at most 400 calls; at most 3.0 M tris full frame at Whole map (Round 3 target 2.0 M) |
@@ -331,6 +331,6 @@ Goal: it can rain, snow, storm, and the sky and night look beautiful.
 10. Season recolour of trees is vertex-colour only (no geometry rebuild); winter bare branches variant stays.
 11. Selection: block click raycast uses `lotAt` on merged geometry; trees use `treeIdAt`. Any selection rework must keep Move blocks swap behaviour and Undo/Redo.
 12. Post chain order: RenderPass, bloom, tilt-shift (optional), OutputPass; tone mapping ACES, sRGB output. Do not move tone mapping into materials.
-13. File ownership per PLAN.md and per round table above; do not edit another owner's files, hand over a request instead.
+13. File ownership per docs/agents/README.md and per round table above; do not edit another owner's files, hand over a request instead.
 14. Keep `npx vitest run` and `npx tsc --noEmit` green before every handoff; add tests for any new logic module.
 15. UI and code are English; no emojis; no image textures for buildings (procedural only) unless a decision is recorded here.

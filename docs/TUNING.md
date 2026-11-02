@@ -1,5 +1,5 @@
 # Tuning parameters
-Reviewed 2026-11-01 at working tree. File:line column updated after tuning consolidation (steps 0-8, docs/TUNING-PLAN.md).
+Reviewed 2026-11-02 at dev (ce8de5a). Designer knobs live in `src/config/tuning.ts`; rows that still point to code are not yet tunable.
 
 Every value a user may want to adjust, in one place. Values that moved live in `src/config/tuning.ts` (one object per owner section: `buildings`, `uiCamera`, `cityStreets`, `trafficLife`, `audio`, `skyEnvironment`). Rows point there with the config key. Rows that did not move point at the code location. Sliders in the UI write to the store (`src/store/model.ts` defaults); their ranges are listed where the slider is defined.
 

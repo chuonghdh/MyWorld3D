@@ -67,8 +67,7 @@ Reviewed 2026-11-01 at 02b0cdc
 ## Verify
 `npx vitest run tests/streets.test.ts tests/streetDecor.test.ts tests/kerbCorners.test.ts tests/budget.test.ts tests/layoutKey.test.ts tests/blockMerge.test.ts`. No test covers `pavementSurfaces` leaf rest yet.
 
-## Tuning (step 4, docs/TUNING-PLAN.md)
-- Rule: a City & Streets knob is a value a designer tunes for feel; geometry and algorithm literals stay in their file. Knobs live in `cityStreets` (src/config/tuning.ts) and are imported; the lab copy is `src/dev/treeCompare/labTuning.ts` (never imports config).
-- Moved (values unchanged): floorRange, monumentChance, trafficSpawnSpacing, lightTiming, streetLampSpacing, treeRate, courtyardTreeMin/Max/Radius, plazaTreeSpacing/Rate, benchChance, lampGlassNightIntensity, signalOnGain/OffGain, pineShare/SnowUp/SnowCover, treeScale, clusterExtra, borderDepth, shadowLeafFraction.
-- Renamed: furniture.ts `LAMP_SPACING` (0.28) is now `SIGNAL_LAMP_PITCH`, stays local.
-- Open: `scene/useTownGreenery.ts` still holds its own `TREE_SCALE` 1.35 (Scene & QA file, not moved).
+## Tuning
+- Rule: a City & Streets knob is a value a designer tunes for feel; geometry and algorithm literals stay in their file. Knobs live in `cityStreets` (src/config/tuning.ts) and are imported; the lab copy is `src/dev/treeCompare/labTuning.ts` (never imports config). Index: [docs/TUNING.md](../TUNING.md).
+- `furniture.ts` `SIGNAL_LAMP_PITCH` stays local.
+- Open: `scene/useTownGreenery.ts` still holds its own `TREE_SCALE` 1.35 (Scene & QA file).
