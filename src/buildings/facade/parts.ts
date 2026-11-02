@@ -80,6 +80,11 @@ export interface Ctx extends Layout {
   avenue: boolean;
   /** Back faces a merged block's shared courtyard: richer rear elevation (see HouseParams.sharedCourtyard). */
   sharedCourtyard: boolean;
+  /**
+   * Corner lot whose back touches a neighbour: the rear wall is set back by this distance (m) and the rear
+   * keeps every detail inside the lot (no extension, balcony, step, AC, line or flue). 0 = ordinary rear.
+   */
+  rearSetback: number;
   /** Collected chimney pot tops. */
   chimneyTops: HouseChimney[];
 }

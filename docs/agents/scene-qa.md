@@ -25,6 +25,11 @@ Limits are in the tests, not in prose. Changing one needs a measured reason writ
 - Detail meshes: at most one per seeded house block.
 - Counting rule: shadow-only meshes (layer not 0) count in the shadow total only. Broadleaf leaves no longer use shadow copies, so this case is currently empty.
 - Last measured (seed 1, default settings, dev commit with street trees at rate 0.44): main 1,581,859, shadow 592,339, main + shadow 2,174,198, draw calls 132 (100 main + 32 shadow).
+- Measured with the 1-in-5 monument rule (default settings, no merges; 16 blocks, 3 monuments each, cathedral and City Hall present):
+  - seed 1: main 1,416,737 (limit 1,900,000); shadow 575,513 (605,000); main + shadow 1,992,250 (2,300,000); draw calls 127 (95 + 32) (140); house-block main 955,231 (band 900,000-1,000,000).
+  - seed 7: main 1,423,544; shadow 577,972; draw calls 128.
+  - seed 1234: main 1,443,579; shadow 565,477; draw calls 128.
+  - All within limits; no budget raised. The test counts every monument body as a shadow caster (`monumentShadowKinds` is only the cathedral in the real render), so the shadow figure is an upper bound.
 
 ## Traps
 - A night "black block curtain": NaN from `pow(1-v, 1.7)` with v slightly above 1 -> clamp; the sanitize pass is a safety net. Headlight glow "dashes" had the same root cause.

@@ -16,6 +16,8 @@ import { MANSARD_LOWER_H, MANSARD_UPPER_H } from './layout';
 
 const WALL_N = -0.04;
 const MAX_DEPTH = 0.9;
+/** Corner lot with a neighbour behind it: the rear wall is set back this far (m) so the rear stays inside the lot. */
+export const REAR_FLUSH_SETBACK = 0.14;
 
 interface Ext {
   kind: 'lean' | 'tower';
@@ -28,7 +30,10 @@ export function rearElevation(ctx: Ctx, seg: Segment): void {
   const { m, c, look } = ctx;
   const rng = ctx.rngRear;
   const L = seg.L;
-  m.frame = seg.frame;
+  // Flush rear: the frame origin moves inward with the wall, so every detail keeps its place relative to it.
+  const flush = ctx.rearSetback > 0;
+  const sb = ctx.rearSetback;
+  m.frame = flush ? { ...seg.frame, ox: seg.frame.ox - seg.frame.nx * sb, oz: seg.frame.oz - seg.frame.nz * sb } : seg.frame;
   const wallTop = ctx.wallTop;
   const frameKind = ctx.modern ? 'modern' : 'casement';
   const frameCol = ctx.modern ? c.frame : scale(c.white, 0.9);
@@ -47,7 +52,7 @@ export function rearElevation(ctx: Ctx, seg: Segment): void {
 
   // Extension (lean-to or stair tower) on about 40% of houses (65% on a shared courtyard).
   let ext: Ext | null = null;
-  if (L >= 5 && ctx.floors >= 2 && chance(rng, shared ? 0.65 : 0.4)) {
+  if (!flush && L >= 5 && ctx.floors >= 2 && chance(rng, shared ? 0.65 : 0.4)) {
     const tower = ctx.floors >= 3 && L >= 6.5 && chance(rng, 0.4);
     const w = tower ? range(rng, 1.7, 2.1) : Math.min(L - 2.2, range(rng, L * 0.35, L * 0.5));
     if (w > 1.2) {
@@ -120,13 +125,14 @@ export function rearElevation(ctx: Ctx, seg: Segment): void {
     frameBars(ctx, 'casement', a + 0.12, b - 0.12, gy0, gy1, 0.104, scale(door, 1.3));
     const brass = col('#c9a54a');
     m.b(brass, b - 0.2, b - 0.12, 1.0, 1.1, 0.1, 0.16, NN | NY);
-    m.b(casing, a - 0.2, b + 0.2, dh + 0.08, dh + 0.2, WALL_N, 0.35, NN);
-    m.withSurface(SURFACE.STONE, () => m.b(c.base, a - 0.2, b + 0.2, 0, 0.16, 0.1, 0.55, NN));
+    m.b(casing, a - 0.2, b + 0.2, dh + 0.08, dh + 0.2, WALL_N, flush ? 0.1 : 0.35, NN);
+    // A flush rear has no step: the door sits on the ground inside the lot.
+    if (!flush) m.withSurface(SURFACE.STONE, () => m.b(c.base, a - 0.2, b + 0.2, 0, 0.16, 0.1, 0.55, NN));
   }
 
   // Which floors get balconies and where.
   const balcony = new Map<number, number>();
-  if (ctx.floors >= 3 && chance(rng, shared ? 0.9 : 0.55)) {
+  if (!flush && ctx.floors >= 3 && chance(rng, shared ? 0.9 : 0.55)) {
     const n = shared ? int(rng, 2, Math.min(4, ctx.floors)) : chance(rng, 0.4) ? 2 : 1;
     for (let i = 0; i < n; i++) {
       const f = int(rng, 1, ctx.floors - 1);
@@ -206,7 +212,7 @@ export function rearElevation(ctx: Ctx, seg: Segment): void {
   }
 
   // AC units.
-  const acCount = int(rng, 0, 3);
+  const acCount = flush ? 0 : int(rng, 0, 3);
   for (let i = 0; i < acCount; i++) {
     const f = int(rng, 1, Math.max(1, ctx.floors - 1));
     const cl = pick(rng, cols);
@@ -219,7 +225,7 @@ export function rearElevation(ctx: Ctx, seg: Segment): void {
   }
 
   // Washing line.
-  if (ctx.floors >= 2 && L >= 5 && chance(rng, shared ? 0.45 : 0.25)) {
+  if (!flush && ctx.floors >= 2 && L >= 5 && chance(rng, shared ? 0.45 : 0.25)) {
     const f = int(rng, 1, ctx.floors - 1);
     const a = -L / 2 + 0.7 + range(rng, 0, L * 0.15);
     const b = a + Math.min(L - 1.6, 2.2);
@@ -242,7 +248,7 @@ export function rearElevation(ctx: Ctx, seg: Segment): void {
   }
 
   // Flue pipe.
-  if (chance(rng, 0.5)) {
+  if (!flush && chance(rng, 0.5)) {
     const u = range(rng, -L / 2 + 1.2, L / 2 - 1.2);
     if (!(ext && u + 0.2 > ext.a && u - 0.2 < ext.b)) {
       m.b(scale(c.party, 0.9), u - 0.1, u + 0.1, wallTop * 0.4, wallTop + 0.3, WALL_N, 0.16, NN);

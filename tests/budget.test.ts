@@ -11,7 +11,7 @@ import { beforeAll, describe, expect, it } from 'vitest';
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
 import * as THREE from 'three';
 import { generateCity } from '../src/city';
-import { buildHouse, buildMonument, MONUMENT_KINDS } from '../src/buildings';
+import { buildHouse, buildMonument } from '../src/buildings';
 import { boxCasts, CASTER_ATTRIBUTE } from '../src/buildings/facade/mesh';
 import { createStreetscape } from '../src/streets';
 import { createCourtyardGreenery } from '../src/environment';
@@ -74,12 +74,6 @@ function count(root: THREE.Object3D, into: Counts): Counts {
   return into;
 }
 
-function hash(id: string): number {
-  let h = 2166136261;
-  for (let i = 0; i < id.length; i++) h = Math.imul(h ^ id.charCodeAt(i), 16777619);
-  return ((h >>> 0) % 100000) / 100000;
-}
-
 /** The six city tree types, parsed from the GLBs (no textures, no sway: triangles and draws only). */
 type NodeFs = { readFileSync(path: string): Uint8Array };
 
@@ -105,8 +99,7 @@ function sceneCounts(seed: number, assets: NatureAsset[]): { total: Counts; bloc
   const total = { ...blocks };
   for (const block of layout.blocks) {
     if (block.kind !== 'monument') continue;
-    const kind = MONUMENT_KINDS[Math.floor(hash(block.id) * MONUMENT_KINDS.length)];
-    count(buildMonument(kind, { width: 30, depth: 30, seed: 1 }), total);
+    count(buildMonument(block.monument!, { width: 30, depth: 30, seed: 1 }), total);
   }
   count(createStreetscape(layout).group, total);
   count(createNatureTreeField(natureItems(layout, seed), assets, 'summer').group, total);
@@ -278,8 +271,10 @@ describe('render budget (seeded default city)', () => {
     // Measured 1,539,195 (Quaternius city trees, was 1,383,853); the diet moves triangles between meshes but never deletes one.
     // Raised from 1,700,000: broadleaf leaf clusters and falling leaves add main-pass triangles (user decision).
     expect(total.main).toBeLessThanOrEqual(1_900_000);
-    expect(blocks.main).toBeGreaterThanOrEqual(1_100_000);
-    expect(blocks.main).toBeLessThanOrEqual(1_140_000);
+    // House-block mass only. Re-banded: the monument rule (1 in 5 blocks, city/generate.ts) turns 3 of the 16 seed-1
+    // blocks into monuments, so 13 are house blocks now (948,598 measured) instead of about 15 (1.1 M before).
+    expect(blocks.main).toBeGreaterThanOrEqual(900_000);
+    expect(blocks.main).toBeLessThanOrEqual(1_000_000);
   });
 
   it('shadow-pass triangles stay under the 605,000 ceiling', () => {
@@ -298,7 +293,7 @@ describe('render budget (seeded default city)', () => {
   });
 
   it('draw-call estimate (main meshes + shadow meshes) stays under its threshold', () => {
-    // Measured 132 = 100 + 32 (was 130). The diet adds one detail mesh per house block to the main pass only.
+    // Measured 127 = 95 + 32 with 3 monuments per seed-1 town (1 in 5 rule). The diet adds one detail mesh per house block to the main pass only.
     expect(total.mainMeshes + total.shadowMeshes).toBeLessThanOrEqual(140);
     expect(detailMeshes).toBeLessThanOrEqual(seededBlocks().length);
   });

@@ -61,7 +61,7 @@ export function useTownPieces({ layout, order, base, blockOverrides, houseOverri
         const c = centerOf(block.bounds);
         const width = lot ? lot.width : (block.bounds.maxX - block.bounds.minX) * 0.85;
         const depth = lot ? lot.depth : (block.bounds.maxZ - block.bounds.minZ) * 0.85;
-        const monumentKind = bo.monument ?? monumentBaseFor(block.id);
+        const monumentKind = bo.monument ?? monumentBaseFor(block);
         const obj = buildMonument(monumentKind, { width, depth, seed: lot?.seed ?? 1 });
         // Monuments are drawn in the main pass only, except the kinds listed in buildings.monumentShadowKinds (shadow budget).
         if (!buildings.monumentShadowKinds.includes(monumentKind)) {

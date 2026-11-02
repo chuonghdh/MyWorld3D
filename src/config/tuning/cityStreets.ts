@@ -1,9 +1,9 @@
-/** City & Streets: lamp and tree spacing, pine knobs, light timing, monument chance. */
+/** City & Streets: lamp and tree spacing, pine knobs, light timing, monument share. */
 export const cityStreets = {
   /** Floors per street class, inclusive [min, max] (city/blocks.ts). */
   floorRange: { avenue: [5, 7], street: [3, 6] },
-  /** Share of blocks that become monuments, 0-1 (city/generate.ts). */
-  monumentChance: 0.1,
+  /** Share of buildable blocks that are public buildings (monuments), 0-1. Exact per seed: round(blocks x share), min 2 (city/generate.ts). */
+  monumentShare: 0.2,
   /** Metres of path per traffic spawn point at trafficMultiplier 1 (city/generate.ts). */
   trafficSpawnSpacing: 60,
   /** Traffic light cycle: seconds per phase and total cycle (city/generate.ts). */

@@ -132,7 +132,7 @@ export function App() {
       onSplit={blockEdit.split}
     />
   ) : selected?.type === 'block' && layout.blocks.some((b) => b.id === selected.id) ? (
-    <MonumentPanel blockId={selected.id} base={monumentBaseFor(selected.id)} />
+    <MonumentPanel blockId={selected.id} base={monumentBaseFor(layout.blocks.find((b) => b.id === selected.id))} />
   ) : null;
 
   return (

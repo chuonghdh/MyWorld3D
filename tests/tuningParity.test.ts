@@ -113,7 +113,7 @@ const VALUES: Entry[] = [
   { id: 'night emissive (house walls)', file: CONFIG_FILE, name: 'nightEmissive', value: '1.15' },
   { id: 'lit window colour', file: CONFIG_FILE, name: 'litWindowColor', value: "'#ffcf7a'" },
   { id: 'sign night emissive', file: CONFIG_FILE, name: 'signNightEmissive', value: '1.0' },
-  { id: 'monument chance', file: CONFIG_FILE, name: 'monumentChance', value: '0.1' },
+  { id: 'monument share', file: CONFIG_FILE, name: 'monumentShare', value: '0.2' },
   { id: 'headlight glow cap', file: 'src/traffic/vehicleMeshes.ts', name: 'GLOW_CAP', value: '640' },
 
   // 5. Weather and sky

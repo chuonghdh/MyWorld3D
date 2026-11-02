@@ -6,8 +6,8 @@
 // plazas, and street furniture data. See docs/DESIGN-3D.md section 4.
 
 import { createRng } from '../core/rng';
-import { cityStreets } from '../config/tuning';
-import type { BlockKind, StreetClass, Vec2, WorldSettings } from '../core/types';
+import { buildings, cityStreets } from '../config/tuning';
+import type { BlockKind, MonumentKind, StreetClass, Vec2, WorldSettings } from '../core/types';
 import { monumentLot, perimeterLots, type EdgeClasses } from './blocks';
 import { ARM_E, ARM_N, ARM_S, ARM_W, armCount, junctionArms } from './junctionArms';
 import { hashId, houseBlockId, mergedBlockId, memberIds, resolveBlockMerges, unionBounds, type MergeRect } from './merge';
@@ -38,8 +38,10 @@ const CELL_MAX = 60;
 /** Blocks smaller than this in either direction are skipped. */
 const MIN_BLOCK = 6;
 
-// Block kind.
-export const MONUMENT_CHANCE = cityStreets.monumentChance;
+// Block kind. The monument blocks are chosen per seed (chooseMonuments), not per block.
+export const MONUMENT_SHARE = cityStreets.monumentShare;
+/** Kinds every town has exactly once, on two seeded blocks. Other monument kinds fill the rest. */
+const STANDARD_MONUMENTS: readonly MonumentKind[] = ['gothic-cathedral', 'city-hall'];
 
 // Independent RNG streams.
 const GRID_SALT = 0x51ed270b;
@@ -47,6 +49,7 @@ const BLOCK_SALT = 0x2545f491;
 const TREE_SEED_SALT = 0x9e3779b9;
 const FURNITURE_SALT = 0x7f4a7c15;
 const MERGE_SALT = 0x3c6ef372;
+const MONUMENT_SALT = 0x6a09e667;
 
 // Traffic.
 const TRAFFIC_SPAWN_SPACING = cityStreets.trafficSpawnSpacing; // metres of path per spawn point at trafficMultiplier = 1
@@ -164,6 +167,37 @@ function splitAround(lo: number, hi: number, cuts: readonly { a: number; b: numb
   return out.filter(([a, b]) => b - a > 1e-6);
 }
 
+/** Bounds of grid cell (c, r): the cell between its four street lines, inside their sidewalks. */
+function cellBounds(xs: readonly GridLine[], zs: readonly GridLine[], c: number, r: number): Rect {
+  const inner = (line: GridLine) => line.width / 2 + line.sidewalk;
+  return {
+    minX: xs[c].pos + inner(xs[c]),
+    maxX: xs[c + 1].pos - inner(xs[c + 1]),
+    minZ: zs[r].pos + inner(zs[r]),
+    maxZ: zs[r + 1].pos - inner(zs[r + 1]),
+  };
+}
+
+/**
+ * Picks the monument blocks among `total` buildable blocks, with the layout RNG. The count is round(total * share),
+ * raised to the two standard monuments on a small town and capped at total (so a town of fewer than 5 blocks
+ * is not 1 in 5). The first two picks take the cathedral and the City Hall; every later pick takes a kind from the
+ * rest of buildings.monumentKinds. Same seed and total, same picks.
+ */
+export function chooseMonuments(total: number, rng: () => number): { index: number; kind: MonumentKind }[] {
+  const count = Math.min(total, Math.max(STANDARD_MONUMENTS.length, Math.round(total * MONUMENT_SHARE)));
+  const order = Array.from({ length: total }, (_, k) => k);
+  for (let k = total - 1; k > 0; k--) {
+    const j = Math.floor(rng() * (k + 1));
+    [order[k], order[j]] = [order[j], order[k]];
+  }
+  const others = buildings.monumentKinds.filter((k) => !STANDARD_MONUMENTS.includes(k));
+  return order.slice(0, count).map((index, n) => ({
+    index,
+    kind: n < STANDARD_MONUMENTS.length ? STANDARD_MONUMENTS[n] : others[Math.floor(rng() * others.length)],
+  }));
+}
+
 export function generateCity(settings: WorldSettings): CityLayout {
   const { seed, townWidth, townDepth, streetTreeMultiplier, trafficMultiplier } = settings;
   const townBounds: Rect = {
@@ -177,7 +211,7 @@ export function generateCity(settings: WorldSettings): CityLayout {
   // each other, so changing streetTreeMultiplier leaves every building untouched.
   const gridRng = createRng((seed ^ GRID_SALT) >>> 0);
   const blockRng = createRng((seed ^ BLOCK_SALT) >>> 0);
-  const kindRng = createRng(seed);
+  const monumentRng = createRng((seed ^ MONUMENT_SALT) >>> 0);
   const treeRng = createRng((seed ^ TREE_SEED_SALT) >>> 0);
   const furnitureRng = createRng((seed ^ FURNITURE_SALT) >>> 0);
 
@@ -212,20 +246,24 @@ export function generateCity(settings: WorldSettings): CityLayout {
   const lots: Lot[] = [];
   const courtyards: Rect[] = [];
   const plazas: PlazaInfo[] = [];
-  const inner = (line: GridLine) => line.width / 2 + line.sidewalk;
+  // Monument blocks: exactly round(buildable / 5) of the buildable blocks (see chooseMonuments), picked by seed.
+  const buildable: string[] = [];
+  for (let c = 0; c + 1 < xs.length; c++) {
+    for (let r = 0; r + 1 < zs.length; r++) {
+      const b = cellBounds(xs, zs, c, r);
+      if (b.maxX - b.minX < MIN_BLOCK || b.maxZ - b.minZ < MIN_BLOCK) continue;
+      buildable.push(houseBlockId(c, r));
+    }
+  }
+  const monumentOf = new Map(chooseMonuments(buildable.length, monumentRng).map((p) => [buildable[p.index], p.kind] as const));
 
   for (let c = 0; c + 1 < xs.length; c++) {
     for (let r = 0; r + 1 < zs.length; r++) {
       const id = houseBlockId(c, r);
-      // Drawn for every cell so the stream stays deterministic.
-      const kind: BlockKind = kindRng() < MONUMENT_CHANCE ? 'monument' : 'houses';
+      const monument = monumentOf.get(id);
+      const kind: BlockKind = monument ? 'monument' : 'houses';
 
-      const bounds: Rect = {
-        minX: xs[c].pos + inner(xs[c]),
-        maxX: xs[c + 1].pos - inner(xs[c + 1]),
-        minZ: zs[r].pos + inner(zs[r]),
-        maxZ: zs[r + 1].pos - inner(zs[r + 1]),
-      };
+      const bounds = cellBounds(xs, zs, c, r);
       const bw = bounds.maxX - bounds.minX;
       const bd = bounds.maxZ - bounds.minZ;
       if (bw < MIN_BLOCK || bd < MIN_BLOCK) continue;
@@ -241,7 +279,7 @@ export function generateCity(settings: WorldSettings): CityLayout {
 
       if (kind === 'monument') {
         const { lot, plaza } = monumentLot(id, bounds, classes, rng);
-        blocks.push({ id, kind, bounds, courtyard: null });
+        blocks.push({ id, kind, bounds, courtyard: null, monument });
         lots.push(lot);
         plazas.push({ bounds, margin: plaza });
         continue;

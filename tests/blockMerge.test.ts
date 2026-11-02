@@ -19,10 +19,11 @@ function fnv(s: string): string {
 }
 
 /**
- * Hashes of the default-town layout with no merges (seeds 1, 7, 1234). Re-pinned after the even street-tree
- * spread and the public-building kinds (city-hall, school) changed the layout on purpose.
+ * Hashes of the default-town layout with no merges (seeds 1, 7, 1234). Re-pinned when the monument rule changed to
+ * a seeded 1-in-5 share with the cathedral and City Hall placed once per seed (city/generate.ts chooseMonuments):
+ * the monument blocks moved and the town now has 3 of its 16 blocks as monuments instead of about 1.6.
  */
-const BASELINE: Record<number, string> = { 1: '18e146da', 7: '3207db4', 1234: '4aab4349' };
+const BASELINE: Record<number, string> = { 1: '85b76e5f', 7: 'c6b16b90', 1234: '6aa2093d' };
 
 function layoutOf(blockMerges: string[][] = []): CityLayout {
   return generateCity({ ...DEFAULT_SETTINGS, seed: SEED, blockMerges });

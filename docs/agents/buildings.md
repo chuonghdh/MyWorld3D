@@ -51,7 +51,8 @@ Reviewed 2026-11-01 at 02b0cdc
 - Last recorded run: five-file buildings suite 283/283 (about 6 min; geometry is the slow part). Not re-run in this review.
 
 ## Public buildings pass (branch optimize_02, see docs/agents/public-buildings-review.md)
-- Monument kinds are 12 now (`city-hall`, `school` added). `monumentBaseFor` (`src/scene/townBlocks.ts`) hashes into 12, so every town's block-to-monument mapping changed.
+- Monument kinds are 12 now (`city-hall`, `school` added).
+- Monument selection is seeded in the layout now (`src/city/generate.ts`, `chooseMonuments`): 1 in 5 buildable blocks, exactly one `gothic-cathedral` and one `city-hall` per seed, other kinds by seed. `Block.monument` carries the kind; `monumentBaseFor(block)` (`src/scene/townBlocks.ts`) reads it. The old hash-into-12 pick is gone. Block overrides still win.
 - Shared helpers in `monuments/kit.ts`: `waterBasin(k, {w, d, coping}, depth, colour)` (recessed water with coping; draws 0.05 below its floor, so the floor must stay at y >= 0.05 or the basin lifts the monument); `notchedBox(...)` with `bayOpenings` (recessed bay doors, used by the fire station).
 - Trap: a monument whose body sits below y = 0 is lifted by `monument.ts` (`lift`), which moves the whole monument. Keep sinks above the ground plane.
 - Decision: monument bodies do NOT cast shadows. Set in `src/scene/useTownPieces.ts` (Scene & QA file), not in `buildings`. Reason: shadow headroom was 12.7k against about 5k per monument. Houses, streets and trees keep their shadows.

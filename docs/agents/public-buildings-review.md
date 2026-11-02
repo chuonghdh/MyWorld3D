@@ -21,7 +21,7 @@ Scope: `buildings.monumentKinds` in `src/config/tuning.ts`. Builders: `src/build
 | Circus | partial | Skirt added at the wall base | Body sag NOT done |
 | Swimming pool slab | done | Floating blue slab removed | Covered by the pool row above |
 
-**Layout shift (all towns):** `monumentBaseFor` (`src/scene/townBlocks.ts`) now picks from 12 kinds, not 10. The hash-to-kind mapping changed for every town, so a given block can now show a different monument than before. Saved town overrides that name a monument are unaffected.
+**Layout shift (all towns):** the monument kind now comes from the layout (`Block.monument`, `src/city/generate.ts`), not a block-id hash. Status: **monument rule applied**. Rule: 1 in 5 buildable blocks is a public building, count round(blocks x 0.2) (min 2), chosen per seed. Every town has one `gothic-cathedral` and one `city-hall` on seeded blocks; other kinds fill the rest by seed. Saved town overrides that name a monument are unaffected. Budgets re-measured, all within limits (see `docs/agents/scene-qa.md`).
 
 ## How this was checked
 
