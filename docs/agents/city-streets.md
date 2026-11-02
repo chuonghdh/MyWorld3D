@@ -16,7 +16,7 @@ Reviewed 2026-11-01 at 02b0cdc
 
 ## Traps
 - Draw-call budget: base streetscape is 6 meshes; decor adds 2 (`streets-shelter-glass`, `streets-fountain-water`, `streets/index.ts:95-96`).
-- `budget.test.ts` triangle headroom is limited. Last note: main pass 1,604,879 against a 1,700,000 limit; shadow 528,583 against 605,000 (`tests/budget.test.ts`). Re-check after any mesh change.
+- Budget headroom is tight. Last measured on seed 1 (default): main 1,581,859 against 1,900,000; shadow 592,339 against 605,000; main + shadow 2,174,198 against 2,300,000; draw calls 132 against 140 (`tests/budget.test.ts`). Re-check after any mesh or tree-count change.
 - Fountain plaza must avoid courtyard greenery. `fountainReservations` (`decor.ts:454`) reserves one tree-free disc in the largest courtyard that fits (`r` = 3.4 + 0.3 = 3.7 m). It is appended after the tree obstacles in `greeneryFootprint.ts:18` and in `scene/useTownGreenery.ts`, so greenery keeps clear without depending on greenery's output. `planFountain` (`decor.ts:472`) still tests greenery triangles and omits the fountain where no room exists; the test allows omission.
 - Tactile bars at the first crossing stripe reach into the rounded corner: `clearOfKerbCorners` (`decorGeometry.ts:118`) cuts them back to the arc.
 - Sidewalk strips are 3 m (`STREET_SIDEWALK`) and 4.5 m (`AVENUE_SIDEWALK`) in `city/generate.ts`. The 0.5 m kerb radius (`KERB_RADIUS`) fits. Vertical strips are cut by the crossing sidewalk footprint (walk cut), horizontal strips by the carriageway only (carriage cut), so only horizontal strips own corners.
@@ -32,9 +32,10 @@ Reviewed 2026-11-01 at 02b0cdc
 - `natureItems(layout, seed, overrides?)`: `treeScale?` replaces `TREE_SCALE` (exported, 1.35); `types?` maps tree id to type index. No overrides = default output.
 - Summer lift: uniform `uSummer` (0 or 1) on the leaf material, set per season in `apply()` (`natureTrees.ts:679`); declared in the shader at `natureTrees.ts:556`; read in `environment/leafVariety.ts:68`.
 - Winter: broadleaf trees are bare (leaves dropped via `thinnedLeaves` at density 0, bark snow). Conifers keep their green all year; do not hide conifer foliage in winter.
+- Street trees are placed evenly along each sidewalk (one accumulator per side, the opposite side starts half a slot later so trees stagger). No random draw; same seed, same layout. Broadleaf trees inside blocks (courtyards and plazas) are removed; conifers stay.
 - Pine share ~10%: `natureSlots` picks a conifer only on plaza trees, street trees within `BORDER_DEPTH` (6 m) of `townBounds`, and courtyard trees inside merged courtyards, with `PINE_SHARE` 0.6 on those spots. Default city had 15 of 170 conifers at last count; none in merged yards at default.
 - Pine snow comes from the weather shader on the existing conifer leaf material (`PINE_SNOW_UP`, `PINE_SNOW_COVER`, `natureTrees.ts:18-19`, `393-404`). No conifer geometry split for snow.
-- Shadow pass: broadleaf foliage is half density. A shadow-only copy of the leaves sits on `SHADOW_LAYER` (1), with `SHADOW_LEAF_FRACTION` 0.5. `Town.tsx` enables `SHADOW_LAYER` on the sun's shadow camera; without that line the copies cast nothing.
+- Shadow pass: broadleaf leaves cast full shadows from the main leaf mesh (layer 0). Do not use a shadow-only copy on another layer: three.js tests layers against the main camera, so such copies are never drawn.
 - `splitFoliage` moves crown-like bark islands to the leaf geometry (a geometric guess; not checked by eye).
 - Pavement landing: `pavementSurfaces(layout)` (`pavementSurfaces.ts:34`) returns sidewalk and kerb boxes at `SIDEWALK_TOP`. Asphalt is not in the list, so the road is not a landing surface. Wired in `scene/Town.tsx:123-125`.
 

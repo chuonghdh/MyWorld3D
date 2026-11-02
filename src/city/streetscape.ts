@@ -153,6 +153,9 @@ export function buildStreetscape(input: StreetscapeInput): Streetscape {
       vertical ? { x: line.pos + lateral, z: along } : { x: along, z: line.pos + lateral };
     const roadSpecies = speciesOf(treeRng());
     const rate = TREE_RATE[line.cls];
+    // Tree accumulator per sidewalk side, carried across the crossing runs of this road: even spread, no per-run reset.
+    // The far side starts half a slot later, so trees stagger across the road instead of lining up.
+    const sideAcc: Record<-1 | 1, number> = { [-1]: 0, [1]: 0.5 };
 
     for (let k = 0; k + 1 < crossing.length; k++) {
       const start = crossing[k].pos + cornerClearance(crossing[k]);
@@ -185,12 +188,15 @@ export function buildStreetscape(input: StreetscapeInput): Streetscape {
         }
 
         // Tree slots sit halfway between lamp positions (4.5 m clear of every lamp).
+        // Even spread: each slot adds rate x m; a tree is planted when the sum crosses a whole number. Deterministic.
         const first = start + ((phase + TREE_SPACING / 2) % TREE_SPACING);
         for (let s = first; s <= end; s += TREE_SPACING) {
-          const roll = treeRng();
+          treeRng(); // keeps the stream draws per slot, so species and scale stay as before
           const speciesRoll = treeRng();
           const scaleRoll = treeRng();
-          if (m <= 0 || roll >= Math.min(1, rate * m)) continue;
+          sideAcc[side] += rate * m;
+          if (sideAcc[side] < 1) continue;
+          sideAcc[side] -= 1;
           const species = speciesRoll < 0.85 ? roadSpecies : speciesOf(speciesRoll);
           plant(toWorld(s, side * treeLateral(line)), species, scaleRoll, 'street');
         }

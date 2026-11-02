@@ -203,8 +203,8 @@ export const cityStreets = {
   lightTiming: { cycleSeconds: 40, nsGreenSeconds: 16, ewGreenSeconds: 16, yellowSeconds: 2, allRedSeconds: 2 },
   /** Distance between street lamps along one sidewalk, metres (city/streetscape.ts). */
   streetLampSpacing: 18,
-  /** Chance a street tree slot is planted per class at streetTreeMultiplier 1 (city/streetscape.ts). */
-  treeRate: { avenue: 1, street: 0.1 },
+  /** Tree density per slot, by class, at streetTreeMultiplier 1. Trees are spread evenly: one per whole unit of running rate per sidewalk side (city/streetscape.ts). */
+  treeRate: { avenue: 0.44, street: 0.44 },
   /** Fewest trees per courtyard (city/streetscape.ts). */
   courtyardTreeMin: 2,
   /** Most trees per courtyard (city/streetscape.ts). */

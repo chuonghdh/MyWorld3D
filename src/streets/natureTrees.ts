@@ -132,13 +132,20 @@ export interface NatureTreeItem {
 export function natureItems(layout: CityLayout, seed: number, overrides?: NatureOverrides): NatureTreeItem[] {
   const slots = natureSlots(layout, seed);
   const k = overrides?.treeScale ?? TREE_SCALE;
-  return layout.streetTrees.map((t, i) => ({
-    id: t.id,
-    position: { x: t.position.x, z: t.position.z },
-    scale: t.scale * k,
-    type: overrides?.types?.[t.id] ?? slots[i].type,
-    yaw: slots[i].yaw,
-  }));
+  const items: NatureTreeItem[] = [];
+  layout.streetTrees.forEach((t, i) => {
+    const type = overrides?.types?.[t.id] ?? slots[i].type;
+    // Broadleaf trees stay on the sidewalks: inside blocks (courtyards, plazas) only conifers are drawn.
+    if (t.setting !== 'street' && !NATURE_TYPES[type].evergreen) return;
+    items.push({
+      id: t.id,
+      position: { x: t.position.x, z: t.position.z },
+      scale: t.scale * k,
+      type,
+      yaw: slots[i].yaw,
+    });
+  });
+  return items;
 }
 
 /** Leaf islands: triangle indices grouped by shared vertex index (union-find). */

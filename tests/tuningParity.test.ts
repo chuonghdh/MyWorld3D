@@ -91,7 +91,7 @@ const VALUES: Entry[] = [
   { id: 'courtyard trees max', file: CONFIG_FILE, name: 'courtyardTreeMax', value: '6' },
   { id: 'tree spacing', file: 'src/city/streetscape.ts', name: 'TREE_SPACING', value: 'LAMP_SPACING / 2' },
   { id: 'bench chance', file: CONFIG_FILE, name: 'benchChance', value: '0.6' },
-  { id: 'tree rate (avenue 1, street 0.1)', file: CONFIG_FILE, name: 'treeRate', value: '{ avenue: 1, street: 0.1 }' },
+  { id: 'tree rate (avenue 0.44, street 0.44)', file: CONFIG_FILE, name: 'treeRate', value: '{ avenue: 0.44, street: 0.44 }' },
   { id: 'traffic light timing', file: CONFIG_FILE, name: 'lightTiming', value: '{ cycleSeconds: 40, nsGreenSeconds: 16, ewGreenSeconds: 16, yellowSeconds: 2, allRedSeconds: 2 }' },
   { id: 'snow flake cap', file: CONFIG_FILE, name: 'maxSnowFlakes', value: '12000' },
 
