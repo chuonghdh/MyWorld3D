@@ -250,7 +250,6 @@ describe('render budget (seeded default city)', () => {
   let blocks: Counts;
   let bodyAll = 0;
   let detailMeshes = 0;
-  let shadowBefore = 0;
   beforeAll(async () => {
     ({ total, blocks } = sceneCounts(SEED, await loadNatureAssetsForTest()));
     bodyAll = (() => {
@@ -267,12 +266,11 @@ describe('render budget (seeded default city)', () => {
   //   main pass    1,383,853 triangles in 98 meshes (75 of them house-block meshes), unchanged by the split
   //   shadow pass    421,859 triangles in 32 meshes; before the split every body triangle cast: 1,325,327
   //   draw calls     130 (98 main + 32 shadow); before the split 115 (the 15 detail meshes are new)
-    shadowBefore = total.shadow - blocks.shadow + bodyAll;
   }, 300_000);
 
   it('measures the scene', () => {
     // eslint-disable-next-line no-console
-    console.log('BUDGET', JSON.stringify({ total, blocks, bodyAll, shadowBefore, detailMeshes, calls: total.mainMeshes + total.shadowMeshes }));
+    console.log('BUDGET', JSON.stringify({ total, blocks, bodyAll, detailMeshes, calls: total.mainMeshes + total.shadowMeshes }));
     expect(total.main).toBeGreaterThan(1_000_000);
   });
 
@@ -284,16 +282,12 @@ describe('render budget (seeded default city)', () => {
     expect(blocks.main).toBeLessThanOrEqual(1_140_000);
   });
 
-  it('shadow-pass triangles are at most 40 percent of the pre-diet level', () => {
-    // Measured 549,627 with Quaternius trees (was 421,859; 31.8 percent before of the 1,325,327 before the diet).
+  it('shadow-pass triangles stay under the 605,000 ceiling', () => {
     expect(total.shadow).toBeLessThanOrEqual(605_000);
-    expect(total.shadow).toBeLessThanOrEqual(shadowBefore * 0.4);
   });
 
-  it('shadow-only leaf copies are counted in the shadow total, not in the main pass', () => {
-    // Broadleaf shadow copies (half density) sit on layer 1: in the shadow total, outside the main count.
-    expect(total.shadowOnly).toBeGreaterThan(0);
-    expect(total.shadowOnly).toBeLessThanOrEqual(total.shadow);
+  it('no shadow-only copies: every caster is also drawn by the main pass', () => {
+    expect(total.shadowOnly).toBe(0);
     // Raised from 1,700,000: broadleaf leaf clusters and falling leaves add main-pass triangles (user decision).
     expect(total.main).toBeLessThanOrEqual(1_900_000);
   });

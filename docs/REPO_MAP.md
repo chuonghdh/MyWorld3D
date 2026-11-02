@@ -27,7 +27,7 @@ Read this before searching the repo. Each row names the folder, what it does, it
 | `src/scene` | Mounts the town each frame, per-frame update order, camera rig and input, selection, block edit, post effects, screenshot | `Town.tsx`, `useTownFrame.ts`, `CameraRig.tsx`, `Selection.tsx`, `PostFX.tsx`, `audioBridge.ts` | Scene & QA (camera, selection, block edit: UI & Camera; `audioBridge.ts`: Audio) |
 | `src/dev/treeCompare` | Standalone tree lab (`tree-compare.html`): cloned tree and leaf code for tuning, never imported by the city | `main.ts`, `labNatureTrees.ts`, `labLoader.ts`, `labLeaves.ts`, `bushBefore.ts` | Scene & QA |
 | `tests` | Vitest suites, one file per area | `helpers/fakeAudio.ts`, `helpers/cityBuild.ts`, `helpers/geometryAudit.ts`, `budget.test.ts` | Owner of the area under test |
-| `docs` | Product and design docs, audio and agent handbooks | `BRD.md`, `DESIGN-3D.md`, `PLAN.md`, `REVIEW-01.md`, `AUDIO.md`, `REPO_MAP.md`, `agents/` | Scene & QA |
+| `docs` | Product and design docs, audio and agent handbooks | `BRD.md`, `DESIGN-3D.md`, `REVIEW-01.md`, `AUDIO.md`, `REPO_MAP.md`, `agents/` | Scene & QA |
 
 ## Common questions: where to look
 

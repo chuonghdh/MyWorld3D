@@ -15,6 +15,4 @@ export const LAB_TUNING = {
   clusterExtra: 0.5,
   /** Width of the tree border belt from the town edge, metres. */
   borderDepth: 6,
-  /** Share of broadleaf leaves that cast shadows, fraction. */
-  shadowLeafFraction: 0.5,
 } as const;

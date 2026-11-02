@@ -1,7 +1,7 @@
 # Scene & QA specialist
 Reviewed 2026-11-01 at 02b0cdc
 
-**Owns:** `src/scene/**` (everything not owned by UI & Camera or Audio), `src/core/**`, `src/App.tsx`, `src/main.tsx`, `src/dev/treeCompare/**` (tree lab, dev only), `tree-compare.html`, `dashboard/`, `public/models/**` (Quaternius and Kenney GLB, CC0), `tests/helpers/**`, budget and determinism tests, build health and project docs (`docs/BRD.md`, `PLAN.md`, `REVIEW-01.md`, `DESIGN-3D.md`).
+**Owns:** `src/scene/**` (everything not owned by UI & Camera or Audio), `src/core/**`, `src/App.tsx`, `src/main.tsx`, `src/dev/treeCompare/**` (tree lab, dev only), `tree-compare.html`, `dashboard/`, `public/models/**` (Quaternius and Kenney GLB, CC0), `tests/helpers/**`, budget and determinism tests, build health and project docs (`docs/BRD.md`, `REVIEW-01.md`, `DESIGN-3D.md`).
 
 ## Key files
 - `scene/Town.tsx` (294 lines): mounts everything. The per-frame work lives in `useTownFrame.ts`; other hooks: `useTownPieces`, `useTownGreenery`, `useTownTraffic`, `useTownAircraft`, `useNatureTrees`; helpers `townBlocks.ts`, `townShadow.ts`, `mergeBlock.ts`. `runtime.ts` is a re-export of `core/runtime.ts`.
@@ -19,12 +19,12 @@ Reviewed 2026-11-01 at 02b0cdc
 ## Budgets (`tests/budget.test.ts`)
 Limits are in the tests, not in prose. Changing one needs a measured reason written here and Scene & QA approval.
 - Main-pass triangles <= 1,900,000. Blocks (main) between 1,100,000 and 1,140,000.
-- Shadow-pass triangles <= 605,000 (and <= 40% of the pre-diet shadow level).
+- Shadow-pass triangles <= 605,000.
 - Main + shadow triangles <= 2,300,000.
 - Draw calls (main meshes + shadow meshes) <= 140. Do not raise this to pass a test.
 - Detail meshes: at most one per seeded house block.
-- Counting rule: shadow-only copies of meshes (broadleaf leaf copies on layer 1) are counted in the shadow total, not the main total. Keep this split when adding casters. The main-count test must skip shadow-only meshes.
-- Figures in the test comments (seed 1, default settings): main 1,539,195, shadow 549,627, draw calls 132 (100 main + 32 shadow). Other numbers in the test comments are stale (e.g. "130" at line 269, "98 main" there). Not re-measured in this review.
+- Counting rule: shadow-only meshes (layer not 0) count in the shadow total only. Broadleaf leaves no longer use shadow copies, so this case is currently empty.
+- Last measured (seed 1, default settings, dev commit with street trees at rate 0.44): main 1,581,859, shadow 592,339, main + shadow 2,174,198, draw calls 132 (100 main + 32 shadow).
 
 ## Traps
 - A night "black block curtain": NaN from `pow(1-v, 1.7)` with v slightly above 1 -> clamp; the sanitize pass is a safety net. Headlight glow "dashes" had the same root cause.

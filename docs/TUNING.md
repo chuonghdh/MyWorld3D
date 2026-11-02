@@ -1,5 +1,5 @@
 # Tuning parameters
-Reviewed 2026-11-01 at working tree. File:line column updated after tuning consolidation (steps 0-8, docs/TUNING-PLAN.md).
+Reviewed 2026-11-02 at dev (ce8de5a). Designer knobs live in `src/config/tuning.ts`; rows that still point to code are not yet tunable.
 
 Every value a user may want to adjust, in one place. Values that moved live in `src/config/tuning.ts` (one object per owner section: `buildings`, `uiCamera`, `cityStreets`, `trafficLife`, `audio`, `skyEnvironment`). Rows point there with the config key. Rows that did not move point at the code location. Sliders in the UI write to the store (`src/store/model.ts` defaults); their ranges are listed where the slider is defined.
 
@@ -111,13 +111,12 @@ Base counts are scaled by the graphics tier: factor low 0.4, medium 0.7, high 1 
 | Tree scale | 1.35 | multiplier | Size of nature trees | src/config/tuning.ts:203 (`cityStreets.treeScale`); used by src/streets/natureTrees.ts and src/scene/useTownGreenery.ts | City & Streets |
 | Cluster extra | 0.5 | fraction | Extra leaf clusters per tree | src/config/tuning.ts:205 (`cityStreets.clusterExtra`) | City & Streets |
 | Border depth | 6 | metres | Width of tree border belt | src/config/tuning.ts:207 (`cityStreets.borderDepth`) | City & Streets |
-| Shadow leaf fraction | 0.5 | fraction | Share of broadleaf leaves in shadow copies | src/config/tuning.ts:209 (`cityStreets.shadowLeafFraction`) | City & Streets / Scene & QA |
 | Street tree amount default | 1 | multiplier (slider 0-3, step 0.05) | Street tree count | src/config/tuning.ts:79 (`uiCamera.defaultStreetTreeMultiplier`); slider range 109-111 (`multiplierMax/Step`); slider src/ui/SettingsCity.tsx | UI & Camera / City & Streets |
-| Avenue tree rate | 1 | probability per slot | Trees along avenues | src/config/tuning.ts:177 (`cityStreets.treeRate.avenue`) | City & Streets |
-| Street tree rate | 0.35 | probability per slot | Trees along streets | src/config/tuning.ts:177 (`cityStreets.treeRate.street`) | City & Streets |
+| Avenue tree rate | 0.44 | trees per slot (even spread, sidewalks only) | Trees along avenues; same density as streets | src/config/tuning.ts (`cityStreets.treeRate.avenue`) | City & Streets |
+| Street tree rate | 0.44 | trees per slot (even spread, sidewalks only) | Trees along streets; same density as avenues; opposite side staggered | src/config/tuning.ts (`cityStreets.treeRate.street`) | City & Streets |
 | Tree spacing | half of lamp spacing (9 m) | metres | Spacing of street trees | src/city/streetscape.ts:54 (`TREE_SPACING = LAMP_SPACING / 2`, derived from config) | City & Streets |
 | Plaza tree spacing / rate | 8 m / 0.7 | metres / probability | Trees in plazas | src/config/tuning.ts:185 (`cityStreets.plazaTreeSpacing`), 187 (`plazaTreeRate`) | City & Streets |
-| Courtyard trees | 2 to 6 | count | Trees per courtyard | src/config/tuning.ts:179 (`cityStreets.courtyardTreeMin`), 181 (`courtyardTreeMax`) | City & Streets |
+| Courtyard trees | 2 to 6 | count | Conifers only; broadleaf trees inside blocks are removed | src/config/tuning.ts:179 (`cityStreets.courtyardTreeMin`), 181 (`courtyardTreeMax`) | City & Streets |
 | Bench chance | 0.6 | probability | Share of spots with a bench | src/config/tuning.ts:189 (`cityStreets.benchChance`) | City & Streets |
 | Snow flake cap | 12000 | instances | Max snowflakes | src/config/tuning.ts:355 (`skyEnvironment.weather.maxSnowFlakes`) | Sky & Environment |
 | Snow cover ramp | 0.25 + 0.9 x intensity, clamp 1 | 0..1 | Snow cover on upward faces | src/weather/weatherState.ts:94 (literal, stays in code) | Sky & Environment |
@@ -269,10 +268,10 @@ Master and category defaults are set in the mixer; category list is in `src/audi
 | MSAA samples | high 4, medium 4, low 2 | samples | Antialiasing | src/config/tuning.ts (`sceneQa.qualityTiers.*.msaa`); used via src/store/quality.ts | Scene & QA |
 | Quality suggestion | heuristic only | tier | Suggests a tier, never applies it | src/store/quality.ts:49-60 (`suggestQuality`, stays in code) | UI & Camera |
 | Life quality factor | low 0.4, medium 0.7, high 1 | multiplier | Scales all life counts | src/life/common.ts:76-78 (`qualityFactor`, stays in code) | Traffic & Life |
-| Budget: main-pass triangles | max 1,900,000 (measured 1,539,195) | triangles | Test threshold | tests/budget.test.ts (assertion, not a knob) | Scene & QA / Architect |
+| Budget: main-pass triangles | max 1,900,000 (measured 1,581,859 on seed 1) | triangles | Test threshold | tests/budget.test.ts (assertion, not a knob) | Scene & QA / Architect |
 | Budget: block main triangles | 1,100,000 to 1,140,000 | triangles | Test range | tests/budget.test.ts (assertion, not a knob) | Scene & QA |
-| Budget: shadow triangles | max 605,000 and at most 40% of pre-diet | triangles | Test threshold | tests/budget.test.ts (assertion, not a knob) | Scene & QA |
-| Budget: main + shadow | max 2,300,000 | triangles | Test threshold | tests/budget.test.ts (assertion, not a knob) | Scene & QA / Architect |
+| Budget: shadow triangles | max 605,000 (measured 592,339 on seed 1) | triangles | Test threshold | tests/budget.test.ts (assertion, not a knob) | Scene & QA |
+| Budget: main + shadow | max 2,300,000 (measured 2,174,198 on seed 1) | triangles | Test threshold | tests/budget.test.ts (assertion, not a knob) | Scene & QA / Architect |
 | Budget: draw calls | max 140 | draw calls | Test threshold | tests/budget.test.ts (assertion, not a knob) | Scene & QA / Architect |
 
 Test thresholds: change only when the scene change is intended. Raising a budget needs a user decision (see the comments in tests/budget.test.ts).

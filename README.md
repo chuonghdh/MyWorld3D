@@ -25,6 +25,7 @@ Built with Vite, TypeScript, Three.js, React Three Fiber and zustand.
 ### Street trees
 
 - **Four species** that follow the season: spring green, summer green, autumn red and yellow, and bare branches in winter.
+- **Trees stand on the sidewalks.** Trees are spread evenly along both sides of each street, staggered so they do not line up across the road. Broadleaf trees inside blocks are removed; only conifers stay in courtyards.
 - **Falling leaves in autumn.** Leaves fall from the crowns, rest on sidewalks for about 10 seconds, then fade. Only crowns in view and within 100 m of the camera spawn leaves, from a pool of 160.
 - **Pine and evergreen trees** keep their needles all year. Winter snow is applied through the weather shader.
 - **Controls:** tree amount, leaf size and leaf share, plus a Switch trees button that changes the species of many trees at once.

@@ -1,5 +1,4 @@
-// Central tuning values (one source of truth). Skeleton: sections are empty.
-// Values move here one owner at a time, see docs/TUNING-PLAN.md.
+// Central tuning values (one source of truth). Index and owners: docs/TUNING.md.
 // This module imports nothing except types from core; feature modules import it, never the reverse.
 
 import type { HousePreset, MonumentKind } from '../core/types';
@@ -204,8 +203,8 @@ export const cityStreets = {
   lightTiming: { cycleSeconds: 40, nsGreenSeconds: 16, ewGreenSeconds: 16, yellowSeconds: 2, allRedSeconds: 2 },
   /** Distance between street lamps along one sidewalk, metres (city/streetscape.ts). */
   streetLampSpacing: 18,
-  /** Chance a street tree slot is planted per class at streetTreeMultiplier 1 (city/streetscape.ts). */
-  treeRate: { avenue: 1, street: 0.35 },
+  /** Tree density per slot, by class, at streetTreeMultiplier 1. Trees are spread evenly: one per whole unit of running rate per sidewalk side (city/streetscape.ts). */
+  treeRate: { avenue: 0.44, street: 0.44 },
   /** Fewest trees per courtyard (city/streetscape.ts). */
   courtyardTreeMin: 2,
   /** Most trees per courtyard (city/streetscape.ts). */
@@ -236,8 +235,6 @@ export const cityStreets = {
   clusterExtra: 0.5,
   /** Width of the tree border belt from the town edge, metres (streets/natureTrees.ts). */
   borderDepth: 6,
-  /** Share of broadleaf leaves that cast shadows, fraction (streets/natureTrees.ts). */
-  shadowLeafFraction: 0.5,
 } as const;
 
 /** Traffic & Life: density, vehicle speeds and turns, walkers, life counts. */

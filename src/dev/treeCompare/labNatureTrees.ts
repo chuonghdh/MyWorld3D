@@ -259,11 +259,6 @@ export function thinnedLeaves(asset: NatureAsset, density: number): THREE.Buffer
   return subsetGeometry(asset.leaves, kept.flatMap((i) => asset.islands[i]).sort((a, b) => a - b));
 }
 
-/** Layer of the broadleaf shadow copies: drawn only by the sun's shadow camera (Town.tsx enables it there). */
-export const SHADOW_LAYER = 1;
-/** Share of the (seasonal) broadleaf leaves that cast shadows. The main pass draws all of them. */
-export const SHADOW_LEAF_FRACTION = LAB_TUNING.shadowLeafFraction;
-
 /** Bark islands that do not touch the trunk and start above this height are foliage clusters, not wood. */
 export const FOLIAGE_MIN_Y = 2.5;
 
@@ -596,7 +591,6 @@ export function createNatureTreeField(
   group.name = 'nature-trees';
   const ours = new Set<THREE.Object3D>();
   const leafUsers: { mesh: THREE.InstancedMesh; asset: NatureAsset }[] = [];
-  const shadowUsers: { mesh: THREE.InstancedMesh; asset: NatureAsset }[] = [];
   const snowMeshes: THREE.InstancedMesh[] = [];
   const cache = new Map<string, THREE.BufferGeometry | null>();
   const up = new THREE.Vector3(0, 1, 0);
@@ -631,16 +625,6 @@ export function createNatureTreeField(
     if (items.length === 0) return;
     add(asset.bark, asset.barkMat, items, `nature-bark-${asset.type.file}`);
     const leaves = add(asset.leaves, asset.leafMat, items, `nature-leaves-${asset.type.file}`);
-    if (!asset.type.evergreen) {
-      // Broadleaf shadows come from a thinner copy on the shadow layer: the main pass draws the full leaves, the sun pass
-      // only the shadow copy (Town.tsx enables SHADOW_LAYER on the sun's shadow camera).
-      leaves.castShadow = false;
-      const shadow = add(asset.leaves, asset.leafMat, items, `nature-leaves-shadow-${asset.type.file}`);
-      shadow.castShadow = true;
-      shadow.receiveShadow = false;
-      shadow.layers.set(SHADOW_LAYER);
-      shadowUsers.push({ mesh: shadow, asset });
-    }
     // Per-tree seeded randoms (instance colour, read by the leaf shader): each tree differs in hue and brightness.
     const c = new THREE.Color();
     items.forEach((t, i) => {
@@ -668,16 +652,6 @@ export function createNatureTreeField(
     // Snow caps follow the snow weather in every season (lab rule), not the calendar.
     const snowOn = weatherUniforms.uSnow.value > 0.001;
     for (const m of snowMeshes) m.visible = snowOn;
-    for (const { mesh, asset } of shadowUsers) {
-      const key = `${asset.type.file}|shadow|${sNow}`;
-      let geo = cache.get(key);
-      if (geo === undefined) {
-        geo = thinnedLeaves(asset, seasonLeafDensity(sNow) * SHADOW_LEAF_FRACTION);
-        cache.set(key, geo);
-      }
-      mesh.visible = geo !== null;
-      if (geo) mesh.geometry = geo;
-    }
     for (const { mesh, asset } of leafUsers) {
       const geo = leafFor(asset, sNow);
       mesh.visible = geo !== null;

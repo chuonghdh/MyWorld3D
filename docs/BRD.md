@@ -46,6 +46,7 @@ Hospital, Stadium, Funfair, Swimming pool, Dinosaur park, Supermarket, Open-air 
 - 4 deciduous species (Maple, Oak, Birch, Ginkgo) whose colour follows the season.
 - Seasons: fresh green spring (falling petals; no blossom on street trees), deep green summer, red and yellow autumn, bare winter. Conifers (pines) keep their needles all year. (added)
 - **Falling autumn leaves (added).** Broadleaf trees shed leaves from their crowns. Leaves rest on sidewalks for 10 s, then fade. A pool of 160 leaves is culled by frustum and a 100 m focus radius.
+- **Placement (updated).** Trees stand only on the sidewalks, spread evenly along each side and staggered across the road. Broadleaf trees inside blocks are removed. Seed 1 default: 127 street trees.
 - Properties: species, amount (Street trees ×), leaf size (Leaf size), leaf share (Leaves %). Implemented.
 - **Switch trees** button: changes the species of many trees at once. Implemented.
 - Tree property panel: [not verified].
