@@ -16,7 +16,6 @@ import { crownDiscsFromGroup } from '../../environment/leaves';
 import {
   createNatureTreeField,
   NATURE_TYPES,
-  SHADOW_LAYER,
   TREE_SCALE,
   type NatureAsset,
   type NatureTreeItem,
@@ -60,8 +59,6 @@ sun.position.set(-30, 50, 30);
 sun.castShadow = true;
 sun.shadow.mapSize.set(2048, 2048);
 Object.assign(sun.shadow.camera, { left: -80, right: 80, top: 80, bottom: -80, near: 1, far: 300 });
-// Broadleaf shadow copies live on SHADOW_LAYER (see natureTrees.ts); the city enables the same layer on its sun.
-sun.shadow.camera.layers.enable(SHADOW_LAYER);
 scene.add(sun);
 
 const ground = new THREE.Mesh(

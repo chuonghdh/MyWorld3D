@@ -111,10 +111,9 @@ Base counts are scaled by the graphics tier: factor low 0.4, medium 0.7, high 1 
 | Tree scale | 1.35 | multiplier | Size of nature trees | src/config/tuning.ts:203 (`cityStreets.treeScale`); used by src/streets/natureTrees.ts and src/scene/useTownGreenery.ts | City & Streets |
 | Cluster extra | 0.5 | fraction | Extra leaf clusters per tree | src/config/tuning.ts:205 (`cityStreets.clusterExtra`) | City & Streets |
 | Border depth | 6 | metres | Width of tree border belt | src/config/tuning.ts:207 (`cityStreets.borderDepth`) | City & Streets |
-| Shadow leaf fraction | 0.5 | fraction | Share of broadleaf leaves in shadow copies | src/config/tuning.ts:209 (`cityStreets.shadowLeafFraction`) | City & Streets / Scene & QA |
 | Street tree amount default | 1 | multiplier (slider 0-3, step 0.05) | Street tree count | src/config/tuning.ts:79 (`uiCamera.defaultStreetTreeMultiplier`); slider range 109-111 (`multiplierMax/Step`); slider src/ui/SettingsCity.tsx | UI & Camera / City & Streets |
 | Avenue tree rate | 1 | probability per slot | Trees along avenues | src/config/tuning.ts:177 (`cityStreets.treeRate.avenue`) | City & Streets |
-| Street tree rate | 0.35 | probability per slot | Trees along streets | src/config/tuning.ts:177 (`cityStreets.treeRate.street`) | City & Streets |
+| Street tree rate | 0.1 | probability per slot | Trees along streets | src/config/tuning.ts:177 (`cityStreets.treeRate.street`) | City & Streets |
 | Tree spacing | half of lamp spacing (9 m) | metres | Spacing of street trees | src/city/streetscape.ts:54 (`TREE_SPACING = LAMP_SPACING / 2`, derived from config) | City & Streets |
 | Plaza tree spacing / rate | 8 m / 0.7 | metres / probability | Trees in plazas | src/config/tuning.ts:185 (`cityStreets.plazaTreeSpacing`), 187 (`plazaTreeRate`) | City & Streets |
 | Courtyard trees | 2 to 6 | count | Trees per courtyard | src/config/tuning.ts:179 (`cityStreets.courtyardTreeMin`), 181 (`courtyardTreeMax`) | City & Streets |

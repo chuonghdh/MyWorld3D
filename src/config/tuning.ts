@@ -204,7 +204,7 @@ export const cityStreets = {
   /** Distance between street lamps along one sidewalk, metres (city/streetscape.ts). */
   streetLampSpacing: 18,
   /** Chance a street tree slot is planted per class at streetTreeMultiplier 1 (city/streetscape.ts). */
-  treeRate: { avenue: 1, street: 0.35 },
+  treeRate: { avenue: 1, street: 0.1 },
   /** Fewest trees per courtyard (city/streetscape.ts). */
   courtyardTreeMin: 2,
   /** Most trees per courtyard (city/streetscape.ts). */
@@ -235,8 +235,6 @@ export const cityStreets = {
   clusterExtra: 0.5,
   /** Width of the tree border belt from the town edge, metres (streets/natureTrees.ts). */
   borderDepth: 6,
-  /** Share of broadleaf leaves that cast shadows, fraction (streets/natureTrees.ts). */
-  shadowLeafFraction: 0.5,
 } as const;
 
 /** Traffic & Life: density, vehicle speeds and turns, walkers, life counts. */

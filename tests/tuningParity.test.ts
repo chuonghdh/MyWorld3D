@@ -87,12 +87,11 @@ const VALUES: Entry[] = [
   { id: 'tree scale config value equals city baseline', file: 'src/config/tuning.ts', name: 'treeScale', value: '1.35' },
   { id: 'cluster extra', file: CONFIG_FILE, name: 'clusterExtra', value: '0.5' },
   { id: 'border depth (city)', file: CONFIG_FILE, name: 'borderDepth', value: '6' },
-  { id: 'shadow leaf fraction (city)', file: CONFIG_FILE, name: 'shadowLeafFraction', value: '0.5' },
   { id: 'courtyard trees min', file: CONFIG_FILE, name: 'courtyardTreeMin', value: '2' },
   { id: 'courtyard trees max', file: CONFIG_FILE, name: 'courtyardTreeMax', value: '6' },
   { id: 'tree spacing', file: 'src/city/streetscape.ts', name: 'TREE_SPACING', value: 'LAMP_SPACING / 2' },
   { id: 'bench chance', file: CONFIG_FILE, name: 'benchChance', value: '0.6' },
-  { id: 'tree rate (avenue 1, street 0.35)', file: CONFIG_FILE, name: 'treeRate', value: '{ avenue: 1, street: 0.35 }' },
+  { id: 'tree rate (avenue 1, street 0.1)', file: CONFIG_FILE, name: 'treeRate', value: '{ avenue: 1, street: 0.1 }' },
   { id: 'traffic light timing', file: CONFIG_FILE, name: 'lightTiming', value: '{ cycleSeconds: 40, nsGreenSeconds: 16, ewGreenSeconds: 16, yellowSeconds: 2, allRedSeconds: 2 }' },
   { id: 'snow flake cap', file: CONFIG_FILE, name: 'maxSnowFlakes', value: '12000' },
 
@@ -321,7 +320,6 @@ const LAB_MIRROR: Entry[] = [
   { id: 'lab tree scale = city', file: LAB_FILE, name: 'treeScale', value: '1.35' },
   { id: 'lab cluster extra = city', file: LAB_FILE, name: 'clusterExtra', value: '0.5' },
   { id: 'lab border depth = city', file: LAB_FILE, name: 'borderDepth', value: '6' },
-  { id: 'lab shadow leaf fraction = city', file: LAB_FILE, name: 'shadowLeafFraction', value: '0.5' },
 ];
 
 /** Duplicate lists (plan section 3): each copy must equal the expected list. */
