@@ -91,7 +91,7 @@ export const uiCamera = {
   /** Whole-map framing margin on the town width (factor). */
   fitMargin: 1.06,
   /** Overview camera direction from the target (unnormalised: up, back). */
-  overviewDirection: [0, 1.75, 0.45] as const,
+  overviewDirection: [0, 2.45, 0.63] as const,
   /** Height of the invisible block-edit pick plane, metres (above every roof). */
   pickHeightM: 150,
   /** Height of block-edit decals above the ground, metres (over roofs, below the pick plane). */

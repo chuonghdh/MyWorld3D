@@ -13,6 +13,7 @@ source (osc / noise) -> Emitter.input (gain) -> distance lowpass -> PannerNode (
    -> category bus (GainNode) -> group gain -> zoom gain -> master -> limiter -> destination
 ```
 
+- Record tap (`recordTap.ts`): `getRecordStream()` lazily connects a `MediaStreamAudioDestinationNode` after the limiter. It carries the same mix as the speakers and adds no node to playback until first requested.
 - Limiter: `DynamicsCompressor` (threshold -9 dB, knee 6, ratio 12, attack 3 ms, release 0.25 s), so storm
   peaks compress instead of clipping.
 - Distance lowpass: about 18 kHz at 0 m, falling log-linearly to 1.2 kHz at 300 m, then flat (air absorption).

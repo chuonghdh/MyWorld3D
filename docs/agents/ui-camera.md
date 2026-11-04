@@ -63,3 +63,33 @@ Reviewed 2026-11-01 at 02b0cdc
 
 ## How to verify
 `npx vitest run tests/ui.test.ts tests/cameraRig.test.ts tests/selection.test.ts tests/store*.test.ts tests/errorBoundary.test.ts tests/layers.test.ts`, then `npx tsc --noEmit`. Visual checks in connected Chrome only (the built-in pane cannot paint frames).
+
+## Session 2026-11-04 (film camera plan)
+Plan only, no source edits, no commit. Status: proposed, not started. Owner decisions below are proposals for the lead to confirm.
+
+### Decisions (proposed)
+- **Camera button** goes in `ui/TimeBar.tsx` next to `PhotoButton` (desktop bar ~304-324, phone window `COUNT` at ~219). `TimeBar.tsx` is 325 lines: put the button and picker in a new `ui/FilmButton.tsx` and `ui/FilmPicker.tsx` so TimeBar stays under 350.
+- **Film state is transient** (`UiToggles`-style in `store/model.ts` ~82-91, default in `DEFAULT_TOGGLES` ~130). Not saved, so `io.ts` needs no change. Shape: `film: { mode: 'off' | 'manual' | 'auto', recording: boolean, filmTime: number }`. Only a persisted quality preset would need a default in `DEFAULT_SETTINGS` and a check in `parseSettings` (`io.ts` ~93). Decision: keep quality transient in v1.
+- **Film clock** lives in `core/runtime.ts` (`simTime` at ~27). While recording, the clock advances by a fixed step per rendered frame (`1 / filmFps`), not by wall time. `useTownFrame.ts:67-79` already computes `dt = paused ? 0 : frameDt`; add `film.recording ? filmStep : ...`. Then `simTime`, traffic, leaves and aircraft (`aircraft/schedule.ts`) run deterministically. `PostFX.tsx:103` uses its own `dt`; it must read the same clock or tilt-shift and bloom time drift.
+- **Pause button** is disabled while recording (the film clock is separate from `toggles.paused`). Auto time (`autoTime`) is switched off for the flight and the sun direction is sampled once at start.
+- **Manual film**: `CameraRig` stays in charge (OrbitControls, zoom to cursor, presets 1/2). While recording: block edit mode is locked (`BlockEditor.tsx`, `useBlockEdit.ts`), selection is cleared and blocked (`Selection.tsx`), and `Space` is ignored.
+- **Auto film**: new pure module `scene/filmPath.ts` (no DOM, testable) and a driver `scene/FilmRig.tsx` (new file in `src/scene`, owned by Scene & QA under README rule 2; agree the claim with the lead). `CameraRig.useFrame` (151-247) skips its orbit branch (225-238) and clip update when `film.mode === 'auto'`, the same way street mode already does (213-224). Orbit controls are disabled during the flight and re-enabled through a tween (`TWEEN_SECONDS`) on exit, so `maxPolarAngle` and `maxDistance` do not snap the view.
+- **Path**: `THREE.CatmullRomCurve3` (centripetal) for camera position and a second one for the look-at target. Arc-length sampling with `getPointAt`; speed profile is an ease-in-out on arc-length `u`, capped at `filmMaxSpeedMs`. Phases (fractions of `filmDurationS`): (1) high overview, (2) circle town, (3) circle cathedral (lot of `gothic-cathedral`, found the same way as `Town.tsx:163`), (4) descend along a deterministic street (`hashId(seed + 'film')` picks a segment from `StreetSegment[]` in `city/generate.ts` 348-367, filtered by length and clearance), (5) tilt up and fly toward the sun (`getSunDirection` `sun.ts:64`; `getNightMoonDirection` `sun.ts:82` at night), clamped inside `townBounds` (`generate.ts:203`), (6) return, (7) perch across from the cathedral entrance. Monument entrance faces +z (`buildings/monument.ts:3, 56`); the lot rotation must be applied (verify the field in `core/types.ts`).
+- **Altitude and bounds**: after sampling, `y = max(y, floor(x,z) + clearanceM)` where `floor` comes from layout roof heights. Orbit-target distance stays within `maxDistance` (600) and camera polar angle within `maxPolarAngle` for any point that could be handed back to CameraRig.
+- **Clip planes** in film: derive near from the distance to the nearest surface (camera height above ground for street passes), not from the look-at distance. `clipPlanes` (`cameraMath.ts` 47-53) uses the orbit target distance: near = 5% of it, so a 300 m look-at gives 15 m near and clips walls at the street. Far stays at least 1200 m.
+- **Recording**: canvas capture only (the DOM REC chip and time bar are not in the file). Use `MediaRecorder` on `canvas.captureStream(0)` and call `track.requestFrame()` after each deterministic frame, so no frame is dropped or duplicated. Read the canvas in the same frame, as `ScreenshotRequest.tsx` 3-7, 27-30 does (`preserveDrawingBuffer` is false). No new dependency in v1. WebCodecs (`VideoEncoder`) is the option for exact MP4 later.
+- **Input during auto film**: pointer, wheel and keys are ignored, and Esc / Stop ends the film and keeps the partial file. `visibilitychange` to hidden also stops it (the frame loop stops in a background tab).
+
+### Tuning (new section `filmCamera` in `src/config/tuning/`, re-exported by `index.ts`)
+Knobs only: `filmDurationS`, `filmFps`, quality presets (`{ bitrateBps, fps }` per draft / standard / high), `orbitAltitudeM`, `cathedralRadiusM`, `descentHeightM`, `cruiseHeightM`, `clearanceM`, `filmMaxSpeedMs`, `perchDistanceM`, phase weights. Geometry and the spline tension stay local. Each new knob: one line in `docs/TUNING.md` and an entry in `tests/tuningParity.test.ts` (fragment entries near lines 318-320).
+
+### Tests (planned)
+`tests/filmPath.test.ts` (vitest, node): no NaN for many seeds; endpoints equal the waypoints; every sample inside `townBounds` minus margin; `y >= floor + clearance`; step between samples <= `filmMaxSpeedMs * dt`; tangent continuity at waypoints; same seed and time give identical samples; sun below horizon picks the moon. `tests/cameraRig.test.ts` gets the film clip-plane case. `tests/store*.test.ts`: film state is not in `exportLayout`.
+
+### Open items
+- Scene & QA must agree to own `FilmRig.tsx`, `filmPath.ts`, and the `useTownFrame` and `PostFX` clock change.
+- Monument lookup when the cathedral was swapped or merged away: fall back to the largest monument, or to the centre?
+- Roof heights are not in the layout data; the clearance floor needs a height source (buildings or city).
+- Output resolution: canvas size is fixed during film; presets change only bitrate and fps unless a resize is accepted.
+- Phones: quality auto-lowers below 600 px; `MediaRecorder` support on iOS Safari to verify. Phone window needs `COUNT` 6.
+- Film duration default (proposal 90 s) and whether the file auto-downloads or asks.

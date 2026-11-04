@@ -1,9 +1,11 @@
 /** Audio: levels, ranges and intervals for animals, nature, rain, weather, vehicles, music. */
 export const audio = {
   /** Master volume at start, 0-1 (audio/bus.ts defaultVolumes). */
-  masterVolumeDefault: 0.8,
+  masterVolumeDefault: 0.4,
+  /** Per-category gain at start, 0-1, multiplies the category slider (audio/bus.ts defaultVolumes). Unlisted = 1. */
+  categoryDefaults: { engine: 0.5, horn: 0.5, indicator: 0.5, voice: 0.6, footstep: 0.45, dog: 0.8, cat: 0.8 },
   /** Mixer slider levels at start, whole percent 0-100 (ui/SoundMixer.tsx MIXER_DEFAULTS). */
-  mixerDefaults: { master: 80, effects: 100, nature: 100, music: 100 },
+  mixerDefaults: { master: 40, effects: 100, nature: 100, music: 100 },
   /** Camera height above which ground sounds (crickets) go silent, metres (audio/listener.ts AERIAL_HEIGHT_M). */
   aerialHeightM: 45,
   /** Crickets on or off (audio/nature.ts CRICKETS_ENABLED). */
@@ -51,7 +53,7 @@ export const audio = {
   /** Bus and truck air-brake level, gain (audio/vehicles.ts AIR_BRAKE_LEVEL). */
   airBrakeLevel: 0.4,
   /** Overall jet pass level, gain (audio/aircraft.ts JET_GAIN). */
-  jetGain: 0.55,
+  jetGain: 1,
   /** Generative music level, gain (audio/music.ts MUSIC_LEVEL). */
   musicLevel: 0.8,
   /** Music level while thunder ducks it, gain (audio/music.ts DUCK_LEVEL). */

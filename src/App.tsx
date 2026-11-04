@@ -4,7 +4,7 @@ import * as THREE from 'three';
 import { getCityLayout } from './city';
 import {
   BlockEditOverlay, BlockPanel, DEFAULT_HOUSE_BASE, EditModeChip, HelpOverlay, HousePanel, MonumentPanel, PanelFocusContext,
-  SettingsCity, TimeBar, isNarrowViewport, type CityAction, type PanelId,
+  SettingsCity, TimeBar, FilmRecChip, isNarrowViewport, type CityAction, type PanelId,
 } from './ui';
 import { rectCentre, useBlockEdit } from './ui/useBlockEdit';
 import { QUALITY_PRESETS, TREE_SPECIES, detectDevice, suggestQuality, useWorldStore, type OverrideTarget } from './store';
@@ -29,6 +29,8 @@ export function App() {
   // Choosing a house or monument opens its panel and folds the settings panel. On phones a block picked in block
   // mode keeps the map visible (the open panel would cover it and its + / - icons); the panel icon is in the top row.
   const select = useCallback((target: OverrideTarget | null) => {
+    // Selection is locked while a film is recorded.
+    if (useWorldStore.getState().toggles.filming) return;
     setSelected(target);
     const keepMap = target?.type === 'block' && useWorldStore.getState().editMode === 'block' && isNarrowViewport('(max-width: 600px)');
     if (target && !keepMap) setActivePanel('selection');
@@ -40,6 +42,10 @@ export function App() {
   const resetBlocks = useWorldStore((s) => s.resetBlocks);
   const resetHouses = useWorldStore((s) => s.resetHouses);
   const loadLayout = useWorldStore((s) => s.loadLayout);
+  // Starting a film drops the current selection so no panel or block outline is recorded by accident.
+  useEffect(() => {
+    if (toggles.filming) setSelected(null);
+  }, [toggles.filming]);
 
   const layout = getCityLayout(settings);
   const editMode = useWorldStore((s) => s.editMode);
@@ -181,6 +187,7 @@ export function App() {
       <div className="mw-topbar-host">
         <TimeBar />
       </div>
+      <FilmRecChip />
       <BlockEditOverlay
         at={blockEdit.rect ? rectCentre(blockEdit.rect) : null}
         canGrow={blockEdit.suggestions.length > 0}

@@ -6,6 +6,7 @@ import { AudioBus, type Category, type Group, type PartialVolumes, type VolumeSe
 import type { AudioFrame, SoundSystem, AudioVehicleClass } from './frame';
 import { SOUND_SYSTEM_FACTORIES } from './systems';
 import { AERIAL_HEIGHT_M } from './listener';
+import { createRecordTap, type RecordTap } from './recordTap';
 
 export type VehicleClass = AudioVehicleClass;
 export type { AudioFrame, SoundSystem, SoundSystemFactory } from './frame';
@@ -22,6 +23,8 @@ type AudioWindow = {
 let ctx: AudioContext | null = null;
 let bus: AudioBus | null = null;
 let systems: SoundSystem[] = [];
+let limiterNode: DynamicsCompressorNode | null = null;
+let tap: RecordTap | null = null;
 let soundEnabled = true;
 /** Volumes requested before init() (or kept across it); applied to the bus on creation. */
 const volumes: VolumeSettings = defaultVolumes();
@@ -69,6 +72,7 @@ export function init(): boolean {
   b.setSoundMuted(!soundEnabled);
   ctx = context;
   bus = b;
+  limiterNode = limiter;
 
   systems = [];
   for (const make of SOUND_SYSTEM_FACTORIES) {
@@ -165,6 +169,16 @@ export function getGroupVolumes(): VolumeSettings {
   };
 }
 
+/**
+ * The mix as a live MediaStream (the limiter output, so volumes, Sound and Music switches apply). Created on the
+ * first call; null before init() or after dispose(), or when the browser has no MediaStream destination.
+ */
+export function getRecordStream(): MediaStream | null {
+  if (!ctx || !limiterNode) return null;
+  if (!tap) tap = createRecordTap(ctx, limiterNode);
+  return tap ? tap.stream : null;
+}
+
 /** Releases the audio context. Use when the scene unmounts. */
 export function dispose(): void {
   for (const s of systems) {
@@ -175,6 +189,9 @@ export function dispose(): void {
     }
   }
   systems = [];
+  tap?.dispose();
+  tap = null;
+  limiterNode = null;
   bus?.dispose();
   bus = null;
   if (ctx) void ctx.close();

@@ -1,0 +1,159 @@
+/* Film picker and REC chip (ui/FilmPicker.tsx, ui/FilmRecChip.tsx). Opaque panels: the video never sees them. */
+.mw-film-picker {
+  position: fixed;
+  top: 64px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 60;
+  width: min(330px, calc(100vw - 32px));
+  box-sizing: border-box;
+  padding: 14px 16px;
+  background: #1c1816;
+  color: var(--mw-fg);
+  border: 1px solid var(--mw-line);
+  border-radius: 14px;
+  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.45);
+  font: 13px/1.4 system-ui, -apple-system, 'Segoe UI', sans-serif;
+}
+.mw-film-picker h2 {
+  margin: 0 0 4px;
+  font-size: 15px;
+  font-weight: 600;
+}
+.mw-film-picker p {
+  margin: 0 0 12px;
+  color: var(--mw-muted);
+}
+.mw-film-row {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-bottom: 12px;
+}
+.mw-film-row label,
+.mw-film-row .mw-film-label {
+  display: flex;
+  justify-content: space-between;
+  color: var(--mw-muted);
+}
+.mw-film-picker input[type='range'] {
+  width: 100%;
+  accent-color: var(--mw-accent);
+}
+.mw-film-picker select {
+  min-height: 44px;
+  padding: 0 10px;
+  background: #1c1816;
+  color: var(--mw-fg);
+  border: 1px solid var(--mw-line);
+  border-radius: 8px;
+  color-scheme: dark;
+}
+.mw-film-error {
+  margin: 0 0 10px;
+  color: #f0a27a;
+}
+.mw-film-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+}
+.mw-film-actions button {
+  min-height: 44px;
+  min-width: 96px;
+  padding: 0 14px;
+  border-radius: 10px;
+  border: 1px solid var(--mw-line);
+  background: var(--mw-btn);
+  color: var(--mw-fg);
+  font: inherit;
+  cursor: pointer;
+}
+.mw-film-actions .mw-film-start {
+  background: var(--mw-accent);
+  border-color: transparent;
+  color: #1c1816;
+  font-weight: 600;
+}
+
+.mw-rec-chip {
+  position: fixed;
+  top: 64px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 55;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 6px 8px 6px 12px;
+  background: #1c1816;
+  color: var(--mw-fg);
+  border: 1px solid var(--mw-line);
+  border-radius: 999px;
+  font: 13px/1 system-ui, -apple-system, 'Segoe UI', sans-serif;
+  font-variant-numeric: tabular-nums;
+}
+.mw-rec-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: #e5484d;
+}
+.mw-rec-chip.is-live .mw-rec-dot {
+  animation: mw-rec-blink 1.2s steps(2, start) infinite;
+}
+@keyframes mw-rec-blink {
+  to {
+    opacity: 0.2;
+  }
+}
+.mw-rec-chip button {
+  min-height: 32px;
+  padding: 0 12px;
+  border-radius: 999px;
+  border: 1px solid var(--mw-line);
+  background: var(--mw-btn);
+  color: var(--mw-fg);
+  font: inherit;
+  cursor: pointer;
+}
+@media (prefers-reduced-motion: reduce) {
+  .mw-rec-chip.is-live .mw-rec-dot {
+    animation: none;
+  }
+}
+/* While a film records: only the 3D view (camera move and rotate) and the REC chip stay on screen. Restored on stop. */
+html.mw-filming .mw-topbar-host,
+html.mw-filming .mw-blockedit,
+html.mw-filming .mw-mode-chip,
+html.mw-filming .mw-left-panel,
+html.mw-filming .mw-right-panel,
+html.mw-filming .mw-help-backdrop,
+html.mw-filming .mw-help {
+  display: none !important;
+}
+.mw-film-fields {
+  margin: 0;
+  padding: 0;
+  border: 0;
+  min-width: 0;
+}
+.mw-film-fields:disabled {
+  opacity: 0.45;
+}
+.mw-film-actions button:disabled {
+  opacity: 0.45;
+  cursor: default;
+}
+@media (max-width: 600px) {
+  .mw-film-picker {
+    top: auto;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    width: auto;
+    transform: none;
+    border-radius: 14px 14px 0 0;
+    padding-bottom: calc(16px + env(safe-area-inset-bottom));
+  }
+}

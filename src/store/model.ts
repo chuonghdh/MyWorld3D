@@ -88,6 +88,8 @@ export interface UiToggles {
   paused: boolean;
   /** Time of day advances by itself: one in-app day lasts DAY_SECONDS real seconds. */
   autoTime: boolean;
+  /** A film is being recorded: block edit and selection are locked. Not saved. */
+  filming: boolean;
 }
 
 /** Real seconds one in-app day lasts in auto time (24 minutes: one in-app hour per real minute). */
@@ -127,4 +129,4 @@ export function createEmptyLayout(seed: number = DEFAULT_SETTINGS.seed): LayoutD
   };
 }
 
-export const DEFAULT_TOGGLES: UiToggles = { tiltShift: false, moveBlocks: false, music: false, paused: false, autoTime: false };
+export const DEFAULT_TOGGLES: UiToggles = { tiltShift: false, moveBlocks: false, music: false, paused: false, autoTime: false, filming: false };

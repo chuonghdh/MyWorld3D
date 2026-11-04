@@ -73,8 +73,8 @@ describe('whole map framing', () => {
   it('without a panel equals the old framing', () => {
     const f = wholeMapFraming({ ...base, rightInset: 0 });
     expect(f.position[0]).toBe(0);
-    expect(f.position[1]).toBeCloseTo(500 * 1.75, 6);
-    expect(f.position[2]).toBeCloseTo(500 * 0.45, 6);
+    expect(f.position[1]).toBeCloseTo(500 * 2.45, 6);
+    expect(f.position[2]).toBeCloseTo(500 * 0.63, 6);
     expect(f.target).toEqual([0, 0, 0]);
   });
   it('keeps the town left of the panel', () => {

@@ -13,7 +13,7 @@ import {
   contrailTint,
   createContrailRibbon,
 } from './contrail';
-import { SLOTS, flightActive, flightPose, flightsForDay, newPose, type Flight } from './schedule';
+import { SLOTS, flightActive, flightPose, flightsForDay, introFlight, newPose, type Flight } from './schedule';
 import type { AudioAircraft } from '../audio/frame';
 import { DAY_SECONDS } from '../store/model';
 
@@ -172,8 +172,12 @@ export function createAircraft(opts: { seed: number; centerX?: number; centerZ?:
 
   let currentDay = Number.NaN;
   let days: Flight[][] = [[], []];
+  // Every flight source the loops read: yesterday, today, and the opening flight (set on the first update).
+  const lists: Flight[][] = [[], [], []];
+  let introSet = false;
   // Per slot: id of the flight being trailed, next sample time and whether `prev` holds a point.
-  const slotFlight = new Float64Array(SLOTS).fill(-1);
+  // -Infinity = no flight (the opening flight has a negative id).
+  const slotFlight = new Float64Array(SLOTS).fill(-Infinity);
   const slotNext = new Float64Array(SLOTS);
   const slotHas = new Uint8Array(SLOTS);
   const slotPrev = new Float64Array(SLOTS * 4);
@@ -188,7 +192,25 @@ export function createAircraft(opts: { seed: number; centerX?: number; centerZ?:
 
   const loadDays = (day: number): void => {
     days = [flightsForDay(seed, day - 1, cx, cz), flightsForDay(seed, day, cx, cz)];
+    lists[0] = days[0];
+    lists[1] = days[1];
     currentDay = day;
+  };
+
+  // The opening flight takes the first trail slot with no scheduled flight near its time, so slots never share.
+  const pickIntroSlot = (t0: number): number => {
+    const probe = introFlight(seed, t0, 0, cx, cz);
+    const end = probe.start + probe.duration + CONTRAIL_LIFE;
+    for (let s = 0; s < SLOTS; s++) {
+      let busy = false;
+      for (let li = 0; li < 2 && !busy; li++) {
+        for (const f of lists[li]) {
+          if (f.slot === s && f.start < end && f.start + f.duration > t0 - CONTRAIL_LIFE) busy = true;
+        }
+      }
+      if (!busy) return s;
+    }
+    return 0;
   };
 
   const sample = (f: Flight, tt: number, out: typeof prev): void => {
@@ -201,8 +223,8 @@ export function createAircraft(opts: { seed: number; centerX?: number; centerZ?:
   };
 
   const advanceTrails = (t: number, strength: number): void => {
-    for (let li = 0; li < days.length; li++) {
-      const list = days[li];
+    for (let li = 0; li < lists.length; li++) {
+      const list = lists[li];
       for (let i = 0; i < list.length; i++) {
         const f = list[i];
         const s = f.slot;
@@ -245,11 +267,15 @@ export function createAircraft(opts: { seed: number; centerX?: number; centerZ?:
     update(t, dt, env) {
       const day = Math.floor(t / DAY_SECONDS);
       if (day !== currentDay) loadDays(day);
+      if (!introSet && Number.isFinite(t)) {
+        introSet = true;
+        lists[2] = [introFlight(seed, t, pickIntroSlot(t), cx, cz)];
+      }
       const moved = dt > 0 && t !== lastT;
       if (Number.isFinite(lastT) && t < lastT) {
         // Time ran backwards (a reset or scrub): forget every trail.
         ribbon.clear();
-        slotFlight.fill(-1);
+        slotFlight.fill(-Infinity);
         slotHas.fill(0);
       }
       lastT = t;
@@ -260,8 +286,8 @@ export function createAircraft(opts: { seed: number; centerX?: number; centerZ?:
       // Aircraft instances.
       active = 0;
       slotActive.fill(0);
-      for (let li = 0; li < days.length; li++) {
-        const list = days[li];
+      for (let li = 0; li < lists.length; li++) {
+        const list = lists[li];
         for (let i = 0; i < list.length; i++) {
           const f = list[i];
           if (!flightActive(f, t)) continue;

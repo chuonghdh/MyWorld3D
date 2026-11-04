@@ -71,3 +71,13 @@ Last smoke test: passed on 2026-10-29 (page title MyWorld3D, one canvas, WebGL o
 - `tests/budget.test.ts` builds every monument block of the seeded town (seed 1 has one: swimming-pool, about 4.9k shadow triangles) and counts ALL monument bodies as shadow casters, although the real render stops monster shadows in useTownPieces.ts. So the test is conservative for monuments: real shadow pass = test total minus the monuments that do not cast. Its numbers now: main 1,582,611; shadow 592,995; draw calls 132.
 - Config split: `src/config/tuning/` (one file per section, `index.ts` re-exports). `tests/tuningParity.test.ts` reads the folder as one text (`source('src/config/tuning.ts')` maps to it).
 - Pre-existing failures on dev 86f0c15, not from this work: three tests fail on dev too: blockMerge default-town hash, blockMerge invalid group, and the city streetTreeMultiplier superset at `tests/city.test.ts:106`. Do not attribute them to monuments or the config split.
+
+## Film recorder P1 (branch feature_video_camera, 2026-11-04)
+- `src/film/recorder.ts`: `startRecording` (canvas.captureStream + MediaRecorder, optional audio tracks), `downloadBlob`, `isRecordingSupported`. Pure helpers `mimeCandidates`, `pickMimeType`, `filmExtension`, `filmFileName` are unit-tested in `tests/film/recorder.test.ts`.
+- MIME order: mp4 avc1 (+mp4a when audio), webm vp9, webm. Filename `myworld3d-film-<ISO>.mp4|webm`.
+- Knob: `film.videoBitrate1080` (`src/config/tuning/film.ts`), the MediaRecorder bitrate. 4K was dropped by the user. fps is a caller argument.
+- `startRecording` throws when canvas size differs from `width`/`height`. Size is driven by `src/film/resizeBridge.ts`: `applyFilmSize` sets the GL buffer (pixel ratio 1), camera aspect and composer; `restoreFilmSize` undoes it. PostFX registers the root via `registerFilmRoot`. Idempotent, HMR-disposed. `filmSession.ts` applies before recording and restores after the file is saved or on cancel.
+- While filming, the bridge wraps `gl.setSize` / `gl.setPixelRatio` on the instance (guard). R3F's window-resize calls are held: the film buffer stays, the window size and pixel ratio are remembered and applied on restore. The canvas is letterboxed (`fitInside`) to the film aspect so the preview is not distorted.
+- Bridge limits: pointer mapping uses R3F's window size, so clicks on the letterboxed view can be off (selection is locked while filming).
+- Audio tracks are caller-owned and not stopped; only the canvas capture track is stopped on end.
+- Open: bitrate values are first guesses; sharpness and file size check belong to P6. No real recording verified in the built-in pane.

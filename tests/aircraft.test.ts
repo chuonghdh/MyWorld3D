@@ -21,6 +21,7 @@ import {
   flightActive,
   flightPose,
   flightsForDay,
+  introFlight,
   newPose,
   liveryFor,
   LIVERIES,
@@ -260,16 +261,31 @@ describe('contrail weather', () => {
 describe('aircraft system', () => {
   const firstFlight = flightsForDay(11, 0)[0];
 
-  it('spawns nothing while paused (dt = 0) and nothing before the first flight', () => {
+  it('opens with one flight at the first update, and spawns nothing while paused (dt = 0)', () => {
     const a = createAircraft({ seed: 11 });
     a.update(firstFlight.start - 10, 0.016, env());
-    expect(a.activeCount()).toBe(0);
+    // The opening flight starts at the first update (the schedule may also have a flight in the air here).
+    expect(a.activeCount()).toBeGreaterThanOrEqual(1);
     // Paused inside the flight window: the clock does not move, so no trail samples are written.
     const ribbon = a.group.children[1] as THREE.Mesh;
     const before = (ribbon.geometry.getAttribute('aBirth') as THREE.BufferAttribute).array.slice();
     a.update(firstFlight.start + 5, 0, env());
     const after = (ribbon.geometry.getAttribute('aBirth') as THREE.BufferAttribute).array;
     expect(Array.from(after)).toEqual(Array.from(before));
+    a.dispose();
+  });
+
+  it('opening flight: starts at the first update, crosses the town at cruise height, is not repeated', () => {
+    const t0 = 5000;
+    const f = introFlight(11, t0, 0);
+    expect(f.start).toBe(t0);
+    expect(f.speed).toBeGreaterThanOrEqual(SPEED_MIN);
+    expect(f.speed).toBeLessThanOrEqual(SPEED_MAX);
+    expect(f.altitude).toBeGreaterThanOrEqual(ALTITUDE_MIN);
+    expect(f.altitude).toBeLessThanOrEqual(ALTITUDE_MAX);
+    const a = createAircraft({ seed: 11 });
+    a.update(t0, 0.016, env());
+    expect(a.activeCount()).toBeGreaterThanOrEqual(1);
     a.dispose();
   });
 
@@ -282,7 +298,8 @@ describe('aircraft system', () => {
       t += 0.1;
       a.update(t, 0.1, env());
     }
-    expect(a.activeCount()).toBe(1);
+    // The opening flight and the schedule's first flight may both be in the air here.
+    expect(a.activeCount()).toBeGreaterThanOrEqual(1);
     const births = (ribbon.geometry.getAttribute('aBirth') as THREE.BufferAttribute).array;
     let written = 0;
     for (let i = 0; i < births.length; i++) if (births[i] > 0) written++;
@@ -300,7 +317,7 @@ describe('aircraft system', () => {
       t += 0.1;
       a.update(t, 0.1, rain);
     }
-    expect(a.activeCount()).toBe(1);
+    expect(a.activeCount()).toBeGreaterThanOrEqual(1);
     const births = (ribbon.geometry.getAttribute('aBirth') as THREE.BufferAttribute).array;
     expect(Math.max(...births)).toBeLessThan(0);
     a.dispose();

@@ -8,6 +8,7 @@ import { createPortal } from 'react-dom';
 import { useWorldStore } from '../store';
 import { runtime } from '../scene/runtime';
 import { isNarrowViewport } from './uiUtils';
+import { FilmButton } from './FilmButton';
 
 /** Width of one control in the phone window, and how many show at once. */
 const PHONE_SLOT_PX = 44;
@@ -215,8 +216,8 @@ function PhotoButton() {
  * row two is the clock. The controls are the same buttons as on desktop.
  */
 function PhoneTimeBar({ timeOfDay }: { timeOfDay: number }) {
-  // Controls in order: pause, auto, map, street, photo (the view switch contributes its two buttons).
-  const COUNT = 5;
+  // Controls in order: pause, auto, map, street, photo, film (the view switch contributes its two buttons).
+  const COUNT = 6;
   const maxStart = COUNT - PHONE_VISIBLE;
   const [start, setStart] = useState(0);
   const drag = useRef<number | null>(null);
@@ -252,6 +253,7 @@ function PhoneTimeBar({ timeOfDay }: { timeOfDay: number }) {
             <AutoButton />
             <ViewSwitch />
             <PhotoButton />
+            <FilmButton />
           </div>
         </div>
         <button
@@ -311,6 +313,7 @@ export function TimeBar() {
       </div>
       <ViewSwitch />
       <PhotoButton />
+      <FilmButton />
       <button
         type="button"
         className="mw-timebar-btn mw-timebar-fold"

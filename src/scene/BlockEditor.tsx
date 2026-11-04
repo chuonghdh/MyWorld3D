@@ -74,7 +74,10 @@ export interface BlockEditorProps {
   onApplySuggestion: (index: number) => void;
 }
 
-export function BlockEditor({ layout, pickEnabled, selectedRect, suggestionRects, onTapGround, onApplySuggestion }: BlockEditorProps) {
+export function BlockEditor({ layout, pickEnabled: pickAllowed, selectedRect, suggestionRects, onTapGround, onApplySuggestion }: BlockEditorProps) {
+  // Picking stops while a film is recorded: the picture must not change under the recorder.
+  const filming = useWorldStore((s) => s.toggles.filming);
+  const pickEnabled = pickAllowed && !filming;
   const camera = useThree((s) => s.camera);
   const gl = useThree((s) => s.gl);
   const lastMode = useRef<string>('');

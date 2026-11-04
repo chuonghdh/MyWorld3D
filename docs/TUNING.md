@@ -184,7 +184,8 @@ Base counts are scaled by the graphics tier: factor low 0.4, medium 0.7, high 1 
 | Gust attack / decay | 0.6 s / 3 s | seconds | Gust timing | src/environment/wind.ts:28, 30 (`GUST_ATTACK_S`, `GUST_DECAY_TAU_S`, stay in code) | Sky & Environment |
 | Turbulence amplitude | 0.25 | fraction | Wind turbulence | src/environment/wind.ts:32 (`TURBULENCE_AMPLITUDE`, stays in code) | Sky & Environment |
 | Aircraft flights per day | 24 | flights | Scheduled flights | src/aircraft/schedule.ts:26-27 (`FLIGHTS_PER_DAY_MIN/MAX`, stay in code) | Sky & Environment |
-| Aircraft speed | 40 to 90 | m/s | Flight speed range | src/aircraft/schedule.ts:18-19 (`SPEED_MIN/MAX`, stay in code) | Sky & Environment |
+| Opening flight tilt | 8 | degrees | Diagonal of the opening aircraft across the view | src/config/tuning/skyEnvironment.ts (`skyEnvironment.aircraft.introTiltDeg`) | Sky & Environment |
+| Aircraft speed | 22.4 to 50.4 | m/s | Flight speed range | src/aircraft/schedule.ts:18-19 (`SPEED_MIN/MAX`, stay in code) | Sky & Environment |
 | Aircraft altitude max | min(300, camera limit - 100) | metres | Max flight altitude | src/aircraft/schedule.ts:16 (`ALTITUDE_MAX`, stays in code) | Sky & Environment |
 | Aircraft spawn radius | 900 to 1020 | metres | Distance where flights appear | src/aircraft/schedule.ts:21-22 (`SPAWN_RADIUS_MIN/MAX`, stay in code) | Sky & Environment |
 
@@ -194,8 +195,9 @@ Master and category defaults are set in the mixer; category list is in `src/audi
 
 | Parameter | Current value | Unit/range | What it controls | File:line (constant) | Owner |
 |---|---|---|---|---|---|
-| Mixer default: master | 80 | 0-100 | Master volume at start | src/config/tuning/audio.ts (`audio.mixerDefaults.master`); used by src/ui/SoundMixer.tsx | Audio |
+| Mixer default: master | 40 | 0-100 | Master volume at start | src/config/tuning/audio.ts (`audio.mixerDefaults.master`); used by src/ui/SoundMixer.tsx | Audio |
 | Mixer default: effects, nature, music | 100 each | 0-100 | Group volumes at start | src/config/tuning/audio.ts (`audio.mixerDefaults`) | Audio |
+| Category gain at start | engine, horn, indicator 0.5; voice 0.6; footstep 0.45; dog, cat 0.8; others 1 | 0-1 | Per-category level at start (quieter close-range sources) | src/config/tuning/audio.ts (`audio.categoryDefaults`), used by src/audio/bus.ts defaultVolumes | Audio |
 | Mixer slider range | 0-100 step 1 | 0-100 | Slider limits | src/ui/SoundMixer.tsx:179-181, 202-204 (stay in code) | Audio |
 | Mixer storage keys | myworld3d.mixer.v1 | key | Saved mixer settings | src/ui/SoundMixer.tsx:17 (`MIXER_STORAGE_KEY`, stays in code) | Audio |
 | Mixer smoothing | 0.03 | seconds | Volume smoothing | src/audio/bus.ts:95 (`SMOOTH_S`, stays in code) | Audio |
@@ -228,7 +230,7 @@ Master and category defaults are set in the mixer; category list is in `src/audi
 | Vehicle engine voices | 8 | voices | Max simultaneous engine sounds | src/audio/vehicles.ts:27 (`ENGINE_VOICES`, stays in code) | Audio |
 | Vehicle horn distance | 220 | metres | Horn audible range | src/audio/vehicles.ts:33 (`HORN_MAX_DISTANCE`, stays in code) | Audio |
 | Air brake level | 0.4 | gain | Air brake volume | src/config/tuning/audio.ts (`audio.airBrakeLevel`) | Audio |
-| Aircraft gain | 0.55 | gain | Jet volume | src/config/tuning/audio.ts (`audio.jetGain`) | Audio |
+| Aircraft gain | 1 | gain | Jet volume | src/config/tuning/audio.ts (`audio.jetGain`) | Audio |
 | Aircraft fade | in 3 s, out 2.5 s | seconds | Aircraft sound fades | src/audio/aircraft.ts:17-18 (stay in code) | Audio |
 
 ## 7. Buildings and city
@@ -305,6 +307,17 @@ Master and category defaults are set in the mixer; category list is in `src/audi
 | Budget: draw calls | max 140 | draw calls | Test threshold | tests/budget.test.ts (assertion, not a knob) | Scene & QA / Architect |
 
 Test thresholds: change only when the scene change is intended. Raising a budget needs a user decision (see the comments in tests/budget.test.ts).
+
+## 11. Film camera (video P1)
+
+| Parameter | Current value | Unit/range | What it controls | File:line (constant) | Owner |
+|---|---|---|---|---|---|
+| Film frame rate | 30 | fps | Frame rate of the recorded video | src/config/tuning/film.ts (`film.fps`) | UI & Camera |
+| Manual default length | 30 | s | Length preselected in the film picker | src/config/tuning/film.ts (`film.manualDefaultSeconds`) | UI & Camera |
+| Manual shortest length | 1 | s | Lower limit of the length slider | src/config/tuning/film.ts (`film.manualMinSeconds`) | UI & Camera |
+| Manual longest length | 60 | s | Upper limit; the take stops by itself here | src/config/tuning/film.ts (`film.manualMaxSeconds`) | UI & Camera |
+| Full HD size | 1920 x 1080 | px | Output size of the Full HD choice | src/config/tuning/film.ts (`film.width1080`, `film.height1080`) | UI & Camera |
+| Video bitrate | 12,000,000 | bits per second | MediaRecorder bitrate of the recorded film (1920 x 1080 output) | src/config/tuning/film.ts (`film.videoBitrate1080`) | Scene & QA |
 
 ## Not yet tunable (hardcoded)
 

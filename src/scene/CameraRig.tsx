@@ -172,7 +172,9 @@ export function CameraRig() {
       if (raycaster.current.ray.intersectPlane(GROUND, hit)) startStreetAt(hit.x, hit.z);
     }
     // Overview: shift the picture so the town centre sits in the free area left of the settings panel.
-    if (overviewOn.current) {
+    // Filming hides the panels: the film is centred on the whole town (no offset); the offset returns when it ends.
+    const filming = useWorldStore.getState().toggles.filming;
+    if (overviewOn.current && !filming) {
       const w = gl.domElement.clientWidth;
       const h = gl.domElement.clientHeight;
       const shift = measureRightInset() / 2;

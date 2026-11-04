@@ -12,6 +12,7 @@ import { OutputPass } from 'three/examples/jsm/postprocessing/OutputPass.js';
 import { HorizontalTiltShiftShader } from 'three/examples/jsm/shaders/HorizontalTiltShiftShader.js';
 import { VerticalTiltShiftShader } from 'three/examples/jsm/shaders/VerticalTiltShiftShader.js';
 import { sceneQa } from '../config/tuning';
+import { registerFilmRoot } from '../film/resizeBridge';
 
 /**
  * Clamps the HDR scene colour and replaces NaN before the bloom blur. One bad pixel in a half-float
@@ -98,6 +99,17 @@ export function PostFX({
   }, [fx, tiltShift, night, bloomScale]);
 
   useEffect(() => () => fx.composer.dispose(), [fx]);
+
+  // Film recording resizes the GL buffer, camera aspect and composer through this root.
+  useEffect(() => {
+    registerFilmRoot({
+      gl,
+      // Duck-typed: an instanceof check can miss the scene camera and then the film aspect is never applied (squashed frame).
+      camera: 'aspect' in camera && 'updateProjectionMatrix' in camera ? (camera as THREE.PerspectiveCamera) : null,
+      composer: fx.composer,
+    });
+    return () => registerFilmRoot(null);
+  }, [gl, camera, fx]);
 
   // Priority 1 takes over rendering from R3F's default render loop.
   useFrame((_, dt) => {

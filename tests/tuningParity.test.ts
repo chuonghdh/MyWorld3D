@@ -137,8 +137,8 @@ const VALUES: Entry[] = [
   { id: 'turbulence amplitude', file: 'src/environment/wind.ts', name: 'TURBULENCE_AMPLITUDE', value: '0.25' },
   { id: 'flights per day min', file: 'src/aircraft/schedule.ts', name: 'FLIGHTS_PER_DAY_MIN', value: '24' },
   { id: 'flights per day max', file: 'src/aircraft/schedule.ts', name: 'FLIGHTS_PER_DAY_MAX', value: '24' },
-  { id: 'aircraft speed min', file: 'src/aircraft/schedule.ts', name: 'SPEED_MIN', value: '40' },
-  { id: 'aircraft speed max', file: 'src/aircraft/schedule.ts', name: 'SPEED_MAX', value: '90' },
+  { id: 'aircraft speed min', file: 'src/aircraft/schedule.ts', name: 'SPEED_MIN', value: '22.4' },
+  { id: 'aircraft speed max', file: 'src/aircraft/schedule.ts', name: 'SPEED_MAX', value: '50.4' },
   { id: 'aircraft altitude max', file: 'src/aircraft/schedule.ts', name: 'ALTITUDE_MAX', value: 'Math.min(300, MAX_CAMERA_HEIGHT - CAMERA_SAFETY_MARGIN)' },
   { id: 'aircraft spawn radius min', file: 'src/aircraft/schedule.ts', name: 'SPAWN_RADIUS_MIN', value: '900' },
   { id: 'aircraft spawn radius max', file: 'src/aircraft/schedule.ts', name: 'SPAWN_RADIUS_MAX', value: '1020' },
@@ -198,9 +198,9 @@ const VALUES: Entry[] = [
   { id: 'horn max distance', file: 'src/audio/vehicles.ts', name: 'HORN_MAX_DISTANCE', value: '220' },
   { id: 'horn max concurrent (not exported)', file: 'src/audio/vehicles.ts', name: 'HORN_MAX_CONCURRENT', value: '4' },
   { id: 'air brake level', file: CONFIG_FILE, name: 'airBrakeLevel', value: '0.4' },
-  { id: 'jet gain', file: CONFIG_FILE, name: 'jetGain', value: '0.55' },
-  { id: 'master volume default', file: CONFIG_FILE, name: 'masterVolumeDefault', value: '0.8' },
-  { id: 'mixer defaults', file: CONFIG_FILE, name: 'mixerDefaults', value: '{ master: 80, effects: 100, nature: 100, music: 100 }' },
+  { id: 'jet gain', file: CONFIG_FILE, name: 'jetGain', value: '1' },
+  { id: 'master volume default', file: CONFIG_FILE, name: 'masterVolumeDefault', value: '0.4' },
+  { id: 'mixer defaults', file: CONFIG_FILE, name: 'mixerDefaults', value: '{ master: 40, effects: 100, nature: 100, music: 100 }' },
   { id: 'cricket summer density', file: CONFIG_FILE, name: 'cricketSummerDensity', value: '1' },
   { id: 'cricket autumn density', file: CONFIG_FILE, name: 'cricketAutumnDensity', value: '0.5' },
 
@@ -299,12 +299,14 @@ const FRAGMENTS: Has[] = [
   { id: 'night bloom radius', file: 'src/scene/PostFX.tsx', fragment: 'fx.bloom.radius = night ? nb.radiusNight : nb.radiusDay;' },
   { id: 'cloud count in scene (value now in config)', file: 'src/config/tuning.ts', fragment: 'sceneCount: 10,' },
   { id: 'cloud count in scene (Town.tsx reads config)', file: 'src/scene/Town.tsx', fragment: 'count: skyEnvironment.clouds.sceneCount, seed: settings.seed' },
+  { id: 'aircraft opening tilt reads config', file: 'src/aircraft/schedule.ts', fragment: 'skyEnvironment.aircraft.introTiltDeg' },
   { id: 'rain cap by kind (rain 0.75, storm 1)', file: 'src/weather/weatherState.ts', fragment: 'skyEnvironment.weather.rainCapRain' },
   { id: 'snow cover ramp', file: 'src/weather/weatherState.ts', fragment: 'Math.min(1, 0.25 + 0.9 * i)' },
   { id: 'weather ease table', file: 'src/weather/weatherState.ts', fragment: 'snowCover: [18, 25]' },
   { id: 'fog colours', file: 'src/weather/fog.ts', fragment: "GREY_FOG = new THREE.Color('#aeb4bb')" },
   { id: 'cricket season factor reads config', file: 'src/audio/nature.ts', fragment: "season === 'summer' ? audioTuning.cricketSummerDensity : season === 'autumn' ? audioTuning.cricketAutumnDensity : 0" },
   { id: 'bus master default reads config', file: 'src/audio/bus.ts', fragment: 'master: audioTuning.masterVolumeDefault' },
+  { id: 'bus category defaults read config', file: 'src/audio/bus.ts', fragment: 'audioTuning.categoryDefaults' },
   { id: 'mixer defaults read config', file: 'src/ui/SoundMixer.tsx', fragment: 'MIXER_DEFAULTS: MixerSettings = audioTuning.mixerDefaults' },
   { id: 'golden glow curve', file: 'src/sky/state.ts', fragment: 'smoothstep(14, 5, alt) * smoothstep(-6, 0, alt)' },
   { id: 'golden phase threshold (6 deg)', file: 'src/environment/sun.ts', fragment: 'if (altDeg < 6) return' },
@@ -316,7 +318,7 @@ const FRAGMENTS: Has[] = [
   { id: 'lightning gap formula', file: 'src/weather/Lightning.ts', fragment: '6 - 3.5' },
   { id: 'autumn leaves rest (LEAF_REST_SECONDS used)', file: 'src/environment/leaves.ts', fragment: 'LEAF_REST_SECONDS' },
   { id: 'store defaults read from config uiCamera', file: 'src/store/model.ts', fragment: 'seed: uiCamera.defaultSeed' },
-  { id: 'overview direction (tuple, fragment check)', file: CONFIG_FILE, fragment: 'overviewDirection: [0, 1.75, 0.45]' },
+  { id: 'overview direction (tuple, fragment check)', file: CONFIG_FILE, fragment: 'overviewDirection: [0, 2.45, 0.63]' },
   { id: 'aircraft ceiling reads config maxDistance', file: 'src/aircraft/schedule.ts', fragment: 'MAX_CAMERA_HEIGHT = uiCamera.maxDistance' },
 ];
 
@@ -474,6 +476,30 @@ describe('monument knobs in config (public buildings review, A1)', () => {
   });
   it.each(MONUMENT_KNOBS.map((e) => [e.name, e] as const))('code reads config: %s', (_name, e) => {
     expect(norm(source(e.file))).toContain(`buildings.${e.name}`);
+  });
+});
+
+/** Film camera knobs (video P1): config value, and the feature code reads the config object. */
+const FILM_FILE = 'src/config/tuning/film.ts';
+const FILM_KNOBS: Entry[] = [
+  { id: 'film fps', file: FILM_FILE, name: 'fps', value: '30' },
+  { id: 'film manual default length', file: FILM_FILE, name: 'manualDefaultSeconds', value: '30' },
+  { id: 'film manual min length', file: FILM_FILE, name: 'manualMinSeconds', value: '1' },
+  { id: 'film manual max length', file: FILM_FILE, name: 'manualMaxSeconds', value: '60' },
+  { id: 'film full HD width', file: FILM_FILE, name: 'width1080', value: '1920' },
+  { id: 'film full HD height', file: FILM_FILE, name: 'height1080', value: '1080' },
+  { id: 'film video bitrate', file: FILM_FILE, name: 'videoBitrate1080', value: '12000000' },
+];
+
+describe('film camera knobs in config (video P1)', () => {
+  it.each(FILM_KNOBS.map((e) => [e.name, e] as const))('config value: %s', (_name, e) => {
+    expect(propValue(FILM_FILE, e.name)).toBe(e.value);
+  });
+  it('film utils read the length limits from config', () => {
+    expect(norm(source('src/ui/filmUtils.ts'))).toContain('film.manualMaxSeconds');
+  });
+  it('film session reads fps from config', () => {
+    expect(norm(source('src/ui/filmSession.ts'))).toContain('film.fps');
   });
 });
 

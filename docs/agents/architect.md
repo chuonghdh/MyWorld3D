@@ -71,3 +71,74 @@ New finding (open): `src/core/runtime.ts:4` imports the type `GustEvent` from `e
 ## Research notes (not adopted)
 - Harness (revfactory/harness, meta-skill that generates agents and skills): adopt nothing wholesale. Adaptable pieces: a short cross-owner handoff checklist (files, acceptance, what must not change) and using the Explore agent for broad scans. Conflicts: generated team replaces our fixed roster, `/harness:evolve` rewrites owned files, and a change-history section in CLAUDE.md conflicts with the slim CLAUDE.md rule. No token-savings figures are published by the project. Revisit only with a measured pilot.
 - Code graph tools (CodeGraph, Graphify; the "Graphity" repo URL returned 404): their token savings are self-reported and small-N. Our repo (166 TS/TSX files) is small enough that the hand-written REPO_MAP and handbooks route most lookups in one hop. Revisit only if a pilot on a cross-folder task shows 25% or more fewer tokens. No install, no pilot run.
+
+## Session 2026-11-04 (film feature plan)
+Plan only. No source edits, no commits. Feature: camera button next to Photo in `src/ui/TimeBar.tsx`, menu with Manual film (user flies, realtime record) and Auto film (scripted bird flight over the town, Gothic cathedral, skim, sky tilt to sun/moon, perch at cathedral west/front face).
+
+### Evidence (current code)
+- Photo pipeline: `src/scene/ScreenshotRequest.tsx:3-12` reads the canvas in a priority-2 `useFrame` after the composer (priority 1) because `preserveDrawingBuffer = false`. Reuse this hook for frame capture.
+- Composer: `src/scene/PostFX.tsx:56-88` HalfFloat target with MSAA (`preset.msaa`, 4 on high/medium). Tilt-shift blurs frame edges (`TILT_BLUR_PX`, line 21); bloom is screen-space.
+- Resolution: `src/App.tsx:145` `dpr={[1, preset.dprMax]}`; tiers in `src/config/tuning/sceneQa.ts:27-31` (dprMax 2/1.5/1, shadowMap 4096/2048/1024).
+- Shadow frustum shrinks with camera distance in 10 m steps (`src/scene/townShadow.ts:31-40`), so detail rises on zoom-in. Anisotropy set only in `src/buildings/signs/atlas.ts:94`; general texture filtering not audited.
+- Sim clock: `src/scene/useTownFrame.ts:71-72` uses R3F `frameDt`; `runtime.simTime` (`src/core/runtime.ts:27`). Weather, clouds, aircraft take `dt`. R3F 8.17 exposes `state.advance(timestamp)` (store typings) for manual stepping.
+- Randomness: none in city, streets, buildings, traffic, life, environment, store, core (grep). Non-deterministic: `src/weather/Lightning.ts`, `src/audio/*` (people, vehicles, music, synth, aircraft), `useTownFrame.ts` leaf devil (user action, accepted).
+- Audio graph: `src/audio/index.ts:66` limiter -> destination; `bus.ts:128-135` zoom gain -> master; `math.ts:39` `zoomAttenuation` (1/(1+h/150), min 0.12). Aerial quiet frame above 45 m silences ground systems (`docs/AUDIO.md`, Aerial mode). `systems.ts` types use `AudioContext`, not `BaseAudioContext`.
+- Budgets: `tests/budget.test.ts:273-297` main tris <= 1.9 M, shadow <= 605 k, main+shadow <= 2.3 M, draw calls <= 140 (comment says 130 or 132 measured).
+- Config is a directory `src/config/tuning/` (index + 7 section files), not `tuning.ts` as CLAUDE.md states. Parity test handles both.
+- Camera: `uiCamera` maxDistance 600, minDistance 4 (`src/config/tuning/uiCamera.ts:66-68`).
+- Gothic cathedral: `src/buildings/monuments/culture.ts:435`. Front (west) face not verified; check its `Site` before scripting the perch.
+
+### Decisions
+1. Two pipelines.
+   - Manual film: realtime. `canvas.captureStream` + MediaRecorder (WebM) for v1. Audio: `createMediaStreamDestination` tap after the limiter (`audio/index.ts:66`), so user volumes, zoom gain and positional mix are included. Realtime so sync holds by construction.
+   - Auto film: deterministic two-pass. Pass 1 dry-runs the scene at fixed dt (1/30 s) via `runtime.fixedDt` override, records pose and `AudioFrame` snapshots at 20 Hz. Pass 2 steps `state.advance(t)` per frame, renders, `new VideoFrame(canvas)` -> `VideoEncoder` (H.264 MP4 or VP9 WebM) with a lazy-loaded muxer chunk. Audio is re-rendered with `OfflineAudioContext` from the recorded snapshots, using a volume snapshot from `getGroupVolumes()`.
+   - Fallback when `VideoEncoder.isConfigSupported` fails: MediaRecorder path for Auto too, at the cost of realtime duration.
+2. Resolution: default 1920x1080 @ 30 fps. Output size is set explicitly (pixel ratio 1 during film), not from devicePixelRatio. Optional 2x supersample (render 3840x2160, downsample) only on high tier, after measurement. 4K HalfFloat MSAA4 target is ~265 MB of GPU memory: not on phones. Tilt-shift forced off during film (blur is not sharpness). Audit texture anisotropy and mipmaps; set renderer-wide max anisotropy if missing.
+3. Audio: offline re-render for Auto needs (a) `AudioBus` / systems typed on `BaseAudioContext`, (b) seeded RNG (`synth.ts` `createRandom`) in every system used by film, (c) no `Date.now` or wall clock. Film bird voice goes in category `wind` (Nature slider) and is exempt from the aerial quiet frame, else a high bird is silent. Positional level already rises with proximity (PannerNode inverse). `zoomAttenuation` still lowers the whole bus at altitude; state this to the user.
+4. Modules (new, all <= 350 lines):
+   - `src/film/flightPath.ts` (pure keyframes, Catmull-Rom, input is sun/moon direction and cathedral site). Owner: UI & Camera (camera path), data from Sky & Environment and Buildings.
+   - `src/film/driver.tsx` (mounted in Canvas, fixed-dt stepping, cancel and unmount cleanup). Owner: Scene & QA.
+   - `src/film/recorder.ts` (VideoEncoder + muxer, MediaRecorder fallback, backpressure: `encodeQueueSize` cap, `VideoFrame.close()` each frame). Owner: Scene & QA.
+   - `src/film/offlineAudio.ts` (snapshot store and offline render glue). Owner: Audio.
+   - `src/life/filmBird.ts` (one merged mesh, reuses the `flyer` animal material key, no new shader). Owner: Traffic & Life.
+   - `src/ui/FilmMenu.tsx` (menu, progress, cancel); `TimeBar.tsx` only mounts it. Owner: UI & Camera.
+   - `src/config/tuning/film.ts` (new section; knobs: fps, width, height, bitrate, phase durations, circle radii, skim height, tilt angle, perch offset, snapshot Hz). Add to `index.ts`, `tests/tuningParity.test.ts` and `docs/TUNING.md`.
+5. Cross-owner file list: `src/core/runtime.ts` (fixedDt, film request; no feature imports, Scene & QA), `src/scene/useTownFrame.ts` (read fixedDt), `src/scene/PostFX.tsx` (size and tilt override), `src/scene/CameraRig.tsx` (film camera mode suspends input, UI & Camera), `src/audio/index.ts` + `bus.ts` + `synth.ts` + `systems.ts` (Audio), `src/life/index.ts` (Traffic & Life), `src/sky/state.ts` (pure `sunDirAt(time)` export, Sky & Environment), `src/buildings/monuments/culture.ts` (site export, Buildings). Architect reviews the merge (dependency direction: `film` imports scene only via the driver mount; `core` gets no feature import).
+
+### Phases and acceptance
+- P0 Spec: path keyframes, knobs, open questions answered. Accept: this section updated.
+- P1 Manual realtime record (captureStream, bus tap, 1080p, fixed 30 fps, tilt off). Accept: 30 s clip, no DOM in frame, silent when all volumes at 0, `tsc`/`vitest`/`vite build` green, sync checked by a clap marker in connected Chrome.
+- P2 Fixed-dt driver and dry-run. Accept: two runs with the same seed give identical pose and `AudioFrame` hash series (vitest, no render).
+- P3 VideoEncoder + muxer lazy chunk, fallback. Accept: frame count = duration x fps, decodes in a player, index JS delta small (lazy chunk only).
+- P4 Offline audio. Accept: two runs give byte-equal audio hash; level within 1 dB of live at the same pose; group volumes respected.
+- P5 Auto path and bird. Accept: path tests (start height, cathedral circle radius, skim height above road, perch faces west/front); draw calls +1 for the bird.
+- P6 Sharpness. Accept: side-by-side frames at three zoom levels in connected Chrome; budget tests unchanged; supersample only if measured.
+- P7 UI menu, cancel, HMR. Accept: cancel leaves no encoder or offline context alive; no console errors across a HMR reload.
+- P8 QA. Accept: `tsc`, `vitest` (pedestrian flake solo), `vite build`; low tier at 720p runs.
+
+### Risks (likelihood / impact / mitigation)
+1. Frame drops during realtime capture: H / M. Fixed 30 fps cap, 1080p, auto-drop to 720p on low tier; Auto uses deterministic path.
+2. Encoder unavailable (VideoEncoder missing, codec unsupported): M / M. `isConfigSupported` check, MediaRecorder fallback, disable Auto if neither exists.
+3. Memory growth: encoded chunks, unclosed VideoFrames, HalfFloat MSAA targets: M / H. Close each VideoFrame, cap encode queue, dispose the composer target after film, 4K banned on phones.
+4. Layout determinism: `Lightning.ts` and audio use `Math.random`: H / M. Film-only seeded RNG and sim-time flash; determinism test hashes pose and audio snapshots.
+5. HMR: live encoder or offline context survives hot reload: M / M. `import.meta.hot.dispose` in driver (audio already does this at `audio/index.ts:188`); reset `runtime.fixedDt`.
+6. Shader cache keys: reuse `flyer` material key; any new patch needs a versioned `customProgramCacheKey`; tilt-off or supersample change forces recompile (first-start hitch). Mitigation: warm up at menu open.
+7. Phone performance: fill rate and memory at 1080p. H / H on low-end. Blind spot: no phone in this session. Mitigation: 720p preset, measure in connected Chrome with `__r3f` (draw calls, triangles).
+8. Audio drift (manual realtime): MediaRecorder vs AudioContext clock: M / M. Clap-marker test; accept a few frames of drift and say so.
+9. Shimmer when zoomed out: M / M. Mipmaps and anisotropy audit; SSAA if measured.
+10. Draw-call headroom: 140 cap vs ~132 measured. M / H. Bird merged into one mesh; film test measures bird separately.
+11. Aerial quiet frame silences bird voice: H / M. Exempt the film bird voice (decision 3).
+12. Two-pass memory for snapshots: M / M. 20 Hz, store only fields the audio systems read; measure size per 60 s.
+13. Cathedral facade orientation unverified: M / L. Check `Site` in `culture.ts` before scripting the perch.
+
+### Open items (user)
+- Length and output size (default 60 s, 1080p, 30 fps); is 4K on desktop wanted?
+- Container: MP4 (H.264, Safari-friendly) or WebM first?
+- Auto film time of day: current clock or fixed golden hour?
+- Tilt-shift off during film (recommended): confirm.
+- Bird look: silhouette of an existing life flyer, or a new mesh?
+- Confirm: Manual recording excludes UI and uses realtime audio tap.
+
+### Notes for lead
+- Dashboard card for Technical Architect not updated here (lead rule 5).
+- CLAUDE.md names `src/config/tuning.ts`; actual path is the `src/config/tuning/` directory. Fix in CLAUDE.md or flag to the lead.

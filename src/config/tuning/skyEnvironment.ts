@@ -87,4 +87,9 @@ export const skyEnvironment = {
     /** Cloud clusters in the scene (Town.tsx createClouds count). */
     sceneCount: 10,
   },
+  /** Aircraft (aircraft/schedule.ts): the opening flight. */
+  aircraft: {
+    /** Opening flight heading, degrees off the screen's side-to-side line, tilted away from the camera (diagonal across the view). */
+    introTiltDeg: 8,
+  },
 } as const;

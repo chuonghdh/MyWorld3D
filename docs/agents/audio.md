@@ -38,3 +38,52 @@ Reviewed 2026-11-01 at 02b0cdc
 ## Scope notes
 - `src/scene/audioBridge.ts`, `tests/audio*.test.ts` and `tests/helpers/fakeAudio.ts` are Audio-owned (lead decision, phase 2). Scope questions go to the lead before editing other areas.
 - Last commit touching `src/audio`: `251fe15` (aircraft sound, cloud shadows).
+
+## Session 2026-11-04 (film audio plan)
+Plan only; no source edits. Goal: sound follows a film viewpoint (manual camera or auto bird), mix follows user volumes, recording includes sound.
+
+### Findings (file:line)
+- Listener hard switch at 8 m: `listener.ts:50-62`. At h <= 8 the listener is the camera; above, it is the ground point the camera looks at (up to `MAX_RAY` 400 m away, y = 2). A jump of up to 400 m across one frame.
+- Aerial gate is a step at 45 m: `index.ts:115-117` (`quietFrame`). Ground systems release voices (fade 0.4-0.5 s: `vehicles.ts:476`, `people.ts:275`), so a bird crossing 45 m loses all street sound on a fixed edge.
+- Zoom from camera height: `math.ts:40`, applied `bus.ts:221` (smoothed 0.1 s). 300 m gives x0.33 (-9.6 dB) on everything, regardless of source distance.
+- Inverse model, default ref 4 / max 250 / rolloff 1 (`bus.ts:293-295`). Gain is clamped beyond max (flat, not silent). Bird: ref 8, max 160, rolloff 1.2 (`animals.ts:556`): gain 0.042 (-27 dB) at any distance >= 160 m, but the air lowpass (`math.ts:17`) still falls to 1.2 kHz at 300 m.
+- Bird songs sit at fixed `BIRD_Y` = 6 m (`animals.ts:30`), so a bird at 100 m sounds ground level. The film bird has no emitter.
+- Aircraft: ref 250, max 2500 (`aircraft.ts:15-16`), voice budget max 3000 (`aircraft.ts:165`). Gain floor at 2500 m = 0.1.
+- Listener has no velocity (no Doppler for listener motion). Orientation is yaw only (`listener.ts:44`).
+- `index.ts:109`: `ctx.state !== 'running'` returns early, so a suspended context gives silent frames with no error.
+- `useTownFrame.ts:171`: `setSoundEnabled(soundEnabled && !paused)`; paused simulation mutes all effects and nature.
+- Tests run in vitest `node` (`vite.config.ts`). `fakeAudio` checks graph and params only; peak and NaN need an `OfflineAudioContext` in the browser.
+
+### Plan
+1. Pure `listenerOverride.ts`: blend camera vs. ear-ground listener with `smoothstep` over a band around 8 m; one-pole smoother for position and yaw forward.
+2. `audioBridge.fill` takes an optional `listenerOverride`; `index.ts` gets `setListenerOverride(state | null)`. `null` must be bit-identical to today.
+3. Aerial gate: ground categories go through a new `ground` gain node ramped by smoothed height with a hysteresis band around 45 m. Bird, wing, rain, thunder, aircraft and music stay ungated.
+4. Recording: real-time tap. `limiter -> MediaStreamAudioDestinationNode` in addition to `destination`; video from `canvas.captureStream(fps)`; `MediaRecorder` for both. The tap sits after master, so sliders, Sound and Music switches follow. Film mode uses fixed `dt = 1/fps`.
+5. Rejected for now: `OfflineAudioContext` re-render from a frame log (duplicates every system, needs seeded replay and deterministic video).
+
+### New knobs (`src/config/tuning/audio.ts`, each: TUNING.md row + tuningParity entry)
+- `filmListenerSmoothS` 0.25 s, `filmListenerBlendM` 12 m, `aerialBlendM` 6 m, `groundFadeS` 1.5 s, `filmFadeS` 0.5 s, `filmZoomFloor` 0.5, `birdRangeM` (moves `BIRD_MAX_M` 160 from `animals.ts`).
+
+### Tests
+- vitest + fakeAudio: listener step per 1/60 s bounded across 7.5-8.5 m and 44-46 m; smoother never overshoots; ground ramp endpoints; tap connected after limiter; suspended context makes `update` a no-op; new knobs in parity test.
+- Distance gain along a circular bird path (pure `distanceGain` + `distanceLowpassHz`): peak at closest approach, monotone with distance.
+- Peak < 0.5 and no NaN: `OfflineAudioContext` render on the dev page (60 s film path).
+- A/V sync: clap marker, offset < 40 ms.
+
+### Phases
+P1 listener math + smoother (golden test: manual camera poses outside the band unchanged). P2 override plumbing (null path identical). P3 ground node and aerial ramp (no step at 45 m). P4 recorder tap (webm has audio; sync < 40 ms; stops when tab hidden). P5 knobs, docs, parity, dev render check, user listening pass.
+
+### Risks
+- Balance by ear: not judged here. Only user listening and offline peak/RMS numbers.
+- HMR: recorder and tap must be disposed in `dispose()` and `import.meta.hot.dispose`.
+- Autoplay: resume and record only from a click handler (`init()` pattern); watch `statechange`.
+- CPU during recording: canvas capture plus encoder on top of live systems; measure frame time at target fps.
+- Hidden tab: rAF stops while audio runs, so video and audio diverge. Refuse to record hidden.
+- Pause mutes sound (`useTownFrame.ts:171`): a paused film records silence unless decided otherwise.
+- Bird songs at fixed 6 m height undermine "bird close to source" at altitude.
+
+### Open questions
+- Does the film bird get its own flap/wind sound?
+- Should zoom attenuation be exempt in film mode?
+- Output format (webm or mp4), resolution, fps?
+- Record while paused?

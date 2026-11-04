@@ -9,6 +9,8 @@ export { BlockPanel } from './BlockPanel';
 export { BlockEditOverlay, EditModeChip } from './BlockEditOverlay';
 export type { MonumentPanelProps } from './MonumentPanel';
 export { TimeBar } from './TimeBar';
+export { FilmButton } from './FilmButton';
+export { FilmRecChip } from './FilmRecChip';
 export { PanelFocusContext } from './controls';
 export type { PanelId, PanelFocus } from './controls';
 export { HelpOverlay } from './HelpOverlay';
