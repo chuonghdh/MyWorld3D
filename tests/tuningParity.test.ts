@@ -489,6 +489,8 @@ const FILM_KNOBS: Entry[] = [
   { id: 'film full HD width', file: FILM_FILE, name: 'width1080', value: '1920' },
   { id: 'film full HD height', file: FILM_FILE, name: 'height1080', value: '1080' },
   { id: 'film video bitrate', file: FILM_FILE, name: 'videoBitrate1080', value: '12000000' },
+  { id: 'film auto length', file: FILM_FILE, name: 'autoSeconds', value: '30' },
+  { id: 'film auto virtual minutes', file: FILM_FILE, name: 'autoVirtualMinutes', value: '30' },
 ];
 
 describe('film camera knobs in config (video P1)', () => {

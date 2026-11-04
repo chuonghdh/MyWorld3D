@@ -318,6 +318,8 @@ Test thresholds: change only when the scene change is intended. Raising a budget
 | Manual longest length | 60 | s | Upper limit; the take stops by itself here | src/config/tuning/film.ts (`film.manualMaxSeconds`) | UI & Camera |
 | Full HD size | 1920 x 1080 | px | Output size of the Full HD choice | src/config/tuning/film.ts (`film.width1080`, `film.height1080`) | UI & Camera |
 | Video bitrate | 12,000,000 | bits per second | MediaRecorder bitrate of the recorded film (1920 x 1080 output) | src/config/tuning/film.ts (`film.videoBitrate1080`) | Scene & QA |
+| Auto film length | 30 | s | Real seconds of an auto film (fixed-step dry run, one orbit in P2 placeholder path) | src/config/tuning/film.ts (`film.autoSeconds`) | Scene & QA |
+| Auto virtual game minutes | 30 | game min | Game minutes an auto film covers when game time runs (30 s real = 30 virtual min) | src/config/tuning/film.ts (`film.autoVirtualMinutes`) | Scene & QA |
 
 ## Not yet tunable (hardcoded)
 

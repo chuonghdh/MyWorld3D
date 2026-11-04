@@ -12,6 +12,10 @@ export const film = {
   width1080: 1920,
   /** Full HD output height, pixels. */
   height1080: 1080,
+  /** Auto film length, real seconds (fixed-step dry run, see film/autoPath.ts). */
+  autoSeconds: 30,
+  /** Game minutes an auto film covers when game time runs (30 s real = 30 virtual minutes). */
+  autoVirtualMinutes: 30,
   /** Video bitrate of the recorded film, bits per second (MediaRecorder videoBitsPerSecond). */
   videoBitrate1080: 12000000,
 } as const;
