@@ -67,6 +67,9 @@ const VALUES: Entry[] = [
   { id: 'cat count (high)', file: CONFIG_FILE, name: 'catCount', value: '14' },
   { id: 'squirrel count (high)', file: CONFIG_FILE, name: 'squirrelCount', value: '10' },
   { id: 'butterfly/bee count (high)', file: CONFIG_FILE, name: 'butterflyCount', value: '30' },
+  { id: 'film bird distance', file: CONFIG_FILE, name: 'filmBirdDistanceM', value: '7' },
+  { id: 'film bird min distance', file: CONFIG_FILE, name: 'filmBirdMinDistanceM', value: '3' },
+  { id: 'film bird scale', file: CONFIG_FILE, name: 'filmBirdScale', value: '2.6' },
   { id: 'walker cap', file: 'src/traffic/walkers/constants.ts', name: 'MAX_WALKERS', value: '480' },
   { id: 'walkers per road', file: 'src/traffic/walkers/constants.ts', name: 'WALKERS_PER_ROAD', value: '22' },
   { id: 'dog cap', file: 'src/traffic/walkers/constants.ts', name: 'MAX_DOGS', value: '120' },
@@ -286,6 +289,9 @@ const FRAGMENTS: Has[] = [
   { id: 'cat count', file: 'src/life/pets.ts', fragment: 'scaledCount(trafficLife.catCount, quality)' },
   { id: 'squirrel count', file: 'src/life/pets.ts', fragment: 'scaledCount(trafficLife.squirrelCount, quality)' },
   { id: 'butterfly/bee count', file: 'src/life/pets.ts', fragment: 'scaledCount(trafficLife.butterflyCount, quality)' },
+  { id: 'film bird distance use', file: 'src/life/filmBird.ts', fragment: 'trafficLife.filmBirdDistanceM' },
+  { id: 'film bird min distance use', file: 'src/life/filmBird.ts', fragment: 'trafficLife.filmBirdMinDistanceM' },
+  { id: 'film bird scale use', file: 'src/life/filmBird.ts', fragment: 'trafficLife.filmBirdScale' },
   { id: 'bee share', file: 'src/life/pets.ts', fragment: 'Math.floor(n * 0.2)' },
   { id: 'life quality factors', file: 'src/life/common.ts', fragment: "q === 'low' ? 0.4 : q === 'medium' ? 0.7 : 1" },
   { id: 'autumn particle profile (density, size, fall)', file: 'src/environment/seasons.ts', fragment: "density: 1, colors: ['#c8552a', '#d4862a', '#e0b23a', '#a8452a', '#b9a02e']" },
@@ -489,8 +495,12 @@ const FILM_KNOBS: Entry[] = [
   { id: 'film full HD width', file: FILM_FILE, name: 'width1080', value: '1920' },
   { id: 'film full HD height', file: FILM_FILE, name: 'height1080', value: '1080' },
   { id: 'film video bitrate', file: FILM_FILE, name: 'videoBitrate1080', value: '12000000' },
-  { id: 'film auto length', file: FILM_FILE, name: 'autoSeconds', value: '30' },
-  { id: 'film auto virtual minutes', file: FILM_FILE, name: 'autoVirtualMinutes', value: '30' },
+  { id: 'film audio bitrate', file: FILM_FILE, name: 'audioBitrate', value: '192000' },
+  { id: 'film audio peak target', file: FILM_FILE, name: 'audioPeakTargetDb', value: '-3' },
+  { id: 'film auto length', file: FILM_FILE, name: 'autoSeconds', value: '60' },
+  { id: 'film auto virtual minutes', file: FILM_FILE, name: 'autoVirtualMinutes', value: '60' },
+  { id: 'film encoder queue max', file: FILM_FILE, name: 'encodeQueueMax', value: '4' },
+  { id: 'film keyframe interval', file: FILM_FILE, name: 'keyframeIntervalS', value: '2' },
 ];
 
 describe('film camera knobs in config (video P1)', () => {
@@ -502,6 +512,23 @@ describe('film camera knobs in config (video P1)', () => {
   });
   it('film session reads fps from config', () => {
     expect(norm(source('src/ui/filmSession.ts'))).toContain('film.fps');
+  });
+});
+
+/** Auto film path knobs (video P5): config value, and scene/filmPath.ts reads the config object. */
+const FILM_PATH_KNOBS: Entry[] = [
+  { id: 'film sky tilt', file: FILM_FILE, name: 'skyTiltDeg', value: '35' },
+  { id: 'film perch hold', file: FILM_FILE, name: 'perchHoldSeconds', value: '3' },
+  { id: 'film cruise clearance', file: FILM_FILE, name: 'cruiseClearanceM', value: '15' },
+  { id: 'film street clearance', file: FILM_FILE, name: 'streetClearanceM', value: '3' },
+];
+
+describe('film path knobs in config (video P5)', () => {
+  it.each(FILM_PATH_KNOBS.map((e) => [e.name, e] as const))('config value: %s', (_name, e) => {
+    expect(propValue(FILM_FILE, e.name)).toBe(e.value);
+  });
+  it.each(FILM_PATH_KNOBS.map((e) => [e.name, e] as const))('path reads config: %s', (_name, e) => {
+    expect(norm(source('src/scene/filmPath.ts'))).toContain(`film.${e.name}`);
   });
 });
 

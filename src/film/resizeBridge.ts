@@ -46,6 +46,8 @@ export interface FilmCamera {
 export interface FilmComposer {
   setPixelRatio(ratio: number): void;
   setSize(width: number, height: number): void;
+  /** Draws the scene through the post passes (EffectComposer.render). Optional so test fakes need not provide it. */
+  render?(dt: number): void;
 }
 
 export interface FilmRoot {
@@ -163,6 +165,14 @@ function installGuard(gl: FilmGl): void {
     }
     saved.pixelRatio = ratio;
   };
+}
+
+/** Draws one frame through the registered composer (the live post chain). False when no root or composer is registered. */
+export function renderFilmComposer(dt: number): boolean {
+  const c = root?.composer;
+  if (!c || !c.render) return false;
+  c.render(dt);
+  return true;
 }
 
 /**

@@ -93,3 +93,22 @@ Knobs only: `filmDurationS`, `filmFps`, quality presets (`{ bitrateBps, fps }` p
 - Output resolution: canvas size is fixed during film; presets change only bitrate and fps unless a resize is accepted.
 - Phones: quality auto-lowers below 600 px; `MediaRecorder` support on iOS Safari to verify. Phone window needs `COUNT` 6.
 - Film duration default (proposal 90 s) and whether the file auto-downloads or asks.
+
+## Update 2026-11-04 (lead): picker, filming, overview
+
+- **Manual film picker:** `FilmPicker.tsx` (length 1 to 60 s, default 30 s; Full HD 1920x1080 or window size; Start). Start reads `startManualFilm`, which shows any failure in the picker; a thrown error in the bridge used to show nothing (fixed: `getSize` target).
+- **Hidden while filming:** `film.css` hides the top bar, side panels, block edit and help. Only the 3D view and the REC chip stay. Restored on stop.
+- **Overview:** `uiCamera.overviewDirection` raised to `[0, 2.45, 0.63]` at the user's request. Same angle, larger distance.
+- **Film centre:** while filming, the whole town is centred (no view offset). The offset returns after the film.
+
+## Update 2026-11-04 (ui-camera)
+
+- **Auto option in the picker:** `FilmPicker.tsx` has Manual and Auto. Auto is fixed length (`film.autoSeconds`) at 1920 x 1080. Auto support is probed on open (`autoEncodeSupport()` in `film/autoRun.ts`, no encoder opened); a missing WebCodecs or H.264 config shows the reason and disables Auto. No silent fallback.
+- **Driver:** `src/film/autoRun.ts` `startAutoRun(session, inputs)`. Frame i at film time i / fps, `inputs.setPose(path.poseAt(t))`, `inputs.renderFrame()`, then `createImageBitmap(canvas)` in the same task (the drawing buffer is cleared after the task, so a live canvas would go black when the encoder queue waits) and `encodeFrame(bitmap, i)`. `done` resolves the MP4 via `finish()`. `stop()` ends after the frame in progress and keeps the file; `cancel()` closes the encoder, saves nothing.
+- **Film clock:** `currentFilmTime()` returns the film seconds of the frame being rendered (0 when idle). For the `FilmRig` `filmTime` prop.
+- **Session:** `filmSession.ts` `startAutoFilm()` checks support, applies 1920 x 1080 via `applyFilmSize`, opens the encoder, then runs. `cancelFilm` / `stopFilm` / HMR dispose handle the auto run. `restoreFilmSize` runs on every end path. Save: `downloadBlob(blob, filmFileName('video/mp4', now))`.
+- **Scene input seam:** `registerAutoFilmSource(() => AutoFilmInputs | null)` in `filmSession.ts`. Scene & QA registers `{ path, canvas, setPose, renderFrame }` while mounted. Until then Auto reports "The 3D view is not ready for an auto film".
+- **Video only:** `AutoEncoderSession` has no audio input. `renderFilmAudio` is not called. Audio mux needs an encoder API from the Audio agent (via lead). The picker says "No sound yet".
+- **Not done:** no dry-run snapshot recorder in the UI path yet (Audio agent); no shared pose setter (Scene & QA decides whether `FilmRig` drives the camera via `useFrame` or `setPose` is used); Esc in auto mode is not bound.
+- **Tests:** `tests/film/autoRun.test.ts` (frame order, stop, cancel, WebCodecs-missing reason).
+- **Clock (follow-up):** `startAutoFilm` calls `startAutoFilmClock()` right before `setToggle('filming', true)`; `settleAuto` (done or failed) and `cancelFilm` call `stopAutoFilmClock()` after clearing filming. Manual film does not touch the clock.

@@ -13,6 +13,7 @@ import { Town, monumentBaseFor } from './scene/Town';
 import { houseBaseFor } from './scene/townBlocks';
 import { runtime } from './scene/runtime';
 import { CameraRig } from './scene/CameraRig';
+import { FilmRig } from './scene/FilmRig';
 import { BlockEditor } from './scene/BlockEditor';
 import { PostFX } from './scene/PostFX';
 import { ScreenshotRequest } from './scene/ScreenshotRequest';
@@ -169,6 +170,7 @@ export function App() {
         }}
       >
         <CameraRig />
+        <FilmRig />
         <Town onSelect={select} selected={blockEdit.blockId ? null : selected} />
         <BlockEditor
           layout={layout}

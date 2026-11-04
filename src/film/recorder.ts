@@ -26,7 +26,7 @@ export interface StartRecordingOptions {
 }
 
 /** Codec strings must be quoted: Chrome rejects the unquoted list "avc1,mp4a". */
-const MP4_VIDEO = 'video/mp4;codecs="avc1.42E01E"';
+const MP4_VIDEO = 'video/mp4;codecs="avc1.42E028"';
 const MP4_AUDIO_CODEC = 'mp4a.40.2';
 const WEBM_VP9 = 'video/webm;codecs=vp9';
 const WEBM_PLAIN = 'video/webm';
@@ -37,7 +37,7 @@ const REVOKE_DELAY_MS = 1000;
 
 /** Ordered MIME candidates. MP4 with audio codec only when audio is recorded. */
 export function mimeCandidates(hasAudio: boolean): string[] {
-  const mp4 = hasAudio ? `video/mp4;codecs="avc1.42E01E,${MP4_AUDIO_CODEC}"` : MP4_VIDEO;
+  const mp4 = hasAudio ? `video/mp4;codecs="avc1.42E028,${MP4_AUDIO_CODEC}"` : MP4_VIDEO;
   return [mp4, WEBM_VP9, WEBM_PLAIN];
 }
 

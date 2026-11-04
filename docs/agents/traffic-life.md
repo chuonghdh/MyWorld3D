@@ -165,3 +165,20 @@ Plan only, no source edits. Auto film mode: a carrier bird flies high over the t
 - Perch on a roof edge (visible from the front) or on the far sidewalk?
 
 **Verify (when built)**: `npx vitest run tests/filmBird.test.ts tests/life.test.ts tests/traffic.determinism.test.ts`, then full suite, `npx tsc --noEmit`, `npx vite build`.
+
+## Update 2026-11-04 (lead): film bird carrier (P5, not wired yet)
+
+- **New file:** `src/life/filmBird.ts`. `birdPoseAt(t, pathPose)` returns position, heading and pitch of the bird; `createFilmBird()` returns `{group, update, dispose}` with one `InstancedMesh` (count 1, no shadow). Mesh uses `buildFlyerGeometry` and `createAnimalMaterial('flyer')` from `material.ts`. Flap time is the film time, never the wall clock.
+- **Not part of traffic:** the bird never enters traffic, pedestrian, pigeon, flock or audio systems and makes no sound. A source test forbids those imports.
+- **Knobs:** `trafficLife.filmBirdDistanceM` (7), `filmBirdMinDistanceM` (3), `filmBirdScale` (2.6). Documented in `docs/TUNING.md` section 2.
+- **Open:** the bird sits on a fixed side and height relative to the camera; it is not guaranteed to be in frame. Roll is 0 (no bank yet). Needs a screenshot check after FilmRig is wired (Scene & QA).
+- **Interface:** `FilmPathPose` (`x, y, z, tx, ty, tz`) mirrors `AutoPose` in `film/autoPath.ts`. When `scene/filmPath.ts` lands, import the type and keep the sampler pure.
+
+## Update 2026-11-04 (traffic-life)
+
+- **Contract check (`birdPoseAt` / `FilmRig`):** bird distance from camera is `max(filmBirdDistanceM, filmBirdMinDistanceM)` = 7 m, exact on every sampled path. Lead decision: bird centred on the look direction at the preferred distance (side offset and sway removed). Knob values unchanged.
+- **Draw calls:** `createFilmBird()` group holds exactly one `InstancedMesh` (count 1, no shadow). `tests/budget.test.ts` excludes moving actors by design, so no budget change.
+- **Dispose:** `buildFlyerGeometry()` and `createAnimalMaterial()` build new objects per call (no cache), so dispose frees only the bird's own resources. Added test: dispose twice does not throw, group left empty.
+- **Isolation:** no `src` file imports `filmBird` yet (FilmRig not wired). Test guards against traffic, pedestrian, pigeon, flock, audio imports and RNG/clock use.
+- **Knobs:** unchanged (7, 3, 2.6). Parity and TUNING.md rows already present.
+- **Open:** FilmRig mount pending (Scene & QA). Bird look unchanged, awaiting lead OK.

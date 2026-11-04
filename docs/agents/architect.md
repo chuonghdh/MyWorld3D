@@ -142,3 +142,28 @@ Plan only. No source edits, no commits. Feature: camera button next to Photo in 
 ### Notes for lead
 - Dashboard card for Technical Architect not updated here (lead rule 5).
 - CLAUDE.md names `src/config/tuning.ts`; actual path is the `src/config/tuning/` directory. Fix in CLAUDE.md or flag to the lead.
+
+## Update 2026-11-04 (lead): new dependency, rules, commits
+
+- **Dependency approved by user:** `mp4-muxer@5.2.2`, pinned exact (`--save-exact`), published more than two weeks before the install. Use: MP4 container for the auto film (P3). It must load lazily via `import()` inside the auto encoder, so it lands in its own chunk. Review the chunk size and the import site.
+- **Film commits on `feature_video_camera`:** `457be77` (manual film, aircraft, audio defaults), `157c706` (P2 dry run, `src/film/autoPath.ts`).
+- **Codec rule:** MediaRecorder MIME strings with more than one codec must quote the list: `video/mp4;codecs="avc1.42E028,mp4a.40.2"`. The unquoted form is rejected by Chrome and silently falls back to WebM. Tests pin the quoted strings in `tests/film/recorder.test.ts`.
+- **Tuning placement:** new audio defaults live in `audio.categoryDefaults`; the opening-flight tilt in `skyEnvironment.aircraft.introTiltDeg`; the overview direction in `uiCamera.overviewDirection`; film knobs `autoSeconds`, `autoVirtualMinutes` in `film.ts`.
+- **Dashboard rule (user, standing):** on every new run, done agents not in the run go to standby, and the Orchestrator and assigned agents update automatically. Recorded in memory `feedback_dashboard-status-labels`.
+- **Working method (user, standing):** assign implementation work to the specialist agents (Scene & QA for film code, Audio for sound, Sky & Environment for aircraft). The lead reviews, runs `tsc` and tests, and updates docs. Do not leave the Orchestrator working alone.
+
+### Review requested from Technical Architect
+1. Confirm the lazy-load boundary for `mp4-muxer` and the expected chunk size once P3 lands.
+2. Check the quoted codec strings against the Chrome, Firefox and Safari MediaRecorder and VideoEncoder support notes. (Result: `docs/feature_video_camera.md` section 3.1 has no such notes; see the review result below.)
+3. Confirm the knob placement above against the knob rule (no literals in feature code).
+4. Decide whether `SLOTS` 3 to 4 (aircraft trail slots) needs a budget note in `docs/feature_video_camera.md` section 3.2. (Result: see below.)
+
+### Review result (Technical Architect, 2026-11-04)
+- OK: `mp4-muxer` pinned exact `5.2.2` in `package.json` and in the root of `package-lock.json`. Registry publish date 2025-07-02, more than two weeks old.
+- OK: codec strings match `src/film/recorder.ts` (lines 29 to 40) and `tests/film/recorder.test.ts`.
+- OK: knobs in place. `audio.categoryDefaults`, `audio.masterVolumeDefault` (0.4; was 0.8 in 457be77), `audio.mixerDefaults.master` (40), `audio.jetGain` (1), `skyEnvironment.aircraft.introTiltDeg` (8), `uiCamera.overviewDirection`, `film.autoSeconds` (30), `film.autoVirtualMinutes` (30). Each has a `tests/tuningParity.test.ts` entry and a `docs/TUNING.md` row, except the two gaps below.
+- GAP: `docs/TUNING.md` has no row for `uiCamera.overviewDirection` or `audio.masterVolumeDefault`. Lead to add (outside this handbook).
+- Draw calls: aircraft = 2 (the `planes` InstancedMesh and the contrail ribbon mesh, both `castShadow = false`). `SLOTS` 3 to 4 adds 0 draw calls; it only grows instance count and ribbon vertices. No budget change. Cap 140, about 132 measured (`docs/feature_video_camera.md` section 3.2).
+- RISK: `avc1.42E028` is H.264 Baseline level 3.0 (frame-size limit about 720x576). Film 1080p (1920x1080) needs level 4.0, e.g. `avc1.42E028`. Chrome may reject or downgrade the 1080p option. Not verified in a browser. Action: level check in `recorder.ts` plus a 1080p test.
+- Lazy load: `src/film/autoEncoder.ts` uses `await import('mp4-muxer')`; the top-level import is type-only. Nothing in `src` statically imports `autoEncoder.ts` yet, so no chunk exists yet. Keep the dynamic import. Verify chunk size with `npx vite build` once P3 is wired, and check the chunk is absent from the main bundle.
+- Not verified: browser support notes (Chrome, Firefox, Safari), Chrome fallback to WebM, ffmpeg volume figures, mixer default 80 to 40, peak clipping.

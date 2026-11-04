@@ -74,6 +74,9 @@ Base counts are scaled by the graphics tier: factor low 0.4, medium 0.7, high 1 
 | Cat count | 14 (high) | instances | Cats | src/config/tuning/trafficLife.ts (`trafficLife.catCount`) | Traffic & Life |
 | Squirrel count | 10 (high), only with street trees | instances | Squirrels on street trees | src/config/tuning/trafficLife.ts (`trafficLife.squirrelCount`) | Traffic & Life |
 | Butterfly/bee count | 30 (high) | instances | Butterflies and bees | src/config/tuning/trafficLife.ts (`trafficLife.butterflyCount`) | Traffic & Life |
+| Film bird distance | 7 | metres | Preferred distance of the auto-film carrier bird from the camera | src/config/tuning/trafficLife.ts (`trafficLife.filmBirdDistanceM`) | Traffic & Life |
+| Film bird min distance | 3 | metres | Closest the auto-film bird may come to the camera (never cuts into the view) | src/config/tuning/trafficLife.ts (`trafficLife.filmBirdMinDistanceM`) | Traffic & Life |
+| Film bird scale | 2.6 | multiplier | Size of the auto-film carrier bird model | src/config/tuning/trafficLife.ts (`trafficLife.filmBirdScale`) | Traffic & Life |
 | Bee share | 0.2 | fraction of butterflies/bees | Share of the 30 that are bees | src/life/pets.ts:567 (literal `n * 0.2`, stays in code) | Traffic & Life |
 | Bird audio cap | 3 to 6 flap birds, max flaps 3 | birds / flaps | Wing-flap sound events | src/audio/animals.ts:35-40 (`FLAP_BIRDS_MIN/MAX`, `MAX_FLAPS`, stay in code) | Audio |
 | Dog bark range | 120 | metres | Audible range of barking dogs | src/audio/animals.ts:42 (`DOG_RANGE_M`, stays in code) | Audio |
@@ -168,6 +171,7 @@ Base counts are scaled by the graphics tier: factor low 0.4, medium 0.7, high 1 
 | Moon disc size | 0.045 x 0.4 | sky units | Moon disc radius | src/config/tuning/skyEnvironment.ts (`skyEnvironment.sky.oldMoonRadius`), 372 (`discScale`) | Sky & Environment |
 | Day length | 1440 | real seconds (24 min) | One in-app day in auto time | src/config/tuning/uiCamera.ts (`uiCamera.dayLengthS`) | UI & Camera / Sky & Environment |
 | Time of day slider | 0-24, step 0.25 | hours | Clock; default 17.5 | src/config/tuning/uiCamera.ts (`uiCamera.defaultTimeOfDay`), 91 (`timeMax`), 93 (`timeStep`); slider src/ui/SettingsCity.tsx | UI & Camera |
+| Overview camera direction | [0, 2.45, 0.63] (up, back) | unitless | Camera height and distance of the standard overview (same angle, larger distance than before) | src/config/tuning/uiCamera.ts (`uiCamera.overviewDirection`); parity in tests/tuningParity.test.ts | UI & Camera / Scene & QA |
 | Golden-hour shadow clamp | 24 | degrees | Minimum elevation of the shadow-casting sun | src/scene/townShadow.ts:15 (`MIN_LIGHT_ELEVATION_DEG`, stays in code) | Scene & QA / Sky & Environment |
 | Golden phase threshold | altitude below 6 deg | degrees | When the phase is "golden" | src/environment/sun.ts:162 (literal, stays in code) | Sky & Environment |
 | Golden glow curve | smoothstep(14,5) x smoothstep(-6,0) | degrees | Sun glow width at golden hour | src/sky/state.ts:184 (literal, stays in code) | Sky & Environment |
@@ -196,6 +200,7 @@ Master and category defaults are set in the mixer; category list is in `src/audi
 | Parameter | Current value | Unit/range | What it controls | File:line (constant) | Owner |
 |---|---|---|---|---|---|
 | Mixer default: master | 40 | 0-100 | Master volume at start | src/config/tuning/audio.ts (`audio.mixerDefaults.master`); used by src/ui/SoundMixer.tsx | Audio |
+| Master volume default | 0.4 | 0..1 | Master volume at start (was 0.8) | src/config/tuning/audio.ts (`audio.masterVolumeDefault`) | Audio |
 | Mixer default: effects, nature, music | 100 each | 0-100 | Group volumes at start | src/config/tuning/audio.ts (`audio.mixerDefaults`) | Audio |
 | Category gain at start | engine, horn, indicator 0.5; voice 0.6; footstep 0.45; dog, cat 0.8; others 1 | 0-1 | Per-category level at start (quieter close-range sources) | src/config/tuning/audio.ts (`audio.categoryDefaults`), used by src/audio/bus.ts defaultVolumes | Audio |
 | Mixer slider range | 0-100 step 1 | 0-100 | Slider limits | src/ui/SoundMixer.tsx:179-181, 202-204 (stay in code) | Audio |
@@ -318,8 +323,16 @@ Test thresholds: change only when the scene change is intended. Raising a budget
 | Manual longest length | 60 | s | Upper limit; the take stops by itself here | src/config/tuning/film.ts (`film.manualMaxSeconds`) | UI & Camera |
 | Full HD size | 1920 x 1080 | px | Output size of the Full HD choice | src/config/tuning/film.ts (`film.width1080`, `film.height1080`) | UI & Camera |
 | Video bitrate | 12,000,000 | bits per second | MediaRecorder bitrate of the recorded film (1920 x 1080 output) | src/config/tuning/film.ts (`film.videoBitrate1080`) | Scene & QA |
-| Auto film length | 30 | s | Real seconds of an auto film (fixed-step dry run, one orbit in P2 placeholder path) | src/config/tuning/film.ts (`film.autoSeconds`) | Scene & QA |
-| Auto virtual game minutes | 30 | game min | Game minutes an auto film covers when game time runs (30 s real = 30 virtual min) | src/config/tuning/film.ts (`film.autoVirtualMinutes`) | Scene & QA |
+| Auto film audio bitrate | 192,000 | bits per second | AAC bitrate of the auto film audio track (48 kHz stereo) | src/config/tuning/film.ts (`film.audioBitrate`) | Scene & QA |
+| Auto film audio peak | -3 | dBFS | Peak the auto film mix is scaled to (the overview is quiet by distance) | src/config/tuning/film.ts (`film.audioPeakTargetDb`) | Scene & QA |
+| Auto film length | 60 | s | Real seconds of an auto film (57 s flight plus the perch hold) | src/config/tuning/film.ts (`film.autoSeconds`) | Scene & QA |
+| Auto virtual game minutes | 60 | game min | Game minutes an auto film covers when game time runs (60 s real = 60 virtual min) | src/config/tuning/film.ts (`film.autoVirtualMinutes`) | Scene & QA |
+| Auto encoder queue max | 4 | frames | Frames waiting inside the H.264 VideoEncoder before the auto film waits (memory bound) | src/config/tuning/film.ts (`film.encodeQueueMax`) | Scene & QA |
+| Auto keyframe interval | 2 | s | Seconds between H.264 keyframes in the auto film (GOP = interval x fps) | src/config/tuning/film.ts (`film.keyframeIntervalS`) | Scene & QA |
+| Auto sky tilt | 35 | degrees | How far the auto-film bird looks up from the horizon (sun or moon bearing). ESTIMATE, measure in P6 | src/config/tuning/film.ts (`film.skyTiltDeg`) | Scene & QA |
+| Auto perch hold | 3 | s | Seconds the auto-film bird holds on the perch before the film ends | src/config/tuning/film.ts (`film.perchHoldSeconds`) | Scene & QA |
+| Auto cruise clearance | 15 | m | Height above the highest roof kept by the cruise and perch flight. ESTIMATE, measure in P6 | src/config/tuning/film.ts (`film.cruiseClearanceM`) | Scene & QA |
+| Auto street clearance | 3 | m | Lateral distance from building walls for the descent street choice. ESTIMATE, measure in P6 | src/config/tuning/film.ts (`film.streetClearanceM`) | Scene & QA |
 
 ## Not yet tunable (hardcoded)
 

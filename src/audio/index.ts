@@ -5,8 +5,11 @@
 import { AudioBus, type Category, type Group, type PartialVolumes, type VolumeSettings, defaultVolumes } from './bus';
 import type { AudioFrame, SoundSystem, AudioVehicleClass } from './frame';
 import { SOUND_SYSTEM_FACTORIES } from './systems';
-import { AERIAL_HEIGHT_M } from './listener';
 import { createRecordTap, type RecordTap } from './recordTap';
+import { createMixChain } from './mixChain';
+import { routeFrame } from './route';
+
+export { quietFrame } from './route';
 
 export type VehicleClass = AudioVehicleClass;
 export type { AudioFrame, SoundSystem, SoundSystemFactory } from './frame';
@@ -57,22 +60,13 @@ export function init(): boolean {
   }
   const context = new Ctor();
   w.__mwAudioContext = context;
-  const master = context.createGain();
-  // A limiter between master and speakers: loud moments (thunder over a storm) compress instead of clipping.
-  const limiter = context.createDynamicsCompressor();
-  limiter.threshold.value = -9;
-  limiter.knee.value = 6;
-  limiter.ratio.value = 12;
-  limiter.attack.value = 0.003;
-  limiter.release.value = 0.25;
-  master.connect(limiter);
-  limiter.connect(context.destination);
-  const b = new AudioBus(context, master);
+  const mix = createMixChain(context);
+  const b = new AudioBus(context, mix.master);
   b.setVolumes(volumes);
   b.setSoundMuted(!soundEnabled);
   ctx = context;
   bus = b;
-  limiterNode = limiter;
+  limiterNode = mix.limiter;
 
   systems = [];
   for (const make of SOUND_SYSTEM_FACTORIES) {
@@ -89,22 +83,6 @@ export function isReady(): boolean {
   return ctx !== null;
 }
 
-/** The frame with every ground source and the wind removed, so those systems fade out; rain and thunder stay. */
-export function quietFrame(f: AudioFrame): AudioFrame {
-  return {
-    ...f, night: false, windSpeed: 0, gust: 0, vehicles: [], pedestrians: [], trees: [],
-    church: null, lifeEvents: [], horns: [],
-    // Airliners are 200-300 m up and heard from the overview too (quietly, by distance and the zoom factor).
-    aircraft: f.aircraft,
-  };
-}
-
-/** The frame for the bird system: no walkers (so no dogs) and only bird life events (no cats). */
-function birdsOnlyFrame(f: AudioFrame): AudioFrame {
-  const events = f.lifeEvents.filter((e) => e.type === 'bird-call' || e.type === 'pigeon-scatter');
-  return { ...f, pedestrians: [], lifeEvents: events };
-}
-
 /**
  * Once per render frame: sets the listener from the camera and lets every sound system react.
  * A failing system is skipped (one console warning) and never silences the others.
@@ -116,15 +94,12 @@ export function update(frame: AudioFrame): void {
   } catch (err) {
     warnOnce('listener', err);
   }
-  const aerial = frame.listener.height > AERIAL_HEIGHT_M;
-  const quiet = aerial ? quietFrame(frame) : frame;
-  const birdsOnly = aerial ? birdsOnlyFrame(frame) : frame;
   for (const s of systems) {
-    // Sound off silences the city's sounds, but music has its own switch (frame.musicEnabled) and keeps running.
-    if (!soundEnabled && s.name !== 'music') continue;
+    // Routing (Sound switch, aerial view, music switch) lives in route.ts so the offline film render matches.
+    const f = routeFrame(s.name, frame, soundEnabled);
+    if (!f) continue;
     try {
-      // From high above only birds (songs and wing flaps) and music are heard; the street below stays silent.
-      s.update(s.name === 'music' ? frame : s.name === 'animals' ? birdsOnly : quiet);
+      s.update(f);
     } catch (err) {
       warnOnce(s.name, err);
     }

@@ -12,7 +12,7 @@ const onlySupported = (...allowed: string[]) => (mime: string) => allowed.includ
 describe('mimeCandidates', () => {
   it('lists mp4 first, then webm vp9, then webm, without audio codec', () => {
     expect(mimeCandidates(false)).toEqual([
-      'video/mp4;codecs="avc1.42E01E"',
+      'video/mp4;codecs="avc1.42E028"',
       'video/webm;codecs=vp9',
       'video/webm',
     ]);
@@ -20,7 +20,7 @@ describe('mimeCandidates', () => {
 
   it('adds the mp4a audio codec to the mp4 candidate when audio is recorded', () => {
     const list = mimeCandidates(true);
-    expect(list[0]).toBe('video/mp4;codecs="avc1.42E01E,mp4a.40.2"');
+    expect(list[0]).toBe('video/mp4;codecs="avc1.42E028,mp4a.40.2"');
     expect(list.slice(1)).toEqual(['video/webm;codecs=vp9', 'video/webm']);
   });
 });
@@ -28,8 +28,8 @@ describe('mimeCandidates', () => {
 describe('pickMimeType', () => {
   it('prefers mp4 when supported', () => {
     const all = (): boolean => true;
-    expect(pickMimeType(all, false)).toBe('video/mp4;codecs="avc1.42E01E"');
-    expect(pickMimeType(all, true)).toBe('video/mp4;codecs="avc1.42E01E,mp4a.40.2"');
+    expect(pickMimeType(all, false)).toBe('video/mp4;codecs="avc1.42E028"');
+    expect(pickMimeType(all, true)).toBe('video/mp4;codecs="avc1.42E028,mp4a.40.2"');
   });
 
   it('falls back to webm vp9, then plain webm', () => {

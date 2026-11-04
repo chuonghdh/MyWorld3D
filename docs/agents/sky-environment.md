@@ -80,3 +80,11 @@ Reviewed 2026-11-01 at 02b0cdc
 
 ## Tuning rule (step 8)
 - Sky & Environment knobs live in `skyEnvironment` in `src/config/tuning.ts` (leaves, dusk ramps, weather caps, sun and moon disc sizes, clouds). Modules import them; geometry and shader algorithm constants stay in their files. Parity is checked in `tests/tuningParity.test.ts`.
+
+## Update 2026-11-04 (lead): aircraft
+
+- **Speed:** `SPEED_MIN` 22.4, `SPEED_MAX` 50.4 m/s (80% of the earlier 28 to 63 range, which was itself 70% of the original 40 to 90). Parity entries and `docs/TUNING.md` updated.
+- **Opening flight:** a straight crossing created on the first update (`introFlight` in `aircraft/schedule.ts`, id -2). It crosses the view side to side, tilted by `skyEnvironment.aircraft.introTiltDeg` (8). The line runs through the town centre at `ALTITUDE_MIN` (the lowest cruise height, so it sits near the middle of the overview).
+- **Trails:** `SLOTS` 4. The empty-slot value in `advanceTrails` is `-Infinity` so id -2 is not skipped.
+- **Tests:** `tests/aircraft.test.ts` covers the opening flight and the schedule invariants.
+- **Open:** the tilt and altitude are visual choices; the user has seen the flight but did not confirm the final angle.

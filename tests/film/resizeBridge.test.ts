@@ -5,6 +5,7 @@ import {
   fitInside,
   isFilmSizeApplied,
   registerFilmRoot,
+  renderFilmComposer,
   restoreFilmSize,
   type FilmRoot,
 } from '../../src/film/resizeBridge';
@@ -94,6 +95,18 @@ describe('fitInside', () => {
   it('keeps the box when the aspect already matches, and tolerates a zero box', () => {
     expect(fitInside({ width: 1920, height: 1080 }, 1920 / 1080)).toMatchObject({ width: 1920, height: 1080, left: 0, top: 0 });
     expect(fitInside({ width: 0, height: 0 }, 1)).toEqual({ width: 0, height: 0, left: 0, top: 0 });
+  });
+});
+
+describe('film composer render', () => {
+  it('renders through the registered composer and reports false without one', () => {
+    expect(renderFilmComposer(1 / 30)).toBe(false);
+    const { root } = fakeRoot();
+    const calls: number[] = [];
+    root.composer = { ...root.composer!, render: (dt: number) => calls.push(dt) };
+    registerFilmRoot(root);
+    expect(renderFilmComposer(0.5)).toBe(true);
+    expect(calls).toEqual([0.5]);
   });
 });
 

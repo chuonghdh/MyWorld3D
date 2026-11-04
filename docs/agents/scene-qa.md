@@ -81,3 +81,23 @@ Last smoke test: passed on 2026-10-29 (page title MyWorld3D, one canvas, WebGL o
 - Bridge limits: pointer mapping uses R3F's window size, so clicks on the letterboxed view can be off (selection is locked while filming).
 - Audio tracks are caller-owned and not stopped; only the canvas capture track is stopped on end.
 - Open: bitrate values are first guesses; sharpness and file size check belong to P6. No real recording verified in the built-in pane.
+
+## Update 2026-11-04 (lead): camera while filming, film path, aircraft slots
+
+- **Camera while filming:** `CameraRig.tsx` centres the whole town during a film (no view offset) and restores the overview offset when the film ends. Filming hides the side panels, so the measured panel inset must not drive the picture.
+- **Film frame aspect:** `PostFX.tsx` registers the camera with a duck-typed check (`'aspect' in camera`). The earlier `instanceof PerspectiveCamera` check could miss the scene camera; the film aspect was then never applied and the frame was squashed.
+- **Resize bridge:** `resizeBridge.ts` passes a `SizeTarget` with `set()` to `gl.getSize`, as three.js requires. Test fakes must mirror this.
+- **Overview direction:** `uiCamera.overviewDirection` is `[0, 2.45, 0.63]`, raised by the user. The opening flight derives its view from the same knob (`overviewView()`), not from the live camera.
+- **Aircraft:** `SLOTS` is now 4 (was 3). Slower flights (22.4 to 50.4 m/s) last longer, so a slot is reused four windows later. The opening flight uses id -2 and `slotFlight` sentinel is `-Infinity`.
+- **P2 (done, 157c706):** `src/film/autoPath.ts` holds the pure path (placeholder orbit), `autoFrameCount`, `gameMinutesPerFrame` and the FNV-1a `dryRun`. Tests in `tests/film/autoPath.test.ts`.
+- **P3 (in progress):** auto encoder with `VideoEncoder` and a lazy `mp4-muxer` import. Owned by this agent. See the lead's notes for the assignment.
+
+## Update 2026-11-04 (scene-qa): FilmRig mounted, auto film clock
+
+- **Mount:** `App.tsx` renders `<FilmRig />` after `<CameraRig />` inside the Canvas. FilmRig's useFrame runs after CameraRig's, and CameraRig returns early while auto film runs, so FilmRig alone places the camera.
+- **Activation:** FilmRig registers its source with `registerAutoFilmSource` (ui/filmSession.ts) on mount. The run snapshot (city, seed, sun, moon, fov) is taken when the source is called. Camera is written by autoRun via `setPose` (no useFrame). CameraRig yields while `autoFilmHoldsCamera()` is true. Flag clears when `toggles.filming` goes false.
+- **Snapshot:** city layout, seed, sun and moon (`getSunDirection` / `getMoonDirection` at `settings.timeOfDay`) and the film camera fov are read once when the run starts. The path is built on that snapshot and kept until the film ends.
+- **Clock:** `src/film/filmClock.ts` is owned by UI & Camera (filmSession). FilmRig reads `currentFilmTime()` from autoRun.ts instead.
+- **Bird:** `createFilmBird()` is added to the scene at run start and removed and disposed at run end. One mesh, no shadow. Its pose comes from `birdPoseAt` with a sampler over `FilmPath.poseAt`.
+- **Hand-off:** CameraRig sets `controls.enabled = false` while the film holds the camera. At film end the orbit target is set to the ground point the camera looks at, then orbit resumes.
+- **Open:** no UI starts an auto film yet. Camera jump at film start (orbit pose to path start) is not checked in Chrome. Building the path runs in the first film frame and may hitch.

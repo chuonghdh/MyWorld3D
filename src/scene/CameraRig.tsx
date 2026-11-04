@@ -10,6 +10,7 @@ import { getCityLayout } from '../city';
 import { useWorldStore } from '../store';
 import { uiCamera } from '../config/tuning';
 import { runtime } from './runtime';
+import { autoFilmHoldsCamera } from './FilmRig';
 import {
   EYE_HEIGHT,
   MAX_DISTANCE,
@@ -51,6 +52,8 @@ export function CameraRig() {
   const viewShift = useRef(-1);
   const ndc = useRef(new THREE.Vector2());
   const raycaster = useRef(new THREE.Raycaster());
+  // Auto film holds the camera: FilmRig places it alone; orbit controls are off until the film ends.
+  const autoHeld = useRef(false);
 
   const layoutOf = () => getCityLayout(useWorldStore.getState().settings);
 
@@ -151,6 +154,22 @@ export function CameraRig() {
   useFrame((_state, frameDt) => {
     const controls = controlsRef.current;
     if (!controls) return;
+    if (autoFilmHoldsCamera()) {
+      autoHeld.current = true;
+      controls.enabled = false;
+      return;
+    }
+    if (autoHeld.current) {
+      // Film ended: resume orbit from the camera pose, pivot on the ground point it looks at.
+      autoHeld.current = false;
+      const dir = new THREE.Vector3();
+      camera.getWorldDirection(dir);
+      const hit = new THREE.Vector3();
+      if (new THREE.Ray(camera.position, dir).intersectPlane(GROUND, hit)) controls.target.copy(hit);
+      else controls.target.set(0, 0, 0);
+      controls.enabled = !street.current.active;
+      controls.update();
+    }
     const dt = Math.min(frameDt, 0.1);
     const bounds = layoutOf().townBounds;
 

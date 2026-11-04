@@ -49,3 +49,9 @@ When a change touches a knob, the owner updates the config, the parity test and 
 # <Specialist>
 Owns / Key files / Conventions / Traps (what bit us, why) / Decisions (and the reason) / Open items / How to verify
 ```
+
+## Update 2026-11-04 (lead): where changes go
+
+- After every commit or new dependency, add a dated "Update" section to each affected handbook. Include: new rules, new libraries (with version and why), tuning knobs moved, and open items.
+- The Technical Architect keeps the cross-cutting list (dependencies, budgets, codec rules) and reviews the other handbooks.
+- Dashboard: follow the standby rule (memory `feedback_dashboard-status-labels`).

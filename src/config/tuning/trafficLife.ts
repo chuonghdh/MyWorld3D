@@ -32,4 +32,10 @@ export const trafficLife = {
   squirrelCount: 10,
   /** Butterflies and bees at quality factor 1, high tier (life/pets.ts). */
   butterflyCount: 30,
+  /** Film carrier bird: preferred distance from the film camera, metres (life/filmBird.ts). */
+  filmBirdDistanceM: 7,
+  /** Film carrier bird: closest it may come to the film camera, metres; never cuts into the view (life/filmBird.ts). */
+  filmBirdMinDistanceM: 3,
+  /** Film carrier bird: scale of the flyer model (life/filmBird.ts). */
+  filmBirdScale: 2.6,
 } as const;

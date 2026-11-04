@@ -49,6 +49,31 @@
   border-radius: 8px;
   color-scheme: dark;
 }
+.mw-film-modes {
+  display: flex;
+  gap: 6px;
+  margin-bottom: 12px;
+}
+.mw-film-modes button {
+  flex: 1;
+  min-height: 36px;
+  border-radius: 999px;
+  border: 1px solid var(--mw-line);
+  background: var(--mw-btn);
+  color: var(--mw-fg);
+  font: inherit;
+  cursor: pointer;
+}
+.mw-film-modes button.is-on {
+  background: var(--mw-accent);
+  border-color: transparent;
+  color: #1c1816;
+  font-weight: 600;
+}
+.mw-film-modes button:disabled {
+  opacity: 0.45;
+  cursor: default;
+}
 .mw-film-error {
   margin: 0 0 10px;
   color: #f0a27a;
