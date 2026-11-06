@@ -7,13 +7,14 @@ import { createPlaneGeometry } from './planeMesh';
 import { liveryFor } from './livery';
 import {
   CONTRAIL_LIFE,
+  QUADS_PER_SLOT,
   SAMPLE_STEP,
   contrailDayFactor,
   contrailStrength,
   contrailTint,
   createContrailRibbon,
 } from './contrail';
-import { SLOTS, flightActive, flightPose, flightsForDay, newPose, type Flight } from './schedule';
+import { SLOTS, flightActive, flightPose, flightsForDay, introFlight, newPose, type Flight } from './schedule';
 import type { AudioAircraft } from '../audio/frame';
 import { DAY_SECONDS } from '../store/model';
 
@@ -27,8 +28,14 @@ const NEAR_HIDE = 45;
 const NEAR_SHOW = 110;
 /** The contrail starts this far behind the aircraft (at the engines' exhaust), in metres. */
 const TRAIL_OFFSET = 10;
-/** Largest number of trail samples written in one frame (a time jump never stalls). */
+/** Largest number of trail samples one slot writes in a normal frame. */
 const MAX_SAMPLES_PER_FRAME = 40;
+/**
+ * A clock step longer than this (s), or any step backwards, is a jump: every trail is rebuilt from its
+ * flight's path over the last CONTRAIL_LIFE, as if time had run normally. One-off cost, at most
+ * QUADS_PER_SLOT samples per slot. Shorter steps drain within one frame's budget.
+ */
+const REBUILD_GAP = MAX_SAMPLES_PER_FRAME * SAMPLE_STEP;
 
 export interface AircraftEnv {
   camera: { x: number; y: number; z: number };
@@ -46,7 +53,11 @@ export interface AircraftEnv {
 
 export interface AircraftSystem {
   readonly group: THREE.Group;
-  /** Advances to simulated time `t`. With dt <= 0 (paused) nothing moves and nothing spawns. */
+  /**
+   * Shows simulated time `t`. Flights are a pure function of `t`; trails advance whenever `t` changes
+   * (dt is not used for that). A jump (backwards, or forward by more than REBUILD_GAP, paused or not)
+   * rebuilds every trail from its flight's path, so the result matches a clock that ran normally.
+   */
   update(t: number, dt: number, env: AircraftEnv): void;
   /** Number of aircraft currently in the air. */
   activeCount(): number;
@@ -172,8 +183,12 @@ export function createAircraft(opts: { seed: number; centerX?: number; centerZ?:
 
   let currentDay = Number.NaN;
   let days: Flight[][] = [[], []];
+  // Every flight source the loops read: yesterday, today, and the opening flight (set on the first update).
+  const lists: Flight[][] = [[], [], []];
+  let introSet = false;
   // Per slot: id of the flight being trailed, next sample time and whether `prev` holds a point.
-  const slotFlight = new Float64Array(SLOTS).fill(-1);
+  // -Infinity = no flight (the opening flight has a negative id).
+  const slotFlight = new Float64Array(SLOTS).fill(-Infinity);
   const slotNext = new Float64Array(SLOTS);
   const slotHas = new Uint8Array(SLOTS);
   const slotPrev = new Float64Array(SLOTS * 4);
@@ -188,7 +203,25 @@ export function createAircraft(opts: { seed: number; centerX?: number; centerZ?:
 
   const loadDays = (day: number): void => {
     days = [flightsForDay(seed, day - 1, cx, cz), flightsForDay(seed, day, cx, cz)];
+    lists[0] = days[0];
+    lists[1] = days[1];
     currentDay = day;
+  };
+
+  // The opening flight takes the first trail slot with no scheduled flight near its time, so slots never share.
+  const pickIntroSlot = (t0: number): number => {
+    const probe = introFlight(seed, t0, 0, cx, cz);
+    const end = probe.start + probe.duration + CONTRAIL_LIFE;
+    for (let s = 0; s < SLOTS; s++) {
+      let busy = false;
+      for (let li = 0; li < 2 && !busy; li++) {
+        for (const f of lists[li]) {
+          if (f.slot === s && f.start < end && f.start + f.duration > t0 - CONTRAIL_LIFE) busy = true;
+        }
+      }
+      if (!busy) return s;
+    }
+    return 0;
   };
 
   const sample = (f: Flight, tt: number, out: typeof prev): void => {
@@ -200,9 +233,9 @@ export function createAircraft(opts: { seed: number; centerX?: number; centerZ?:
     out.t = tt;
   };
 
-  const advanceTrails = (t: number, strength: number): void => {
-    for (let li = 0; li < days.length; li++) {
-      const list = days[li];
+  const advanceTrails = (t: number, strength: number, budget: number): void => {
+    for (let li = 0; li < lists.length; li++) {
+      const list = lists[li];
       for (let i = 0; i < list.length; i++) {
         const f = list[i];
         const s = f.slot;
@@ -213,11 +246,13 @@ export function createAircraft(opts: { seed: number; centerX?: number; centerZ?:
           if (t > end + CONTRAIL_LIFE) continue;
           if (slotFlight[s] > f.id) continue;
           slotFlight[s] = f.id;
-          slotNext[s] = Math.max(f.start, t - CONTRAIL_LIFE);
+          // First sample on the flight's own SAMPLE_STEP grid, so a rebuilt trail matches a continuous one.
+          const from = t - CONTRAIL_LIFE;
+          slotNext[s] = from <= f.start ? f.start : f.start + Math.ceil((from - f.start) / SAMPLE_STEP) * SAMPLE_STEP;
           slotHas[s] = 0;
         }
         let guard = 0;
-        while (slotNext[s] <= Math.min(t, end) && guard++ < MAX_SAMPLES_PER_FRAME) {
+        while (slotNext[s] <= Math.min(t, end) && guard++ < budget) {
           const tt = slotNext[s];
           sample(f, tt, prev);
           if (slotHas[s] && strength > 0.02) {
@@ -235,33 +270,38 @@ export function createAircraft(opts: { seed: number; centerX?: number; centerZ?:
           slotHas[s] = 1;
           slotNext[s] = tt + SAMPLE_STEP;
         }
-        if (guard >= MAX_SAMPLES_PER_FRAME) slotHas[s] = 0; // after a jump, do not bridge the gap
+        if (guard > budget) slotHas[s] = 0; // budget spent: do not bridge the gap
       }
     }
   };
 
   return {
     group,
-    update(t, dt, env) {
+    update(t, _dt, env) {
       const day = Math.floor(t / DAY_SECONDS);
       if (day !== currentDay) loadDays(day);
-      const moved = dt > 0 && t !== lastT;
-      if (Number.isFinite(lastT) && t < lastT) {
-        // Time ran backwards (a reset or scrub): forget every trail.
+      if (!introSet && Number.isFinite(t)) {
+        introSet = true;
+        lists[2] = [introFlight(seed, t, pickIntroSlot(t), cx, cz)];
+      }
+      const strength = contrailStrength(env.weather);
+      // A jump (first update, backwards, or a long step) rebuilds every trail, also while paused (dt = 0).
+      const jump = !Number.isFinite(lastT) || t < lastT || t - lastT > REBUILD_GAP;
+      if (jump) {
         ribbon.clear();
-        slotFlight.fill(-1);
+        slotFlight.fill(-Infinity);
         slotHas.fill(0);
+        advanceTrails(t, strength, QUADS_PER_SLOT);
+      } else if (t !== lastT) {
+        advanceTrails(t, strength, MAX_SAMPLES_PER_FRAME);
       }
       lastT = t;
-
-      const strength = contrailStrength(env.weather);
-      if (moved) advanceTrails(t, strength);
 
       // Aircraft instances.
       active = 0;
       slotActive.fill(0);
-      for (let li = 0; li < days.length; li++) {
-        const list = days[li];
+      for (let li = 0; li < lists.length; li++) {
+        const list = lists[li];
         for (let i = 0; i < list.length; i++) {
           const f = list[i];
           if (!flightActive(f, t)) continue;

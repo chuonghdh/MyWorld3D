@@ -9,7 +9,7 @@ function resetStore() {
   const layout = createEmptyLayout(1);
   useWorldStore.setState({
     ...layout,
-    toggles: { tiltShift: false, moveBlocks: false, music: false, paused: false, autoTime: false },
+    toggles: { tiltShift: false, moveBlocks: false, music: false, paused: false, autoTime: false, filming: false },
   });
   useWorldStore.getState().setBlockOrder(BLOCKS);
 }

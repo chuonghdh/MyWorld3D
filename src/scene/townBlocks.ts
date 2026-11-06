@@ -2,15 +2,17 @@
 import * as THREE from 'three';
 import type { Block, CityLayout, Lot, Rect } from '../city';
 import { defaultHouseParams, type HouseParams } from '../buildings';
-import { MONUMENT_KINDS, type HouseOverride } from '../store';
+import type { HouseOverride } from '../store';
 import type { MonumentKind } from '../core/types';
-import { hashId } from './runtime';
 import { blockPresetFor, lotStyle } from './cityStyle';
 import { disposeMerged } from './mergeBlock';
 
-/** Monument a block shows before any override. Same rule the scene uses when building it. */
-export function monumentBaseFor(blockId: string): MonumentKind {
-  return MONUMENT_KINDS[Math.floor(hashId(blockId) * MONUMENT_KINDS.length)];
+/**
+ * Monument a block shows before any override: the kind the layout chose for it (seeded, city/generate.ts).
+ * A block without a kind (never a monument in the layout) falls back to the panel default.
+ */
+export function monumentBaseFor(block: Pick<Block, 'monument'> | undefined): MonumentKind {
+  return block?.monument ?? 'hospital';
 }
 
 export interface LotHit {

@@ -19,11 +19,13 @@ import {
   tiers,
   tint,
   tree,
+  waterBasin,
   windowAt,
   type C,
   type Kit,
   type Site,
 } from './kit';
+import { buildings } from '../../config/tuning';
 
 const PI = Math.PI;
 const TAU = Math.PI * 2;
@@ -41,7 +43,7 @@ export function stadium(k: Kit, s: Site): void {
   const b1 = s.hd - 4.6;
   const rows = 8;
   const step = 0.55;
-  const rise = 0.6;
+  const rise = 0.95; // shape constant: bowl height per row (a stadium, not a dish)
   const a0 = a1 - rows * step;
   const b0 = b1 - rows * step;
   const segs = 48;
@@ -151,8 +153,9 @@ export function stadium(k: Kit, s: Site): void {
     for (let i = 0; i <= 5; i++) k.box(teamA, 0.3, 3.0, 0.3, -6 + i * 2.4, 0, 2.0);
     k.box(teamA, 12.4, 0.5, 0.4, 0, 3.0, 2.0);
     lettering(k, 0, 3.9, 1.9, 8.5, 0.9, '#ffffff', true);
-    k.add('body', new THREE.CylinderGeometry(0.9, 0.9, 0.15, 16), teamB, [0, H + 2.6, 1.0], [PI / 2, 0, 0]);
-    k.add('body', new THREE.CylinderGeometry(0.6, 0.6, 0.2, 16), '#f2c14e', [0, H + 2.6, 1.0], [PI / 2, 0, 0]);
+    // Crest sits on the entrance face: its back is inside the block (z 1.9), so it is attached.
+    k.add('body', new THREE.CylinderGeometry(0.9, 0.9, 0.15, 16), teamB, [0, H + 1.2, 1.95], [PI / 2, 0, 0]);
+    k.add('body', new THREE.CylinderGeometry(0.6, 0.6, 0.16, 16), '#f2c14e', [0, H + 1.2, 1.95], [PI / 2, 0, 0]);
     for (const x of [-5.5, -2, 2, 5.5]) {
       k.cyl('#d8d8d4', 0.04, 0.05, 2.6, x, H + 2.0, 0.6, 5);
       k.box(x < 0 ? teamA : teamB, 1.1, 0.7, 0.04, x + 0.57, H + 3.8, 0.6);
@@ -177,7 +180,7 @@ export function stadium(k: Kit, s: Site): void {
 
   // Forecourt: fans, kiosks, flags, lamps.
   const front = fz + 2;
-  crowd(k, 14, -8, 8, front + 0.5, s.hd - 0.8);
+  crowd(k, buildings.stadiumCrowd, -8, 8, front + 0.5, s.hd - 0.8);
   for (const sx of [-1, 1]) {
     k.at(sx * 9.5, front + 2.5, 0, () => {
       k.box(sx < 0 ? teamA : teamB, 2.4, 2.4, 1.8, 0, 0, 0);
@@ -204,9 +207,10 @@ function stall(k: Kit, x: number, z: number, ry: number, stripe: C): void {
     k.glass(true, 3.2, 1.2, 1.5, 0, 1.1, -0.3, '#5a4a3a');
     // striped awning, sloping down to the front
     // Fabric: fixed at the wall side (z 0.35), free at the front edge.
+    // Slat centre 2.5 m: its back edge (rises ~0.29 m under the 0.35 rad tilt) ends inside the roof slab (2.6-2.8 m).
     k.withWind(WIND.AWNING, (_x, _y, z) => anchorWeight(z, 0.35, 2.05), () => {
       for (let i = 0; i < 8; i++) {
-        k.boxR('body', i % 2 === 0 ? stripe : '#ffffff', 0.46, 0.06, 1.7, [-1.61 + i * 0.46, 2.85, 1.2], [0.35, 0, 0]);
+        k.boxR('body', i % 2 === 0 ? stripe : '#ffffff', 0.46, 0.06, 1.7, [-1.61 + i * 0.46, 2.5, 1.2], [0.35, 0, 0]);
       }
     });
     k.box('#e9dcc0', 3.6, 0.2, 2.4, 0, 2.6, 0);
@@ -265,7 +269,7 @@ export function funfair(k: Kit, s: Site): void {
   const red = '#d7263d';
   k.cyl('#efeee8', cr, cr + 0.1, 0.6, cx, 0, cz, 20);
   k.cyl(red, cr + 0.12, cr + 0.12, 0.2, cx, 0.2, cz, 20);
-  k.cyl('#f2c14e', 0.9, 0.9, 3.8, cx, 0.6, cz, 10);
+  k.cyl('#f2c14e', 0.9, 0.9, 4.0, cx, 0.6, cz, 10); // top 4.6 m: meets the canopy band (bottom 4.55 m)
   const nw = 16;
   for (let i = 0; i < nw; i++) {
     const t0 = (i / nw) * TAU;
@@ -354,9 +358,16 @@ export function funfair(k: Kit, s: Site): void {
     k.cone('#ffffff', 0.9, 0.5, 0, 2.3, 0, 6);
     k.cyl('#22262a', 0.3, 0.3, 0.08, -0.5, 0, 0.5, 8);
   });
-  for (let i = 0; i < 6; i++) k.blob(FAIR[i], 0.28, 2.2 + k.range(-0.5, 0.5), 2.8 + k.range(0, 0.8), 9 + k.range(-0.5, 0.5), 1, 1.2, 1);
+  // Balloons tied to the pole top with short strings (the pole top is at 2.9 m).
+  for (let i = 0; i < 6; i++) {
+    const bx = 2.2 + k.range(-0.5, 0.5);
+    const by = 2.8 + k.range(0, 0.8);
+    const bz = 9 + k.range(-0.5, 0.5);
+    k.blob(FAIR[i], 0.28, bx, by, bz, 1, 1.2, 1);
+    k.beam('#3a3d42', [2.2, 2.9, 9], [bx, by - 0.3, bz], 0.015);
+  }
   k.cyl('#3a3d42', 0.02, 0.02, 2.5, 2.2, 0.4, 9, 3);
-  crowd(k, 22, -s.hw + 3, s.hw - 5, 7, s.hd - 3);
+  crowd(k, buildings.funfairCrowd, -s.hw + 3, s.hw - 5, 7, s.hd - 3);
   for (const x of [-6.5, 6.5]) lamp(k, x, s.hd - 3);
   bench(k, -s.hw + 1.6, 1.5, PI / 2);
   bench(k, s.hw - 1.6, 1.5, -PI / 2);
@@ -378,18 +389,14 @@ export function swimmingPool(k: Kit, s: Site): void {
   const dx = s.hw - 1;
   const deckY = 0.45;
 
-  // Deck and back wall.
-  k.box(deckC, 2 * dx, deckY, bz0 - dz0, 0, 0, (dz0 + bz0) / 2);
-  k.box(white, 2 * dx, 1.8, 0.3, 0, 0, dz0 - 0.15);
-  k.box(deco, 2 * dx + 0.1, 0.15, 0.4, 0, 1.8, dz0 - 0.15);
-
+  // Pools are recessed basins (waterBasin): the deck is cut open under each outer footprint.
+  const poolCoping = 0.45; // coping width
+  const POOL_DEPTH = 0.4; // pit depth below deck top; the water surface sits at 0.6 of it
+  const waterTop = deckY - POOL_DEPTH * 0.6;
   const pool = (x0: number, x1: number, z0: number, z1: number, c: string): void => {
-    const cw = 0.45;
-    k.glass(false, x1 - x0, 0.06, z1 - z0, (x0 + x1) / 2, deckY, (z0 + z1) / 2, c);
-    k.box(white, x1 - x0 + 2 * cw, 0.12, cw, (x0 + x1) / 2, deckY, z0 - cw / 2);
-    k.box(white, x1 - x0 + 2 * cw, 0.12, cw, (x0 + x1) / 2, deckY, z1 + cw / 2);
-    k.box(white, cw, 0.12, z1 - z0, x0 - cw / 2, deckY, (z0 + z1) / 2);
-    k.box(white, cw, 0.12, z1 - z0, x1 + cw / 2, deckY, (z0 + z1) / 2);
+    const w = x1 - x0 + 2 * poolCoping;
+    const d = z1 - z0 + 2 * poolCoping;
+    k.at((x0 + x1) / 2, (z0 + z1) / 2, 0, () => waterBasin(k, { w, d, coping: poolCoping }, POOL_DEPTH, c), deckY);
   };
   // Main pool with lanes.
   const px = Math.min(10, s.hw - 6);
@@ -397,29 +404,52 @@ export function swimmingPool(k: Kit, s: Site): void {
   const lanes = 6;
   const lw = 1.5;
   const pz1 = pz0 + lanes * lw;
+  // Diving pool and paddling pool (square basin, inner half-size padR).
+  const dpx0 = -px - 1;
+  const dpx1 = -2.5;
+  const dpz0 = dz0 + 2.6;
+  const dpz1 = pz0 - 2.2;
+  const ppx = s.hw - 7;
+  const ppz = (dpz0 + dpz1) / 2;
+  const padR = 2.55;
+  const holes: [number, number, number, number][] = [
+    [-px - poolCoping, px + poolCoping, pz0 - poolCoping, pz1 + poolCoping],
+    [dpx0 - poolCoping, dpx1 + poolCoping, dpz0 - poolCoping, dpz1 + poolCoping],
+    [ppx - padR - poolCoping, ppx + padR + poolCoping, ppz - padR - poolCoping, ppz + padR + poolCoping],
+  ];
+  const xs = [...new Set([-dx, dx, ...holes.flatMap((h) => [h[0], h[1]])])].sort((a, b) => a - b);
+  const zs = [...new Set([dz0, bz0, ...holes.flatMap((h) => [h[2], h[3]])])].sort((a, b) => a - b);
+  for (let i = 0; i + 1 < xs.length; i++) {
+    for (let j = 0; j + 1 < zs.length; j++) {
+      const mx = (xs[i] + xs[i + 1]) / 2;
+      const mz = (zs[j] + zs[j + 1]) / 2;
+      if (holes.some((h) => mx > h[0] && mx < h[1] && mz > h[2] && mz < h[3])) continue;
+      k.box(deckC, xs[i + 1] - xs[i], deckY, zs[j + 1] - zs[j], mx, 0, mz);
+    }
+  }
+  // Back wall.
+  k.box(white, 2 * dx, 1.8, 0.3, 0, 0, dz0 - 0.15);
+  k.box(deco, 2 * dx + 0.1, 0.15, 0.4, 0, 1.8, dz0 - 0.15);
+
   pool(-px, px, pz0, pz1, water);
   const segN = Math.round(px);
   for (let l = 1; l < lanes; l++) {
     const z = pz0 + l * lw;
     for (let i = 0; i < segN; i++) {
-      k.box(i % 2 === 0 ? '#d7263d' : '#ffffff', (2 * px) / segN - 0.05, 0.08, 0.1, -px + ((i + 0.5) * 2 * px) / segN, deckY + 0.04, z);
+      k.box(i % 2 === 0 ? '#d7263d' : '#ffffff', (2 * px) / segN - 0.05, 0.08, 0.1, -px + ((i + 0.5) * 2 * px) / segN, waterTop + 0.01, z);
     }
   }
   for (let l = 0; l < lanes; l++) {
     const z = pz0 + (l + 0.5) * lw;
-    k.box(white, 0.6, 0.4, 0.6, px + 0.2, deckY, z);
-    k.box(deco, 0.62, 0.1, 0.62, px + 0.2, deckY + 0.4, z);
-    k.box('#24395c', 2 * px - 2, 0.01, 0.2, 0, deckY + 0.061, z);
+    k.box(white, 0.6, 0.4, 0.6, px + 0.75, deckY, z);
+    k.box(deco, 0.62, 0.1, 0.62, px + 0.75, deckY + 0.4, z);
+    k.box('#24395c', 2 * px - 2, 0.01, 0.2, 0, deckY - POOL_DEPTH + 0.002, z);
   }
   for (const x of [-px + 1.5, px - 1.5]) {
     for (const dzz of [-0.3, 0.3]) k.beam('#c9ccd0', [x + dzz, deckY, pz1 + 0.15], [x + dzz, deckY + 0.9, pz1 + 0.35], 0.06);
   }
 
   // Diving pool and Art Deco diving tower.
-  const dpx0 = -px - 1;
-  const dpx1 = -2.5;
-  const dpz0 = dz0 + 2.6;
-  const dpz1 = pz0 - 2.2;
   pool(dpx0, dpx1, dpz0, dpz1, '#2a9fb0');
   const tx = (dpx0 + dpx1) / 2;
   const tz = dz0 + 0.9;
@@ -435,14 +465,9 @@ export function swimmingPool(k: Kit, s: Site): void {
   }
   k.box(deco, 3.2, 0.5, 1.0, tx, deckY + 6.2, tz);
   k.beam('#c9ccd0', [tx + 2.0, deckY, tz + 0.5], [tx + 1.5, deckY + 5.6, tz], 0.5, 'body', 0.1);
-  k.box('#2f6b8f', 0.5, 0.08, 2.8, tx - 3.0 < dpx0 ? dpx0 + 0.6 : tx - 3.0, deckY + 0.8, dpz0 + 1.0);
-
-  // Round paddling pool with a mushroom fountain.
-  const ppx = s.hw - 7;
-  const ppz = (dpz0 + dpz1) / 2;
-  k.cyl(white, 3.3, 3.3, 0.12, ppx, deckY, ppz, 18);
-  k.cyl('#7fd6dc', 2.95, 2.95, 0.07, ppx, deckY + 0.08, ppz, 18, 'glass');
-  k.cyl(white, 0.15, 0.2, 1.4, ppx, deckY, ppz, 6);
+  // Paddling pool (square basin) with a mushroom fountain standing on the pit floor.
+  pool(ppx - padR, ppx + padR, ppz - padR, ppz + padR, '#7fd6dc');
+  k.cyl(white, 0.15, 0.2, 1.4 + POOL_DEPTH, ppx, deckY - POOL_DEPTH, ppz, 6);
   k.cone(deco, 1.0, 0.4, ppx, deckY + 1.3, ppz, 10);
 
   // Loungers and parasols.
@@ -468,7 +493,7 @@ export function swimmingPool(k: Kit, s: Site): void {
     const x = -px + 1 + i * ((2 * px - 2) / 7);
     lounger(x, lz, PI);
     if (i % 2 === 1) parasol(x + 1.2, lz + 0.4, k.pick([deco, '#d7263d', accent]));
-    if (k.chance(0.4)) person(k, x + 0.5, lz - 1.3, k.range(0, TAU));
+    if (k.chance(buildings.poolLoungerPersonShare)) person(k, x + 0.5, lz - 1.3, k.range(0, TAU));
   }
   for (let i = 0; i < 3; i++) {
     lounger(ppx - 5, ppz - 1.5 + i * 1.4, PI / 2);
@@ -496,7 +521,7 @@ export function swimmingPool(k: Kit, s: Site): void {
   // Swimmers in the water (heads and shoulders).
   for (let i = 0; i < 5; i++) {
     const z = pz0 + (Math.floor(k.rng() * lanes) + 0.5) * lw;
-    k.box('#e8c4a0', 0.24, 0.22, 0.24, k.range(-px + 1, px - 1), deckY + 0.06, z);
+    k.blob('#e8c4a0', 0.12, k.range(-px + 1, px - 1), waterTop + 0.03, z);
   }
 
   // Entrance pavilion, Art Deco, with a stepped central tower.
@@ -510,7 +535,7 @@ export function swimmingPool(k: Kit, s: Site): void {
     k.at(0, bcz + (face * bd) / 2, face > 0 ? 0 : PI, () => {
       for (const sx of [-1, 1]) {
         for (let i = 0; i < 3; i++) {
-          k.glass(k.chance(0.5), 2.4, 1.1, 0.06, sx * (4.2 + i * 2.7), 2.4, 0.0, '#3a4a58');
+          k.glass(k.chance(buildings.poolFacadeLitShare), 2.4, 1.1, 0.06, sx * (4.2 + i * 2.7), 2.4, 0.0, '#3a4a58');
           k.box(white, 2.6, 0.12, 0.25, sx * (4.2 + i * 2.7), 2.3, 0.12);
         }
       }
@@ -565,10 +590,11 @@ export function circus(k: Kit, s: Site): void {
     k.add('body', new THREE.CylinderGeometry(midR, R + 0.35, midY - wallH, 2, 1, true, t0, TAU / N), col, [0, (wallH + midY) / 2, cz]);
     k.add('body', new THREE.ConeGeometry(midR, topY - midY, 2, 1, true, t0, TAU / N), col, [0, (midY + topY) / 2, cz]);
   }
-  // Scalloped valance.
+  // Scalloped skirt at the wall base: tops stay on the wall top, alternate scallops hang deeper (sag rhythm).
   for (let i = 0; i < N * 2; i++) {
     const a = ((i + 0.5) / (N * 2)) * TAU;
-    k.add('body', new THREE.ConeGeometry(0.5, 0.7, 3), i % 2 === 0 ? gold : red, [(R + 0.4) * Math.sin(a), wallH - 0.3, cz + (R + 0.4) * Math.cos(a)], [PI, -a, 0], [1, 1, 0.3]);
+    const hang = i % 2 === 0 ? 0.95 : 0.7;
+    k.add('body', new THREE.ConeGeometry(0.5, hang, 3), i % 2 === 0 ? gold : red, [(R + 0.4) * Math.sin(a), wallH - hang / 2, cz + (R + 0.4) * Math.cos(a)], [PI, -a, 0], [1, 1, 0.3]);
   }
   k.cyl(gold, 0.6, 0.8, 0.3, 0, midY - 0.15, cz, 10);
   // King pole, pennant, bunting to the rim poles.
@@ -606,7 +632,7 @@ export function circus(k: Kit, s: Site): void {
       k.box(c, 6, 2.2, 2.3, 0, 0.6, 0);
       k.add('body', new THREE.CylinderGeometry(1.15, 1.15, 6, 8, 1, false, 0, PI), white, [0, 2.8, 0], [0, 0, PI / 2], [0.45, 1, 1]);
       k.box(gold, 6.05, 0.15, 2.35, 0, 1.4, 0);
-      for (const wx of [-1.8, 0, 1.8]) windowAt(k, wx, 1.7, 0.8, 0.6, k.chance(0.5), { frame: white, depth: 0.08, sill: false });
+      for (const wx of [-1.8, 0, 1.8]) windowAt(k, wx, 1.7, 0.8, 0.6, k.chance(buildings.circusWagonLitShare), { frame: white, depth: 0.08, sill: false });
       k.add('glass', new THREE.BoxGeometry(0.06, 1.0, 0.8), '#3a4a58', [3.0, 1.8, 0]);
       for (const wx of [-2, 2]) for (const wz of [-1.0, 1.0]) k.add('body', new THREE.CylinderGeometry(0.45, 0.45, 0.2, 8), '#22262a', [wx, 0.45, wz], [PI / 2, 0, 0]);
       k.box('#8a6a45', 1.0, 0.1, 0.8, -3.6, 0.3, 0);
@@ -636,7 +662,7 @@ export function circus(k: Kit, s: Site): void {
   });
   // Queue and visitors, lamps, bunting along the front.
   for (let i = 0; i < 6; i++) person(k, -0.4 + (i % 2) * 0.8, pz + 4.6 + i * 0.55, PI);
-  crowd(k, 10, -s.hw + 2, s.hw - 2, pz + 4, s.hd - 1);
+  crowd(k, buildings.circusCrowd, -s.hw + 2, s.hw - 2, pz + 4, s.hd - 1);
   const fy = 4.2;
   const fl: V3 = [-s.hw + 1.2, fy, s.hd - 1.2];
   const fr: V3 = [s.hw - 1.2, fy, s.hd - 1.2];

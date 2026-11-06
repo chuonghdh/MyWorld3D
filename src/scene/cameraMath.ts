@@ -233,3 +233,55 @@ export function panelInset(rectLeft: number | null, viewW: number, collapsed: bo
   if (rectLeft === null || collapsed) return 0;
   return clamp(viewW - rectLeft + 8, 0, viewW * 0.5);
 }
+
+/**
+ * Pixels the left-hand panel (house, block, monument) occupies, from its DOM rectangle. 0 when it is
+ * collapsed or missing; capped at half the viewport like panelInset.
+ */
+export function leftPanelInset(rectRight: number | null, viewW: number, collapsed: boolean): number {
+  if (rectRight === null || collapsed) return 0;
+  return clamp(rectRight + 8, 0, viewW * 0.5);
+}
+
+/**
+ * Horizontal view offset (setViewOffset x, pixels) that centres the town in the free area between the
+ * left and right panels. Positive moves the picture left (right panel open), negative moves it right.
+ */
+export function viewShiftTarget(leftInset: number, rightInset: number): number {
+  return (rightInset - leftInset) / 2;
+}
+
+/** Current animated view shift (pixels) and its speed (pixels per second). */
+export interface ShiftState {
+  x: number;
+  v: number;
+}
+
+/** Below these the shift snaps onto the target and stops (pixels, pixels per second). */
+const SHIFT_SNAP_PX = 0.25;
+const SHIFT_SNAP_SPEED = 1;
+/** Critically damped spring rate per second for a visible settle in about `seconds` ((1 + w t) e^-wt ~ 0.7%). */
+const SHIFT_RATE_PER_SECOND = 7;
+
+/**
+ * One frame of the panel view-shift glide: an exactly integrated critically damped spring (ease in from rest,
+ * ease out into the target, no overshoot). A target change mid-move keeps the current speed, so the motion
+ * bends smoothly instead of restarting. `seconds` is the glide time; 0 or less jumps straight to the target.
+ */
+export function stepViewShift(state: ShiftState, target: number, dt: number, seconds: number): ShiftState {
+  if (!(seconds > 0)) return { x: target, v: 0 };
+  const step = Math.max(0, dt);
+  const w = SHIFT_RATE_PER_SECOND / seconds;
+  const y = state.x - target;
+  const decay = Math.exp(-w * step);
+  const tmp = (state.v + w * y) * step;
+  let ny = (y + tmp) * decay;
+  let nv = (state.v - w * tmp) * decay;
+  // A carried speed after a retarget could cross the target: stop on it instead of overshooting.
+  if (y !== 0 && Math.sign(ny) !== Math.sign(y)) {
+    ny = 0;
+    nv = 0;
+  }
+  if (Math.abs(ny) < SHIFT_SNAP_PX && Math.abs(nv) < SHIFT_SNAP_SPEED) return { x: target, v: 0 };
+  return { x: target + ny, v: nv };
+}

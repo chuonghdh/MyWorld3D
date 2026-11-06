@@ -16,11 +16,14 @@ import {
   planter,
   roofClutter,
   tree,
+  waterBasin,
   wing,
   windowAt,
   type Kit,
   type Site,
 } from './kit';
+import { buildings } from '../../config/tuning';
+import { WIND, anchorWeight } from '../facade/polish';
 
 const PI = Math.PI;
 
@@ -47,8 +50,8 @@ export function hospital(k: Kit, s: Site): void {
     wall, trim, base, faces: { front: true, back: true, left: true, right: true },
     skip: (f, u, fl) => f === 'front' && (Math.abs(u) > mw / 2 - wingW - 0.5 || (fl === 0 && Math.abs(u) < 3.2)),
   });
-  // Rusticated base grooves on the front.
-  for (let i = 1; i < 4; i++) k.box('#e4dccb', mw + 0.18, 0.06, md + 0.18, 0, i * 1.0, mz);
+  // Rustication grooves sit in the gaps below the ground-floor sills and above the ground-floor headers, so no window is cut.
+  for (const y of [0.92, 3.7]) k.box('#e4dccb', mw + 0.18, 0.06, md + 0.18, 0, y, mz);
   // Mansard with dormers.
   k.frust(roof, mw + 0.3, md + 0.3, mw - 2.6, md - 2.8, 2.8, 0, H, mz);
   const nd = Math.floor((mw - 4) / 2.8);
@@ -59,7 +62,7 @@ export function hospital(k: Kit, s: Site): void {
       k.at(x, mz + side * (md / 2 - 0.2), side > 0 ? 0 : PI, () => {
         k.box(trim, 1.1, 1.4, 1.0, 0, H + 0.3, -0.3);
         k.gableRoof(roof, 1.3, 0.6, 1.2, 0, H + 1.7, -0.3);
-        k.glass(k.chance(0.3), 0.7, 0.9, 0.06, 0, H + 0.45, 0.22);
+        k.glass(k.chance(buildings.hospitalDormerLitShare), 0.7, 0.9, 0.06, 0, H + 0.45, 0.22);
       });
     }
   }
@@ -119,10 +122,18 @@ export function hospital(k: Kit, s: Site): void {
   ambulance(k, bcx, bcz - 0.3, 0);
   ambulance(k, -bcx - 0.5, bz1 + 3.0, 0.35);
 
-  // Forecourt fountain / round planter.
-  k.cyl(base, 1.8, 1.9, 0.5, -bcx, 0, front + 6.5, 14);
-  k.cyl('#5d8fa8', 1.55, 1.55, 0.06, -bcx, 0.46, front + 6.5, 14, 'glass');
-  k.cyl(trim, 0.25, 0.35, 1.3, -bcx, 0.5, front + 6.5, 8);
+  // Forecourt fountain: stone plinth carrying a recessed water basin (origin at its deck top, y = 0.5).
+  const fx = -bcx;
+  const fcz = front + 6.5;
+  const fr = 1.8; // half size of the square basin
+  const fc = 0.35; // coping width
+  k.box(base, 2 * fr, 0.05, 2 * fr, fx, 0, fcz);
+  k.box(base, 2 * fr, 0.43, fc, fx, 0.05, fcz - (fr - fc / 2));
+  k.box(base, 2 * fr, 0.43, fc, fx, 0.05, fcz + (fr - fc / 2));
+  k.box(base, fc, 0.43, 2 * fr - 2 * fc, fx - (fr - fc / 2), 0.05, fcz);
+  k.box(base, fc, 0.43, 2 * fr - 2 * fc, fx + (fr - fc / 2), 0.05, fcz);
+  k.at(fx, fcz, 0, () => waterBasin(k, { w: 2 * fr, d: 2 * fr, coping: fc }, 0.4, '#5d8fa8'), 0.5);
+  k.cyl(trim, 0.2, 0.28, 0.7, fx, 0.1, fcz, 8);
 
   // Plaza details.
   const fz = Math.min(s.hd - 2, bz1 + 6);
@@ -139,7 +150,7 @@ export function hospital(k: Kit, s: Site): void {
     bench(k, sx * (s.hw - 4.2), fz - 1.5, sx * -PI / 2);
   }
   for (const x of [-s.hw + 3, 0, s.hw - 3]) tree(k, x * 0.85, -s.hd + 2.2, 6);
-  crowd(k, 8, -5, 5, front + 3, bz1 + 4);
+  crowd(k, buildings.hospitalCrowd, -5, 5, front + 3, bz1 + 4);
   person(k, bcx + 1.6, bcz + 2, PI, '#3f8f8a');
   person(k, bcx - 1.6, bcz + 1.5, 0.4, '#3f8f8a');
 }
@@ -165,10 +176,17 @@ export function fireStation(k: Kit, s: Site): void {
   const hz = hFront - hd / 2;
   const groundH = 5.6;
 
+  // Three bay doors, recessed into the front wall: the openings are cut out of the wall itself.
+  const doorW = 4.6;
+  const doorH = 4.4;
+  const spacing = Math.min(6.2, (hw - 1.5) / 3);
+  const recess = 0.9;
+  const bayOpenings = [-spacing, 0, spacing].map((u) => ({ u, w: doorW + 0.6, h: doorH + 0.3, depth: recess }));
   const H = wing(k, {
     x: hx, z: hz, w: hw, d: hd, floors: 2, groundH, floorH: 3.4,
     wall: brick, trim, base, faces: { front: true, back: true, left: true, right: true },
     skip: (f, _u, fl) => f === 'front' && fl === 0,
+    bayOpenings,
   });
   // Hip roof with a little bell cupola.
   k.frust(roof, hw + 0.8, hd + 0.8, Math.max(2, hw - 7), 1.2, 3.0, hx, H, hz);
@@ -176,20 +194,17 @@ export function fireStation(k: Kit, s: Site): void {
   k.cone(roof, 1.3, 1.4, hx + hw / 4, H + 4.0, hz, 4, PI / 4);
   k.box(brick, 0.9, 2.2, 0.7, hx - hw / 3, H + 0.8, hz - 2);
 
-  // Three bay doors with stone frames.
-  const doorW = 4.6;
-  const doorH = 4.4;
-  const spacing = Math.min(6.2, (hw - 1.5) / 3);
+  // Door parts sit inside the recess (local z = -recess is its back wall).
   const doorXs = [-spacing, 0, spacing].map((u) => hx + u);
   k.at(hx, hFront, 0, () => {
     for (const u of [-spacing, 0, spacing]) {
-      k.box(red, doorW, doorH, 0.12, u, 0, 0.02);
-      for (let i = 1; i < 7; i++) k.box('#a81c18', doorW, 0.07, 0.08, u, i * 0.62, 0.1);
-      for (let i = 0; i < 4; i++) k.glass(k.chance(0.6), 0.95, 0.5, 0.06, u - 1.65 + i * 1.1, 2.9, 0.1, '#3a4a58');
-      k.box(trim, 0.4, doorH + 0.2, 0.32, u - doorW / 2 - 0.2, 0, 0.16);
-      k.box(trim, 0.4, doorH + 0.2, 0.32, u + doorW / 2 + 0.2, 0, 0.16);
-      k.box(trim, doorW + 1.0, 0.5, 0.4, u, doorH + 0.1, 0.2);
-      k.box(trim, 0.6, 0.6, 0.45, u, doorH + 0.05, 0.25);
+      k.box(red, doorW, doorH, 0.12, u, 0, -recess + 0.1);
+      for (let i = 1; i < 7; i++) k.box('#a81c18', doorW, 0.07, 0.08, u, i * 0.62, -recess + 0.14);
+      for (let i = 0; i < 4; i++) k.glass(k.chance(buildings.fireDoorLitShare), 0.95, 0.5, 0.06, u - 1.65 + i * 1.1, 2.9, -recess + 0.1, '#3a4a58');
+      k.box(trim, 0.4, doorH + 0.2, 0.32, u - doorW / 2 - 0.2, 0, -recess + 0.2);
+      k.box(trim, 0.4, doorH + 0.2, 0.32, u + doorW / 2 + 0.2, 0, -recess + 0.2);
+      k.box(trim, doorW + 1.0, 0.5, 0.4, u, doorH + 0.1, -recess + 0.25);
+      k.box(trim, 0.6, 0.6, 0.45, u, doorH + 0.05, -recess + 0.25);
     }
     // Sign band with lit lettering.
     k.box(trim, hw - 1, 0.12, 0.25, 0, 4.95, 0.12);
@@ -207,7 +222,7 @@ export function fireStation(k: Kit, s: Site): void {
   for (let y = 4; y < th; y += 4) k.box(trim, tw + 0.14, 0.2, tw + 0.14, towerX, y, tz);
   for (const f of ['front', 'right', 'back', 'left'] as const) {
     onFace(k, f, towerX, tz, tw, tw, () => {
-      for (let y = 5; y < th - 3; y += 4) windowAt(k, 0, y, 0.8, 1.6, k.chance(0.25), { frame: trim });
+      for (let y = 5; y < th - 3; y += 4) windowAt(k, 0, y, 0.8, 1.6, k.chance(buildings.fireTowerLitShare), { frame: trim });
     });
   }
   // Belvedere top with corner piers, pyramid roof, flag.
@@ -217,7 +232,10 @@ export function fireStation(k: Kit, s: Site): void {
   k.box(trim, tw + 0.6, 0.35, tw + 0.6, towerX, th + 2.75, tz);
   k.frust(roof, tw + 0.6, tw + 0.6, 0.3, 0.3, 3.6, towerX, th + 3.1, tz);
   k.cyl('#d8d8d4', 0.04, 0.05, 2.6, towerX, th + 6.6, tz, 5);
-  k.box('#b03a2e', 1.2, 0.8, 0.04, towerX + 0.62, th + 8.3, tz);
+  // Only the cloth streams; the pole stays rigid.
+  k.withWind(WIND.FLAG, (px) => anchorWeight(px, towerX + 0.02, towerX + 1.22), () => {
+    k.box('#b03a2e', 1.2, 0.8, 0.04, towerX + 0.62, th + 8.3, tz);
+  });
   k.glass(true, 0.3, 0.3, 0.3, towerX, th + 9.2, tz, '#ff6a4a');
 
   // Apron with lane markings.
@@ -280,7 +298,7 @@ export function supermarket(k: Kit, s: Site): void {
     const pw = w / n;
     for (let i = 0; i < n; i++) {
       const x = -w / 2 + pw * (i + 0.5);
-      k.glass(k.chance(0.85), pw - 0.12, 4.4, 0.08, x, 0.2, 0.02, '#6f8fa3');
+      k.glass(k.chance(buildings.supermarketPaneLitShare), pw - 0.12, 4.4, 0.08, x, 0.2, 0.02, '#6f8fa3');
     }
     for (let i = 0; i <= n; i++) k.box(dark, 0.14, 4.6, 0.2, -w / 2 + pw * i, 0.1, 0.1);
     k.box(dark, w, 0.2, 0.22, 0, 4.6, 0.1);
@@ -298,10 +316,14 @@ export function supermarket(k: Kit, s: Site): void {
     for (const x of [-5.2, 5.2]) k.cyl('#c9ccd0', 0.1, 0.1, 3.6, x, 0, 2.8, 6);
   });
 
-  // Roof: solar panels, skylights and plant.
+  // Roof: solar racks on legs standing on the roof surface, skylights and plant.
   for (let r = 0; r < 3; r++) {
     for (let i = 0; i < Math.floor((w - 6) / 2.4); i++) {
-      k.boxR('glass', '#1f2f4a', 2.2, 0.06, 1.6, [-w / 2 + 2.5 + i * 2.4, H + 0.55, z0 + 2.2 + r * 2.2], [-0.3, 0, 0]);
+      const px = -w / 2 + 2.5 + i * 2.4;
+      const pz = z0 + 2.2 + r * 2.2;
+      // Legs run up into the tilted panel, so the rack has no floating gap.
+      for (const lx of [-0.9, 0.9]) k.box('#8a9096', 0.08, 0.6, 0.08, px + lx, H, pz);
+      k.boxR('glass', '#1f2f4a', 2.2, 0.06, 1.6, [px, H + 0.55, pz], [-0.3, 0, 0]);
     }
   }
   for (let i = 0; i < 3; i++) k.glass(false, w * 0.18, 0.4, 1.0, -w / 4 + i * (w / 4), H, zf - 2.5, '#6a7a88');
@@ -332,11 +354,11 @@ export function supermarket(k: Kit, s: Site): void {
       k.box('#3f6e8f', bayW - 0.3, 0.02, bayL - 0.4, cx, 0.04, rowA + bayL / 2);
     }
     if (i >= n - 2) continue; // trolley shelter
-    if (k.chance(0.6)) car(k, cx, rowA + bayL / 2, PI, k.pick(CAR_COLORS));
+    if (k.chance(buildings.carParkRowAOccupancy)) car(k, cx, rowA + bayL / 2, PI, k.pick(CAR_COLORS));
   }
   for (let i = 0; i < n; i++) {
     const cx = x0 + (i + 0.5) * bayW;
-    if (k.chance(0.55)) car(k, cx, rowB + bayL / 2, k.chance(0.7) ? 0 : PI, k.pick(CAR_COLORS));
+    if (k.chance(buildings.carParkRowBOccupancy)) car(k, cx, rowB + bayL / 2, k.chance(buildings.carParkRowBForwardShare) ? 0 : PI, k.pick(CAR_COLORS));
   }
   // Trolley shelter.
   const tx = x0 + (n - 1) * bayW;

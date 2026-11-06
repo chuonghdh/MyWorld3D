@@ -23,7 +23,7 @@ import type { Colors, Ctx, HouseChimney } from './facade/parts';
 import { groundFacade } from './facade/ground';
 import { downpipes, topCornice, upperCurtainWall, upperPierFacade, upperRibbons } from './facade/upper';
 import { buildRoof } from './facade/roof';
-import { rearElevation } from './facade/rear';
+import { REAR_FLUSH_SETBACK, rearElevation } from './facade/rear';
 import { SURFACE } from './surface';
 import {
   AWNING_COLORS,
@@ -135,10 +135,12 @@ export function buildHouse(params: HouseParams): THREE.Group {
   // Layering may push a detail outward, but never past the lot line of a side that touches a neighbour
   // (street sides may project, rear sides may take the existing 1.2 m allowance).
   const fl = lay.facades;
+  // Corner lot with a neighbour behind it: the rear is set back and stays inside the lot (see rearSetback).
+  const rearSetback = !fl.back && fl.front && (fl.left || fl.right) ? REAR_FLUSH_SETBACK : 0;
   m.limits = {
     xmin: -lay.W / 2 - (fl.left ? 1.5 : 0),
     xmax: lay.W / 2 + (fl.right ? 1.5 : 0),
-    zmin: -lay.D / 2 - (fl.back ? 1.5 : 1.2),
+    zmin: -lay.D / 2 - (fl.back ? 1.5 : rearSetback > 0 ? 0 : 1.2),
     zmax: lay.D / 2 + (fl.front ? 1.5 : 0),
   };
 
@@ -208,6 +210,7 @@ export function buildHouse(params: HouseParams): THREE.Group {
     rngDetail: makeRng(hashSeed(seed, lay.preset, 'detail')),
     avenue: corner || params.avenue === true,
     sharedCourtyard: params.sharedCourtyard === true,
+    rearSetback,
     chimneyTops: [],
   };
 
@@ -277,7 +280,9 @@ function buildCore(ctx: Ctx): void {
   const { m, edges, look, c } = ctx;
   m.frame = HOUSE_FRAME;
   const ring = (poly: [number, number][], y: number): P3[] => poly.map(([x, z]) => [x, y, z] as P3);
-  const upper = offsetPolygon(edges, edges.map((e) => (e.facade ? look.r : 0.04)));
+  // A set-back rear (ctx.rearSetback) moves that wall inward; other party walls keep 4 cm.
+  const inset = (e: (typeof edges)[number]): number => (e.side === 'back' && !e.facade ? 0.04 + ctx.rearSetback : 0.04);
+  const upper = offsetPolygon(edges, edges.map((e) => (e.facade ? look.r : inset(e))));
   const tower = ctx.spec.kind === 'tower';
   const sideColor = (i: number): Col => (edges[i].side === 'back' && !edges[i].facade ? c.rear : c.party);
   const walls = (a: P3[], b: P3[], cap: Col | null): void => {
@@ -300,7 +305,7 @@ function buildCore(ctx: Ctx): void {
     if (cap) m.poly('body', b, cap, interior);
   };
   if (tower) {
-    const lobby = offsetPolygon(edges, edges.map((e) => (e.facade ? 1.0 : 0.04)));
+    const lobby = offsetPolygon(edges, edges.map((e) => (e.facade ? 1.0 : inset(e))));
     m.addSolid(lobby, 0, ctx.groundH);
     m.addSolid(upper, ctx.groundH, ctx.wallTop);
     walls(ring(lobby, 0), ring(lobby, ctx.groundH), null);

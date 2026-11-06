@@ -25,6 +25,12 @@ export const SURFACE = {
   CONCRETE: 7,
   /** Zinc roofing: vertical standing seams every 0.6 m with a soft sheen. */
   ZINC: 8,
+  /** Ashlar stone, weathered: grime at the foot, faint rain streaks, lighter patches (cathedral walls). */
+  STONE_AGED: 9,
+  /** Slate roof, weathered: moss and lichen at the eaves and north side, streaks, faded upper slope (cathedral). */
+  SLATE_AGED: 10,
+  /** Zinc roof, weathered: same ageing as SLATE_AGED over the standing seams (cathedral). */
+  ZINC_AGED: 11,
 } as const;
 
 export type SurfaceId = (typeof SURFACE)[keyof typeof SURFACE];

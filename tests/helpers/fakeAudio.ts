@@ -51,13 +51,17 @@ export class FakeNode {
   startedAt: number | null = null;
   stoppedAt: number | null = null;
   onended: (() => void) | null = null;
+  /** Set on a MediaStreamAudioDestinationNode only. */
+  stream: { id: string } | null = null;
   constructor(readonly kind: string, private readonly ctx: FakeCtx) {}
   connect(n: FakeNode) {
     this.connections.add(n);
     return n;
   }
-  disconnect() {
-    this.connections.clear();
+  /** Without an argument drops every connection (as the Web Audio call does); with one, only that edge. */
+  disconnect(n?: FakeNode) {
+    if (n) this.connections.delete(n);
+    else this.connections.clear();
     this.disconnected = true;
   }
   start(when = 0) {
@@ -94,6 +98,13 @@ export class FakeCtx {
   createBufferSource = this.make('bufsrc');
   createConvolver = this.make('convolver');
   createDelay = this.make('delay');
+  createDynamicsCompressor = this.make('compressor');
+  createMediaStreamDestination = () => {
+    const n = new FakeNode('mediastream', this);
+    n.stream = { id: `fake-stream-${this.nodes.length}` };
+    this.nodes.push(n);
+    return n;
+  };
   createBuffer(channels: number, length: number) {
     const data = Array.from({ length: channels }, () => new Float32Array(length));
     return { length, numberOfChannels: channels, getChannelData: (c: number) => data[c] };

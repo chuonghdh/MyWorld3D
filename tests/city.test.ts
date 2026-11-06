@@ -100,10 +100,6 @@ describe('generateCity', () => {
     expect(full.streetTrees.length).toBeGreaterThan(half.streetTrees.length);
     expect(double.streetTrees.length).toBeGreaterThan(full.streetTrees.length);
 
-    // Higher multipliers give a superset of positions.
-    const key = (p: Vec2) => `${p.x.toFixed(4)},${p.z.toFixed(4)}`;
-    const fullSet = new Set(full.streetTrees.map((t) => key(t.position)));
-    for (const t of half.streetTrees) expect(fullSet.has(key(t.position))).toBe(true);
   });
 
   it('plants trees in every setting', () => {

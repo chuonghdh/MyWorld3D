@@ -4,6 +4,7 @@
 
 import * as THREE from 'three';
 import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js';
+import { SURFACE_ATTRIBUTE } from './surface';
 
 /** Vertex position [x, y, z]. */
 export type V3 = readonly [number, number, number];
@@ -91,6 +92,20 @@ export class ColorBatch {
    * The caller sets it right before add() and add() consumes it, so only pieces that ask are flexible.
    */
   windUv: Float32Array | null = null;
+  /** Surface id (SURFACE.*, surface.ts) written to aSurface for body pieces added now. 0 = plain (default). */
+  surfaceId = 0;
+
+  /** Runs fn so that the body pieces it adds carry surface id `id` (procedural pattern in the body shader). */
+  withSurface(id: number, fn: () => void): this {
+    const prev = this.surfaceId;
+    this.surfaceId = id;
+    try {
+      fn();
+    } finally {
+      this.surfaceId = prev;
+    }
+    return this;
+  }
 
   /** Adds a geometry with one flat vertex colour, positioned by pos, XYZ Euler rot and scale. */
   add(
@@ -124,6 +139,8 @@ export class ColorBatch {
       colors[i * 3 + 2] = this.color.b;
     }
     g.setAttribute('color', new THREE.Float32BufferAttribute(colors, 3));
+    // Body pieces always carry aSurface (0 = plain, the same look as no attribute) so every piece merges.
+    if (target === 'body') g.setAttribute(SURFACE_ATTRIBUTE, new THREE.Float32BufferAttribute(new Float32Array(count).fill(this.surfaceId), 1));
     this.parts[target].push(g);
     return this;
   }

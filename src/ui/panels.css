@@ -73,6 +73,169 @@
   margin-top: 4px;
 }
 
+/* Slide open/close (ui/slide.ts): the grid row animates 0fr <-> 1fr, so the height follows the content
+   without measuring it. Open ease-out, close ease-in; durations come from tuning via --mw-slide-open/close.
+   Also under prefers-reduced-motion (user's choice, 2026-11-06).
+   The closed content is hidden from focus and screen readers once the close finishes (visibility delay). */
+.mw-slide {
+  display: grid;
+  grid-template-rows: 0fr;
+  min-height: 0;
+  transition: grid-template-rows var(--mw-slide-close, 0.22s) cubic-bezier(0.4, 0, 1, 1);
+}
+
+.mw-slide.is-open {
+  grid-template-rows: 1fr;
+  transition: grid-template-rows var(--mw-slide-open, 0.3s) cubic-bezier(0.2, 0, 0, 1);
+}
+
+.mw-slide-inner {
+  min-height: 0;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  opacity: 0;
+  visibility: hidden;
+  transition: opacity var(--mw-slide-close, 0.22s) cubic-bezier(0.4, 0, 1, 1), visibility 0s linear var(--mw-slide-close, 0.22s);
+}
+
+.mw-slide.is-open > .mw-slide-inner {
+  opacity: 1;
+  visibility: visible;
+  transition: opacity var(--mw-slide-open, 0.3s) cubic-bezier(0.2, 0, 0, 1), visibility 0s;
+}
+
+/* The panel body scrolls inside the panel's max height: the slide takes the remaining space. */
+.mw-panel-slide {
+  flex: 0 1 auto;
+}
+
+.mw-panel-slide > .mw-slide-inner > .mw-panel-body {
+  min-height: 0;
+}
+
+/* No reduced-motion override: panels and sections always slide (user's choice, 2026-11-06). */
+
+/* Collapsible sections (controls.tsx Section). The header reuses .mw-group-title for the label. */
+.mw-section {
+  display: flex;
+  flex-direction: column;
+}
+
+.mw-section-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  min-height: 34px;
+  margin: 0;
+  padding: 0 10px 0 12px;
+  background: var(--mw-btn);
+  border: 0;
+  border-left: 3px solid transparent;
+  border-radius: 8px;
+  color: var(--mw-muted);
+  font: inherit;
+  cursor: pointer;
+  transition: background-color 0.15s ease, border-color 0.15s ease;
+}
+
+.mw-section-head .mw-group-title {
+  margin-top: 0;
+}
+
+/* Open section: warm accent tint and a thin accent edge; closed stays neutral. */
+.mw-section:not(.is-closed) > .mw-section-head {
+  background: color-mix(in srgb, var(--mw-accent) 12%, var(--mw-btn));
+  border-left-color: var(--mw-accent);
+}
+
+.mw-section:not(.is-closed) > .mw-section-head .mw-group-title {
+  color: var(--mw-fg);
+}
+
+.mw-section-head:hover,
+.mw-section-head:focus-visible {
+  background: rgba(255, 255, 255, 0.12);
+}
+
+.mw-section:not(.is-closed) > .mw-section-head:hover,
+.mw-section:not(.is-closed) > .mw-section-head:focus-visible {
+  background: color-mix(in srgb, var(--mw-accent) 20%, var(--mw-btn));
+}
+
+.mw-section-head:hover .mw-group-title,
+.mw-section-head:hover .mw-section-chevron {
+  color: var(--mw-fg);
+}
+
+.mw-section-head:focus-visible {
+  outline: 2px solid var(--mw-accent);
+  outline-offset: 2px;
+}
+
+.mw-section-chevron {
+  color: var(--mw-fg);
+}
+
+.mw-section-head:focus-visible {
+  outline: 2px solid var(--mw-accent);
+  outline-offset: 2px;
+}
+
+.mw-section-chevron {
+  width: 7px;
+  height: 7px;
+  margin-right: 4px;
+  border-right: 1.5px solid currentColor;
+  border-bottom: 1.5px solid currentColor;
+  transform: translateY(-2px) rotate(45deg);
+  transition: transform 0.15s ease;
+}
+
+.mw-section.is-closed .mw-section-chevron {
+  transform: rotate(-45deg);
+}
+
+.mw-section-body {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding-top: 12px;
+}
+
+/* Checkbox-style on/off rows (controls.tsx CheckToggle). */
+.mw-check-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 18px;
+}
+
+.mw-check {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 32px;
+  font-size: 13px;
+  color: var(--mw-fg);
+  cursor: pointer;
+}
+
+.mw-check input {
+  width: 16px;
+  height: 16px;
+  margin: 0;
+  accent-color: var(--mw-accent);
+  cursor: pointer;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .mw-section-chevron,
+  .mw-section-head {
+    transition: none;
+  }
+}
+
 .mw-field {
   display: flex;
   flex-direction: column;
@@ -483,6 +646,10 @@
     z-index: 30;
   }
 
+  .mw-panel:not(.is-collapsed) .mw-panel-slide {
+    flex: 1 1 auto;
+  }
+
   .mw-panel:not(.is-collapsed) .mw-panel-body {
     flex: 1;
     min-height: 0;
@@ -499,6 +666,10 @@
 
   .mw-panel-toggle {
     min-width: 40px;
+  }
+
+  .mw-timebar.mw-timebar-sliding {
+    --mw-tb-gap: 4px;
   }
 
   .mw-timebar {
@@ -600,6 +771,53 @@
   font: 600 11px/1 system-ui, -apple-system, 'Segoe UI', sans-serif;
   letter-spacing: 0.04em;
   color: var(--mw-muted);
+}
+
+/* Time bar fold (TimeBar.tsx): controls and the small clock slide sideways with the panel timings
+   (grid columns 0fr <-> 1fr), so the bar width animates and nothing jumps. Always animated (user's choice,
+   2026-11-06). The bar gap moves into each slide (trailing padding) so a closed slide leaves no gap. */
+.mw-timebar.mw-timebar-sliding {
+  gap: 0;
+  --mw-tb-gap: 8px;
+}
+
+.mw-hslide {
+  display: grid;
+  grid-template-columns: 0fr;
+  transition: grid-template-columns var(--mw-slide-close, 0.22s) cubic-bezier(0.4, 0, 1, 1);
+}
+
+.mw-hslide.is-open {
+  grid-template-columns: 1fr;
+  transition: grid-template-columns var(--mw-slide-open, 0.3s) cubic-bezier(0.2, 0, 0, 1);
+}
+
+.mw-hslide-inner {
+  min-width: 0;
+  overflow: hidden;
+  opacity: 0;
+  visibility: hidden;
+  transition: opacity var(--mw-slide-close, 0.22s) cubic-bezier(0.4, 0, 1, 1), visibility 0s linear var(--mw-slide-close, 0.22s);
+}
+
+.mw-hslide.is-open > .mw-hslide-inner {
+  opacity: 1;
+  visibility: visible;
+  transition: opacity var(--mw-slide-open, 0.3s) cubic-bezier(0.2, 0, 0, 1), visibility 0s;
+}
+
+/* The row carries the gap and trailing spacing, so the clipped inner box can close to 0 px. */
+.mw-hslide-row {
+  display: flex;
+  align-items: center;
+  gap: var(--mw-tb-gap);
+  padding-right: var(--mw-tb-gap);
+  white-space: nowrap;
+  width: max-content;
+}
+
+.mw-hslide-row > * {
+  flex: none;
 }
 
 .mw-clock-folded {

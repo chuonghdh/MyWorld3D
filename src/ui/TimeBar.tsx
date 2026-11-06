@@ -8,6 +8,9 @@ import { createPortal } from 'react-dom';
 import { useWorldStore } from '../store';
 import { runtime } from '../scene/runtime';
 import { isNarrowViewport } from './uiUtils';
+import { FilmButton } from './FilmButton';
+import { slideVars, useSlide } from './slide';
+import { panelCue } from './panelCue';
 
 /** Width of one control in the phone window, and how many show at once. */
 const PHONE_SLOT_PX = 44;
@@ -215,8 +218,8 @@ function PhotoButton() {
  * row two is the clock. The controls are the same buttons as on desktop.
  */
 function PhoneTimeBar({ timeOfDay }: { timeOfDay: number }) {
-  // Controls in order: pause, auto, map, street, photo (the view switch contributes its two buttons).
-  const COUNT = 5;
+  // Controls in order: pause, auto, map, street, photo, film (the view switch contributes its two buttons).
+  const COUNT = 6;
   const maxStart = COUNT - PHONE_VISIBLE;
   const [start, setStart] = useState(0);
   const drag = useRef<number | null>(null);
@@ -252,6 +255,7 @@ function PhoneTimeBar({ timeOfDay }: { timeOfDay: number }) {
             <AutoButton />
             <ViewSwitch />
             <PhotoButton />
+            <FilmButton />
           </div>
         </div>
         <button
@@ -279,46 +283,68 @@ export function TimeBar() {
 
   if (phone) return <PhoneTimeBar timeOfDay={timeOfDay} />;
 
-  if (collapsed) {
-    return (
-      <div className="mw-timebar mw-timebar-folded" role="group" aria-label="Time controls">
-        <div className="mw-clock-folded">
-          <AnalogClock hours={timeOfDay} />
-          <span className="mw-clock-period" aria-hidden="true">
-            {clock12(timeOfDay).period}
-          </span>
-        </div>
-        <button
-          type="button"
-          className="mw-timebar-btn mw-timebar-fold"
-          aria-label="Expand the time bar"
-          title="Show the controls"
-          onClick={() => setCollapsed(false)}
-        >
-          ▸
-        </button>
-      </div>
-    );
-  }
+  // Both shapes stay mounted: the controls and the small analog clock slide in and out sideways (same timings as
+  // the panels, always animated), and the bar width follows. Hidden parts are out of the tab order (.mw-hslide).
+  return <TimeBarSliding timeOfDay={timeOfDay} collapsed={collapsed} setCollapsed={setCollapsed} />;
+}
 
+function TimeBarSliding({
+  timeOfDay,
+  collapsed,
+  setCollapsed,
+}: {
+  timeOfDay: number;
+  collapsed: boolean;
+  setCollapsed: (next: boolean) => void;
+}) {
+  const controls = useSlide(!collapsed, false);
+  const folded = useSlide(collapsed, false);
+  const flip = () => {
+    setCollapsed(!collapsed);
+    panelCue(collapsed);
+  };
   return (
-    <div className="mw-timebar" role="group" aria-label="Time controls">
-      <PauseButton />
-      <AutoButton />
-      <div className="mw-timebar-clock" aria-label="Time of day">
-        {clock12(timeOfDay).text}
-        <span className="mw-clock-period">{clock12(timeOfDay).period}</span>
+    <div
+      className={`mw-timebar mw-timebar-sliding${collapsed ? ' mw-timebar-folded' : ''}`}
+      role="group"
+      aria-label="Time controls"
+      style={slideVars()}
+    >
+      <div className={folded.expanded ? 'mw-hslide is-open' : 'mw-hslide'} aria-hidden={!collapsed}>
+        <div className="mw-hslide-inner">
+          <div className="mw-hslide-row">
+            <div className="mw-clock-folded">
+              <AnalogClock hours={timeOfDay} />
+              <span className="mw-clock-period" aria-hidden="true">
+                {clock12(timeOfDay).period}
+              </span>
+            </div>
+          </div>
+        </div>
       </div>
-      <ViewSwitch />
-      <PhotoButton />
+      <div className={controls.expanded ? 'mw-hslide is-open' : 'mw-hslide'} aria-hidden={collapsed}>
+        <div className="mw-hslide-inner">
+          <div className="mw-hslide-row">
+            <PauseButton />
+            <AutoButton />
+            <div className="mw-timebar-clock" aria-label="Time of day">
+              {clock12(timeOfDay).text}
+              <span className="mw-clock-period">{clock12(timeOfDay).period}</span>
+            </div>
+            <ViewSwitch />
+            <PhotoButton />
+            <FilmButton />
+          </div>
+        </div>
+      </div>
       <button
         type="button"
         className="mw-timebar-btn mw-timebar-fold"
-        aria-label="Fold the time bar"
-        title="Fold to the clock"
-        onClick={() => setCollapsed(true)}
+        aria-label={collapsed ? 'Expand the time bar' : 'Fold the time bar'}
+        title={collapsed ? 'Show the controls' : 'Fold to the clock'}
+        onClick={flip}
       >
-        ◂
+        {collapsed ? '▸' : '◂'}
       </button>
     </div>
   );

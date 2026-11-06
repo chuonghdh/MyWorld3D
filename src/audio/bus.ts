@@ -68,7 +68,9 @@ export type PartialVolumes = Partial<{
 
 export function defaultVolumes(): VolumeSettings {
   const categories = {} as Record<Category, number>;
-  for (const c of CATEGORIES) categories[c] = 1;
+  // Start quieter for the loud close-range sources (cars, horns, footsteps); unlisted categories keep 1.
+  const levels = audioTuning.categoryDefaults as Partial<Record<Category, number>>;
+  for (const c of CATEGORIES) categories[c] = levels[c] ?? 1;
   return { master: audioTuning.masterVolumeDefault, groups: { effects: 1, nature: 1, music: 1 }, categories };
 }
 

@@ -280,7 +280,7 @@ describe('cloud shadow patch on the shared materials', () => {
       expect(hasCloudShade(sh.fragmentShader)).toBe(true);
       expect(sh.vertexShader).toContain('vCsPos');
       expect(sh.uniforms.uCsMask).toBe(cloudShadeUniforms.uCsMask);
-      expect(m.customProgramCacheKey()).toMatch(/cs1|building-body-v4/);
+      expect(m.customProgramCacheKey()).toMatch(/cs1|building-body-v6/);
     }
   });
 

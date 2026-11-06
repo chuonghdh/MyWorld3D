@@ -3,6 +3,7 @@ import { useEffect, useMemo, useRef } from 'react';
 import * as THREE from 'three';
 import type { CityLayout, Lot } from '../city';
 import { buildHouse, buildMonument, type HouseChimney } from '../buildings';
+import { buildings } from '../config/tuning';
 import type { BlockOverride, HouseOverride } from '../store';
 import { mergeByMaterial, type PlacedObject } from './mergeBlock';
 import {
@@ -60,8 +61,14 @@ export function useTownPieces({ layout, order, base, blockOverrides, houseOverri
         const c = centerOf(block.bounds);
         const width = lot ? lot.width : (block.bounds.maxX - block.bounds.minX) * 0.85;
         const depth = lot ? lot.depth : (block.bounds.maxZ - block.bounds.minZ) * 0.85;
-        const monumentKind = bo.monument ?? monumentBaseFor(block.id);
+        const monumentKind = bo.monument ?? monumentBaseFor(block);
         const obj = buildMonument(monumentKind, { width, depth, seed: lot?.seed ?? 1 });
+        // Monuments are drawn in the main pass only, except the kinds listed in buildings.monumentShadowKinds (shadow budget).
+        if (!buildings.monumentShadowKinds.includes(monumentKind)) {
+          obj.traverse((child) => {
+            if (child instanceof THREE.Mesh) child.castShadow = false;
+          });
+        }
         obj.position.set((lot?.position.x ?? c.x) + offset.x, 0, (lot?.position.z ?? c.z) + offset.z);
         obj.rotation.y = lot?.facing ?? 0;
         const footprint = [{ id: lot?.id ?? block.id, x: obj.position.x, z: obj.position.z, facing: obj.rotation.y, width, depth }];

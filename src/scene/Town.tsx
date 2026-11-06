@@ -159,11 +159,11 @@ export function Town({ onSelect, selected }: { onSelect: (target: OverrideTarget
   const church = useMemo(() => {
     for (const p of pieces) {
       if (p.kind !== 'monument') continue;
-      const kind = blockOverrides[p.blockId]?.monument ?? monumentBaseFor(p.blockId);
+      const kind = blockOverrides[p.blockId]?.monument ?? monumentBaseFor(layout.blocks.find((b) => b.id === p.blockId));
       if (kind === 'gothic-cathedral' && p.lots[0]) return { x: p.lots[0].x, z: p.lots[0].z };
     }
     return null;
-  }, [pieces, blockOverrides]);
+  }, [pieces, blockOverrides, layout]);
   const churchRef = useRef(church);
   churchRef.current = church;
 

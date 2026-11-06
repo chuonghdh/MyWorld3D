@@ -19,6 +19,7 @@ import { planStreetDecor } from './decor';
 import { courtyardGreeneryFootprint } from './greeneryFootprint';
 import { buildDecor } from './decorGeometry';
 import { createWaterMaterial } from './water';
+import { runtime } from '../core/runtime';
 import { buildSurfaces } from './surfaces';
 
 // Road grain: world-space value noise (no texture, no extra draw) breaks the flat vertex colour of the
@@ -247,8 +248,8 @@ export function createStreetscape(layout: CityLayout): Streetscape {
   const waterMesh = addMesh(MESH_NAMES.water, decorWater, water.material, { cast: false, receive: false });
   if (waterMesh) {
     waterMesh.renderOrder = 1;
-    // The shader clock follows the wall clock; the water needs no per-frame hook from the scene.
-    waterMesh.onBeforeRender = () => water.setTime(performance.now() / 1000);
+    // The shader clock follows simulation time (frozen while paused, film time in the auto film); no scene hook needed.
+    waterMesh.onBeforeRender = () => water.setTime(runtime.simTime);
   }
 
   // --- Signal lamps (one InstancedMesh, colour per instance) ---

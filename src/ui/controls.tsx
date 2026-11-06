@@ -1,5 +1,8 @@
 // Small shared form controls for the panels. Plain DOM, no UI library.
-import { createContext, useContext, type ReactNode } from 'react';
+import { createContext, useContext, useEffect, useId, useRef, useState, type ReactNode } from 'react';
+import { isSectionOpen, saveSectionOpen } from './sectionState';
+import { slideVars, useSlide } from './slide';
+import { panelCue } from './panelCue';
 
 interface SliderProps {
   label: string;
@@ -91,6 +94,45 @@ export function ActionButton({ children, icon, active, onClick, ariaPressed }: B
   );
 }
 
+/**
+ * Collapsible panel section: the header is a button (aria-expanded, keyboard via native button) with a chevron.
+ * Expanded by default; the open state is remembered per section id (sectionState.ts).
+ */
+export function Section({ id, title, children }: { id: string; title: string; children: ReactNode }) {
+  const [open, setOpen] = useState(() => isSectionOpen(id));
+  const slide = useSlide(open, false);
+  const bodyId = useId();
+  const flip = () => {
+    const next = !open;
+    setOpen(next);
+    saveSectionOpen(id, next);
+    panelCue(next);
+  };
+  return (
+    <div className={open ? 'mw-section' : 'mw-section is-closed'}>
+      <button type="button" className="mw-section-head" aria-expanded={open} aria-controls={bodyId} onClick={flip}>
+        <span className="mw-group-title">{title}</span>
+        <span className="mw-section-chevron" aria-hidden="true" />
+      </button>
+      <div className={slide.expanded ? 'mw-slide is-open' : 'mw-slide'} id={bodyId} aria-hidden={!open}>
+        <div className="mw-slide-inner">
+          {!slide.folded && <div className="mw-section-body">{children}</div>}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/** Checkbox-style on/off row (native checkbox, so it is keyboard and screen-reader friendly). */
+export function CheckToggle({ label, checked, onChange }: { label: string; checked: boolean; onChange: (next: boolean) => void }) {
+  return (
+    <label className="mw-check">
+      <input type="checkbox" checked={checked} onChange={(e) => onChange(e.target.checked)} />
+      <span>{label}</span>
+    </label>
+  );
+}
+
 export function Select<T extends string>({
   label,
   value,
@@ -171,11 +213,28 @@ export const PanelFocusContext = createContext<PanelFocus>({ active: 'settings',
  * scene behind stays visible; the title bar stays so the panel can be opened again. Opening one
  * panel folds the other.
  */
+/** True inside a panel that is leaving (PanelExit): it slides closed, then unmounts. */
+export const PanelExitContext = createContext(false);
+
 export function Panel({ id, title, icon, children }: { id: PanelId; title: string; icon?: ReactNode; children: ReactNode }) {
   const focus = useContext(PanelFocusContext);
-  const collapsed = focus.active !== id;
+  const leaving = useContext(PanelExitContext);
+  const collapsed = leaving || focus.active !== id;
+  // Leaving an open panel (selection cleared) is a close the user caused: play the close cue once.
+  const wasOpen = useRef(focus.active === id);
+  useEffect(() => {
+    if (leaving && wasOpen.current) panelCue(false);
+  }, [leaving]);
+  if (!leaving) wasOpen.current = focus.active === id;
+  // Visual state: the body slides; the collapsed card shape waits until the slide has closed.
+  const slide = useSlide(!collapsed);
   return (
-    <section className={`mw-panel${collapsed ? ' is-collapsed' : ''}`} aria-label={title}>
+    <section
+      className={`mw-panel${slide.folded ? ' is-collapsed' : ''}`}
+      aria-label={title}
+      data-open={collapsed ? 'false' : 'true'}
+      style={slideVars()}
+    >
       <header className="mw-panel-head">
         <span className="mw-dot" aria-hidden="true" />
         <h2>{title}</h2>
@@ -185,13 +244,18 @@ export function Panel({ id, title, icon, children }: { id: PanelId; title: strin
           aria-expanded={!collapsed}
           aria-label={collapsed ? `Show ${title}` : `Hide ${title}`}
           title={collapsed ? 'Show' : 'Hide'}
-          onClick={() => focus.setActive(collapsed ? id : null)}
+          onClick={() => {
+            focus.setActive(collapsed ? id : null);
+            panelCue(collapsed);
+          }}
         >
           <span className="mw-panel-arrow" aria-hidden="true">{collapsed ? '▼' : '▲'}</span>
           {icon && <span className="mw-panel-glyph" aria-hidden="true">{icon}</span>}
         </button>
       </header>
-      {!collapsed && <div className="mw-panel-body">{children}</div>}
+      <div className={slide.expanded ? 'mw-slide mw-panel-slide is-open' : 'mw-slide mw-panel-slide'} aria-hidden={collapsed}>
+        <div className="mw-slide-inner">{!slide.folded && <div className="mw-panel-body">{children}</div>}</div>
+      </div>
     </section>
   );
 }

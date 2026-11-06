@@ -16,11 +16,14 @@ import {
   tiers,
   tint,
   tree,
+  waterBasin,
   windowAt,
   type C,
   type Kit,
   type Site,
 } from './kit';
+import { buildings } from '../../config/tuning';
+import { SURFACE } from '../surface';
 
 const PI = Math.PI;
 const TAU = Math.PI * 2;
@@ -118,10 +121,36 @@ function cycad(k: Kit, x: number, z: number, h = 3): void {
   }
 }
 
+// Pond geometry (metres). The deck is the lawn top; the basin origin sits above it so that the pit floor
+// (which waterBasin draws 0.05 below its floor) stays at y >= 0. Anything below y = 0 would lift the whole monument.
+const POND_W = 5.2;
+const POND_D = 4.0;
+const POND_COPING = 0.35;
+const POND_DEPTH = 0.1;
+const POND_Y = 0.16;
+const POND_SINK = 0.02; // waterBasin sinks its coping this far below the origin
+const POND_STONE = '#cbbfa8';
+const POND_CLEAR = 0.4; // ferns keep this far off the pond footprint
+const LAWN = '#7fae5c';
+
 export function dinosaurPark(k: Kit, s: Site): void {
   const lawnW = 2 * s.hw - 1.2;
   const lawnD = 2 * s.hd - 1.2;
-  k.box('#7fae5c', lawnW, 0.08, lawnD, 0, 0, 0);
+  const pdx = -s.hw + 4.5;
+  const pdz = -1;
+  // Lawn with a hole where the pond sits (the pond rests on its own stone base, not on the grass).
+  const hx0 = pdx - POND_W / 2;
+  const hx1 = pdx + POND_W / 2;
+  const hz0 = pdz - POND_D / 2;
+  const hz1 = pdz + POND_D / 2;
+  const slab = (x0: number, x1: number, z0: number, z1: number): void => {
+    if (x1 - x0 <= 0 || z1 - z0 <= 0) return;
+    k.box(LAWN, x1 - x0, 0.08, z1 - z0, (x0 + x1) / 2, 0, (z0 + z1) / 2);
+  };
+  slab(-lawnW / 2, lawnW / 2, -lawnD / 2, hz0);
+  slab(-lawnW / 2, lawnW / 2, hz1, lawnD / 2);
+  slab(-lawnW / 2, hx0, hz0, hz1);
+  slab(hx1, lawnW / 2, hz0, hz1);
   const path = '#d9c49a';
   // Paths: entrance avenue and a loop.
   k.box(path, 2.6, 0.03, s.hd - 0.6 - 4, 0, 0.08, (s.hd - 0.6 + 4) / 2);
@@ -186,20 +215,27 @@ export function dinosaurPark(k: Kit, s: Site): void {
   k.blob('#d9d6d0', 0.9, vx + 0.2, 5.8, vz, 1, 0.8, 1);
   k.blob('#e6e3dd', 0.7, vx + 0.7, 6.8, vz - 0.3, 1, 0.8, 1);
 
-  // Pond with rocks.
-  const pdx = -s.hw + 4.5;
-  const pdz = -1;
-  k.add('glass', new THREE.CylinderGeometry(1, 1, 0.06, 14), '#4f8fa8', [pdx, 0.11, pdz], [0, 0, 0], [2.6, 1, 2.0]);
+  // Pond: stone rim on a solid stone base, waterBasin pit, rocks outside the rim.
+  const underRim = (): void => {
+    const c = POND_COPING;
+    k.box(POND_STONE, POND_W, POND_Y - POND_SINK, c, pdx, 0, hz0 + c / 2);
+    k.box(POND_STONE, POND_W, POND_Y - POND_SINK, c, pdx, 0, hz1 - c / 2);
+    k.box(POND_STONE, c, POND_Y - POND_SINK, POND_D - 2 * c, hx0 + c / 2, 0, pdz);
+    k.box(POND_STONE, c, POND_Y - POND_SINK, POND_D - 2 * c, hx1 - c / 2, 0, pdz);
+  };
+  underRim();
+  k.at(pdx, pdz, 0, () => waterBasin(k, { w: POND_W, d: POND_D, coping: POND_COPING }, POND_DEPTH, '#4f8fa8'), POND_Y);
   for (let i = 0; i < 7; i++) {
     const a = (i / 7) * TAU;
-    rock(k, pdx + 2.8 * Math.cos(a), pdz + 2.2 * Math.sin(a), k.range(0.35, 0.6));
+    rock(k, pdx + (POND_W / 2 + 0.7) * Math.cos(a), pdz + (POND_D / 2 + 0.7) * Math.sin(a), k.range(0.35, 0.6));
   }
 
-  // Vegetation and rocks.
-  for (let i = 0; i < 10; i++) {
+  // Vegetation and rocks. Ferns keep off the pond and the path ring.
+  for (let i = 0; i < buildings.dinosaurFernCount; i++) {
     const x = k.range(-s.hw + 2, s.hw - 2);
     const z = k.range(-s.hd + 2, s.hd - 3);
     if (Math.hypot(x, z + 1) < 8.6 && Math.hypot(x, z + 1) > 6) continue;
+    if (x > hx0 - POND_CLEAR && x < hx1 + POND_CLEAR && z > hz0 - POND_CLEAR && z < hz1 + POND_CLEAR) continue;
     fern(k, x, z, k.range(0.8, 1.3));
   }
   for (const [x, z] of [[-14, -14], [13.5, 10.5], [-13.5, 12.5], [2.5, -14], [12.5, -2.5]] as const) cycad(k, x * (s.hw / 17), z * (s.hd / 17), k.range(2.6, 3.6));
@@ -288,9 +324,12 @@ export function openAirTheatre(k: Kit, s: Site): void {
   const bz = sz0 - 0.5;
   k.box(stone, bw, 10, 1.0, 0, 0, bz);
   k.box(stone2, bw + 0.4, 0.5, 1.4, 0, 10, bz);
+  // Plinth course on the wings (the stage hides the centre) and a shadow course under the cornice.
+  for (const sx of [-1, 1]) k.box(stone2, 1.2, 1.1, 1.4, sx * (sw / 2 + 0.6), 0, bz);
+  k.box(stone, bw + 0.2, 0.25, 1.2, 0, 9.75, bz);
   k.at(0, bz + 0.5, 0, () => {
     for (const [x, w, h] of [[-5.5, 1.8, 3.2], [0, 2.6, 3.8], [5.5, 1.8, 3.2]] as const) {
-      k.glass(x === 0, w, h, 0.06, x, 1.1, 0.0, '#2a2420');
+      k.glass(x === 0 && k.chance(buildings.theatreDoorLitShare), w, h, 0.06, x, 1.1, 0.0, '#2a2420');
       k.box(stone2, w + 0.6, 0.4, 0.3, x, 1.1 + h, 0.15);
     }
     const nCol = 8;
@@ -325,7 +364,7 @@ export function openAirTheatre(k: Kit, s: Site): void {
   // Cypresses, planters, audience, lamps.
   for (const [x, z] of [[-1, -1], [1, -1], [-1, 1], [1, 1]] as const) cypress(k, x * (s.hw - 1.5), z > 0 ? s.hd - 1.8 : -s.hd + 1.5, 8.5);
   // Seated audience on the rows, facing the stage.
-  for (let i = 0; i < 24; i++) {
+  for (let i = 0; i < buildings.theatreAudienceCount; i++) {
     const r = Math.floor(k.range(0, rows - 1));
     const th = k.range(0.15, PI - 0.15);
     const rr = a0 + (r + 0.5) * step;
@@ -345,8 +384,8 @@ export function openAirTheatre(k: Kit, s: Site): void {
 // Gothic cathedral: west towers with spires, rose window, nave, aisles,
 // flying buttresses, transept, apse with ambulatory, crossing flèche.
 // ---------------------------------------------------------------------------
-function rose(k: Kit, y: number, r: number, glass: C): void {
-  k.add('glassLit', new THREE.CylinderGeometry(r, r, 0.08, 16), glass, [0, y, 0.02], [PI / 2, 0, 0]);
+function rose(k: Kit, y: number, r: number, glass: C, lit: boolean): void {
+  k.add(lit ? 'glassLit' : 'glass', new THREE.CylinderGeometry(r, r, 0.08, 16), glass, [0, y, 0.02], [PI / 2, 0, 0]);
   const n = 12;
   for (let i = 0; i < n; i++) {
     const a0 = (i / n) * TAU;
@@ -371,12 +410,46 @@ function portal(k: Kit, x: number, w: number, h: number, stone: C, lit: boolean)
     k.boxR('body', stone, 0.25, ww * 0.74, d, [x + ww * 0.26, h + ww * 0.25, d / 2], [0, 0, PI / 4]);
   }
   k.gableRoof(stone, w + 2.2, w * 0.9, 0.4, x, h + w * 0.55 + 0.7, 0.35);
+  // Jamb shafts proud of the mouldings, and a finial on the hood gable.
+  for (const sx of [-1, 1]) k.cyl(stone, 0.09, 0.09, h * 0.95, x + sx * (w / 2 + 0.25), 0, 0.78, 8);
+  k.cone(stone, 0.12, 0.5, x, h + w * 0.55 + 0.7 + w * 0.9, 0.35, 6);
+}
+
+/** Hood mould over a lancet: two chevron bars meeting above the apex, label stops at the springing. Local frame, proud of the wall (z 0.36). No RNG draw. */
+function hoodMould(k: Kit, x: number, y0: number, w: number, h: number, stone: C): void {
+  const z = 0.36;
+  const apex: V3 = [x, y0 + h + w * 0.5 + 0.12, z];
+  for (const sx of [-1, 1]) {
+    const end: V3 = [x + sx * w * 0.6, y0 + h - 0.02, z];
+    k.beam(stone, apex, end, 0.14);
+    k.blob(stone, 0.11, end[0], end[1] + 0.02, z + 0.04);
+  }
+}
+
+/** Deterministic tone offset in [-amount, amount] (HSL lightness) from a position. No RNG draw, so other pieces keep their stream. */
+function ageJitter(x: number, z: number, amount: number): number {
+  const h = Math.sin(x * 12.9898 + z * 78.233) * 43758.5453;
+  return (h - Math.floor(h) - 0.5) * 2 * amount;
 }
 
 export function gothicCathedral(k: Kit, s: Site): void {
-  const stone = k.pick(['#d8cdb5', '#cfc7b6', '#d9c9a8']);
+  // Stone walls get the ashlar pattern (surface.ts); roof pieces switch to a roof surface inside.
+  k.batch.withSurface(SURFACE.STONE_AGED, () => cathedral(k, s));
+}
+
+function cathedral(k: Kit, s: Site): void {
+  const stone = k.pick(buildings.cathedralStonePalette);
   const dark = tint(stone, -0.08);
-  const roof = k.pick(['#4f5762', '#4f5762', '#7fa69a']);
+  // Each wall piece gets its own tone, so the stone does not read as one flat colour.
+  const wallTone = (x: number, z: number): string => tint(stone, ageJitter(x, z, buildings.cathedralStoneJitter));
+  const roof = k.pick([buildings.cathedralRoofSlate, buildings.cathedralRoofSlate, buildings.cathedralRoofZinc]);
+  // Slate roofs get the staggered slate tiles; the copper-green roof gets standing-seam zinc.
+  const roofSurface = roof === buildings.cathedralRoofZinc ? SURFACE.ZINC_AGED : SURFACE.SLATE_AGED;
+  // Each roof piece gets its own tone (no RNG draw).
+  const roofTone = (x: number, z: number): string => tint(roof, ageJitter(x, z, buildings.cathedralRoofJitter));
+  const onRoof = (fn: () => void): void => {
+    k.batch.withSurface(roofSurface, fn);
+  };
   const glassC = k.pick(['#3f4f7a', '#4a3f6a', '#2f5a6a']);
   const lanc = { frame: dark, pointed: true, sill: false, depth: 0.25 };
 
@@ -387,7 +460,8 @@ export function gothicCathedral(k: Kit, s: Site): void {
   const front = Math.min(14, s.hd - 3);
   const tw = 5.5;
   const tz = front - tw / 2;
-  const naveZ1 = front - tw; // nave starts behind the towers
+  // Nave ends where the west front begins (front - 1.0): no narthex slot between nave and facade.
+  const naveZ1 = front - 1.0;
   const naveZ0 = -7.5; // apse joint
   const trZ0 = -3.5;
   const trZ1 = 2.5;
@@ -396,21 +470,21 @@ export function gothicCathedral(k: Kit, s: Site): void {
   const naveCz = (naveZ0 + naveZ1) / 2;
 
   // Nave and aisles.
-  k.box(stone, nw, nH, naveLen, 0, 0, naveCz);
+  k.box(wallTone(0, naveCz), nw, nH, naveLen, 0, 0, naveCz);
   k.box(dark, nw + 0.5, 0.4, naveLen, 0, nH, naveCz);
-  k.gableRoof(roof, nw + 0.8, 8, naveLen, 0, nH + 0.4, naveCz);
-  for (const sx of [-1, 1]) k.box(stone, aW, aH, naveLen, sx * (nw / 2 + aW / 2), 0, naveCz);
-  k.gableRoof(roof, nw + 2 * aW + 0.6, 3.2, naveLen, 0, aH, naveCz);
+  onRoof(() => k.gableRoof(roofTone(0, naveCz), nw + 0.8, 8, naveLen, 0, nH + 0.4, naveCz));
+  for (const sx of [-1, 1]) k.box(wallTone(sx, naveCz), aW, aH, naveLen, sx * (nw / 2 + aW / 2), 0, naveCz);
+  onRoof(() => k.gableRoof(roofTone(0, naveCz), nw + 2 * aW + 0.6, 3.2, naveLen, 0, aH, naveCz));
 
   // Transept with rose windows on both ends.
   const trW = trZ1 - trZ0;
   const trCz = (trZ0 + trZ1) / 2;
-  k.box(stone, 2 * trX, nH, trW, 0, 0, trCz);
+  k.box(wallTone(0, trCz), 2 * trX, nH, trW, 0, 0, trCz);
   k.box(dark, 2 * trX + 0.5, 0.4, trW + 0.5, 0, nH, trCz);
-  k.gableRoof(roof, trW + 0.8, 7, 2 * trX + 0.6, 0, nH + 0.4, trCz, PI / 2);
+  onRoof(() => k.gableRoof(roofTone(0, trCz), trW + 0.8, 7, 2 * trX + 0.6, 0, nH + 0.4, trCz, PI / 2));
   for (const sx of [-1, 1]) {
     k.at(sx * trX, trCz, (sx * PI) / 2, () => {
-      rose(k, 10.5, 2.2, glassC);
+      rose(k, 10.5, 2.2, glassC, k.chance(buildings.cathedralRoseLitShare));
       portal(k, 0, 1.8, 3.2, dark, false);
       for (const u of [-trW / 2 + 0.3, trW / 2 - 0.3]) {
         k.box(dark, 0.8, nH + 3, 0.8, u, 0, 0.3);
@@ -420,18 +494,19 @@ export function gothicCathedral(k: Kit, s: Site): void {
   }
 
   // Apse and ambulatory (half-round, towards -z).
-  k.add('body', new THREE.CylinderGeometry(nw / 2, nw / 2, nH, 7, 1, false, PI / 2, PI), stone, [0, nH / 2, naveZ0]);
-  k.add('body', new THREE.ConeGeometry(nw / 2 + 0.4, 6.5, 7, 1, false, PI / 2, PI), roof, [0, nH + 3.25, naveZ0]);
+  const APSE_SEGS = 12; // half-round facets, smooth at 4 m and 7.5 m radius
+  k.add('body', new THREE.CylinderGeometry(nw / 2, nw / 2, nH, APSE_SEGS, 1, false, PI / 2, PI), wallTone(0, naveZ0), [0, nH / 2, naveZ0]);
+  onRoof(() => k.add('body', new THREE.ConeGeometry(nw / 2 + 0.4, 6.5, APSE_SEGS, 1, false, PI / 2, PI), roofTone(0, naveZ0), [0, nH + 3.25, naveZ0]));
   const ar = nw / 2 + aW;
-  k.add('body', new THREE.CylinderGeometry(ar, ar, aH, 9, 1, false, PI / 2, PI), stone, [0, aH / 2, naveZ0]);
-  k.add('body', new THREE.ConeGeometry(ar + 0.3, 3.2, 9, 1, false, PI / 2, PI), roof, [0, aH + 1.6, naveZ0]);
+  k.add('body', new THREE.CylinderGeometry(ar, ar, aH, APSE_SEGS, 1, false, PI / 2, PI), wallTone(0, naveZ0), [0, aH / 2, naveZ0]);
+  onRoof(() => k.add('body', new THREE.ConeGeometry(ar + 0.3, 3.2, APSE_SEGS, 1, false, PI / 2, PI), roofTone(0, naveZ0), [0, aH + 1.6, naveZ0]));
   for (let i = 0; i < 5; i++) {
     const a = PI / 2 + ((i + 0.5) / 5) * PI;
     const ox = Math.sin(a);
     const oz = Math.cos(a);
     // clerestory lancets on the apse
-    k.at((nw / 2 + 0.02) * ox, naveZ0 + (nw / 2 + 0.02) * oz, a, () => windowAt(k, 0, aH + 3.3, 0.9, 2.6, k.chance(0.4), { ...lanc, glass: glassC }));
-    k.at((ar + 0.02) * ox, naveZ0 + (ar + 0.02) * oz, a, () => windowAt(k, 0, 2.4, 1.1, 3.0, k.chance(0.4), { ...lanc, glass: glassC }));
+    k.at((nw / 2 + 0.02) * ox, naveZ0 + (nw / 2 + 0.02) * oz, a, () => { windowAt(k, 0, aH + 3.3, 0.9, 2.6, k.chance(buildings.cathedralApseLitShare),{ ...lanc, glass: glassC }); hoodMould(k, 0, aH + 3.3, 0.9, 2.6, stone); });
+    k.at((ar + 0.02) * ox, naveZ0 + (ar + 0.02) * oz, a, () => { windowAt(k, 0, 2.4, 1.1, 3.0, k.chance(buildings.cathedralApseLitShare),{ ...lanc, glass: glassC }); hoodMould(k, 0, 2.4, 1.1, 3.0, stone); });
     // radial buttresses with flyers
     const bx = (ar + 0.7) * ox;
     const bz = naveZ0 + (ar + 0.7) * oz;
@@ -458,15 +533,17 @@ export function gothicCathedral(k: Kit, s: Site): void {
       k.beam(dark, [px, aH + 2.0, z], [sx * (nw / 2), nH - 1.0, z], 0.45, 'body', 0.35);
     }
     for (const z of wins) {
-      k.at(sx * (nw / 2 + aW), z, (sx * PI) / 2, () => windowAt(k, 0, 2.2, 1.3, 3.4, k.chance(0.35), { ...lanc, glass: glassC }));
-      k.at(sx * (nw / 2), z, (sx * PI) / 2, () => windowAt(k, 0, aH + 3.6, 1.2, 2.8, k.chance(0.35), { ...lanc, glass: glassC }));
+      k.at(sx * (nw / 2 + aW), z, (sx * PI) / 2, () => { windowAt(k, 0, 2.2, 1.3, 3.4, k.chance(buildings.cathedralNaveLitShare),{ ...lanc, glass: glassC }); hoodMould(k, 0, 2.2, 1.3, 3.4, stone); });
+      k.at(sx * (nw / 2), z, (sx * PI) / 2, () => { windowAt(k, 0, aH + 3.6, 1.2, 2.8, k.chance(buildings.cathedralNaveLitShare),{ ...lanc, glass: glassC }); hoodMould(k, 0, aH + 3.6, 1.2, 2.8, stone); });
     }
   }
 
   // Crossing flèche.
-  k.box(roof, 2.6, 3.0, 2.6, 0, nH + 6.5, trCz);
-  for (const [dx, dz] of [[-1, -1], [1, -1], [-1, 1], [1, 1]] as const) k.cone(roof, 0.3, 1.6, dx * 1.2, nH + 9.5, trCz + dz * 1.2, 4);
-  k.cone(roof, 1.5, 11, 0, nH + 9.5, trCz, 8);
+  onRoof(() => {
+    k.box(roofTone(0, trCz), 2.6, 3.0, 2.6, 0, nH + 6.5, trCz);
+    for (const [dx, dz] of [[-1, -1], [1, -1], [-1, 1], [1, 1]] as const) k.cone(roofTone(0, trCz), 0.3, 1.6, dx * 1.2, nH + 9.5, trCz + dz * 1.2, 4);
+    k.cone(roofTone(0, trCz), 1.5, 11, 0, nH + 9.5, trCz, 8);
+  });
   k.box('#e2b66c', 0.12, 1.4, 0.12, 0, nH + 20.5, trCz);
   k.box('#e2b66c', 0.7, 0.12, 0.12, 0, nH + 21.3, trCz);
 
@@ -474,14 +551,14 @@ export function gothicCathedral(k: Kit, s: Site): void {
   const th = 24;
   for (const sx of [-1, 1]) {
     const x = sx * (nw / 2 + tw / 2);
-    k.box(stone, tw, th, tw, x, 0, tz);
+    k.box(wallTone(x, tz), tw, th, tw, x, 0, tz);
     for (const y of [aH, 15, 21]) k.box(dark, tw + 0.3, 0.35, tw + 0.3, x, y, tz);
     for (const dx of [-1, 1]) {
       for (const dz of [-1, 1]) {
         const cx = x + dx * (tw / 2);
         const cz = tz + dz * (tw / 2);
         k.box(dark, 0.9, th - 6, 0.9, cx, 0, cz);
-        k.box(dark, 0.65, 5, 0.65, cx, th - 6, cz);
+        k.box(dark, 0.65, 6, 0.65, cx, th - 6, cz); // reaches the belfry platform at th
         k.cone(dark, 0.45, 2.8, cx, th + 0.6, cz, 4, PI / 4);
       }
     }
@@ -489,23 +566,23 @@ export function gothicCathedral(k: Kit, s: Site): void {
       if ((f === 'left' && sx > 0) || (f === 'right' && sx < 0)) continue;
       onFace(k, f, x, tz, tw, tw, () => {
         for (const u of [-0.9, 0.9]) windowAt(k, u, 16.0, 0.8, 4.0, false, { frame: dark, pointed: true, sill: false, glass: '#1e2328', depth: 0.3 });
-        if (f === 'front') windowAt(k, 0, 9.5, 1.0, 3.0, k.chance(0.4), { ...lanc, glass: glassC });
+        if (f === 'front') { windowAt(k, 0, 9.5, 1.0, 3.0, k.chance(buildings.cathedralWestTowerLitShare),{ ...lanc, glass: glassC }); hoodMould(k, 0, 9.5, 1.0, 3.0, stone); }
       });
     }
     k.box(dark, tw + 0.8, 0.6, tw + 0.8, x, th, tz);
-    k.add('body', new THREE.ConeGeometry(2.4, 14, 8), roof === '#7fa69a' ? roof : dark, [x, th + 0.6 + 7, tz], [0, PI / 8, 0]);
+    onRoof(() => k.add('body', new THREE.ConeGeometry(2.4, 14, 8), roofTone(x, tz), [x, th + 0.6 + 7, tz], [0, PI / 8, 0]));
     k.box('#e2b66c', 0.12, 1.4, 0.12, x, th + 14.6, tz);
     k.box('#e2b66c', 0.7, 0.12, 0.12, x, th + 15.3, tz);
   }
 
   // West front between the towers: portals, gallery of kings, rose window, gable.
-  k.box(stone, nw, 19, 1.0, 0, 0, front - 0.5);
+  k.box(wallTone(0, front - 0.5), nw, 19, 1.0, 0, 0, front - 0.5);
   k.at(0, front, 0, () => {
     portal(k, 0, 2.8, 4.2, dark, true);
     k.box(dark, nw, 0.4, 0.5, 0, 8.8, 0.25);
     for (let i = 0; i < 7; i++) k.glass(false, 0.5, 1.0, 0.06, -3 + i, 9.2, 0.02, '#3a3430');
     k.box(dark, nw, 0.4, 0.5, 0, 10.2, 0.25);
-    rose(k, 13.6, 2.6, glassC);
+    rose(k, 13.6, 2.6, glassC, k.chance(buildings.cathedralRoseLitShare));
     k.box(dark, nw, 0.35, 0.5, 0, 16.8, 0.25);
     for (let i = 0; i < 9; i++) k.box(dark, 0.2, 1.2, 0.2, -3.6 + i * 0.9, 17.15, 0.2);
     k.gableRoof(stone, nw, 4.2, 1.0, 0, 19, -0.5);
@@ -518,7 +595,7 @@ export function gothicCathedral(k: Kit, s: Site): void {
   // Parvis: steps, lamps, trees, people.
   const pw = nw + 2 * tw + 1;
   for (let i = 0; i < 3; i++) k.box(dark, pw - i * 0.6, 0.18, 1.6 - i * 0.45, 0, i * 0.18, front + 0.8 - i * 0.22);
-  crowd(k, 12, -8, 8, front + 1.8, s.hd - 0.6);
+  crowd(k, buildings.cathedralCrowd, -8, 8, front + 1.8, s.hd - 0.6);
   for (const sx of [-1, 1]) {
     lamp(k, sx * (pw / 2 + 0.8), front + 1);
     tree(k, sx * (s.hw - 2.4), front - 4, 7);

@@ -21,6 +21,7 @@ import {
   flightActive,
   flightPose,
   flightsForDay,
+  introFlight,
   newPose,
   liveryFor,
   LIVERIES,
@@ -260,16 +261,91 @@ describe('contrail weather', () => {
 describe('aircraft system', () => {
   const firstFlight = flightsForDay(11, 0)[0];
 
-  it('spawns nothing while paused (dt = 0) and nothing before the first flight', () => {
+  it('opens with one flight at the first update, and writes nothing while paused (dt = 0, same clock)', () => {
     const a = createAircraft({ seed: 11 });
-    a.update(firstFlight.start - 10, 0.016, env());
-    expect(a.activeCount()).toBe(0);
-    // Paused inside the flight window: the clock does not move, so no trail samples are written.
+    a.update(firstFlight.start + 5, 0.016, env());
+    // The opening flight starts at the first update (the schedule may also have a flight in the air here).
+    expect(a.activeCount()).toBeGreaterThanOrEqual(1);
+    // Paused: the clock does not move, so no trail samples are written.
     const ribbon = a.group.children[1] as THREE.Mesh;
     const before = (ribbon.geometry.getAttribute('aBirth') as THREE.BufferAttribute).array.slice();
-    a.update(firstFlight.start + 5, 0, env());
+    for (let i = 0; i < 5; i++) a.update(firstFlight.start + 5, 0, env());
     const after = (ribbon.geometry.getAttribute('aBirth') as THREE.BufferAttribute).array;
     expect(Array.from(after)).toEqual(Array.from(before));
+    a.dispose();
+  });
+
+  // Newest quad (largest birth) of a slot and how many live quads it holds at time t.
+  const slotTrail = (a: ReturnType<typeof createAircraft>, slot: number, t: number) => {
+    const births = ((a.group.children[1] as THREE.Mesh).geometry.getAttribute('aBirth') as THREE.BufferAttribute).array;
+    let newest = -Infinity;
+    let live = 0;
+    let nearVisible = 0;
+    for (let q = slot * QUADS_PER_SLOT; q < (slot + 1) * QUADS_PER_SLOT; q++) {
+      const b = births[q * 4 + 2];
+      const age = t - b;
+      if (age >= 0 && age < CONTRAIL_LIFE) {
+        live++;
+        newest = Math.max(newest, b);
+        if (age > 2.5 && age < 10 && contrailAlpha(age) > 0) nearVisible++;
+      }
+    }
+    return { newest, live, nearVisible };
+  };
+
+  it('rebuilds a full trail behind the flight on a time jump forward or backward, also while paused', () => {
+    const f = flightsForDay(11, 0)[3];
+    const mid = f.start + f.duration * 0.7;
+    expect(mid - f.start).toBeGreaterThan(CONTRAIL_LIFE * 0.5);
+    for (const from of [f.start - 400, f.start + f.duration + 400]) {
+      const a = createAircraft({ seed: 11 });
+      a.update(from, 0.016, env());
+      // Jump to mid-flight with the clock paused (dt = 0).
+      a.update(mid, 0, env());
+      const tr = slotTrail(a, f.slot, mid);
+      // Newest sample sits right behind the aircraft; the trail covers the flight since max(start, t - life).
+      expect(mid - tr.newest).toBeLessThanOrEqual(SAMPLE_STEP + 1e-6);
+      const span = Math.min(mid - f.start, CONTRAIL_LIFE);
+      expect(tr.live).toBeGreaterThanOrEqual(Math.floor(span / SAMPLE_STEP) - 2);
+      // Past the 2.5 s fresh fade, the trail just behind the plane is visible at once.
+      expect(tr.nearVisible).toBeGreaterThan(10);
+      a.dispose();
+    }
+  });
+
+  it('a rebuilt trail matches one grown by normal stepping', () => {
+    const f = flightsForDay(11, 0)[3];
+    const t1 = f.start + 30;
+    const stepped = createAircraft({ seed: 11 });
+    let t = f.start - 1;
+    stepped.update(t, 1 / 30, env());
+    while (t < t1 - 1e-9) {
+      t = Math.min(t1, t + 1 / 30);
+      stepped.update(t, 1 / 30, env());
+    }
+    const jumped = createAircraft({ seed: 11 });
+    jumped.update(f.start - 1, 1 / 30, env());
+    jumped.update(t1 - 200, 0, env());
+    jumped.update(t1, 0, env());
+    const a = slotTrail(stepped, f.slot, t1);
+    const b = slotTrail(jumped, f.slot, t1);
+    expect(Math.abs(a.live - b.live)).toBeLessThanOrEqual(1);
+    expect(Math.abs(a.newest - b.newest)).toBeLessThan(1e-3);
+    stepped.dispose();
+    jumped.dispose();
+  });
+
+  it('opening flight: starts at the first update, crosses the town at cruise height, is not repeated', () => {
+    const t0 = 5000;
+    const f = introFlight(11, t0, 0);
+    expect(f.start).toBe(t0);
+    expect(f.speed).toBeGreaterThanOrEqual(SPEED_MIN);
+    expect(f.speed).toBeLessThanOrEqual(SPEED_MAX);
+    expect(f.altitude).toBeGreaterThanOrEqual(ALTITUDE_MIN);
+    expect(f.altitude).toBeLessThanOrEqual(ALTITUDE_MAX);
+    const a = createAircraft({ seed: 11 });
+    a.update(t0, 0.016, env());
+    expect(a.activeCount()).toBeGreaterThanOrEqual(1);
     a.dispose();
   });
 
@@ -282,7 +358,8 @@ describe('aircraft system', () => {
       t += 0.1;
       a.update(t, 0.1, env());
     }
-    expect(a.activeCount()).toBe(1);
+    // The opening flight and the schedule's first flight may both be in the air here.
+    expect(a.activeCount()).toBeGreaterThanOrEqual(1);
     const births = (ribbon.geometry.getAttribute('aBirth') as THREE.BufferAttribute).array;
     let written = 0;
     for (let i = 0; i < births.length; i++) if (births[i] > 0) written++;
@@ -300,7 +377,7 @@ describe('aircraft system', () => {
       t += 0.1;
       a.update(t, 0.1, rain);
     }
-    expect(a.activeCount()).toBe(1);
+    expect(a.activeCount()).toBeGreaterThanOrEqual(1);
     const births = (ribbon.geometry.getAttribute('aBirth') as THREE.BufferAttribute).array;
     expect(Math.max(...births)).toBeLessThan(0);
     a.dispose();

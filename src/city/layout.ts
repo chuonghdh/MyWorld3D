@@ -2,7 +2,7 @@
 // Coordinates: the town is centred on the origin. X runs east-west, Z runs north-south.
 // Angles (facing) are radians in the XZ plane: facing = atan2(dirX, dirZ), so 0 faces +Z.
 
-import type { BlockKind, Facades, GroundFloorUse, StreetClass, TreeSpecies, Vec2 } from '../core/types';
+import type { BlockKind, Facades, GroundFloorUse, MonumentKind, StreetClass, TreeSpecies, Vec2 } from '../core/types';
 
 // v2 (graphics upgrade, see docs/DESIGN-3D.md): fields marked v2 were added for the
 // perimeter-block city, the streetscape and the facade builder.
@@ -26,6 +26,8 @@ export interface Block {
   bounds: Rect;
   /** v2: open interior of a perimeter block, or null when the block has none (monuments, small blocks). */
   courtyard: CourtyardRect | null;
+  /** Monument kind the layout gives a monument block (seeded, see city/generate.ts chooseMonuments). */
+  monument?: MonumentKind;
 }
 
 /** A building plot inside a block. Its front faces the street. */

@@ -2,19 +2,17 @@ import { QUALITY_LABEL, QUALITY_TIERS, useWorldStore, type QualityTier } from '.
 import { SEASONS } from '../store/model';
 import { WEATHER_KINDS, WEATHER_LABEL, type WeatherKind } from '../weather/weatherState';
 import type { Season } from '../core/types';
-import { ActionButton, Panel, Segmented, SettingsGlyph, Slider } from './controls';
+import { ActionButton, CheckToggle, Panel, Section, Segmented, SettingsGlyph, Slider } from './controls';
 import { SoundMixer } from './SoundMixer';
+import { applyGoldenHour } from './goldenHour';
 import { uiCamera } from '../config/tuning';
 
 /** Actions that the scene handles. Store-backed toggles are also written to the store. */
 export type CityAction =
-  | 'gust'
-  | 'leafDevil'
   | 'sound'
   | 'music'
   | 'tiltShift'
   | 'switchTrees'
-  | 'wholeMap'
   | 'moveBlocks'
   | 'resetBlocks'
   | 'resetHouses';
@@ -80,203 +78,7 @@ export function SettingsCity({ onAction }: SettingsCityProps) {
 
   return (
     <Panel id="settings" title="Settings" icon={<SettingsGlyph />}>
-      <div className="mw-group-title">Atmosphere</div>
-
-      <Slider
-        id="light"
-        label="Light"
-        value={s.timeOfDay}
-        min={0}
-        max={uiCamera.timeMax}
-        step={uiCamera.timeStep}
-        format={(v) => `${lightLabel(v)}  ${formatHour(v)}`}
-        onChange={(v) => setSetting('timeOfDay', v)}
-        background={LIGHT_TRACK}
-      />
-
-      <Segmented<Season>
-        label="Season"
-        ariaLabel="Season"
-        value={s.season}
-        options={SEASONS.map((v) => ({ value: v, label: SEASON_LABEL[v] }))}
-        onChange={(v) => setSetting('season', v)}
-      />
-
-      <Segmented<WeatherKind>
-        label="Weather"
-        ariaLabel="Weather"
-        value={s.weather}
-        options={WEATHER_KINDS.map((v) => ({ value: v, label: WEATHER_LABEL[v] }))}
-        onChange={(v) => {
-          setSetting('weather', v);
-          // Picking a weather with the slider at the bottom would show nothing: lift it to a visible level.
-          if (v !== 'clear' && s.weatherIntensity < uiCamera.weatherLiftBelow) setSetting('weatherIntensity', uiCamera.weatherLiftTo);
-        }}
-      />
-      <Slider
-        id="weather-intensity"
-        label="Intensity"
-        value={s.weatherIntensity}
-        min={0}
-        max={1}
-        step={uiCamera.intensityStep}
-        format={(v) => `${Math.round(v * 100)}%`}
-        onChange={(v) => setSetting('weatherIntensity', v)}
-      />
-
-      <Slider
-        id="wind"
-        label="Wind"
-        value={s.windSpeed}
-        min={0}
-        max={uiCamera.windSpeedMax}
-        step={uiCamera.windSpeedStep}
-        format={(v) => `${v.toFixed(1)} m/s`}
-        onChange={(v) => setSetting('windSpeed', v)}
-      />
-
-      <div className="mw-compass-row">
-        <svg className="mw-compass" viewBox="0 0 64 64" aria-hidden="true">
-          <circle cx="32" cy="32" r="28" />
-          <g className="mw-compass-tick">
-            <line x1="32" y1="6" x2="32" y2="11" />
-            <line x1="58" y1="32" x2="53" y2="32" />
-            <line x1="32" y1="58" x2="32" y2="53" />
-            <line x1="6" y1="32" x2="11" y2="32" />
-          </g>
-          {/* Arrow points where the wind blows to, i.e. opposite of windDirection. */}
-          <g transform={`rotate(${(s.windDirection + 180) % 360} 32 32)`}>
-            <polygon points="32,10 38,36 32,31 26,36" />
-          </g>
-        </svg>
-        <div>
-          <div className="mw-muted">Wind from</div>
-          <div className="mw-strong">{compassName(s.windDirection)}</div>
-        </div>
-      </div>
-      <Slider
-        id="wind-dir"
-        label="Wind direction"
-        value={s.windDirection}
-        min={0}
-        max={uiCamera.windDirectionMax}
-        step={uiCamera.windDirectionStep}
-        format={(v) => `${Math.round(v)}°`}
-        onChange={(v) => setSetting('windDirection', v)}
-      />
-
-      <div className="mw-group-title">Town</div>
-      <div className="mw-grid-2">
-        <Slider
-          id="town-width"
-          label="Width"
-          value={s.townWidth}
-          min={uiCamera.townMin}
-          max={uiCamera.townMax}
-          step={uiCamera.townStep}
-          format={(v) => `${Math.round(v)} m`}
-          onChange={(v) => setSetting('townWidth', v)}
-        />
-        <Slider
-          id="town-depth"
-          label="Depth"
-          value={s.townDepth}
-          min={uiCamera.townMin}
-          max={uiCamera.townMax}
-          step={uiCamera.townStep}
-          format={(v) => `${Math.round(v)} m`}
-          onChange={(v) => setSetting('townDepth', v)}
-        />
-      </div>
-
-      <Slider
-        id="traffic"
-        label="Traffic & people"
-        value={s.trafficMultiplier}
-        min={0}
-        max={uiCamera.multiplierMax}
-        step={uiCamera.multiplierStep}
-        format={(v) => `×${v.toFixed(2)}`}
-        onChange={(v) => setSetting('trafficMultiplier', v)}
-      />
-
-      <Slider
-        id="street-trees"
-        label="Street trees"
-        value={s.streetTreeMultiplier}
-        min={0}
-        max={uiCamera.multiplierMax}
-        step={uiCamera.multiplierStep}
-        format={(v) => `×${v.toFixed(2)}`}
-        onChange={(v) => setSetting('streetTreeMultiplier', v)}
-      />
-
-      <div className="mw-grid-2">
-        <Slider
-          id="leaves"
-          label="Leaves"
-          value={s.leafAmount}
-          min={0}
-          max={1}
-          step={uiCamera.leafAmountStep}
-          format={(v) => `${Math.round(v * 100)}%`}
-          onChange={(v) => setSetting('leafAmount', v)}
-        />
-        <Slider
-          id="leaf-size"
-          label="Leaf size"
-          value={s.leafSize}
-          min={uiCamera.leafSizeMin}
-          max={uiCamera.leafSizeMax}
-          step={uiCamera.leafSizeStep}
-          format={(v) => `×${v.toFixed(1)}`}
-          onChange={(v) => setSetting('leafSize', v)}
-        />
-      </div>
-
-      <div className="mw-group-title">Quality</div>
-      <Segmented<QualityTier>
-        label="Graphics"
-        ariaLabel="Graphics quality"
-        value={s.quality}
-        options={QUALITY_TIERS.slice().reverse().map((v) => ({ value: v, label: QUALITY_LABEL[v] }))}
-        onChange={setQuality}
-      />
-      {suggested && suggested.tier !== s.quality && (
-        <div className="mw-field">
-          <div className="mw-muted">
-            Suggested for this device: {QUALITY_LABEL[suggested.tier]} ({suggested.reason})
-          </div>
-          <ActionButton onClick={() => setQuality(suggested.tier)}>Use {QUALITY_LABEL[suggested.tier]}</ActionButton>
-        </div>
-      )}
-
-      <div className="mw-group-title">Sound</div>
-      <SoundMixer />
-
       <div className="mw-button-grid">
-        <ActionButton icon="≋" onClick={() => onAction?.('gust')}>Gust</ActionButton>
-        <ActionButton icon="⇩" onClick={() => onAction?.('leafDevil')}>Leaf devil</ActionButton>
-        <ActionButton
-          icon="◖"
-          active={s.soundEnabled}
-          ariaPressed={s.soundEnabled}
-          onClick={() => {
-            const next = !s.soundEnabled;
-            setSetting('soundEnabled', next);
-            onAction?.('sound', next);
-          }}
-        >
-          Sound
-        </ActionButton>
-        <ActionButton
-          icon="♪"
-          active={toggles.music}
-          ariaPressed={toggles.music}
-          onClick={() => toggle('music', 'music')}
-        >
-          Music
-        </ActionButton>
         <ActionButton
           icon="◎"
           active={toggles.tiltShift}
@@ -285,8 +87,10 @@ export function SettingsCity({ onAction }: SettingsCityProps) {
         >
           Tilt-shift
         </ActionButton>
+        <ActionButton icon="☀" onClick={() => applyGoldenHour({ setSetting, setToggle })}>
+          Golden Hour
+        </ActionButton>
         <ActionButton icon="⚲" onClick={() => onAction?.('switchTrees')}>Switch trees</ActionButton>
-        <ActionButton icon="⛶" onClick={() => onAction?.('wholeMap')}>Whole map</ActionButton>
         <ActionButton
           icon="✥"
           active={toggles.moveBlocks}
@@ -314,6 +118,194 @@ export function SettingsCity({ onAction }: SettingsCityProps) {
           Reset houses
         </ActionButton>
       </div>
+
+      <Section id="atmosphere" title="Atmosphere">
+        <Slider
+          id="light"
+          label="Light"
+          value={s.timeOfDay}
+          min={0}
+          max={uiCamera.timeMax}
+          step={uiCamera.timeStep}
+          format={(v) => `${lightLabel(v)}  ${formatHour(v)}`}
+          onChange={(v) => setSetting('timeOfDay', v)}
+          background={LIGHT_TRACK}
+        />
+
+        <Segmented<Season>
+          label="Season"
+          ariaLabel="Season"
+          value={s.season}
+          options={SEASONS.map((v) => ({ value: v, label: SEASON_LABEL[v] }))}
+          onChange={(v) => setSetting('season', v)}
+        />
+
+        <Segmented<WeatherKind>
+          label="Weather"
+          ariaLabel="Weather"
+          value={s.weather}
+          options={WEATHER_KINDS.map((v) => ({ value: v, label: WEATHER_LABEL[v] }))}
+          onChange={(v) => {
+            setSetting('weather', v);
+            // Picking a weather with the slider at the bottom would show nothing: lift it to a visible level.
+            if (v !== 'clear' && s.weatherIntensity < uiCamera.weatherLiftBelow) setSetting('weatherIntensity', uiCamera.weatherLiftTo);
+          }}
+        />
+        <Slider
+          id="weather-intensity"
+          label="Intensity"
+          value={s.weatherIntensity}
+          min={0}
+          max={1}
+          step={uiCamera.intensityStep}
+          format={(v) => `${Math.round(v * 100)}%`}
+          onChange={(v) => setSetting('weatherIntensity', v)}
+        />
+
+        <Slider
+          id="wind"
+          label="Wind"
+          value={s.windSpeed}
+          min={0}
+          max={uiCamera.windSpeedMax}
+          step={uiCamera.windSpeedStep}
+          format={(v) => `${v.toFixed(1)} m/s`}
+          onChange={(v) => setSetting('windSpeed', v)}
+        />
+
+        <div className="mw-compass-row">
+          <svg className="mw-compass" viewBox="0 0 64 64" aria-hidden="true">
+            <circle cx="32" cy="32" r="28" />
+            <g className="mw-compass-tick">
+              <line x1="32" y1="6" x2="32" y2="11" />
+              <line x1="58" y1="32" x2="53" y2="32" />
+              <line x1="32" y1="58" x2="32" y2="53" />
+              <line x1="6" y1="32" x2="11" y2="32" />
+            </g>
+            {/* Arrow points where the wind blows to, i.e. opposite of windDirection. */}
+            <g transform={`rotate(${(s.windDirection + 180) % 360} 32 32)`}>
+              <polygon points="32,10 38,36 32,31 26,36" />
+            </g>
+          </svg>
+          <div>
+            <div className="mw-muted">Wind from</div>
+            <div className="mw-strong">{compassName(s.windDirection)}</div>
+          </div>
+        </div>
+        <Slider
+          id="wind-dir"
+          label="Wind direction"
+          value={s.windDirection}
+          min={0}
+          max={uiCamera.windDirectionMax}
+          step={uiCamera.windDirectionStep}
+          format={(v) => `${Math.round(v)}°`}
+          onChange={(v) => setSetting('windDirection', v)}
+        />
+      </Section>
+
+      <Section id="town" title="Town">
+        <div className="mw-grid-2">
+          <Slider
+            id="town-width"
+            label="Width"
+            value={s.townWidth}
+            min={uiCamera.townMin}
+            max={uiCamera.townMax}
+            step={uiCamera.townStep}
+            format={(v) => `${Math.round(v)} m`}
+            onChange={(v) => setSetting('townWidth', v)}
+          />
+          <Slider
+            id="town-depth"
+            label="Depth"
+            value={s.townDepth}
+            min={uiCamera.townMin}
+            max={uiCamera.townMax}
+            step={uiCamera.townStep}
+            format={(v) => `${Math.round(v)} m`}
+            onChange={(v) => setSetting('townDepth', v)}
+          />
+        </div>
+
+        <Slider
+          id="traffic"
+          label="Traffic & people"
+          value={s.trafficMultiplier}
+          min={0}
+          max={uiCamera.multiplierMax}
+          step={uiCamera.multiplierStep}
+          format={(v) => `×${v.toFixed(2)}`}
+          onChange={(v) => setSetting('trafficMultiplier', v)}
+        />
+
+        <Slider
+          id="street-trees"
+          label="Street trees"
+          value={s.streetTreeMultiplier}
+          min={0}
+          max={uiCamera.multiplierMax}
+          step={uiCamera.multiplierStep}
+          format={(v) => `×${v.toFixed(2)}`}
+          onChange={(v) => setSetting('streetTreeMultiplier', v)}
+        />
+
+        <div className="mw-grid-2">
+          <Slider
+            id="leaves"
+            label="Leaves"
+            value={s.leafAmount}
+            min={0}
+            max={1}
+            step={uiCamera.leafAmountStep}
+            format={(v) => `${Math.round(v * 100)}%`}
+            onChange={(v) => setSetting('leafAmount', v)}
+          />
+          <Slider
+            id="leaf-size"
+            label="Leaf size"
+            value={s.leafSize}
+            min={uiCamera.leafSizeMin}
+            max={uiCamera.leafSizeMax}
+            step={uiCamera.leafSizeStep}
+            format={(v) => `×${v.toFixed(1)}`}
+            onChange={(v) => setSetting('leafSize', v)}
+          />
+        </div>
+      </Section>
+
+      <Section id="quality" title="Quality">
+        <Segmented<QualityTier>
+          label="Graphics"
+          ariaLabel="Graphics quality"
+          value={s.quality}
+          options={QUALITY_TIERS.slice().reverse().map((v) => ({ value: v, label: QUALITY_LABEL[v] }))}
+          onChange={setQuality}
+        />
+        {suggested && suggested.tier !== s.quality && (
+          <div className="mw-field">
+            <div className="mw-muted">
+              Suggested for this device: {QUALITY_LABEL[suggested.tier]} ({suggested.reason})
+            </div>
+            <ActionButton onClick={() => setQuality(suggested.tier)}>Use {QUALITY_LABEL[suggested.tier]}</ActionButton>
+          </div>
+        )}
+      </Section>
+
+      <Section id="sound" title="Sound">
+        <div className="mw-check-row">
+          <CheckToggle
+            label="Sound"
+            checked={s.soundEnabled}
+            onChange={(next) => {
+              setSetting('soundEnabled', next);
+              onAction?.('sound', next);
+            }}
+          />
+          <CheckToggle label="Music" checked={toggles.music} onChange={() => toggle('music', 'music')} />
+        </div>
+        <SoundMixer />
+      </Section>
     </Panel>
   );
 }

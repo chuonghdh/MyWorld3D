@@ -29,7 +29,9 @@ export type MonumentKind =
   | 'open-air-theatre'
   | 'circus'
   | 'fire-station'
-  | 'gothic-cathedral';
+  | 'gothic-cathedral'
+  | 'city-hall'
+  | 'school';
 
 export type BlockKind = 'houses' | 'monument';
 

@@ -39,6 +39,14 @@ Reviewed 2026-11-01 at 02b0cdc
 - `splitFoliage` moves crown-like bark islands to the leaf geometry (a geometric guess; not checked by eye).
 - Pavement landing: `pavementSurfaces(layout)` (`pavementSurfaces.ts:34`) returns sidewalk and kerb boxes at `SIDEWALK_TOP`. Asphalt is not in the list, so the road is not a landing surface. Wired in `scene/Town.tsx:123-125`.
 
+## Public buildings (monument rule)
+- Rule: 1 in 5 buildable blocks is a public building. Count = round(buildable blocks x `cityStreets.monumentShare` 0.2), at least 2 and at most all blocks (a town under 5 blocks cannot hold 1 in 5 and keeps its two standard monuments). Chosen with the layout seed (`chooseMonuments`, `src/city/generate.ts`), so the same seed always gives the same town.
+- Every town has exactly one `gothic-cathedral` and exactly one `city-hall` on two different seeded blocks (`STANDARD_MONUMENTS`). The other monument blocks take kinds from the rest of `buildings.monumentKinds` by seed.
+- The kind is stored on `Block.monument` in the layout. `monumentBaseFor(block)` (`src/scene/townBlocks.ts`) reads it. A user block override (`blockOverrides[id].monument`) still wins.
+- Trap: the old per-block 10 percent draw and hash-to-kind pick are gone. Tests that count monuments or hash block ids must read `block.monument`.
+- Measured default towns (no merges): seed 1, 7, 1234 each have 16 blocks and 3 monuments, one cathedral and one City Hall (`tests/monumentLayout.test.ts`).
+- Trap (found with the new monument mix): a corner house projects up to 1.2 m past its rear line (`buildings/house.ts` rear allowance). When the edge lot beyond that line stood flush, the two houses interpenetrated (geometry audit, seed 7 block-0-3). `clearCornerRears` (`src/city/blocks.ts`) now trims that edge lot by 1.2 m at the corner. Rear balconies still project into the gap, which is free.
+
 ## Block merging
 - Input: `blockMerges` in the settings (default none). Each group lists 2 to 4 house block ids forming one full rectangle of grid cells (`city/merge.ts`, `resolveBlockMerges` at `merge.ts:56`). Other groups are rejected and ignored.
 - Ids: houses `block-<c>-<r>`; merged `merged-<c0>-<r0>-<c1>-<r1>` from the covered cell range. Splitting = removing the group.
@@ -72,3 +80,5 @@ Reviewed 2026-11-01 at 02b0cdc
 - Rule: a City & Streets knob is a value a designer tunes for feel; geometry and algorithm literals stay in their file. Knobs live in `cityStreets` (src/config/tuning.ts) and are imported; the lab copy is `src/dev/treeCompare/labTuning.ts` (never imports config). Index: [docs/TUNING.md](../TUNING.md).
 - `furniture.ts` `SIGNAL_LAMP_PITCH` stays local.
 - Open: `scene/useTownGreenery.ts` still holds its own `TREE_SCALE` 1.35 (Scene & QA file).
+
+- 2026-11-06 (scene-qa): fountain water clock now reads `runtime.simTime` (core/runtime) in `onBeforeRender`, not `performance.now()`, so it freezes on pause and follows film time in the auto film. Test: `tests/film/simClockVisuals.test.ts`.

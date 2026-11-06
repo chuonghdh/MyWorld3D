@@ -27,6 +27,8 @@ import type { Season } from '../core/types';
 import { DAY_SECONDS } from '../store/model';
 import { runtime } from './runtime';
 import type { AudioBridge } from './audioBridge';
+import { tapAudioFrame } from '../film/audioSnapshot';
+import { filmLoopHeld } from '../film/loopHold';
 import { AMBIENT_GAIN, HEMI_GAIN, SUN_DISTANCE, SUN_GAIN, fitSunShadow } from './townShadow';
 
 /** Everything the frame touches. Rebuilt each render; the callback always sees the latest values. */
@@ -67,7 +69,9 @@ export function useTownFrame(f: TownFrameInputs): void {
   useFrame((state, frameDt) => {
     const { paused, autoTime } = useWorldStore.getState().toggles;
     // Paused: every simulation sees dt = 0 and a frozen clock; only the camera keeps working.
-    const dt = paused ? 0 : frameDt;
+    // Auto film: only fixed steps (frameloop 'never') may move the world; a real-time frame then is wall time, so 0.
+    const wallFrameInFilm = filmLoopHeld() && state.frameloop !== 'never';
+    const dt = paused || wallFrameInFilm ? 0 : frameDt;
     runtime.simTime += dt;
     const t = runtime.simTime;
 
@@ -169,8 +173,7 @@ export function useTownFrame(f: TownFrameInputs): void {
 
     // Sound: every source is positional and separate; the frame carries what they need.
     audio.setSoundEnabled(soundEnabled && !paused);
-    audio.update(
-      audioBridge.fill({
+    const audioFrame = audioBridge.fill({
         dt,
         camera: state.camera,
         timeOfDay: useWorldStore.getState().settings.timeOfDay,
@@ -188,8 +191,9 @@ export function useTownFrame(f: TownFrameInputs): void {
         thunder: weather.thunder,
         horns: traffic.takeHorns(),
         aircraft: paused ? undefined : aircraft.audioSources(),
-      }),
-    );
+    });
+    tapAudioFrame(useWorldStore.getState().toggles.filming, audioFrame);
+    audio.update(audioFrame);
     clearLifeEvents();
   });
 }

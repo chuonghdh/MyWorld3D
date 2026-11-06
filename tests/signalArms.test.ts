@@ -8,11 +8,17 @@ import { buildFurniture } from '../src/streets/furniture';
 
 const layoutOf = (blockMerges: string[][] = []): CityLayout => generateCity({ ...DEFAULT_SETTINGS, blockMerges });
 
-/** Top-left cell of the first 2 x 2 square of house blocks in the default town. */
+/**
+ * Top-left cell of the first 2 x 2 square of house blocks in the default town whose two junctions on the cut street
+ * are inner T junctions (three arms). A square on the town edge leaves a two-arm corner, which has no light.
+ * Row 0 and the last rows are edge rows, so the square must sit at row 1 or higher and end before the last row.
+ */
 function square(l: CityLayout): { c: number; r: number } {
   const houses = new Set(l.blocks.filter((b) => b.kind === 'houses').map((b) => b.id));
+  const rows = Math.max(...[...houses].map((id) => parseHouseBlockId(id)!.r));
   for (const id of houses) {
     const p = parseHouseBlockId(id)!;
+    if (p.r < 1 || p.r > rows - 2) continue;
     const ids = [houseBlockId(p.c, p.r), houseBlockId(p.c + 1, p.r), houseBlockId(p.c, p.r + 1), houseBlockId(p.c + 1, p.r + 1)];
     if (ids.every((x) => houses.has(x))) return p;
   }

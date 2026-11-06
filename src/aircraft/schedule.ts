@@ -4,7 +4,7 @@
 
 import { createRng } from '../core/rng';
 import { CLOUD_TOP_MAX } from '../environment/cloudSprites';
-import { uiCamera } from '../config/tuning';
+import { skyEnvironment, uiCamera } from '../config/tuning';
 import { DAY_SECONDS } from '../store/model';
 
 /** Highest the camera can be: the orbit looking straight down at the maximum zoom-out distance. */
@@ -14,9 +14,9 @@ export const CAMERA_SAFETY_MARGIN = 100;
 /** Cruise band: above the cloud tops (plus a margin), below the camera ceiling, capped at 300 m. */
 export const ALTITUDE_MIN = CLOUD_TOP_MAX + 50;
 export const ALTITUDE_MAX = Math.min(300, MAX_CAMERA_HEIGHT - CAMERA_SAFETY_MARGIN);
-/** Scene speed range in metres per second (visible but slow). */
-export const SPEED_MIN = 40;
-export const SPEED_MAX = 90;
+/** Scene speed range in metres per second (visible but slow): 80% of the 28 to 63 range (70% of the original 40 to 90). */
+export const SPEED_MIN = 22.4;
+export const SPEED_MAX = 50.4;
 /** Entry and exit points lie on a circle of this radius around the town centre (metres). */
 export const SPAWN_RADIUS_MIN = 900;
 export const SPAWN_RADIUS_MAX = 1020;
@@ -27,8 +27,8 @@ export const FLIGHTS_PER_DAY_MIN = 24;
 export const FLIGHTS_PER_DAY_MAX = 24;
 /** The day is cut into this many equal windows (one per hour); exactly one flight starts in each. */
 export const STRATA = 24;
-/** Trail slots: a slot is reused three windows later, long after its trail has faded. */
-export const SLOTS = 3;
+/** Trail slots: a slot is reused four windows later, long after its trail has faded (slower flights last longer). */
+export const SLOTS = 4;
 
 /** Total heading change over a crossing, radians (15 to 40 degrees, left or right). */
 export const TURN_MIN = (15 * Math.PI) / 180;
@@ -97,43 +97,107 @@ export function flightsForDay(seed: number, day: number, cx = 0, cz = 0): Flight
   const out: Flight[] = [];
   for (const w of chosen) {
     const start = day * DAY_SECONDS + (w + rng()) * width;
-    const radius = SPAWN_RADIUS_MIN + rng() * (SPAWN_RADIUS_MAX - SPAWN_RADIUS_MIN);
-    const theta = rng() * Math.PI * 2;
-    const lateral = (rng() * 2 - 1) * MAX_LATERAL * radius;
-    const speed = SPEED_MIN + rng() * (SPEED_MAX - SPEED_MIN);
-    const altitude = ALTITUDE_MIN + CLIMB_MAX / 2 + rng() * (ALTITUDE_MAX - ALTITUDE_MIN - CLIMB_MAX);
-    // Entry point on the circle; the line passes the centre at distance `lateral`.
-    const ex = Math.cos(theta) * radius;
-    const ez = Math.sin(theta) * radius;
-    // Chord heading: inward along the radius, turned sideways so the chord misses the centre by `lateral`.
-    const sl = lateral / radius;
-    const c = Math.sqrt(1 - sl * sl);
-    const hx = -c * Math.cos(theta) - sl * Math.sin(theta);
-    const hz = -c * Math.sin(theta) + sl * Math.cos(theta);
-    const chord = 2 * radius * c;
-    // A gentle symmetric arc over the same chord: same entry and exit points, heading turns by `turn`.
-    const turn = (TURN_MIN + rng() * (TURN_MAX - TURN_MIN)) * (rng() < 0.5 ? -1 : 1);
-    const length = chord * (turn / 2 / Math.sin(turn / 2));
-    const climb = (rng() * 2 - 1) * CLIMB_MAX;
-    out.push({
-      id: day * STRATA + w,
-      day,
-      slot: w % SLOTS,
-      start,
-      duration: length / speed,
-      speed,
-      altitude,
-      x0: cx + ex,
-      z0: cz + ez,
-      dx: Math.sin(Math.atan2(hx, hz) - turn / 2),
-      dz: Math.cos(Math.atan2(hx, hz) - turn / 2),
-      yaw0: Math.atan2(hx, hz) - turn / 2,
-      curve: turn / length,
-      length,
-      climb,
-    });
+    out.push(buildFlight(rng, day * STRATA + w, day, w % SLOTS, start, cx, cz));
   }
   return out;
+}
+
+/**
+ * One straight-to-gentle-arc crossing from `rng`. Draw order is fixed: changing it would reshuffle every
+ * scheduled day. `start` is the simulated time at the entry point.
+ */
+function buildFlight(rng: () => number, id: number, day: number, slot: number, start: number, cx: number, cz: number): Flight {
+  const radius = SPAWN_RADIUS_MIN + rng() * (SPAWN_RADIUS_MAX - SPAWN_RADIUS_MIN);
+  const theta = rng() * Math.PI * 2;
+  const lateral = (rng() * 2 - 1) * MAX_LATERAL * radius;
+  const speed = SPEED_MIN + rng() * (SPEED_MAX - SPEED_MIN);
+  const altitude = ALTITUDE_MIN + CLIMB_MAX / 2 + rng() * (ALTITUDE_MAX - ALTITUDE_MIN - CLIMB_MAX);
+  // Entry point on the circle; the line passes the centre at distance `lateral`.
+  const ex = Math.cos(theta) * radius;
+  const ez = Math.sin(theta) * radius;
+  // Chord heading: inward along the radius, turned sideways so the chord misses the centre by `lateral`.
+  const sl = lateral / radius;
+  const c = Math.sqrt(1 - sl * sl);
+  const hx = -c * Math.cos(theta) - sl * Math.sin(theta);
+  const hz = -c * Math.sin(theta) + sl * Math.cos(theta);
+  const chord = 2 * radius * c;
+  // A gentle symmetric arc over the same chord: same entry and exit points, heading turns by `turn`.
+  const turn = (TURN_MIN + rng() * (TURN_MAX - TURN_MIN)) * (rng() < 0.5 ? -1 : 1);
+  const length = chord * (turn / 2 / Math.sin(turn / 2));
+  const climb = (rng() * 2 - 1) * CLIMB_MAX;
+  return {
+    id,
+    day,
+    slot,
+    start,
+    duration: length / speed,
+    speed,
+    altitude,
+    x0: cx + ex,
+    z0: cz + ez,
+    dx: Math.sin(Math.atan2(hx, hz) - turn / 2),
+    dz: Math.cos(Math.atan2(hx, hz) - turn / 2),
+    yaw0: Math.atan2(hx, hz) - turn / 2,
+    curve: turn / length,
+    length,
+    climb,
+  };
+}
+
+/** Id of the opening flight (outside the schedule's id range, which starts at 0). */
+export const INTRO_FLIGHT_ID = -2;
+
+/** Horizontal unit vector from the overview camera towards the town centre (the view the opening flight crosses). */
+export function overviewView(): { x: number; z: number } {
+  const [bx, , bz] = uiCamera.overviewDirection;
+  const hl = Math.hypot(bx, bz) || 1;
+  return { x: -bx / hl, z: -bz / hl };
+}
+
+/**
+ * The flight shown as soon as the map opens: a straight crossing that goes side to side across the view,
+ * tilted away from the camera, and passes the town centre. `view` is the horizontal unit vector from the
+ * camera towards the centre. Starts at simulated time `start` on the given trail slot. It is not part of
+ * the daily schedule and is not repeated after a time jump.
+ */
+export function introFlight(
+  seed: number,
+  start: number,
+  slot: number,
+  cx = 0,
+  cz = 0,
+  view: { x: number; z: number } = overviewView(),
+): Flight {
+  const rng = createRng(hashSeed(seed, INTRO_FLIGHT_ID));
+  // Screen right is the forward vector turned 90 degrees; the tilt turns it towards the forward direction.
+  const tilt = (skyEnvironment.aircraft.introTiltDeg * Math.PI) / 180;
+  const rx = -view.z;
+  const rz = view.x;
+  const dx = Math.cos(tilt) * rx + Math.sin(tilt) * view.x;
+  const dz = Math.cos(tilt) * rz + Math.sin(tilt) * view.z;
+  const speed = SPEED_MIN + rng() * (SPEED_MAX - SPEED_MIN);
+  // Lowest cruise height: a high aircraft is drawn above the centre of the overview, so this keeps the line near the middle.
+  const altitude = ALTITUDE_MIN;
+  const climb = 0;
+  // Entry and exit lie on the spawn circle, on opposite sides of the centre, so the line passes through it.
+  const length = 2 * SPAWN_RADIUS_MIN;
+  return {
+    id: INTRO_FLIGHT_ID,
+    day: Math.floor(start / DAY_SECONDS),
+    slot,
+    start,
+    duration: length / speed,
+    speed,
+    altitude,
+    x0: cx - dx * SPAWN_RADIUS_MIN,
+    z0: cz - dz * SPAWN_RADIUS_MIN,
+    dx,
+    dz,
+    yaw0: Math.atan2(dx, dz),
+    curve: 0,
+    length,
+    climb,
+  };
 }
 
 /** Pose of a flight at simulated time `t` (clamped to the flight). Writes into `out`. */

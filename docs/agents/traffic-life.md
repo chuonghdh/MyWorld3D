@@ -108,3 +108,81 @@ Pedestrians (`src/traffic/walkers/`):
 ## Tuning rule (step 6)
 - Rule: traffic and life knobs live in `src/config/tuning.ts` (`trafficLife`). Feature files import them; geometry and algorithm constants stay local. Moved: density floor, vehicles per path, spawn min/max, turn odds and turn speeds, horn cooldown/global gap/chance, dog share, pigeon/cat/squirrel/butterfly counts. Each moved value has a parity entry in `tests/tuningParity.test.ts`.
 - Open: cruise speeds (`VEHICLE_SPECS`) and walker caps stay local. `docs/TUNING.md` location cells still point at the old files.
+
+## Session 2026-11-04 (film bird plan)
+Plan only, no source edits. Auto film mode: a carrier bird flies high over the town, circles the town and the cathedral, descends along a street, tilts to the sun or moon, returns and perches opposite the cathedral front.
+
+**Existing birds (`src/life/birds.ts`)**
+- `PigeonSystem` (line 30): 80 pigeons (`trafficLife.pigeonCount`), states PERCH/PECK/WALK/SCARED/CLIMB/CIRCLE/LAND (20-28). Ground spots from sidewalks and open space, roof spots from `roofSpots` (`spots.ts:99`, height `roofHeight` :28). Scared by any vehicle or pedestrian within 4 m in XZ (`SCARE_RADIUS` :17, check :222-263, every 5th frame).
+- `FlockSystem` (line 469): three closed loops (`FLOCK_DEFS` :460, 25 birds each at alt 26/35/44 m) plus gulls (1 or 2, :529). Loops in `leaderAt` (:604). No disturbance input.
+- Determinism: seeded RNGs (:82-83, :515) and dt-integrated state (dt clamped to 0.1, :205). Pigeon RNG is drawn per frame (:215). So birds are a function of seed and frame/dt history, not of `simTime`. `life.test.ts:41-56` checks same seed plus same dt sequence only.
+- Draw calls: 5 instanced meshes (`life/index.ts` stats). Pigeon 150-250 tris (`life.test.ts:236`), all life under the 40k cap (flyer tri count not measured yet). Life meshes never set `castShadow` (only monuments do, `useTownPieces.ts:66`, `buildings.ts:104`). `budget.test.ts:7-9` excludes birds from the static estimate.
+- Ctx: `LifeContext.camera` is passed (`useTownFrame.ts:157`) but birds ignore it (only `pets.ts:180` reads it).
+
+**Recommendation: dedicated film carrier, reuse only the visuals**
+- Do not reuse `PigeonSystem` or `FlockSystem`: they are stateful, consume RNG per frame, scare-test against vehicle and pedestrian lists, and have closed loops, not a film path.
+- Add `src/film/filmBird.ts` (or `src/scene/filmCarrier.ts`): pure `poseAt(filmT) -> {position, heading, pitch, roll}` from a piecewise path (Catmull-Rom or analytic arcs) built once from the layout. No RNG, no `dt` integration.
+- Visual: `buildFlyerGeometry` + `createAnimalMaterial('flyer')` + `attachAnim` + `setPose` (`common.ts`) into one `InstancedMesh(count 1)` that lives outside `life.group`. This keeps the life test (`<= 6` meshes, `life.test.ts:236`) intact. Perch: `buildPigeonGeometry` at a larger scale. Carrier casts no shadow (`fitSunShadow` reads the camera, `useTownFrame.ts:116`, so camera jumps already move the shadow frustum).
+- Trade-off: a separate rig costs 1 draw call in film mode only, is replayable from the film clock, and touches no existing RNG. Reusing the bird would tie film timing to frame dt and to the life RNG.
+
+**Traffic and pedestrians**
+- The carrier is not added to `ctx.vehicles` or `ctx.pedestrians` (birds.ts :222-263 would scare on it) and is not in any traffic or walker input.
+- Path clearance: the street descent must clear roofs (`roofHeight` = 3.6 + (floors-1) x 3.1, up to about 25 m at 8 floors), lamps, street trees, benches and signal heads. Check clearance per segment against layout lots, `lamps`, `streetTrees`, `benches`, `trafficLights`.
+- Normal play: film code runs only when film mode is on. No store writes, no writes into vehicles, walkers or life. Verify by hashing `EXPECTED_VEHICLES` (`b0d22ec1`) and `EXPECTED_PEDESTRIANS` with film mode off (unchanged), and by a life snapshot after a film run.
+
+**Perch opposite the cathedral front (from layout)**
+- Cathedral: `blocks` entry with `monument === 'gothic-cathedral'` (`city/generate.ts:280-282`), its single lot from `lots` (`blocks.ts:274-304`): centre `position`, `facing` (front edge direction, avenue preferred), `width`, `depth`, `seed`. Placed at `lot.position`, `rotation.y = lot.facing`, entrance on local +z (`useTownPieces.ts:59-80`, `monument.ts` fit scales the building down if the lot is smaller than 30 m).
+- Front point: `position + (sin(facing), cos(facing)) x (depth/2 + frontOffset)`. Use the real fitted bounding box (compute once from `buildMonument` with the lot dims), not design constants: nave eaves 15 m and aisles 8 m (`culture.ts:440-460`) are design-scale values.
+- Opposite perch: the road in front (`roads`, orientation and width, `sidewalkWidth`), then the lot on the far side whose `facing` points back at the cathedral. Pick the roof-edge point the way `roofSpots` does (`spots.ts:109-114`) with `roofHeight(lot)+0.35`. Deterministic tie-break by lot `id`. Fallback: a sidewalk spot from `sidewalkSpots` on the far curb.
+- Data needed: `blocks` (id, kind, monument, bounds), `lots` (id, blockId, position, facing, width, depth, floors), `roads`, `intersections`, `lamps`, `streetTrees`, `trafficLights`, `townBounds`.
+
+**Knobs (new section `src/config/tuning/filmBird.ts`, owner Traffic & Life for the carrier, UI & Camera for the lens; index in `docs/TUNING.md`)**
+- Start altitude above the town (m), town circle radius (m), cathedral orbit radius (m), street descent height above roofs (m), minimum street clearance (m), sky tilt angle (deg), perch hold time (s), segment durations (s). Geometry and the path shape stay local.
+
+**Tests to add**
+- `tests/filmBird.test.ts`: same film time gives the same pose; the path stays inside `townBounds` minus a margin; street segment clearance vs roofs and furniture; perch lies on the opposite lot's roof edge and faces the cathedral; film mode off leaves life and traffic counts and hashes unchanged.
+- `tests/tuningParity.test.ts`: one entry per new knob.
+
+**Phases and acceptance**
+1. Layout queries (pure): cathedral front point, opposite perch picker. Test: deterministic, inside lot bounds, facing check. Gate: `vitest run` for the new file.
+2. Path module (pure `poseAt`) and clearance check. Gate: bounds and clearance tests green; no RNG import.
+3. Carrier mesh behind a dev flag; triangles and draw call +1 measured in a standalone renderer; no shadow. Gate: shader compile, no console errors.
+4. Film mode integration with CameraRig (UI & Camera owns the camera). Gate: hashes unchanged with film off; `tsc`, `vitest`, `vite build` pass; look checked in connected Chrome (built-in pane cannot paint frames).
+
+**Risks and mitigations**
+1. Path clips roofs or street furniture in narrow streets: per-segment clearance test with a margin, altitude fallback to a higher route.
+2. Carrier looks like it hits flocks (23-44 m) or pigeons: route the descent below the flock band, or time the crossing away from flock loops.
+3. Determinism drift if film code uses life or sim RNG: separate module, no shared RNG, hash tests in CI.
+4. Sun or moon tilt fights the shadow frustum (`fitSunShadow`, `useTownFrame.ts:116`) and causes shimmer: clamp the tilt, keep the carrier out of the shadow pass.
+5. Cathedral perch points wrong when the lot is small (fit scale): compute from the fitted bounding box, test on a small and a large lot.
+6. Flock counts are local literals (`birds.ts:460-464`, `:529`), against the tuning rule: move them to `trafficLife` if the film work touches them, with parity entries.
+7. Doc drift: Conventions still says `EXPECTED_PEDESTRIANS` = `499b5c20`. The test (`traffic.determinism.test.ts:132`) says `a8684131`. Fix Conventions when the next traffic doc edit happens.
+
+**Open questions**
+- Is the carrier visible in shot, or only a camera rig? Visible means the mesh and close-range look matter.
+- Film clock: fixed path time that pauses with the sim, or real time?
+- Night: moon path only when lights are on, or always?
+- Perch on a roof edge (visible from the front) or on the far sidewalk?
+
+**Verify (when built)**: `npx vitest run tests/filmBird.test.ts tests/life.test.ts tests/traffic.determinism.test.ts`, then full suite, `npx tsc --noEmit`, `npx vite build`.
+
+## Update 2026-11-04 (lead): film bird carrier (P5, not wired yet)
+
+- **New file:** `src/life/filmBird.ts`. `birdPoseAt(t, pathPose)` returns position, heading and pitch of the bird; `createFilmBird()` returns `{group, update, dispose}` with one `InstancedMesh` (count 1, no shadow). Mesh uses `buildFlyerGeometry` and `createAnimalMaterial('flyer')` from `material.ts`. Flap time is the film time, never the wall clock.
+- **Not part of traffic:** the bird never enters traffic, pedestrian, pigeon, flock or audio systems and makes no sound. A source test forbids those imports.
+- **Knobs:** `trafficLife.filmBirdDistanceM` (7), `filmBirdMinDistanceM` (3), `filmBirdScale` (2.6). Documented in `docs/TUNING.md` section 2.
+- **Open:** the bird sits on a fixed side and height relative to the camera; it is not guaranteed to be in frame. Roll is 0 (no bank yet). Needs a screenshot check after FilmRig is wired (Scene & QA).
+- **Interface:** `FilmPathPose` (`x, y, z, tx, ty, tz`) mirrors `AutoPose` in `film/autoPath.ts`. When `scene/filmPath.ts` lands, import the type and keep the sampler pure.
+
+## Update 2026-11-04 (traffic-life)
+
+- **Contract check (`birdPoseAt` / `FilmRig`):** bird distance from camera is `max(filmBirdDistanceM, filmBirdMinDistanceM)` = 7 m, exact on every sampled path. Lead decision: bird centred on the look direction at the preferred distance (side offset and sway removed). Knob values unchanged.
+- **Draw calls:** `createFilmBird()` group holds exactly one `InstancedMesh` (count 1, no shadow). `tests/budget.test.ts` excludes moving actors by design, so no budget change.
+- **Dispose:** `buildFlyerGeometry()` and `createAnimalMaterial()` build new objects per call (no cache), so dispose frees only the bird's own resources. Added test: dispose twice does not throw, group left empty.
+- **Isolation:** no `src` file imports `filmBird` yet (FilmRig not wired). Test guards against traffic, pedestrian, pigeon, flock, audio imports and RNG/clock use.
+- **Knobs:** unchanged (7, 3, 2.6). Parity and TUNING.md rows already present.
+- **Open:** FilmRig mount pending (Scene & QA). Bird look unchanged, awaiting lead OK.
+
+## Update 2026-11-06 (lead): auto film speed
+- Cars and pedestrians looked ~5x fast in the auto film. Not a traffic bug: the R3F loop fell back to 'always' and the town ran on wall time. Fixed in `src/film/loopHold.ts` (2f99377). Sim per step stays exact (vehicles and walkers move speed x dt).
+- Keep all motion on the `dt` from `useTownFrame`; no wall clocks in `src/traffic` or `src/life`.

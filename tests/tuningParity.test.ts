@@ -1,4 +1,4 @@
-// Tuning parity: asserts every knob in src/config/tuning.ts keeps the value recorded here (see docs/TUNING.md).
+// Tuning parity: asserts every knob in src/config/tuning/ keeps the value recorded here (see docs/TUNING.md).
 // Values are read from source text (not imported), so this test works before any value moves and needs no
 // production change. When a value moves, the entry switches to the config module; the expected value stays.
 import { describe, expect, it } from 'vitest';
@@ -9,7 +9,16 @@ const RAW = import.meta.glob(['/src/**/*.{ts,tsx}', '/tests/*.ts'], { query: '?r
   string
 >;
 
+/** Config path: the section files under src/config/tuning/ read as one text (the old single-file path still names the whole config). */
+const CONFIG_DIR = 'src/config/tuning/';
 function source(rel: string): string {
+  if (rel === 'src/config/tuning.ts') {
+    return Object.keys(RAW)
+      .filter((k) => k.startsWith(`/${CONFIG_DIR}`))
+      .sort()
+      .map((k) => RAW[k])
+      .join('\n');
+  }
   const text = RAW[`/${rel}`];
   if (text === undefined) throw new Error(`${rel}: not found`);
   return text;
@@ -58,6 +67,9 @@ const VALUES: Entry[] = [
   { id: 'cat count (high)', file: CONFIG_FILE, name: 'catCount', value: '14' },
   { id: 'squirrel count (high)', file: CONFIG_FILE, name: 'squirrelCount', value: '10' },
   { id: 'butterfly/bee count (high)', file: CONFIG_FILE, name: 'butterflyCount', value: '30' },
+  { id: 'film bird distance', file: CONFIG_FILE, name: 'filmBirdDistanceM', value: '7' },
+  { id: 'film bird min distance', file: CONFIG_FILE, name: 'filmBirdMinDistanceM', value: '3' },
+  { id: 'film bird scale', file: CONFIG_FILE, name: 'filmBirdScale', value: '2.6' },
   { id: 'walker cap', file: 'src/traffic/walkers/constants.ts', name: 'MAX_WALKERS', value: '480' },
   { id: 'walkers per road', file: 'src/traffic/walkers/constants.ts', name: 'WALKERS_PER_ROAD', value: '22' },
   { id: 'dog cap', file: 'src/traffic/walkers/constants.ts', name: 'MAX_DOGS', value: '120' },
@@ -104,7 +116,7 @@ const VALUES: Entry[] = [
   { id: 'night emissive (house walls)', file: CONFIG_FILE, name: 'nightEmissive', value: '1.15' },
   { id: 'lit window colour', file: CONFIG_FILE, name: 'litWindowColor', value: "'#ffcf7a'" },
   { id: 'sign night emissive', file: CONFIG_FILE, name: 'signNightEmissive', value: '1.0' },
-  { id: 'monument chance', file: CONFIG_FILE, name: 'monumentChance', value: '0.1' },
+  { id: 'monument share', file: CONFIG_FILE, name: 'monumentShare', value: '0.2' },
   { id: 'headlight glow cap', file: 'src/traffic/vehicleMeshes.ts', name: 'GLOW_CAP', value: '640' },
 
   // 5. Weather and sky
@@ -128,8 +140,8 @@ const VALUES: Entry[] = [
   { id: 'turbulence amplitude', file: 'src/environment/wind.ts', name: 'TURBULENCE_AMPLITUDE', value: '0.25' },
   { id: 'flights per day min', file: 'src/aircraft/schedule.ts', name: 'FLIGHTS_PER_DAY_MIN', value: '24' },
   { id: 'flights per day max', file: 'src/aircraft/schedule.ts', name: 'FLIGHTS_PER_DAY_MAX', value: '24' },
-  { id: 'aircraft speed min', file: 'src/aircraft/schedule.ts', name: 'SPEED_MIN', value: '40' },
-  { id: 'aircraft speed max', file: 'src/aircraft/schedule.ts', name: 'SPEED_MAX', value: '90' },
+  { id: 'aircraft speed min', file: 'src/aircraft/schedule.ts', name: 'SPEED_MIN', value: '22.4' },
+  { id: 'aircraft speed max', file: 'src/aircraft/schedule.ts', name: 'SPEED_MAX', value: '50.4' },
   { id: 'aircraft altitude max', file: 'src/aircraft/schedule.ts', name: 'ALTITUDE_MAX', value: 'Math.min(300, MAX_CAMERA_HEIGHT - CAMERA_SAFETY_MARGIN)' },
   { id: 'aircraft spawn radius min', file: 'src/aircraft/schedule.ts', name: 'SPAWN_RADIUS_MIN', value: '900' },
   { id: 'aircraft spawn radius max', file: 'src/aircraft/schedule.ts', name: 'SPAWN_RADIUS_MAX', value: '1020' },
@@ -184,14 +196,19 @@ const VALUES: Entry[] = [
   { id: 'thunder loudness', file: CONFIG_FILE, name: 'thunderLoudness', value: '2' },
   { id: 'music level', file: CONFIG_FILE, name: 'musicLevel', value: '0.8' },
   { id: 'music duck level', file: CONFIG_FILE, name: 'duckLevel', value: '0.55' },
+  { id: 'ui cue level', file: CONFIG_FILE, name: 'uiCueLevel', value: '0.35' },
+  { id: 'ui cue min gap', file: CONFIG_FILE, name: 'uiCueMinGapS', value: '0.06' },
+  { id: 'ui cue ticks', file: CONFIG_FILE, name: 'uiCueTicks', value: '7' },
+  { id: 'ui cue duration', file: CONFIG_FILE, name: 'uiCueDurationS', value: '0.26' },
+  { id: 'ui cue single tick level', file: CONFIG_FILE, name: 'uiCueTickLevel', value: '0.75' },
   { id: 'music fade', file: 'src/audio/music.ts', name: 'FADE_SECONDS', value: '2' },
   { id: 'engine voices', file: 'src/audio/vehicles.ts', name: 'ENGINE_VOICES', value: '8' },
   { id: 'horn max distance', file: 'src/audio/vehicles.ts', name: 'HORN_MAX_DISTANCE', value: '220' },
   { id: 'horn max concurrent (not exported)', file: 'src/audio/vehicles.ts', name: 'HORN_MAX_CONCURRENT', value: '4' },
   { id: 'air brake level', file: CONFIG_FILE, name: 'airBrakeLevel', value: '0.4' },
-  { id: 'jet gain', file: CONFIG_FILE, name: 'jetGain', value: '0.55' },
-  { id: 'master volume default', file: CONFIG_FILE, name: 'masterVolumeDefault', value: '0.8' },
-  { id: 'mixer defaults', file: CONFIG_FILE, name: 'mixerDefaults', value: '{ master: 80, effects: 100, nature: 100, music: 100 }' },
+  { id: 'jet gain', file: CONFIG_FILE, name: 'jetGain', value: '1' },
+  { id: 'master volume default', file: CONFIG_FILE, name: 'masterVolumeDefault', value: '0.4' },
+  { id: 'mixer defaults', file: CONFIG_FILE, name: 'mixerDefaults', value: '{ master: 40, effects: 100, nature: 100, music: 100 }' },
   { id: 'cricket summer density', file: CONFIG_FILE, name: 'cricketSummerDensity', value: '1' },
   { id: 'cricket autumn density', file: CONFIG_FILE, name: 'cricketAutumnDensity', value: '0.5' },
 
@@ -214,6 +231,10 @@ const VALUES: Entry[] = [
   { id: 'default quality', file: CONFIG_FILE, name: 'defaultQuality', value: "'high'" },
   { id: 'time slider max', file: CONFIG_FILE, name: 'timeMax', value: '24' },
   { id: 'time slider step', file: CONFIG_FILE, name: 'timeStep', value: '0.25' },
+  { id: 'panel shift glide seconds', file: CONFIG_FILE, name: 'panelShiftSeconds', value: '1.5' },
+  { id: 'panel slide open seconds', file: CONFIG_FILE, name: 'panelAnimSeconds', value: '0.3' },
+  { id: 'panel slide close seconds', file: CONFIG_FILE, name: 'panelCloseSeconds', value: '0.22' },
+  { id: 'golden hour button time', file: CONFIG_FILE, name: 'goldenHourTime', value: '18' },
   { id: 'wind slider max', file: CONFIG_FILE, name: 'windSpeedMax', value: '20' },
   { id: 'wind slider step', file: CONFIG_FILE, name: 'windSpeedStep', value: '0.1' },
   { id: 'wind direction slider max', file: CONFIG_FILE, name: 'windDirectionMax', value: '359' },
@@ -277,6 +298,9 @@ const FRAGMENTS: Has[] = [
   { id: 'cat count', file: 'src/life/pets.ts', fragment: 'scaledCount(trafficLife.catCount, quality)' },
   { id: 'squirrel count', file: 'src/life/pets.ts', fragment: 'scaledCount(trafficLife.squirrelCount, quality)' },
   { id: 'butterfly/bee count', file: 'src/life/pets.ts', fragment: 'scaledCount(trafficLife.butterflyCount, quality)' },
+  { id: 'film bird distance use', file: 'src/life/filmBird.ts', fragment: 'trafficLife.filmBirdDistanceM' },
+  { id: 'film bird min distance use', file: 'src/life/filmBird.ts', fragment: 'trafficLife.filmBirdMinDistanceM' },
+  { id: 'film bird scale use', file: 'src/life/filmBird.ts', fragment: 'trafficLife.filmBirdScale' },
   { id: 'bee share', file: 'src/life/pets.ts', fragment: 'Math.floor(n * 0.2)' },
   { id: 'life quality factors', file: 'src/life/common.ts', fragment: "q === 'low' ? 0.4 : q === 'medium' ? 0.7 : 1" },
   { id: 'autumn particle profile (density, size, fall)', file: 'src/environment/seasons.ts', fragment: "density: 1, colors: ['#c8552a', '#d4862a', '#e0b23a', '#a8452a', '#b9a02e']" },
@@ -290,12 +314,14 @@ const FRAGMENTS: Has[] = [
   { id: 'night bloom radius', file: 'src/scene/PostFX.tsx', fragment: 'fx.bloom.radius = night ? nb.radiusNight : nb.radiusDay;' },
   { id: 'cloud count in scene (value now in config)', file: 'src/config/tuning.ts', fragment: 'sceneCount: 10,' },
   { id: 'cloud count in scene (Town.tsx reads config)', file: 'src/scene/Town.tsx', fragment: 'count: skyEnvironment.clouds.sceneCount, seed: settings.seed' },
+  { id: 'aircraft opening tilt reads config', file: 'src/aircraft/schedule.ts', fragment: 'skyEnvironment.aircraft.introTiltDeg' },
   { id: 'rain cap by kind (rain 0.75, storm 1)', file: 'src/weather/weatherState.ts', fragment: 'skyEnvironment.weather.rainCapRain' },
   { id: 'snow cover ramp', file: 'src/weather/weatherState.ts', fragment: 'Math.min(1, 0.25 + 0.9 * i)' },
   { id: 'weather ease table', file: 'src/weather/weatherState.ts', fragment: 'snowCover: [18, 25]' },
   { id: 'fog colours', file: 'src/weather/fog.ts', fragment: "GREY_FOG = new THREE.Color('#aeb4bb')" },
   { id: 'cricket season factor reads config', file: 'src/audio/nature.ts', fragment: "season === 'summer' ? audioTuning.cricketSummerDensity : season === 'autumn' ? audioTuning.cricketAutumnDensity : 0" },
   { id: 'bus master default reads config', file: 'src/audio/bus.ts', fragment: 'master: audioTuning.masterVolumeDefault' },
+  { id: 'bus category defaults read config', file: 'src/audio/bus.ts', fragment: 'audioTuning.categoryDefaults' },
   { id: 'mixer defaults read config', file: 'src/ui/SoundMixer.tsx', fragment: 'MIXER_DEFAULTS: MixerSettings = audioTuning.mixerDefaults' },
   { id: 'golden glow curve', file: 'src/sky/state.ts', fragment: 'smoothstep(14, 5, alt) * smoothstep(-6, 0, alt)' },
   { id: 'golden phase threshold (6 deg)', file: 'src/environment/sun.ts', fragment: 'if (altDeg < 6) return' },
@@ -307,7 +333,7 @@ const FRAGMENTS: Has[] = [
   { id: 'lightning gap formula', file: 'src/weather/Lightning.ts', fragment: '6 - 3.5' },
   { id: 'autumn leaves rest (LEAF_REST_SECONDS used)', file: 'src/environment/leaves.ts', fragment: 'LEAF_REST_SECONDS' },
   { id: 'store defaults read from config uiCamera', file: 'src/store/model.ts', fragment: 'seed: uiCamera.defaultSeed' },
-  { id: 'overview direction (tuple, fragment check)', file: CONFIG_FILE, fragment: 'overviewDirection: [0, 1.75, 0.45]' },
+  { id: 'overview direction (tuple, fragment check)', file: CONFIG_FILE, fragment: 'overviewDirection: [0, 2.45, 0.63]' },
   { id: 'aircraft ceiling reads config maxDistance', file: 'src/aircraft/schedule.ts', fragment: 'MAX_CAMERA_HEIGHT = uiCamera.maxDistance' },
 ];
 
@@ -325,7 +351,7 @@ const LAB_MIRROR: Entry[] = [
 /** Duplicate lists (plan section 3): each copy must equal the expected list. */
 const DUPLICATE_LISTS = [
   { name: 'HOUSE_PRESETS', prop: 'housePresets', files: ['src/store/model.ts', 'src/buildings/house.ts'], count: 10 },
-  { name: 'MONUMENT_KINDS', prop: 'monumentKinds', files: ['src/store/model.ts', 'src/buildings/monument.ts'], count: 10 },
+  { name: 'MONUMENT_KINDS', prop: 'monumentKinds', files: ['src/store/model.ts', 'src/buildings/monument.ts'], count: 12 },
 ];
 
 /** The list owned by config (`buildings.<prop>`), read from source text. */
@@ -424,5 +450,95 @@ describe('sky and environment knobs in config (step 8)', () => {
 });
 
 export const SKY_ASSERTED_COUNT = SKY_CONFIG.length + SKY_CODE.length + 1;
+
+// Monument knobs (step 9, public buildings review): literal odds and crowd counts moved to the buildings section.
+// Config value equals the baseline literal; the monument builder reads it as buildings.<name>.
+const MONUMENT_KNOBS: { name: string; file: string; value: string }[] = [
+  { name: 'hospitalDormerLitShare', file: 'src/buildings/monuments/civic.ts', value: '0.3' },
+  { name: 'hospitalCrowd', file: 'src/buildings/monuments/civic.ts', value: '8' },
+  { name: 'fireDoorLitShare', file: 'src/buildings/monuments/civic.ts', value: '0.6' },
+  { name: 'fireTowerLitShare', file: 'src/buildings/monuments/civic.ts', value: '0.25' },
+  { name: 'supermarketPaneLitShare', file: 'src/buildings/monuments/civic.ts', value: '0.85' },
+  { name: 'carParkRowAOccupancy', file: 'src/buildings/monuments/civic.ts', value: '0.6' },
+  { name: 'carParkRowBOccupancy', file: 'src/buildings/monuments/civic.ts', value: '0.55' },
+  { name: 'carParkRowBForwardShare', file: 'src/buildings/monuments/civic.ts', value: '0.7' },
+  { name: 'stadiumCrowd', file: 'src/buildings/monuments/leisure.ts', value: '14' },
+  { name: 'funfairCrowd', file: 'src/buildings/monuments/leisure.ts', value: '22' },
+  { name: 'poolLoungerPersonShare', file: 'src/buildings/monuments/leisure.ts', value: '0.4' },
+  { name: 'poolFacadeLitShare', file: 'src/buildings/monuments/leisure.ts', value: '0.5' },
+  { name: 'circusCrowd', file: 'src/buildings/monuments/leisure.ts', value: '10' },
+  { name: 'circusWagonLitShare', file: 'src/buildings/monuments/leisure.ts', value: '0.5' },
+  { name: 'cathedralApseLitShare', file: 'src/buildings/monuments/culture.ts', value: '0.4' },
+  { name: 'cathedralNaveLitShare', file: 'src/buildings/monuments/culture.ts', value: '0.35' },
+  { name: 'cathedralWestTowerLitShare', file: 'src/buildings/monuments/culture.ts', value: '0.4' },
+  { name: 'cathedralCrowd', file: 'src/buildings/monuments/culture.ts', value: '12' },
+  { name: 'cathedralStonePalette', file: 'src/buildings/monuments/culture.ts', value: "['#b3a286', '#a89c88', '#b8a683'] as readonly string[]" },
+  { name: 'cathedralStoneJitter', file: 'src/buildings/monuments/culture.ts', value: '0.04' },
+  { name: 'cathedralRoofJitter', file: 'src/buildings/monuments/culture.ts', value: '0.03' },
+  { name: 'cathedralRoofSlate', file: 'src/buildings/monuments/culture.ts', value: "'#3a414c'" },
+  { name: 'cathedralRoofZinc', file: 'src/buildings/monuments/culture.ts', value: "'#5d8076'" },
+  { name: 'cathedralRoseLitShare', file: 'src/buildings/monuments/culture.ts', value: '0.5' },
+  { name: 'dinosaurFernCount', file: 'src/buildings/monuments/culture.ts', value: '10' },
+  { name: 'theatreAudienceCount', file: 'src/buildings/monuments/culture.ts', value: '24' },
+  { name: 'theatreDoorLitShare', file: 'src/buildings/monuments/culture.ts', value: '1' },
+  { name: 'monumentShadowKinds', file: 'src/scene/useTownPieces.ts', value: "['gothic-cathedral'] as readonly MonumentKind[]" },
+  { name: 'cityHallWindowLitShare', file: 'src/buildings/monuments/municipal.ts', value: '0.4' },
+  { name: 'schoolTreeCount', file: 'src/buildings/monuments/education.ts', value: '6' },
+];
+describe('monument knobs in config (public buildings review, A1)', () => {
+  it.each(MONUMENT_KNOBS.map((e) => [e.name, e] as const))('config value: %s', (_name, e) => {
+    expect(propValue(CONFIG_FILE, e.name)).toBe(e.value);
+  });
+  it.each(MONUMENT_KNOBS.map((e) => [e.name, e] as const))('code reads config: %s', (_name, e) => {
+    expect(norm(source(e.file))).toContain(`buildings.${e.name}`);
+  });
+});
+
+/** Film camera knobs (video P1): config value, and the feature code reads the config object. */
+const FILM_FILE = 'src/config/tuning/film.ts';
+const FILM_KNOBS: Entry[] = [
+  { id: 'film fps', file: FILM_FILE, name: 'fps', value: '30' },
+  { id: 'film manual default length', file: FILM_FILE, name: 'manualDefaultSeconds', value: '30' },
+  { id: 'film manual min length', file: FILM_FILE, name: 'manualMinSeconds', value: '1' },
+  { id: 'film manual max length', file: FILM_FILE, name: 'manualMaxSeconds', value: '60' },
+  { id: 'film full HD width', file: FILM_FILE, name: 'width1080', value: '1920' },
+  { id: 'film full HD height', file: FILM_FILE, name: 'height1080', value: '1080' },
+  { id: 'film video bitrate', file: FILM_FILE, name: 'videoBitrate1080', value: '12000000' },
+  { id: 'film audio bitrate', file: FILM_FILE, name: 'audioBitrate', value: '192000' },
+  { id: 'film audio peak target', file: FILM_FILE, name: 'audioPeakTargetDb', value: '-3' },
+  { id: 'film auto length', file: FILM_FILE, name: 'autoSeconds', value: '60' },
+  { id: 'film auto virtual minutes', file: FILM_FILE, name: 'autoVirtualMinutes', value: '60' },
+  { id: 'film encoder queue max', file: FILM_FILE, name: 'encodeQueueMax', value: '4' },
+  { id: 'film keyframe interval', file: FILM_FILE, name: 'keyframeIntervalS', value: '2' },
+];
+
+describe('film camera knobs in config (video P1)', () => {
+  it.each(FILM_KNOBS.map((e) => [e.name, e] as const))('config value: %s', (_name, e) => {
+    expect(propValue(FILM_FILE, e.name)).toBe(e.value);
+  });
+  it('film utils read the length limits from config', () => {
+    expect(norm(source('src/ui/filmUtils.ts'))).toContain('film.manualMaxSeconds');
+  });
+  it('film session reads fps from config', () => {
+    expect(norm(source('src/ui/filmSession.ts'))).toContain('film.fps');
+  });
+});
+
+/** Auto film path knobs (video P5): config value, and scene/filmPath.ts reads the config object. */
+const FILM_PATH_KNOBS: Entry[] = [
+  { id: 'film sky tilt', file: FILM_FILE, name: 'skyTiltDeg', value: '35' },
+  { id: 'film perch hold', file: FILM_FILE, name: 'perchHoldSeconds', value: '3' },
+  { id: 'film cruise clearance', file: FILM_FILE, name: 'cruiseClearanceM', value: '15' },
+  { id: 'film street clearance', file: FILM_FILE, name: 'streetClearanceM', value: '3' },
+];
+
+describe('film path knobs in config (video P5)', () => {
+  it.each(FILM_PATH_KNOBS.map((e) => [e.name, e] as const))('config value: %s', (_name, e) => {
+    expect(propValue(FILM_FILE, e.name)).toBe(e.value);
+  });
+  it.each(FILM_PATH_KNOBS.map((e) => [e.name, e] as const))('path reads config: %s', (_name, e) => {
+    expect(norm(source('src/scene/filmPath.ts'))).toContain(`film.${e.name}`);
+  });
+});
 
 export const ASSERTED_VALUE_COUNT = VALUES.length + FRAGMENTS.length + LAB_MIRROR.length + DUPLICATE_LISTS.length + 1;

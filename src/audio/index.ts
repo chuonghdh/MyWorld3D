@@ -5,7 +5,14 @@
 import { AudioBus, type Category, type Group, type PartialVolumes, type VolumeSettings, defaultVolumes } from './bus';
 import type { AudioFrame, SoundSystem, AudioVehicleClass } from './frame';
 import { SOUND_SYSTEM_FACTORIES } from './systems';
-import { AERIAL_HEIGHT_M } from './listener';
+import { createRecordTap, type RecordTap } from './recordTap';
+import { createMixChain } from './mixChain';
+import { routeFrame } from './route';
+import { playUiCue, uiCueAllowed, uiCueParams, type UiCueKind } from './uiCue';
+import { audio as audioTuning } from '../config/tuning';
+
+export { quietFrame } from './route';
+export type { UiCueKind } from './uiCue';
 
 export type VehicleClass = AudioVehicleClass;
 export type { AudioFrame, SoundSystem, SoundSystemFactory } from './frame';
@@ -22,7 +29,12 @@ type AudioWindow = {
 let ctx: AudioContext | null = null;
 let bus: AudioBus | null = null;
 let systems: SoundSystem[] = [];
+let limiterNode: DynamicsCompressorNode | null = null;
+let tap: RecordTap | null = null;
 let soundEnabled = true;
+/** Interface cue output: straight to the speakers, outside master, limiter and record tap (never filmed). */
+let uiOut: GainNode | null = null;
+let lastUiCueT = -Infinity;
 /** Volumes requested before init() (or kept across it); applied to the bus on creation. */
 const volumes: VolumeSettings = defaultVolumes();
 const warned = new Set<string>();
@@ -54,21 +66,15 @@ export function init(): boolean {
   }
   const context = new Ctor();
   w.__mwAudioContext = context;
-  const master = context.createGain();
-  // A limiter between master and speakers: loud moments (thunder over a storm) compress instead of clipping.
-  const limiter = context.createDynamicsCompressor();
-  limiter.threshold.value = -9;
-  limiter.knee.value = 6;
-  limiter.ratio.value = 12;
-  limiter.attack.value = 0.003;
-  limiter.release.value = 0.25;
-  master.connect(limiter);
-  limiter.connect(context.destination);
-  const b = new AudioBus(context, master);
+  const mix = createMixChain(context);
+  const b = new AudioBus(context, mix.master);
   b.setVolumes(volumes);
   b.setSoundMuted(!soundEnabled);
   ctx = context;
   bus = b;
+  limiterNode = mix.limiter;
+  uiOut = context.createGain();
+  uiOut.connect(context.destination);
 
   systems = [];
   for (const make of SOUND_SYSTEM_FACTORIES) {
@@ -81,24 +87,28 @@ export function init(): boolean {
   return true;
 }
 
+/**
+ * Soft interface cue: 'open'/'close' ratchet for a panel or section, 'tick' for a house/block switch. No-op before init(), with the Sound switch
+ * off, while the context is not running, or within `audio.uiCueMinGapS` of the previous cue. Never throws.
+ * Level: `audio.uiCueLevel` x master slider x effects slider. Not in the record stream or the offline film.
+ */
+export function uiCue(kind: UiCueKind): void {
+  try {
+    if (!ctx || !uiOut || !soundEnabled || ctx.state !== 'running') return;
+    const now = ctx.currentTime;
+    if (!uiCueAllowed(now, lastUiCueT, audioTuning.uiCueMinGapS)) return;
+    const level = audioTuning.uiCueLevel * volumes.master * volumes.groups.effects;
+    if (!(level > 0)) return;
+    lastUiCueT = now;
+    uiOut.gain.setValueAtTime(level, now);
+    playUiCue(ctx, uiOut, uiCueParams(kind), now);
+  } catch (err) {
+    warnOnce('uiCue', err);
+  }
+}
+
 export function isReady(): boolean {
   return ctx !== null;
-}
-
-/** The frame with every ground source and the wind removed, so those systems fade out; rain and thunder stay. */
-export function quietFrame(f: AudioFrame): AudioFrame {
-  return {
-    ...f, night: false, windSpeed: 0, gust: 0, vehicles: [], pedestrians: [], trees: [],
-    church: null, lifeEvents: [], horns: [],
-    // Airliners are 200-300 m up and heard from the overview too (quietly, by distance and the zoom factor).
-    aircraft: f.aircraft,
-  };
-}
-
-/** The frame for the bird system: no walkers (so no dogs) and only bird life events (no cats). */
-function birdsOnlyFrame(f: AudioFrame): AudioFrame {
-  const events = f.lifeEvents.filter((e) => e.type === 'bird-call' || e.type === 'pigeon-scatter');
-  return { ...f, pedestrians: [], lifeEvents: events };
 }
 
 /**
@@ -112,15 +122,12 @@ export function update(frame: AudioFrame): void {
   } catch (err) {
     warnOnce('listener', err);
   }
-  const aerial = frame.listener.height > AERIAL_HEIGHT_M;
-  const quiet = aerial ? quietFrame(frame) : frame;
-  const birdsOnly = aerial ? birdsOnlyFrame(frame) : frame;
   for (const s of systems) {
-    // Sound off silences the city's sounds, but music has its own switch (frame.musicEnabled) and keeps running.
-    if (!soundEnabled && s.name !== 'music') continue;
+    // Routing (Sound switch, aerial view, music switch) lives in route.ts so the offline film render matches.
+    const f = routeFrame(s.name, frame, soundEnabled);
+    if (!f) continue;
     try {
-      // From high above only birds (songs and wing flaps) and music are heard; the street below stays silent.
-      s.update(s.name === 'music' ? frame : s.name === 'animals' ? birdsOnly : quiet);
+      s.update(f);
     } catch (err) {
       warnOnce(s.name, err);
     }
@@ -165,6 +172,16 @@ export function getGroupVolumes(): VolumeSettings {
   };
 }
 
+/**
+ * The mix as a live MediaStream (the limiter output, so volumes, Sound and Music switches apply). Created on the
+ * first call; null before init() or after dispose(), or when the browser has no MediaStream destination.
+ */
+export function getRecordStream(): MediaStream | null {
+  if (!ctx || !limiterNode) return null;
+  if (!tap) tap = createRecordTap(ctx, limiterNode);
+  return tap ? tap.stream : null;
+}
+
 /** Releases the audio context. Use when the scene unmounts. */
 export function dispose(): void {
   for (const s of systems) {
@@ -175,6 +192,12 @@ export function dispose(): void {
     }
   }
   systems = [];
+  tap?.dispose();
+  tap = null;
+  limiterNode = null;
+  uiOut?.disconnect();
+  uiOut = null;
+  lastUiCueT = -Infinity;
   bus?.dispose();
   bus = null;
   if (ctx) void ctx.close();

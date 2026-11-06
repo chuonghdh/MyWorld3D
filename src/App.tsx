@@ -4,7 +4,7 @@ import * as THREE from 'three';
 import { getCityLayout } from './city';
 import {
   BlockEditOverlay, BlockPanel, DEFAULT_HOUSE_BASE, EditModeChip, HelpOverlay, HousePanel, MonumentPanel, PanelFocusContext,
-  SettingsCity, TimeBar, isNarrowViewport, type CityAction, type PanelId,
+  PanelExit, SettingsCity, TimeBar, FilmRecChip, isNarrowViewport, type CityAction, type PanelId,
 } from './ui';
 import { rectCentre, useBlockEdit } from './ui/useBlockEdit';
 import { QUALITY_PRESETS, TREE_SPECIES, detectDevice, suggestQuality, useWorldStore, type OverrideTarget } from './store';
@@ -13,6 +13,8 @@ import { Town, monumentBaseFor } from './scene/Town';
 import { houseBaseFor } from './scene/townBlocks';
 import { runtime } from './scene/runtime';
 import { CameraRig } from './scene/CameraRig';
+import { FilmRig } from './scene/FilmRig';
+import { canvasFrameloop, useFilmLoopHold } from './film/loopHold';
 import { BlockEditor } from './scene/BlockEditor';
 import { PostFX } from './scene/PostFX';
 import { ScreenshotRequest } from './scene/ScreenshotRequest';
@@ -29,6 +31,8 @@ export function App() {
   // Choosing a house or monument opens its panel and folds the settings panel. On phones a block picked in block
   // mode keeps the map visible (the open panel would cover it and its + / - icons); the panel icon is in the top row.
   const select = useCallback((target: OverrideTarget | null) => {
+    // Selection is locked while a film is recorded.
+    if (useWorldStore.getState().toggles.filming) return;
     setSelected(target);
     const keepMap = target?.type === 'block' && useWorldStore.getState().editMode === 'block' && isNarrowViewport('(max-width: 600px)');
     if (target && !keepMap) setActivePanel('selection');
@@ -40,6 +44,10 @@ export function App() {
   const resetBlocks = useWorldStore((s) => s.resetBlocks);
   const resetHouses = useWorldStore((s) => s.resetHouses);
   const loadLayout = useWorldStore((s) => s.loadLayout);
+  // Starting a film drops the current selection so no panel or block outline is recorded by accident.
+  useEffect(() => {
+    if (toggles.filming) setSelected(null);
+  }, [toggles.filming]);
 
   const layout = getCityLayout(settings);
   const editMode = useWorldStore((s) => s.editMode);
@@ -51,6 +59,8 @@ export function App() {
   };
   const preset = QUALITY_PRESETS[settings.quality];
   const setSuggestedQuality = useWorldStore((s) => s.setSuggestedQuality);
+  // Auto film holds the loop ('never', fixed film-time steps). Controlled prop: R3F re-applies it on every render.
+  const filmLoopHeld = useFilmLoopHold((s) => s.held);
 
   const night = useMemo(() => getLightingForTime(settings.timeOfDay).sky.lightsOn, [settings.timeOfDay]);
 
@@ -70,12 +80,6 @@ export function App() {
 
   function handleAction(action: CityAction, value?: boolean) {
     switch (action) {
-      case 'gust':
-        runtime.gustRequests++;
-        break;
-      case 'leafDevil':
-        runtime.leafDevilRequests++;
-        break;
       case 'sound':
         if (value !== undefined) setSetting('soundEnabled', value);
         audio.init();
@@ -95,9 +99,6 @@ export function App() {
         loadLayout({ ...state, treeOverrides });
         break;
       }
-      case 'wholeMap':
-        runtime.cameraPresetRequests.push('overview');
-        break;
       case 'moveBlocks':
         setToggle('moveBlocks', value ?? !toggles.moveBlocks);
         runtime.pendingBlockId = null;
@@ -132,7 +133,7 @@ export function App() {
       onSplit={blockEdit.split}
     />
   ) : selected?.type === 'block' && layout.blocks.some((b) => b.id === selected.id) ? (
-    <MonumentPanel blockId={selected.id} base={monumentBaseFor(selected.id)} />
+    <MonumentPanel blockId={selected.id} base={monumentBaseFor(layout.blocks.find((b) => b.id === selected.id))} />
   ) : null;
 
   return (
@@ -142,6 +143,7 @@ export function App() {
     >
       <Canvas
         shadows="soft"
+        frameloop={canvasFrameloop(filmLoopHeld)}
         dpr={[1, preset.dprMax]}
         camera={{ position: [0, 380, 130], fov: 35, near: 1, far: 2000 }}
         onPointerMissed={() => setSelected(null)}
@@ -163,6 +165,7 @@ export function App() {
         }}
       >
         <CameraRig />
+        <FilmRig />
         <Town onSelect={select} selected={blockEdit.blockId ? null : selected} />
         <BlockEditor
           layout={layout}
@@ -181,6 +184,7 @@ export function App() {
       <div className="mw-topbar-host">
         <TimeBar />
       </div>
+      <FilmRecChip />
       <BlockEditOverlay
         at={blockEdit.rect ? rectCentre(blockEdit.rect) : null}
         canGrow={blockEdit.suggestions.length > 0}
@@ -194,7 +198,9 @@ export function App() {
       <EditModeChip mode={editMode} busy={blockEdit.busy} />
       <HelpOverlay />
       <PanelFocusContext.Provider value={focus}>
-        <div className="mw-left-panel">{panel}</div>
+        <div data-mw-left-panel className="mw-left-panel">
+          <PanelExit selectionId={selected ? `${selected.type}:${selected.id}` : blockEdit.blockId}>{panel}</PanelExit>
+        </div>
         <div data-mw-right-panel className="mw-right-panel">
           <SettingsCity onAction={handleAction} />
         </div>

@@ -14,6 +14,8 @@ const MONUMENT_LABEL: Record<MonumentKind, string> = {
   circus: 'Circus',
   'fire-station': 'Fire station',
   'gothic-cathedral': 'Gothic cathedral',
+  'city-hall': 'City hall',
+  school: 'School',
 };
 
 export interface MonumentPanelProps {

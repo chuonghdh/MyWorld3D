@@ -271,6 +271,8 @@ export interface WindowStyle {
   mullion?: boolean;
   /** Pointed (gothic) top. */
   pointed?: boolean;
+  /** Back face (seen only from far away): skip the jambs and the sill to save about 3 boxes. Default off. */
+  backFace?: boolean;
 }
 
 /**
@@ -281,9 +283,12 @@ export function windowAt(k: Kit, x: number, y0: number, w: number, h: number, li
   const frame = st.frame ?? '#f4efe3';
   const d = st.depth ?? 0.18;
   const t = 0.13;
+  const bare = st.backFace === true;
   k.glass(lit, w, h, 0.06, x, y0, 0.0, st.glass ?? '#2c3a48');
-  k.box(frame, t, h, d, x - w / 2 - t / 2, y0, d / 2);
-  k.box(frame, t, h, d, x + w / 2 + t / 2, y0, d / 2);
+  if (!bare) {
+    k.box(frame, t, h, d, x - w / 2 - t / 2, y0, d / 2);
+    k.box(frame, t, h, d, x + w / 2 + t / 2, y0, d / 2);
+  }
   if (st.pointed) {
     const s = w / Math.SQRT2;
     k.add(lit ? 'glassLit' : 'glass', new THREE.BoxGeometry(s, s, 0.06), st.glass ?? '#2c3a48', [x, y0 + h, 0], [0, 0, Math.PI / 4]);
@@ -292,7 +297,7 @@ export function windowAt(k: Kit, x: number, y0: number, w: number, h: number, li
   } else {
     k.box(frame, w + 2 * t + 0.12, 0.2, d + 0.04, x, y0 + h, (d + 0.04) / 2);
   }
-  if (st.sill !== false) k.box(frame, w + 0.34, 0.1, d + 0.14, x, y0 - 0.1, (d + 0.14) / 2);
+  if (st.sill !== false && !bare) k.box(frame, w + 0.34, 0.1, d + 0.14, x, y0 - 0.1, (d + 0.14) / 2);
   if (st.mullion) k.box(frame, 0.07, h, 0.08, x, y0, 0.04);
 }
 
@@ -318,7 +323,47 @@ export interface WingOptions {
   /** Return true to leave a window out (e.g. for an entrance). u = offset along the face from its centre. */
   skip?: (face: Face, u: number, floor: number) => boolean;
   cornice?: boolean;
+  /** Recessed openings cut into the front face (door bays). Default none: output identical to before. */
+  bayOpenings?: BayOpening[];
 }
+
+/** A rectangular opening in the front face, recessed by depth. u = offset from the front centre, y0 = 0. */
+export interface BayOpening {
+  u: number;
+  w: number;
+  h: number;
+  depth: number;
+}
+
+/**
+ * A box (x centred at x, base at y0, front face at z + d/2) with rectangular notches cut from its front face.
+ * Each notch is open at the bottom and recessed by its depth: the pieces are the solid columns beside it,
+ * the solid head above it and the back wall of the recess. No face is coplanar with another solid face.
+ */
+function notchedBox(k: Kit, c: C, w: number, h: number, d: number, x: number, y0: number, z: number, cuts: readonly BayOpening[]): void {
+  const left = x - w / 2;
+  const right = x + w / 2;
+  const front = z + d / 2;
+  const piece = (x0: number, x1: number, ya: number, yb: number, za: number, zb: number): void => {
+    if (x1 - x0 < 1e-6 || yb - ya < 1e-6 || zb - za < 1e-6) return;
+    k.add('body', new THREE.BoxGeometry(x1 - x0, yb - ya, zb - za), c, [(x0 + x1) / 2, (ya + yb) / 2, (za + zb) / 2]);
+  };
+  let cursor = left;
+  for (const cut of [...cuts].sort((a, b) => a.u - b.u)) {
+    if (cut.depth <= 0 || cut.depth >= d) throw new Error(`notchedBox: depth ${cut.depth} outside (0, ${d})`);
+    const x0 = x + cut.u - cut.w / 2;
+    const x1 = x + cut.u + cut.w / 2;
+    if (x0 < cursor - 1e-6 || x1 > right + 1e-6) throw new Error('notchedBox: opening outside the face or overlapping');
+    piece(cursor, x0, y0, y0 + h, z - d / 2, front);
+    const ch = Math.min(cut.h, h);
+    piece(x0, x1, y0, y0 + ch, z - d / 2, front - cut.depth);
+    if (ch < h) piece(x0, x1, y0 + ch, y0 + h, z - d / 2, front);
+    cursor = x1;
+  }
+  piece(cursor, right, y0, y0 + h, z - d / 2, front);
+}
+
+
 
 /** Runs fn in the frame of one face of a box footprint: origin at the face centre, local +z outwards. */
 export function onFace(k: Kit, f: Face, x: number, z: number, w: number, d: number, fn: (span: number) => void): void {
@@ -335,8 +380,13 @@ export function wing(k: Kit, o: WingOptions): number {
   const winW = o.winW ?? 1.2;
   const winH = o.winH ?? 1.9;
   const litP = o.litP ?? buildings.litWindowShareMonument;
-  k.box(o.wall, o.w, H, o.d, o.x, 0, o.z);
-  k.box(o.base, o.w + 0.16, 0.9, o.d + 0.16, o.x, 0, o.z);
+  if (o.bayOpenings?.length) {
+    notchedBox(k, o.wall, o.w, H, o.d, o.x, 0, o.z, o.bayOpenings);
+    notchedBox(k, o.base, o.w + 0.16, 0.9, o.d + 0.16, o.x, 0, o.z, o.bayOpenings);
+  } else {
+    k.box(o.wall, o.w, H, o.d, o.x, 0, o.z);
+    k.box(o.base, o.w + 0.16, 0.9, o.d + 0.16, o.x, 0, o.z);
+  }
   for (let f = 1; f < o.floors; f++) {
     const y = o.groundH + (f - 1) * o.floorH - 0.1;
     k.box(o.trim, o.w + 0.14, 0.18, o.d + 0.14, o.x, y, o.z);
@@ -393,6 +443,60 @@ export function lettering(k: Kit, x: number, y0: number, z: number, width: numbe
 export function signBoard(k: Kit, x: number, y0: number, z: number, w: number, h: number, board: C, letters: C, lit = true): void {
   k.box(board, w, h, 0.25, x, y0, z - 0.125);
   lettering(k, x, y0 + h * 0.2, z, w * 0.84, h * 0.6, letters, lit);
+}
+
+// ---------- water ----------
+
+/** Footprint of a water basin: outer size along x and z, and the coping width (metres). */
+export interface BasinRim {
+  w: number;
+  d: number;
+  coping: number;
+}
+
+// Geometry constants of waterBasin (not designer knobs).
+const BASIN_STONE = '#cbbfa8';
+const BASIN_WALL_T = 0.1;
+const BASIN_COPING_H = 0.12;
+const BASIN_SINK = 0.02;
+const BASIN_WATER_LEVEL = 0.6;
+const BASIN_WATER_T = 0.02;
+const BASIN_WATER_INSET = 0.02;
+
+/**
+ * A recessed water basin in the current frame, origin at the centre of the deck top (y = 0 is the deck top).
+ * The coping ring stands BASIN_COPING_H above the deck, the stone pit goes down to -depth and the water
+ * surface sits at 0.6 * depth below the deck top. The caller must leave the basin footprint open in the deck.
+ * Only body and glass targets are used; pieces stay rigid (wind code 0) even inside withWind().
+ */
+export function waterBasin(k: Kit, rim: BasinRim, depth: number, colour: C): void {
+  const { w, d, coping: c } = rim;
+  const ix = w / 2 - c - BASIN_WALL_T; // inner half-size of the pit along x
+  const iz = d / 2 - c - BASIN_WALL_T;
+  if (!(c > 0) || !(ix > 0) || !(iz > 0) || !(depth >= 0.1)) {
+    throw new Error(`waterBasin: bad size w=${w} d=${d} coping=${c} depth=${depth}`);
+  }
+  const floorY = -depth;
+  const waterY = -depth * BASIN_WATER_LEVEL;
+  const H = BASIN_COPING_H + BASIN_SINK;
+  const floorC = tint(colour, -0.2);
+  k.withWind(0, () => 0, () => {
+    // Coping ring: outer ring of body boxes, sunk slightly into the deck to avoid a gap.
+    k.box(BASIN_STONE, w, H, c, 0, -BASIN_SINK, d / 2 - c / 2);
+    k.box(BASIN_STONE, w, H, c, 0, -BASIN_SINK, -(d / 2 - c / 2));
+    k.box(BASIN_STONE, c, H, d - 2 * c, w / 2 - c / 2, -BASIN_SINK, 0);
+    k.box(BASIN_STONE, c, H, d - 2 * c, -(w / 2 - c / 2), -BASIN_SINK, 0);
+    // Pit walls: top at -BASIN_SINK so they never share a face plane with the coping.
+    const wallH = depth - BASIN_SINK;
+    k.box(BASIN_STONE, 2 * (ix + BASIN_WALL_T), wallH, BASIN_WALL_T, 0, floorY, iz + BASIN_WALL_T / 2);
+    k.box(BASIN_STONE, 2 * (ix + BASIN_WALL_T), wallH, BASIN_WALL_T, 0, floorY, -(iz + BASIN_WALL_T / 2));
+    k.box(BASIN_STONE, BASIN_WALL_T, wallH, 2 * iz, ix + BASIN_WALL_T / 2, floorY, 0);
+    k.box(BASIN_STONE, BASIN_WALL_T, wallH, 2 * iz, -(ix + BASIN_WALL_T / 2), floorY, 0);
+    // Pit floor, top exactly at floorY.
+    k.box(floorC, 2 * ix, 0.05, 2 * iz, 0, floorY - 0.05, 0);
+    // Water: a thin glass slab whose top is the water surface, clearly below the deck top.
+    k.glass(false, 2 * (ix - BASIN_WATER_INSET), BASIN_WATER_T, 2 * (iz - BASIN_WATER_INSET), 0, waterY - BASIN_WATER_T, 0, colour);
+  });
 }
 
 // ---------- props ----------
