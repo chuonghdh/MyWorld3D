@@ -173,3 +173,9 @@ Plan only. No source edits, no commits. Feature: camera button next to Photo in 
 - Visual motion must follow sim time (`runtime.simTime` or the R3F `dt`), never `performance.now()` / `Date.now()`. Wall clocks are only for UI chips, perf timers and file names. Reason: the auto film renders slower than real time; a wall clock runs ~5x fast in the MP4.
 - Auto film step guard: a fixed step throws (film fails) if the loop is not 'never' or the clock drifted off the film timeline.
 - Film canvas: use `filmCanvas()` / `filmViewSize()` from `src/film/resizeBridge.ts`; never `document.querySelector('canvas')` (another canvas can come first).
+
+## Update 2026-11-06 (lead): shader and material rules
+- Reserved GLSL words are a compile risk, not a style issue: a failed compile removes the body material. Check new shader code for them (`patch`, and the other ES reserved words) before a change ships.
+- Surface weathering (roof moss, wall weathering, window trim ageing, brick size) is shader-only: no new geometry or materials per house, budget unchanged (main 1,428,818, shadow 576,406, 127 calls at the last check). Any budget change must be stated with before and after numbers.
+- Per-house variation comes from object-position noise or a seeded value, never from a random call at render time.
+- Surface ids route the look: a new surface needs its own id and an explicit routing list, so the cathedral and other monuments keep their look.

@@ -70,6 +70,13 @@ const VALUES: Entry[] = [
   { id: 'film bird distance', file: CONFIG_FILE, name: 'filmBirdDistanceM', value: '7' },
   { id: 'film bird min distance', file: CONFIG_FILE, name: 'filmBirdMinDistanceM', value: '3' },
   { id: 'film bird scale', file: CONFIG_FILE, name: 'filmBirdScale', value: '2.6' },
+  { id: 'child stride cycle', file: CONFIG_FILE, name: 'childStrideCycleM', value: '1.425' },
+  { id: 'child cadence wobble', file: CONFIG_FILE, name: 'childCadenceWobble', value: '0.05' },
+  { id: 'child swing amp', file: CONFIG_FILE, name: 'childSwingAmp', value: '0.9' },
+  { id: 'child swing ease', file: CONFIG_FILE, name: 'childSwingEase', value: '0.35' },
+  { id: 'child knee', file: CONFIG_FILE, name: 'childKneeK', value: '1.3' },
+  { id: 'child arm swing', file: CONFIG_FILE, name: 'childArmK', value: '0.8' },
+  { id: 'child bob', file: CONFIG_FILE, name: 'childBobK', value: '1.6' },
   { id: 'walker cap', file: 'src/traffic/walkers/constants.ts', name: 'MAX_WALKERS', value: '480' },
   { id: 'walkers per road', file: 'src/traffic/walkers/constants.ts', name: 'WALKERS_PER_ROAD', value: '22' },
   { id: 'dog cap', file: 'src/traffic/walkers/constants.ts', name: 'MAX_DOGS', value: '120' },
@@ -99,6 +106,27 @@ const VALUES: Entry[] = [
   { id: 'tree scale config value equals city baseline', file: 'src/config/tuning.ts', name: 'treeScale', value: '1.35' },
   { id: 'cluster extra', file: CONFIG_FILE, name: 'clusterExtra', value: '0.5' },
   { id: 'border depth (city)', file: CONFIG_FILE, name: 'borderDepth', value: '6' },
+  { id: 'street wear: asphalt block tone', file: CONFIG_FILE, name: 'roadBlockTone', value: '0.04' },
+  { id: 'street wear: asphalt aggregate', file: CONFIG_FILE, name: 'roadAggregate', value: '0.05' },
+  { id: 'street wear: worn patch lift', file: CONFIG_FILE, name: 'roadWornLift', value: '0.2' },
+  { id: 'street wear: oil stain', file: CONFIG_FILE, name: 'roadOilStain', value: '0.16' },
+  { id: 'street wear: patch seam', file: CONFIG_FILE, name: 'roadPatchSeam', value: '0.12' },
+  { id: 'street wear: slab joint', file: CONFIG_FILE, name: 'pavingJoint', value: '0.16' },
+  { id: 'street wear: kerb base grime', file: CONFIG_FILE, name: 'pavingGrime', value: '0.22' },
+  { id: 'street wear: pavement scuff', file: CONFIG_FILE, name: 'pavingWear', value: '0.07' },
+  { id: 'street wear: bicycle track', file: CONFIG_FILE, name: 'pavingBikeTrack', value: '0.07' },
+  { id: 'street wear: footprint', file: CONFIG_FILE, name: 'pavingFootprint', value: '0.08' },
+  { id: 'street wear: pavement stain', file: CONFIG_FILE, name: 'pavingStain', value: '0.12' },
+  { id: 'street wear: paver joint width', file: CONFIG_FILE, name: 'pavingJointWidth', value: '0.012' },
+  { id: 'street wear: paver edge wear', file: CONFIG_FILE, name: 'pavingEdgeWear', value: '0.05' },
+  { id: 'street wear: paver stone tone', file: CONFIG_FILE, name: 'pavingStoneTone', value: '0.05' },
+  { id: 'street wear: paver accent share', file: CONFIG_FILE, name: 'pavingAccentShare', value: '0.05' },
+  { id: 'street wear: pavement gum spot', file: CONFIG_FILE, name: 'pavingGumSpot', value: '0.12' },
+  { id: 'street wear: pavement puddle mark', file: CONFIG_FILE, name: 'pavingPuddleMark', value: '0.05' },
+  { id: 'street wear: pavement dirt zone', file: CONFIG_FILE, name: 'pavingDirtZone', value: '0.06' },
+  { id: 'street wear: paver accent colours', file: CONFIG_FILE, name: 'pavingAccentColours', value: "['#b3aca4', '#a79d90', '#b7b09a']" },
+  { id: 'street wear: paint loss', file: CONFIG_FILE, name: 'paintWear', value: '0.6' },
+  { id: 'street wear: paint fade', file: CONFIG_FILE, name: 'paintFade', value: '0.12' },
   { id: 'courtyard trees min', file: CONFIG_FILE, name: 'courtyardTreeMin', value: '2' },
   { id: 'courtyard trees max', file: CONFIG_FILE, name: 'courtyardTreeMax', value: '6' },
   { id: 'tree spacing', file: 'src/city/streetscape.ts', name: 'TREE_SPACING', value: 'LAMP_SPACING / 2' },
@@ -215,6 +243,11 @@ const VALUES: Entry[] = [
   // 7. Buildings and city
   { id: 'min floors', file: CONFIG_FILE, name: 'minFloors', value: '2' },
   { id: 'max floors', file: CONFIG_FILE, name: 'maxFloors', value: '8' },
+  { id: 'glass tower max floors', file: CONFIG_FILE, name: 'glassTowerMaxFloors', value: '12' },
+  { id: 'roof moss amount', file: CONFIG_FILE, name: 'roofMossAmount', value: '0.9' },
+  { id: 'wall weathering amount', file: CONFIG_FILE, name: 'wallWeatheringAmount', value: '0.6' },
+  { id: 'trim age amount', file: CONFIG_FILE, name: 'trimAgeAmount', value: '0.84' },
+  { id: 'trim top darken', file: CONFIG_FILE, name: 'trimTopDarken', value: '0.6' },
   { id: 'floor range by street class', file: CONFIG_FILE, name: 'floorRange', value: '{ avenue: [5, 7], street: [3, 6] }' },
   // 9. UI & Camera (step 3): store defaults and slider ranges, now in config uiCamera
   { id: 'default seed', file: CONFIG_FILE, name: 'defaultSeed', value: '1' },
@@ -232,6 +265,7 @@ const VALUES: Entry[] = [
   { id: 'time slider max', file: CONFIG_FILE, name: 'timeMax', value: '24' },
   { id: 'time slider step', file: CONFIG_FILE, name: 'timeStep', value: '0.25' },
   { id: 'panel shift glide seconds', file: CONFIG_FILE, name: 'panelShiftSeconds', value: '1.5' },
+  { id: 'orbit pivot glide seconds', file: CONFIG_FILE, name: 'pivotSeconds', value: '0.8' },
   { id: 'panel slide open seconds', file: CONFIG_FILE, name: 'panelAnimSeconds', value: '0.3' },
   { id: 'panel slide close seconds', file: CONFIG_FILE, name: 'panelCloseSeconds', value: '0.22' },
   { id: 'golden hour button time', file: CONFIG_FILE, name: 'goldenHourTime', value: '18' },
@@ -255,7 +289,7 @@ const VALUES: Entry[] = [
   // 10. Camera and block edit (step 3b): values in uiCamera, moved from scene/cameraMath, CameraRig, cameraInput, BlockEditor
   { id: 'camera max distance (was core/cameraLimits)', file: CONFIG_FILE, name: 'maxDistance', value: '600' },
   { id: 'camera min distance', file: CONFIG_FILE, name: 'minDistance', value: '4' },
-  { id: 'camera eye height', file: CONFIG_FILE, name: 'eyeHeight', value: '1.7' },
+  { id: 'camera eye height', file: CONFIG_FILE, name: 'eyeHeight', value: '2.0' },
   { id: 'camera tween seconds', file: CONFIG_FILE, name: 'tweenSeconds', value: '1' },
   { id: 'camera pan margin', file: CONFIG_FILE, name: 'panMargin', value: '40' },
   { id: 'block edit height', file: CONFIG_FILE, name: 'blockEditHeightM', value: '200' },
@@ -265,7 +299,13 @@ const VALUES: Entry[] = [
   { id: 'street walk speed', file: CONFIG_FILE, name: 'walkSpeed', value: '2.5' },
   { id: 'street run speed', file: CONFIG_FILE, name: 'walkRunSpeed', value: '6' },
   { id: 'street look sensitivity', file: CONFIG_FILE, name: 'lookSensitivity', value: '0.004' },
-  { id: 'street pitch limit', file: CONFIG_FILE, name: 'pitchLimit', value: '1.2' },
+  { id: 'street pitch limit', file: CONFIG_FILE, name: 'pitchLimit', value: '(80 * Math.PI) / 180' },
+  { id: 'street turn speed', file: CONFIG_FILE, name: 'streetTurnSpeed', value: '0.8' },
+  { id: 'street pitch speed', file: CONFIG_FILE, name: 'streetPitchSpeed', value: '1.2' },
+  { id: 'map move speed low', file: CONFIG_FILE, name: 'mapMoveSpeedLow', value: '15' },
+  { id: 'map move speed high', file: CONFIG_FILE, name: 'mapMoveSpeedHigh', value: '40' },
+  { id: 'map move speed low height', file: CONFIG_FILE, name: 'mapMoveSpeedLowHeight', value: '25' },
+  { id: 'map move speed high height', file: CONFIG_FILE, name: 'mapMoveSpeedHighHeight', value: '400' },
   { id: 'whole-map fit margin', file: CONFIG_FILE, name: 'fitMargin', value: '1.06' },
   { id: 'block edit pick height', file: CONFIG_FILE, name: 'pickHeightM', value: '150' },
   { id: 'block edit decal height', file: CONFIG_FILE, name: 'decalHeightM', value: '0.3' },
@@ -301,6 +341,8 @@ const FRAGMENTS: Has[] = [
   { id: 'film bird distance use', file: 'src/life/filmBird.ts', fragment: 'trafficLife.filmBirdDistanceM' },
   { id: 'film bird min distance use', file: 'src/life/filmBird.ts', fragment: 'trafficLife.filmBirdMinDistanceM' },
   { id: 'film bird scale use', file: 'src/life/filmBird.ts', fragment: 'trafficLife.filmBirdScale' },
+  { id: 'child gait use', file: 'src/traffic/people/personGeometry.ts', fragment: 'trafficLife.childStrideCycleM' },
+  { id: 'child cadence wobble use', file: 'src/traffic/walkers/resolve.ts', fragment: 'trafficLife.childCadenceWobble' },
   { id: 'bee share', file: 'src/life/pets.ts', fragment: 'Math.floor(n * 0.2)' },
   { id: 'life quality factors', file: 'src/life/common.ts', fragment: "q === 'low' ? 0.4 : q === 'medium' ? 0.7 : 1" },
   { id: 'autumn particle profile (density, size, fall)', file: 'src/environment/seasons.ts', fragment: "density: 1, colors: ['#c8552a', '#d4862a', '#e0b23a', '#a8452a', '#b9a02e']" },
@@ -538,6 +580,27 @@ describe('film path knobs in config (video P5)', () => {
   });
   it.each(FILM_PATH_KNOBS.map((e) => [e.name, e] as const))('path reads config: %s', (_name, e) => {
     expect(norm(source('src/scene/filmPath.ts'))).toContain(`film.${e.name}`);
+  });
+});
+
+/** House type thumbnail knobs (House panel carousel): config value, and the renderer reads the config object. */
+const SCENE_QA_FILE = 'src/config/tuning/sceneQa.ts';
+const HOUSE_THUMB_KNOBS: Entry[] = [
+  { id: 'house thumb size', file: SCENE_QA_FILE, name: 'thumbSizePx', value: '256' },
+  { id: 'house thumb margin', file: SCENE_QA_FILE, name: 'thumbMargin', value: '1.12' },
+  { id: 'house thumb azimuth', file: SCENE_QA_FILE, name: 'thumbAzimuthDeg', value: '35' },
+  { id: 'house thumb elevation', file: SCENE_QA_FILE, name: 'thumbElevationDeg', value: '18' },
+  { id: 'house thumb fov', file: SCENE_QA_FILE, name: 'thumbFovDeg', value: '28' },
+  { id: 'house thumb key light', file: SCENE_QA_FILE, name: 'thumbKeyIntensity', value: '3' },
+  { id: 'house thumb fill light', file: SCENE_QA_FILE, name: 'thumbFillIntensity', value: '1.6' },
+];
+
+describe('house thumbnail knobs in config', () => {
+  it.each(HOUSE_THUMB_KNOBS.map((e) => [e.name, e] as const))('config value: %s', (_name, e) => {
+    expect(propValue(SCENE_QA_FILE, e.name)).toBe(e.value);
+  });
+  it.each(HOUSE_THUMB_KNOBS.map((e) => [e.name, e] as const))('renderer reads config: %s', (_name, e) => {
+    expect(norm(source('src/scene/HouseThumbRenderer.tsx'))).toContain(`.${e.name}`);
   });
 });
 

@@ -20,6 +20,7 @@ import {
   type Ctx,
 } from './parts';
 import { chance, pick } from './rng';
+import { SURFACE } from '../surface';
 
 interface UnitOpts {
   floor: number;
@@ -62,15 +63,17 @@ export function windowUnit(ctx: Ctx, u0: number, u1: number, y0: number, y1: num
   // Sill.
   if (!o.balconyFloor && !o.smallBalcony) {
     if (modern) m.b(scale(c.frame, 1.4), u0 - 0.03, u1 + 0.03, y0 - 0.04, y0 + 0.01, -r, 0.05, NN);
-    else m.b(c.trim, u0 - 0.09, u1 + 0.09, y0 - 0.08, y0 + 0.02, -r, 0.09, NN);
+    else m.withSurface(SURFACE.TRIM_AGED, () => m.b(c.trim, u0 - 0.09, u1 + 0.09, y0 - 0.08, y0 + 0.02, -r, 0.09, NN));
   }
 
   // Moulded surround.
   const sw = 0.13;
   if (look.surround) {
-    m.b(c.trim, u0 - sw, u0, y0, y1 + sw, 0, 0.04, NN | NY);
-    m.b(c.trim, u1, u1 + sw, y0, y1 + sw, 0, 0.04, NN | NY);
-    m.b(c.trim, u0, u1, y1, y1 + sw, 0, 0.04, NN | NY);
+    m.withSurface(SURFACE.TRIM_AGED, () => {
+      m.b(c.trim, u0 - sw, u0, y0, y1 + sw, 0, 0.04, NN | NY);
+      m.b(c.trim, u1, u1 + sw, y0, y1 + sw, 0, 0.04, NN | NY);
+      m.b(c.trim, u0, u1, y1, y1 + sw, 0, 0.04, NN | NY);
+    });
   }
   const top = y1 + (look.surround ? sw : 0);
 
@@ -80,8 +83,10 @@ export function windowUnit(ctx: Ctx, u0: number, u1: number, y0: number, y1: num
       m.b(c.cornice, u0 - 0.2, u1 + 0.2, top, top + 0.1, 0, 0.13, NN);
       break;
     case 'lintel':
-      m.b(c.trim, u0 - 0.12, u1 + 0.12, y1, y1 + 0.26, 0, 0.05, NN);
-      m.b(c.trim, u0 - 0.17, u1 + 0.17, y1 + 0.26, y1 + 0.33, 0, 0.1, NN);
+      m.withSurface(SURFACE.TRIM_AGED, () => {
+        m.b(c.trim, u0 - 0.12, u1 + 0.12, y1, y1 + 0.26, 0, 0.05, NN);
+        m.b(c.trim, u0 - 0.17, u1 + 0.17, y1 + 0.26, y1 + 0.33, 0, 0.1, NN);
+      });
       break;
     case 'pediment':
       if (o.floor === 2) {

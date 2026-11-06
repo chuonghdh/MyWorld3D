@@ -129,7 +129,11 @@ const EXPECTED_VEHICLES = 'b0d22ec1';
 // children in pairs at the child's pace (the adult walks at it), 90 percent of women with long hair, 70 percent
 // patterned tops in six patterns, and no dresses or ao dai (their random draws were removed; coat tails replaced
 // the dress shape).
-const EXPECTED_PEDESTRIANS = 'a8684131'; // re-captured: walker density now follows the shared 11:00/19:00 traffic curve (trafficDensity.ts)
+// Re-captured 2026-11-06 for the child gait change (commit d47180a): child stride cycle, swing ease, knee, arm and bob
+// multipliers and the 5 percent gait wobble (config trafficLife.child*). Checked: with those child knobs reset to the
+// previous values the hash is still a8684131, so adults, teens, elders, dogs and umbrellas are unchanged.
+const EXPECTED_PEDESTRIANS = '63333cfb';
+// Previous: 'a8684131', re-captured when walker density followed the shared 11:00/19:00 traffic curve (trafficDensity.ts)
 
 describe('traffic determinism (baseline captured before allocation clean-up)', () => {
   it('vehicle simulation and instance buffers are bit-identical for a seed and dt sequence', () => {

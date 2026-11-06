@@ -2,8 +2,7 @@
 // new families cost no extra draw calls, except the two translucent layers (shelter glass, fountain water).
 //
 // Layering (no coplanar faces): road decals sit at PAINT_Y, which is clear of the lane markings by
-// construction; sidewalk decals sit at SIDEWALK_OVERLAY_Y (paving slabs, beyond tree pits and the
-// furniture band) or 6 mm above it (tactile bars, where they touch the band). Rounded kerb corners are
+// construction; sidewalk decals (tactile bars) sit 6 mm above SIDEWALK_OVERLAY_Y. Rounded kerb corners are
 // part of the sidewalk surfaces (surfaces.ts), not decals.
 
 import * as THREE from 'three';
@@ -23,9 +22,9 @@ export const DECOR_COLORS = {
   lip: '#d3ccbb',
   basinFloor: '#6f8890',
   jet: '#dcecf2',
-  plazaA: '#d9cfbd',
-  plazaB: '#c9bda6',
-  plazaBorder: '#b9ab92',
+  plazaA: '#cad0d3',
+  plazaB: '#b9c0c4',
+  plazaBorder: '#a9b0b5',
   tactile: '#c9a640',
   manhole: '#2a2a2e',
   manholeRim: '#66666b',
@@ -33,8 +32,6 @@ export const DECOR_COLORS = {
   patchLight: '#5a5a61',
   wear: '#434349',
   crack: '#2b2b30',
-  slabDark: '#d3ccbd',
-  slabLight: '#e6dfd2',
 } as const;
 
 const KIOSK_BODY = ['#2f6a55', '#2d4a6b', '#7a2f3a'] as const;
@@ -214,9 +211,6 @@ export function buildDecor(
   }
 
   // Sidewalk decals.
-  for (const t of plan.paving) {
-    b.overlay.rect(SIDEWALK_OVERLAY_Y, t.minX, t.maxX, t.minZ, t.maxZ, t.shade === 'dark' ? C.slabDark : C.slabLight);
-  }
   for (const t of plan.tactile) {
     const bar = clearOfKerbCorners(t, plan.kerbCorners);
     b.overlay.rect(SIDEWALK_OVERLAY_Y + 0.006, bar.minX, bar.maxX, bar.minZ, bar.maxZ, C.tactile);

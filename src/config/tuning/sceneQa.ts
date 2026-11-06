@@ -1,4 +1,4 @@
-/** Scene & QA: quality tiers, lighting gains, night bloom, shadow-side constants, cloud count. */
+/** Scene & QA: quality tiers, lighting gains, night bloom, shadow-side constants, cloud count, house type thumbnails. */
 export const sceneQa = {
   /** Sun light brightness multiplier on the 0-1.2 sun-module scale (scene/townShadow.ts SUN_GAIN). */
   sunGain: 3.4,
@@ -29,5 +29,22 @@ export const sceneQa = {
     medium: { dprMax: 1.5, shadowMap: 2048, bloom: 0.6, msaa: 4, traffic: 0.75 },
     /** Opt-in: pixel ratio cap 1, shadow map 1024, no bloom, 2 MSAA samples, traffic 0.5. */
     low: { dprMax: 1, shadowMap: 1024, bloom: 0, msaa: 2, traffic: 0.5 },
+  },
+  /** House type thumbnails for the House panel carousel (scene/houseThumbs.ts, scene/HouseThumbRenderer.tsx). */
+  houseThumbs: {
+    /** Render size of one thumbnail, square pixels (about 2x the shown icon size for crispness). */
+    thumbSizePx: 256,
+    /** Empty space around the house: 1 = the bounds touch the edges, 1.1 = 10 % margin. */
+    thumbMargin: 1.12,
+    /** Camera angle around the house from the front, degrees (3/4 view). */
+    thumbAzimuthDeg: 35,
+    /** Camera angle above the horizon, degrees. */
+    thumbElevationDeg: 18,
+    /** Thumbnail camera vertical field of view, degrees. */
+    thumbFovDeg: 28,
+    /** Warm key light intensity. */
+    thumbKeyIntensity: 3,
+    /** Sky and ground fill (hemisphere) light intensity. */
+    thumbFillIntensity: 1.6,
   },
 } as const;

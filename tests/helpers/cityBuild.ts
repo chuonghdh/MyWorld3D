@@ -22,11 +22,10 @@ export function houseParamsFor(lot: Lot, blockId: string): HouseParams {
   const style = lotStyle(lot, blockPresetFor(styleKeyFor(lot, blockId)));
   const preset = style.preset;
   const defaults = defaultHouseParams(preset, 'classic');
-  const floors = preset === 'glass-tower' ? Math.max(lot.floors, 7) : lot.floors;
   return {
     ...defaults,
     preset,
-    floors,
+    floors: lot.floors,
     roof: defaults.roof,
     style: defaults.style,
     wallColor: style.wallColor,

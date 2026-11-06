@@ -77,6 +77,13 @@ Base counts are scaled by the graphics tier: factor low 0.4, medium 0.7, high 1 
 | Film bird distance | 7 | metres | Preferred distance of the auto-film carrier bird from the camera | src/config/tuning/trafficLife.ts (`trafficLife.filmBirdDistanceM`) | Traffic & Life |
 | Film bird min distance | 3 | metres | Closest the auto-film bird may come to the camera (never cuts into the view) | src/config/tuning/trafficLife.ts (`trafficLife.filmBirdMinDistanceM`) | Traffic & Life |
 | Film bird scale | 2.6 | multiplier | Size of the auto-film carrier bird model | src/config/tuning/trafficLife.ts (`trafficLife.filmBirdScale`) | Traffic & Life |
+| Child stride cycle | 1.425 | metres per full gait cycle | src/config/tuning/trafficLife.ts (`trafficLife.childStrideCycleM`); used by src/traffic/people/personGeometry.ts | Traffic & Life |
+| Child cadence wobble | 0.05 | fraction of speed (plus or minus) | src/config/tuning/trafficLife.ts (`trafficLife.childCadenceWobble`); used by src/traffic/walkers/resolve.ts | Traffic & Life |
+| Child swing amplitude | 0.9 | multiplier (1 = adult) | src/config/tuning/trafficLife.ts (`trafficLife.childSwingAmp`); used by src/traffic/people/personGeometry.ts | Traffic & Life |
+| Child swing ease | 0.35 | 0-1 | src/config/tuning/trafficLife.ts (`trafficLife.childSwingEase`); used by src/traffic/people/personGeometry.ts | Traffic & Life |
+| Child knee bend | 1.3 | multiplier (1 = adult) | src/config/tuning/trafficLife.ts (`trafficLife.childKneeK`); used by src/traffic/people/personGeometry.ts | Traffic & Life |
+| Child arm swing | 0.8 | multiplier (1 = adult) | src/config/tuning/trafficLife.ts (`trafficLife.childArmK`); used by src/traffic/people/personGeometry.ts | Traffic & Life |
+| Child body bob | 1.6 | multiplier (1 = adult) | src/config/tuning/trafficLife.ts (`trafficLife.childBobK`); used by src/traffic/people/personGeometry.ts | Traffic & Life |
 | Bee share | 0.2 | fraction of butterflies/bees | Share of the 30 that are bees | src/life/pets.ts:567 (literal `n * 0.2`, stays in code) | Traffic & Life |
 | Bird audio cap | 3 to 6 flap birds, max flaps 3 | birds / flaps | Wing-flap sound events | src/audio/animals.ts:35-40 (`FLAP_BIRDS_MIN/MAX`, `MAX_FLAPS`, stay in code) | Audio |
 | Dog bark range | 120 | metres | Audible range of barking dogs | src/audio/animals.ts:42 (`DOG_RANGE_M`, stays in code) | Audio |
@@ -172,9 +179,18 @@ Base counts are scaled by the graphics tier: factor low 0.4, medium 0.7, high 1 
 | Day length | 1440 | real seconds (24 min) | One in-app day in auto time | src/config/tuning/uiCamera.ts (`uiCamera.dayLengthS`) | UI & Camera / Sky & Environment |
 | Time of day slider | 0-24, step 0.25 | hours | Clock; default 17.5 | src/config/tuning/uiCamera.ts (`uiCamera.defaultTimeOfDay`), 91 (`timeMax`), 93 (`timeStep`); slider src/ui/SettingsCity.tsx | UI & Camera |
 | Panel shift glide | 1.5 | seconds (real time) | How long the overview glides to re-centre the town when a side panel opens or closes | src/config/tuning/uiCamera.ts (`uiCamera.panelShiftSeconds`); spring src/scene/cameraMath.ts (`stepViewShift`), used in src/scene/CameraRig.tsx | UI & Camera |
+| Street eye height | 2.0 | metres | Eye height in street view (raised from 1.7 for an easier view) | src/config/tuning/uiCamera.ts (`uiCamera.eyeHeight`); used by src/scene/cameraMath.ts (`EYE_HEIGHT`) | UI & Camera |
+| Orbit pivot glide | 0.8 | seconds | How long the orbit pivot glides between the map centre and a selected block, house or tree (camera moves with it) | src/config/tuning/uiCamera.ts (`uiCamera.pivotSeconds`); glide src/scene/pivotMath.ts, used in src/scene/CameraRig.tsx | UI & Camera |
 | Panel slide open / close | 0.3 / 0.22 | seconds | Slide time of side panels and settings sections (open ease-out, close ease-in; instant under reduced motion) | src/config/tuning/uiCamera.ts (`uiCamera.panelAnimSeconds`, `panelCloseSeconds`); CSS vars via src/ui/slide.ts, rules `.mw-slide` in src/ui/panels.css | UI & Camera |
 | Golden Hour button time | 18 | hours (6:00 PM) | Time the Golden Hour button sets; auto time off, simulation keeps running | src/config/tuning/uiCamera.ts (`uiCamera.goldenHourTime`); button src/ui/SettingsCity.tsx, action src/ui/goldenHour.ts | UI & Camera |
 | Overview camera direction | [0, 2.45, 0.63] (up, back) | unitless | Camera height and distance of the standard overview (same angle, larger distance than before) | src/config/tuning/uiCamera.ts (`uiCamera.overviewDirection`); parity in tests/tuningParity.test.ts | UI & Camera / Scene & QA |
+| Street pitch limit | 80 | degrees (+-, `(80 * Math.PI) / 180` in radians) | Highest look up / down in street view, from W/S keys and mouse look | src/config/tuning/uiCamera.ts (`uiCamera.pitchLimit`); parity in tests/tuningParity.test.ts | UI & Camera |
+| Street turn speed | 0.8 | radians per second | Turn speed in street view with Left/Right or A/D (Shift does not change it); also Left/Right turn in map view | src/config/tuning/uiCamera.ts (`uiCamera.streetTurnSpeed`); parity in tests/tuningParity.test.ts | UI & Camera |
+| Street pitch speed | 1.2 | radians per second | Look up / down speed in street view with W/S; also W/S tilt in map view | src/config/tuning/uiCamera.ts (`uiCamera.streetPitchSpeed`); parity in tests/tuningParity.test.ts | UI & Camera |
+| Map move speed low | 15 | metres per second | Up/Down speed in map view at and below the low height; only the camera moves along its view direction (orbit target unchanged) | src/config/tuning/uiCamera.ts (`uiCamera.mapMoveSpeedLow`); parity in tests/tuningParity.test.ts | UI & Camera |
+| Map move speed high | 40 | metres per second | Up/Down speed in map view at and above the high height; linear in between | src/config/tuning/uiCamera.ts (`uiCamera.mapMoveSpeedHigh`); parity in tests/tuningParity.test.ts | UI & Camera |
+| Map move speed low height | 25 | metres above ground | Camera height where the map move speed starts to rise | src/config/tuning/uiCamera.ts (`uiCamera.mapMoveSpeedLowHeight`); parity in tests/tuningParity.test.ts | UI & Camera |
+| Map move speed high height | 400 | metres above ground | Camera height where the map move speed reaches the high speed | src/config/tuning/uiCamera.ts (`uiCamera.mapMoveSpeedHighHeight`); parity in tests/tuningParity.test.ts | UI & Camera |
 | Golden-hour shadow clamp | 24 | degrees | Minimum elevation of the shadow-casting sun | src/scene/townShadow.ts:15 (`MIN_LIGHT_ELEVATION_DEG`, stays in code) | Scene & QA / Sky & Environment |
 | Golden phase threshold | altitude below 6 deg | degrees | When the phase is "golden" | src/environment/sun.ts:162 (literal, stays in code) | Sky & Environment |
 | Golden glow curve | smoothstep(14,5) x smoothstep(-6,0) | degrees | Sun glow width at golden hour | src/sky/state.ts:184 (literal, stays in code) | Sky & Environment |
@@ -252,6 +268,11 @@ Master and category defaults are set in the mixer; category list is in `src/audi
 |---|---|---|---|---|---|
 | Floors, min | 2 | floors | Minimum floors of a house | src/config/tuning/buildings.ts (`buildings.minFloors`); HousePanel slider src/ui/HousePanel.tsx:102 | Buildings / UI & Camera |
 | Floors, max | 8 | floors | Maximum floors of a house | src/config/tuning/buildings.ts (`buildings.maxFloors`); HousePanel slider src/ui/HousePanel.tsx:103 | Buildings / UI & Camera |
+| Trim age amount | 0.84 | 0-1 | Mould and stains on window trims, sills and lintels | src/config/tuning/buildings.ts (`buildings.trimAgeAmount`), uniform in src/buildings/materials.ts | Buildings |
+| Trim top darken | 0.6 | 0-1 | Darkening of the upward faces of window trims where rain pools | src/config/tuning/buildings.ts (`buildings.trimTopDarken`), uniform in src/buildings/materials.ts | Buildings |
+| Wall weathering amount | 0.6 | 0-1 | Grime, rain streaks, damp, chipping and sun fade on house walls (brick, stone, stucco, concrete, timber); cathedral keeps its own | src/config/tuning/buildings.ts (`buildings.wallWeatheringAmount`), shader uniform in src/buildings/materials.ts | Buildings |
+| Roof moss amount | 0.9 | 0-1 | Moss and lichen strength on house roofs (tiles, slate, zinc, flat membrane); cathedral roofs keep their own | src/config/tuning/buildings.ts (`buildings.roofMossAmount`), shader uniform in src/buildings/materials.ts | Buildings |
+| Floors, glass tower max | 12 | floors | Maximum floors of a glass tower (other presets keep the max above) | src/config/tuning/buildings.ts (`buildings.glassTowerMaxFloors`), `maxFloorsFor` in src/buildings/facade/layout.ts | Buildings |
 | Floors per street class | avenue 5-7, street 3-6 | floors, inclusive | Floor count by street class | src/config/tuning/cityStreets.ts (`cityStreets.floorRange`) | City & Streets |
 | House presets | 10 entries (as-block plus 9 styles) | list | Preset choices in the house panel | src/config/tuning/buildings.ts (`buildings.housePresets`); re-exported by src/store/model.ts and src/buildings/house.ts | UI & Camera / Buildings |
 | Monument list | hospital, stadium, funfair, swimming-pool, dinosaur-park, supermarket, open-air-theatre, circus, fire-station, gothic-cathedral, city-hall, school | list | Monument kinds | src/config/tuning/buildings.ts (`buildings.monumentKinds`); re-exported by src/store/model.ts and src/buildings/monument.ts | UI & Camera / Buildings |
@@ -341,6 +362,46 @@ Test thresholds: change only when the scene change is intended. Raising a budget
 | Auto perch hold | 3 | s | Seconds the auto-film bird holds on the perch before the film ends | src/config/tuning/film.ts (`film.perchHoldSeconds`) | Scene & QA |
 | Auto cruise clearance | 15 | m | Height above the highest roof kept by the cruise and perch flight. ESTIMATE, measure in P6 | src/config/tuning/film.ts (`film.cruiseClearanceM`) | Scene & QA |
 | Auto street clearance | 3 | m | Lateral distance from building walls for the descent street choice. ESTIMATE, measure in P6 | src/config/tuning/film.ts (`film.streetClearanceM`) | Scene & QA |
+
+## 12. House type thumbnails (House panel carousel)
+
+| Parameter | Current value | Unit/range | What it controls | File:line (constant) | Owner |
+|---|---|---|---|---|---|
+| Thumbnail size | 256 | px (square) | Render size of one house type picture (about 2x the shown icon) | src/config/tuning/sceneQa.ts (`sceneQa.houseThumbs.thumbSizePx`) | Scene & QA |
+| Thumbnail margin | 1.12 | factor (1 = tight) | Empty space around the house in the picture | src/config/tuning/sceneQa.ts (`sceneQa.houseThumbs.thumbMargin`) | Scene & QA |
+| Thumbnail view angle | 35 | degrees | Camera angle around the house from the front (3/4 view) | src/config/tuning/sceneQa.ts (`sceneQa.houseThumbs.thumbAzimuthDeg`) | Scene & QA |
+| Thumbnail view height | 18 | degrees | Camera angle above the horizon | src/config/tuning/sceneQa.ts (`sceneQa.houseThumbs.thumbElevationDeg`) | Scene & QA |
+| Thumbnail field of view | 28 | degrees | Thumbnail camera vertical field of view | src/config/tuning/sceneQa.ts (`sceneQa.houseThumbs.thumbFovDeg`) | Scene & QA |
+| Thumbnail key light | 3 | intensity | Warm key light of the thumbnail scene | src/config/tuning/sceneQa.ts (`sceneQa.houseThumbs.thumbKeyIntensity`) | Scene & QA |
+| Thumbnail fill light | 1.6 | intensity | Sky and ground fill light of the thumbnail scene | src/config/tuning/sceneQa.ts (`sceneQa.houseThumbs.thumbFillIntensity`) | Scene & QA |
+
+## 13. Street surface wear (City & Streets)
+
+Shader-only wear on the road, pavement and paint (`src/streets/streetWear.ts`). Patterns are seeded per town, so the same layout always looks the same. Amounts are 0-1 darkness or lift.
+
+| Parameter | Current value | Unit/range | What it controls | File:line (constant) | Owner |
+|---|---|---|---|---|---|
+| Asphalt block tone | 0.04 | 0..1 | Brightness spread per 24 m block (and per pavement slab) | src/config/tuning/cityStreets.ts (`cityStreets.roadBlockTone`) | City & Streets |
+| Asphalt aggregate | 0.05 | 0..1 | Fine speckle strength on asphalt | src/config/tuning/cityStreets.ts (`cityStreets.roadAggregate`) | City & Streets |
+| Worn patch lift | 0.2 | 0..1 | Extra lightness of worn asphalt patches | src/config/tuning/cityStreets.ts (`cityStreets.roadWornLift`) | City & Streets |
+| Oil stain | 0.16 | 0..1 | Darkness of oil stains on asphalt | src/config/tuning/cityStreets.ts (`cityStreets.roadOilStain`) | City & Streets |
+| Patch seam | 0.12 | 0..1 | Darkness of faint patch seam lines | src/config/tuning/cityStreets.ts (`cityStreets.roadPatchSeam`) | City & Streets |
+| Slab joint | 0.16 | 0..1 | Darkness of the joints between stone pavers (0.40 x 0.15 m, staggered bond) | src/config/tuning/cityStreets.ts (`cityStreets.pavingJoint`) | City & Streets |
+| Paver joint width | 0.012 | metres | Width of the joints between stone pavers | src/config/tuning/cityStreets.ts (`cityStreets.pavingJointWidth`) | City & Streets |
+| Paver edge wear | 0.05 | 0..1 | Faint edge wear along each paver | src/config/tuning/cityStreets.ts (`cityStreets.pavingEdgeWear`) | City & Streets |
+| Paver stone tone | 0.05 | 0..1 | Brightness spread from stone to stone on pavement | src/config/tuning/cityStreets.ts (`cityStreets.pavingStoneTone`) | City & Streets |
+| Pavement gum spot | 0.12 | 0..1 | Darkness of gum-like spots on pavement | src/config/tuning/cityStreets.ts (`cityStreets.pavingGumSpot`) | City & Streets |
+| Pavement puddle mark | 0.05 | 0..1 | Darkness of dry puddle rings on pavement | src/config/tuning/cityStreets.ts (`cityStreets.pavingPuddleMark`) | City & Streets |
+| Pavement dirt zone | 0.06 | 0..1 | Darkness of dirt grouped in zones per 24 m block | src/config/tuning/cityStreets.ts (`cityStreets.pavingDirtZone`) | City & Streets |
+| Paver accent share | 0.05 | 0..1 (about 1 in 20) | Share of pavers that take an accent colour, seeded per paver | src/config/tuning/cityStreets.ts (`cityStreets.pavingAccentShare`) | City & Streets |
+| Paver accent colours | #b3aca4, #a79d90, #b7b09a | hex, three | Warm grey, light grey-brown and pale ochre-grey accent pavers (low contrast) | src/config/tuning/cityStreets.ts (`cityStreets.pavingAccentColours`) | City & Streets |
+| Kerb base grime | 0.22 | 0..1 | Grime at the base of kerb faces | src/config/tuning/cityStreets.ts (`cityStreets.pavingGrime`) | City & Streets |
+| Pavement scuff | 0.07 | 0..1 | Darkness of scuffed pavement | src/config/tuning/cityStreets.ts (`cityStreets.pavingWear`) | City & Streets |
+| Bicycle track | 0.07 | 0..1 | Darkness of bicycle tyre tracks (thin pair, 0.55 m apart) on pavement | src/config/tuning/cityStreets.ts (`cityStreets.pavingBikeTrack`) | City & Streets |
+| Footprint | 0.08 | 0..1 | Darkness of pedestrian footprint traces on pavement | src/config/tuning/cityStreets.ts (`cityStreets.pavingFootprint`) | City & Streets |
+| Pavement stain | 0.12 | 0..1 | Darkness of dirty stains on pavement | src/config/tuning/cityStreets.ts (`cityStreets.pavingStain`) | City & Streets |
+| Paint loss | 0.6 | 0..1 | Share of paint lost in worn spots | src/config/tuning/cityStreets.ts (`cityStreets.paintWear`) | City & Streets |
+| Paint fade | 0.12 | 0..1 | Uniform dimming of lane and crossing paint | src/config/tuning/cityStreets.ts (`cityStreets.paintFade`) | City & Streets |
 
 ## Not yet tunable (hardcoded)
 

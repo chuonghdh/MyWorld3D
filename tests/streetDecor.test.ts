@@ -43,7 +43,6 @@ describe('street decor plan', () => {
     expect(plan.manholes.length).toBeGreaterThanOrEqual(3);
     expect(plan.patches.filter((p) => p.kind === 'dark' || p.kind === 'light').length).toBeGreaterThanOrEqual(3);
     expect(plan.patches.some((p) => p.kind === 'wear')).toBe(true);
-    expect(plan.paving.length).toBeGreaterThanOrEqual(20);
     expect(plan.kerbCorners.length).toBeGreaterThanOrEqual(4);
     expect(plan.tactile.length).toBeGreaterThan(0);
     expect(plan.fountain).not.toBeNull();
@@ -171,13 +170,6 @@ describe('street decor plan', () => {
           const a = rects[i], b = rects[j];
           const overlap = a.x0 < b.x1 && b.x0 < a.x1 && a.z0 < b.z1 && b.z0 < a.z1;
           expect(overlap).toBe(false);
-        }
-      }
-      const tiles = plan.paving;
-      for (let i = 0; i < tiles.length; i += 7) {
-        for (let j = i + 1; j < tiles.length; j++) {
-          const a = tiles[i], b = tiles[j];
-          expect(a.minX < b.maxX && b.minX < a.maxX && a.minZ < b.maxZ && b.minZ < a.maxZ).toBe(false);
         }
       }
     }

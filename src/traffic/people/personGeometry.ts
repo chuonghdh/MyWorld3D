@@ -13,6 +13,7 @@
 
 import * as THREE from 'three';
 import { RigBuilder } from './rigBuilder';
+import { trafficLife } from '../../config/tuning';
 
 /** Part ids (aRig.x). The shader swings limbs by part and shows or hides parts per person. */
 export const PART = {
@@ -83,6 +84,14 @@ export interface GaitSpec {
   amp: number;
   /** Height multiplier applied to the instance scale (women a little shorter than men). */
   heightK: number;
+  /** Swing ease 0-1: 0 is a plain sine (adults), higher flattens the turnaround (rigShader.ts). */
+  ease: number;
+  /** Knee bend multiplier in the swing phase. */
+  kneeK: number;
+  /** Arm counter-swing multiplier. */
+  armK: number;
+  /** Body bob multiplier at step rate. */
+  bobK: number;
 }
 
 interface Spec {
@@ -100,25 +109,41 @@ const SPECS: Record<BodyKind, Spec> = {
   elder: { k: 0.95, w: 0.97, headK: 1.05, stoop: 0.2, bagK: 0.9 },
 };
 
-/** Gait per age group: [male, female]. Women take slightly shorter steps; elders take short, slow steps. */
+/** Adult defaults: plain sine swing, no extra knee, arm or bob (neutral multipliers). */
+const PLAIN: Pick<GaitSpec, 'ease' | 'kneeK' | 'armK' | 'bobK'> = { ease: 0, kneeK: 1, armK: 1, bobK: 1 };
+
+/** Gait per age group: [male, female]. Women take slightly shorter steps; elders take short, slow steps.
+ *  Children use the eased, knee-bending, bobbing gait from `trafficLife` (designer knobs). */
 const GAIT: Record<BodyKind, [GaitSpec, GaitSpec]> = {
   adult: [
-    { cycle: 1.5, amp: 1, heightK: 1 },
-    { cycle: 1.38, amp: 0.93, heightK: 0.95 },
+    { cycle: 1.5, amp: 1, heightK: 1, ...PLAIN },
+    { cycle: 1.38, amp: 0.93, heightK: 0.95, ...PLAIN },
   ],
   teen: [
-    { cycle: 1.22, amp: 1.1, heightK: 1 },
-    { cycle: 1.14, amp: 1.02, heightK: 0.97 },
+    { cycle: 1.22, amp: 1.1, heightK: 1, ...PLAIN },
+    { cycle: 1.14, amp: 1.02, heightK: 0.97, ...PLAIN },
   ],
   child: [
-    { cycle: 0.8, amp: 1.25, heightK: 1 },
-    { cycle: 0.8, amp: 1.22, heightK: 1 },
+    childGait(1),
+    childGait(1),
   ],
   elder: [
-    { cycle: 1.0, amp: 0.66, heightK: 0.94 },
-    { cycle: 0.94, amp: 0.6, heightK: 0.92 },
+    { cycle: 1.0, amp: 0.66, heightK: 0.94, ...PLAIN },
+    { cycle: 0.94, amp: 0.6, heightK: 0.92, ...PLAIN },
   ],
 };
+
+function childGait(heightK: number): GaitSpec {
+  return {
+    cycle: trafficLife.childStrideCycleM,
+    amp: trafficLife.childSwingAmp,
+    heightK,
+    ease: trafficLife.childSwingEase,
+    kneeK: trafficLife.childKneeK,
+    armK: trafficLife.childArmK,
+    bobK: trafficLife.childBobK,
+  };
+}
 
 export function gaitOf(kind: BodyKind, female: number): GaitSpec {
   return GAIT[kind][female ? 1 : 0];

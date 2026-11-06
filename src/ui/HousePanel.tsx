@@ -1,8 +1,13 @@
-import { HOUSE_SHUTTER_OPTIONS, HOUSE_WALL_OPTIONS } from '../buildings';
+import { useEffect } from 'react';
+import { HOUSE_SHUTTER_OPTIONS, HOUSE_WALL_OPTIONS, MIN_FLOORS, maxFloorsFor } from '../buildings';
 import { useWorldStore } from '../store';
 import { HOUSE_PRESETS, HOUSE_STYLES, ROOF_TYPES, type HouseOverride, type RoofType } from '../store/model';
 import type { HousePreset, HouseStyle } from '../core/types';
-import { ActionButton, HouseGlyph, Panel, Segmented, Select, Slider, Swatches } from './controls';
+import { ActionButton, HouseGlyph, Panel, Segmented, Slider, SwatchGroup, Swatches } from './controls';
+import { PresetCarousel } from './PresetCarousel';
+import { RoofIcon } from './roofIcons';
+import { useHouseThumbs } from '../scene/houseThumbs';
+import { shownHouseRoof, shownShutter, typePickPatch } from './houseRoof';
 
 /** Presets a house can be set to. 'as-block' is not offered: "Original" already restores the block's own look. */
 const PRESET_CHOICES: readonly HousePreset[] = HOUSE_PRESETS.filter((v) => v !== 'as-block');
@@ -63,19 +68,28 @@ export function HousePanel({ houseId, base, onAction }: HousePanelProps) {
   const override: HouseOverride | undefined = useWorldStore((st) => st.houseOverrides[houseId]);
   const setOverride = useWorldStore((st) => st.setOverride);
   const clearOverride = useWorldStore((st) => st.clearOverride);
+  const thumbs = useHouseThumbs((st) => st.thumbs);
+  const requestThumbs = useHouseThumbs((st) => st.request);
+  // Thumbnails are rendered once on demand (scene/houseThumbs.ts); placeholders show until each arrives.
+  useEffect(() => {
+    requestThumbs();
+  }, [requestThumbs]);
 
-  const eff: HouseBase = { ...DEFAULT_HOUSE_BASE, ...base, ...override };
-  const hasShutters = (base?.shutterColor !== undefined ? base.shutterColor : DEFAULT_HOUSE_BASE.shutterColor) !== null;
+  const merged: HouseBase = { ...DEFAULT_HOUSE_BASE, ...base, ...override };
+  // Roof as the scene renders it (a type pick without a roof override shows that type's default roof).
+  const eff: HouseBase = { ...merged, roof: shownHouseRoof(override, merged) };
   // 'as-block' is not a choice: show the block's own preset so the select always has a valid option.
   const shownPreset: HousePreset = eff.preset === 'as-block' ? (base?.preset ?? DEFAULT_HOUSE_BASE.preset) : eff.preset;
+  // Shutters follow the shown type (presetHasShutters), not the block's original style.
+  const shutter = shownShutter(override, base?.shutterColor !== undefined ? base.shutterColor : DEFAULT_HOUSE_BASE.shutterColor, shownPreset);
   const target = { type: 'house' as const, id: houseId };
   const patch = (p: HouseOverride) => setOverride(target, p);
 
   const newLook = () => {
     const pick = <T,>(list: readonly T[]) => list[Math.floor(Math.random() * list.length)];
     const look: HouseOverride = { wallColor: pick(HOUSE_WALL_OPTIONS), roof: pick(ROOF_TYPES) };
-    // No shutter override on a house whose block has no shutters (base null).
-    if (hasShutters) look.shutterColor = pick(HOUSE_SHUTTER_OPTIONS);
+    // A shutter colour only when the type can carry shutters.
+    if (shutter.show) look.shutterColor = pick(HOUSE_SHUTTER_OPTIONS);
     patch(look);
     onAction?.('newLook', houseId);
   };
@@ -87,20 +101,23 @@ export function HousePanel({ houseId, base, onAction }: HousePanelProps) {
 
   return (
     <Panel id="selection" title="House" icon={<HouseGlyph />}>
-      <Select<HousePreset>
-        id="house-preset"
+      <PresetCarousel<HousePreset>
         label="Type"
         value={shownPreset}
-        options={PRESET_CHOICES.map((v) => ({ value: v, label: PRESET_LABEL[v] }))}
-        onChange={(v) => patch({ preset: v })}
+        items={PRESET_CHOICES.map((v) => ({ value: v, label: PRESET_LABEL[v] }))}
+        thumbs={thumbs}
+        onChange={(v) => {
+          if (v !== shownPreset) patch(typePickPatch(v, override));
+        }}
       />
 
       <Slider
         id="house-floors"
         label="Floors"
-        value={eff.floors}
-        min={2}
-        max={8}
+        // Shown clamped to the type's maximum; the stored floors change only when the user moves the slider.
+        value={Math.min(eff.floors, maxFloorsFor(shownPreset))}
+        min={MIN_FLOORS}
+        max={maxFloorsFor(shownPreset)}
         step={1}
         format={(v) => String(v)}
         onChange={(v) => patch({ floors: v })}
@@ -119,7 +136,8 @@ export function HousePanel({ houseId, base, onAction }: HousePanelProps) {
               aria-pressed={r === eff.roof}
               onClick={() => patch({ roof: r })}
             >
-              {ROOF_LABEL[r]}
+              <RoofIcon roof={r} />
+              <span>{ROOF_LABEL[r]}</span>
             </button>
           ))}
         </div>
@@ -133,15 +151,19 @@ export function HousePanel({ houseId, base, onAction }: HousePanelProps) {
         onChange={(v) => patch({ style: v })}
       />
 
-      <Swatches label="Wall" colors={HOUSE_WALL_OPTIONS} value={eff.wallColor} onChange={(c) => patch({ wallColor: c })} />
-      {eff.shutterColor !== null && (
-        <Swatches
-          label="Shutter"
-          colors={HOUSE_SHUTTER_OPTIONS}
-          value={eff.shutterColor}
-          onChange={(c) => patch({ shutterColor: c })}
-        />
-      )}
+      <SwatchGroup>
+        <div className="mw-colorfields">
+          <Swatches label="Wall" colors={HOUSE_WALL_OPTIONS} value={eff.wallColor} onChange={(c) => patch({ wallColor: c })} />
+          {shutter.show && (
+            <Swatches
+              label="Shutter"
+              colors={HOUSE_SHUTTER_OPTIONS}
+              value={shutter.value}
+              onChange={(c) => patch({ shutterColor: c })}
+            />
+          )}
+        </div>
+      </SwatchGroup>
 
       <div className="mw-button-grid mw-button-grid-2">
         <ActionButton icon="✦" onClick={newLook}>New look</ActionButton>

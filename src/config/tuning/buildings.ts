@@ -22,6 +22,16 @@ export const buildings = {
   minFloors: 2,
   /** Maximum floors of a house (facade/layout.ts). */
   maxFloors: 8,
+  /** Maximum floors of a glass tower (facade/layout.ts maxFloorsFor). Other presets keep maxFloors. */
+  glassTowerMaxFloors: 12,
+  /** Moss and lichen strength on house roofs (tiles, slate, zinc, flat membrane), 0-1. Shader uniform uRoofMoss (materials.ts). */
+  roofMossAmount: 0.9,
+  /** House wall weathering (grime, rain streaks, damp, chipping, sun fade), 0-1. Shader uniform uWallWeather (materials.ts). */
+  wallWeatheringAmount: 0.6,
+  /** Window trim, sill and lintel ageing: mould and stains on the faces, 0-1. Shader uniform uTrimAge (materials.ts). */
+  trimAgeAmount: 0.84,
+  /** Darkening of the upward faces of window trims (rain pools), 0-1. Shader uniform uTrimTop (materials.ts). */
+  trimTopDarken: 0.6,
   /** House preset choices, in panel order (store and buildings re-export). */
   housePresets: [
     'as-block',

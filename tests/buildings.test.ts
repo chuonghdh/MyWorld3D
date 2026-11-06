@@ -7,6 +7,7 @@ import {
   defaultHouseParams,
   houseFootprint,
   houseHeight,
+  maxFloorsFor,
   type HouseParams,
 } from '../src/buildings';
 import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js';
@@ -102,7 +103,7 @@ describe('buildHouse', () => {
     }
   });
 
-  it('height grows with floors and floors are clamped to 2..8', () => {
+  it('height grows with floors and floors are clamped to 2..max (8, glass tower 12)', () => {
     for (const preset of HOUSE_PRESETS) {
       const h = (floors: number): number => bounds(buildHouse({ ...defaultHouseParams(preset), floors })).max.y;
       expect(h(6)).toBeGreaterThan(h(3));
@@ -110,7 +111,7 @@ describe('buildHouse', () => {
         houseHeight({ ...defaultHouseParams(preset), floors: 3 }),
       );
       expect(h(0)).toBeCloseTo(h(2), 6);
-      expect(h(99)).toBeCloseTo(h(8), 6);
+      expect(h(99)).toBeCloseTo(h(maxFloorsFor(preset)), 6);
     }
   });
 
@@ -189,7 +190,7 @@ describe('buildHouse', () => {
       for (const m of meshes(g)) {
         if (m.name !== 'body') continue;
         const a = m.geometry.getAttribute(SURFACE_ATTRIBUTE);
-        for (let i = 0; i < a.count; i++) out.add(a.getX(i));
+        for (let i = 0; i < a.count; i++) out.add(Math.round(a.getX(i))); // roof ids may carry a packed eave fraction (surface.ts roofSurfaceId)
       }
       return out;
     };

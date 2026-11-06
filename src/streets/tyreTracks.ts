@@ -22,6 +22,30 @@ export interface TyreTrackMap {
   rect: THREE.Vector4;
 }
 
+/** Slack past the asphalt edge where a track may still sit, metres. */
+const ROAD_EDGE_SLACK = 0.2;
+
+/** True where (x, z) lies on a road piece or a junction square (asphalt, plus a little slack). */
+export function onCarriageway(layout: CityLayout, x: number, z: number): boolean {
+  for (const it of layout.intersections) {
+    if (Math.abs(x - it.center.x) <= it.sizeX / 2 + ROAD_EDGE_SLACK && Math.abs(z - it.center.z) <= it.sizeZ / 2 + ROAD_EDGE_SLACK) {
+      return true;
+    }
+  }
+  for (const r of layout.roads) {
+    const horizontal = r.orientation === 'horizontal';
+    const along = horizontal ? x : z;
+    const across = horizontal ? z : x;
+    const u0 = horizontal ? Math.min(r.start.x, r.end.x) : Math.min(r.start.z, r.end.z);
+    const u1 = horizontal ? Math.max(r.start.x, r.end.x) : Math.max(r.start.z, r.end.z);
+    const v = horizontal ? r.start.z : r.start.x;
+    if (along >= u0 - ROAD_EDGE_SLACK && along <= u1 + ROAD_EDGE_SLACK && Math.abs(across - v) <= r.width / 2 + ROAD_EDGE_SLACK) {
+      return true;
+    }
+  }
+  return false;
+}
+
 export function buildTyreTrackMap(layout: CityLayout): TyreTrackMap {
   const b = layout.townBounds;
   const w = Math.max(1, Math.ceil((b.maxX - b.minX) / CELL));
@@ -33,6 +57,8 @@ export function buildTyreTrackMap(layout: CityLayout): TyreTrackMap {
     const ix = Math.floor((x - b.minX) / CELL);
     const iz = Math.floor((z - b.minZ) / CELL);
     if (ix < 0 || iz < 0 || ix >= w || iz >= h) return;
+    // The mask is read by the snow patch on every ground surface, so car tracks are kept on the carriageway only.
+    if (!onCarriageway(layout, x, z)) return;
     const o = (iz * w + ix) * 4;
     data[o] = Math.max(data[o], v);
   };

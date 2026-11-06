@@ -21,6 +21,8 @@ export const runtime = {
   cameraPresetRequests: [] as CameraPresetId[],
   /** Screen points (client px) where the walking figure was dropped on the map; CameraRig starts a walk there. */
   streetDrops: [] as { x: number; y: number }[],
+  /** Camera height above ground (y), metres. Written by CameraRig each frame; read by the height label (no React state). */
+  cameraHeight: 0,
   /** Set by CameraRig: true while the street walk camera is active (for UI highlight). */
   streetMode: false,
   /** Simulation seconds: the scene clock, frozen while paused. */

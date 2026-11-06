@@ -111,3 +111,19 @@ Last smoke test: passed on 2026-10-29 (page title MyWorld3D, one canvas, WebGL o
 - **Manual film:** unchanged; it never holds the loop, so the Canvas stays `'always'` (real time).
 - Tests: `tests/film/loopHold.test.ts` (fake R3F root with configure, rAF and advance semantics).
 - Follow-up: fountain water clock moved to `runtime.simTime`; building wind was already sim-driven. `Selection.tsx` pulse uses R3F clock (film time when held; selection locked while filming).
+
+## Update 2026-11-06 (house type thumbnails)
+- `scene/houseThumbs.ts` (store `useHouseThumbs`: `thumbs`, `requested`, `request()`; pure `frameThumbCamera`, `nextThumbPreset`, `flipAndUnpremultiply`) and `scene/HouseThumbRenderer.tsx` (mounted in the Canvas after FirstFrame) render one preset per frame after `request()`, into a 4x MSAA half-float target with their own warm key + hemisphere fill, then OutputPass (renderer tone mapping and colour space) into an 8-bit target, read back, flip, unpremultiply, PNG data URL. Restores render target, clear colour/alpha, autoClear and shadow needsUpdate. Skips while filming. A failed preset stores '' (placeholder stays, no per-frame retry). Shared building materials carry the current weather uniforms (wet/snow) into the picture. Knobs: `sceneQa.houseThumbs.*`. Tests: `tests/houseThumbs.test.ts`.
+- 2026-11-06: glass-tower 7-floor minimum removed (`townBlocks.houseParamsFor`, mirror in `tests/helpers/cityBuild.ts`); every preset uses `ov.floors ?? lot.floors` (user decision).
+- 2026-11-06: `houseParamsFor` gives a user-picked type (ov.preset, not as-block) its `presetDefaultShutter` when the lot style has none and the preset can carry shutters; untouched houses keep the lot look.
+- 2026-11-06: `scene/cityStyle.ts` town shutters now read `SHUTTER_COLORS` (sage, blue, oxblood, cream, grey; same order) from `buildings` instead of hex literals (duplicate-value rule).
+- 2026-11-06 (roof icons dropped): the Roof picker stays buttons with small icons; no roof pictures are rendered (`houseThumbs.ts` and `HouseThumbRenderer.tsx` are type-only again).
+
+## Update 2026-11-06 (selection in store)
+- `App.tsx` reads `selected` and `setSelected` from `useWorldStore` (no React state). `select()` and `onPointerMissed` write the store; CameraRig reads the same field for the orbit pivot. Transient, not persisted.
+- Test: `tests/appSelection.test.ts` (store set/clear, App source reads the store).
+
+## Update 2026-11-06 (test fixes after child gait and building shader change)
+- `tests/clouds.test.ts`: building cache key expectation is now `building-body-v11` (shader key from `buildings/materials.ts`). Cloud-shadow splice check unchanged.
+- `tests/traffic.determinism.test.ts`: pedestrian baseline re-captured to `63333cfb` for the child gait change (d47180a). Verified: with child gait knobs reset to pre-change values the hash returns to `a8684131`, so only children changed. Vehicle baseline unchanged.
+- `tests/people.test.ts` "600 walkers" timing: passes alone; left as is (known load flake).

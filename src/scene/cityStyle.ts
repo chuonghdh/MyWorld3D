@@ -3,6 +3,7 @@
 import type { HousePreset } from '../core/types';
 import type { Lot } from '../city';
 import { hashId } from './runtime';
+import { SHUTTER_COLORS } from '../buildings';
 
 type ConcretePreset = Exclude<HousePreset, 'as-block'>;
 
@@ -34,7 +35,8 @@ const WALLS: Record<ConcretePreset, string[]> = {
   'glass-tower': ['#8f9399', '#c8c4bb'],
 };
 
-const SHUTTERS = ['#5f7d63', '#3f6e8f', '#7a2e2a', '#e9dcc0', '#6c7378'];
+/** The original five town shutters, in their seeded-pick order (the buildings palette appends more after these). */
+const SHUTTERS: readonly string[] = [SHUTTER_COLORS.sage, SHUTTER_COLORS.blue, SHUTTER_COLORS.oxblood, SHUTTER_COLORS.cream, SHUTTER_COLORS.grey];
 /** Presets whose classic look has painted shutters. */
 const SHUTTERED: ReadonlySet<ConcretePreset> = new Set(['mediterranean', 'shophouse-asia', 'nordic-timber']);
 

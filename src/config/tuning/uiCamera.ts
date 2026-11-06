@@ -75,9 +75,11 @@ export const uiCamera = {
   /** Closest orbit distance from the target, metres. */
   minDistance: 4,
   /** Eye height in street view, metres. */
-  eyeHeight: 1.7,
+  eyeHeight: 2.0,
   /** Duration of a camera tween, seconds. */
   tweenSeconds: 1,
+  /** Orbit pivot glide time, seconds: from the map centre to a selected block, house or tree and back (ease in-out). */
+  pivotSeconds: 0.8,
   /** How far the orbit target may leave the town bounds, metres. */
   panMargin: 40,
   /** Camera height above which a tap selects a whole block, metres. */
@@ -94,8 +96,20 @@ export const uiCamera = {
   walkRunSpeed: 6,
   /** Street mouse look: radians per pixel. */
   lookSensitivity: 0.004,
-  /** Street pitch limit, radians (up and down). */
-  pitchLimit: 1.2,
+  /** Street pitch limit, radians (up and down, 80 degrees): W/S keys and mouse look. */
+  pitchLimit: (80 * Math.PI) / 180,
+  /** Street turn speed with Left/Right or A/D, radians per second. */
+  streetTurnSpeed: 0.8,
+  /** Street look speed with W/S (pitch), radians per second. */
+  streetPitchSpeed: 1.2,
+  /** Map view move speed with Up/Down at and below mapMoveSpeedLowHeight, metres per second (camera only moves). */
+  mapMoveSpeedLow: 15,
+  /** Map view move speed with Up/Down at and above mapMoveSpeedHighHeight, metres per second. Linear in between. */
+  mapMoveSpeedHigh: 40,
+  /** Camera height above ground where the map move speed starts to rise, metres. */
+  mapMoveSpeedLowHeight: 25,
+  /** Camera height above ground where the map move speed reaches mapMoveSpeedHigh, metres. */
+  mapMoveSpeedHighHeight: 400,
   /** Whole-map framing margin on the town width (factor). */
   fitMargin: 1.06,
   /** Overview camera direction from the target (unnormalised: up, back). */

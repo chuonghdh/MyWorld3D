@@ -42,4 +42,46 @@ export const cityStreets = {
   clusterExtra: 0.5,
   /** Width of the tree border belt from the town edge, metres (streets/natureTrees.ts). */
   borderDepth: 6,
+  /** Brightness spread of asphalt per 24 m block, 0-1 (streets/streetWear.ts). */
+  roadBlockTone: 0.04,
+  /** Fine aggregate speckle strength on asphalt, 0-1 (streets/streetWear.ts). */
+  roadAggregate: 0.05,
+  /** Extra lightness of worn asphalt patches, 0-1 (streets/streetWear.ts). */
+  roadWornLift: 0.2,
+  /** Darkness of oil stains on asphalt, 0-1 (streets/streetWear.ts). */
+  roadOilStain: 0.16,
+  /** Darkness of faint patch seam lines on asphalt, 0-1 (streets/streetWear.ts). */
+  roadPatchSeam: 0.12,
+  /** Darkness of the joints between stone pavers on pavement, 0-1 (streets/streetWear.ts). */
+  pavingJoint: 0.16,
+  /** Width of the joints between stone pavers, metres (streets/streetWear.ts). */
+  pavingJointWidth: 0.012,
+  /** Darkness of faint edge wear along each paver, 0-1 (streets/streetWear.ts). */
+  pavingEdgeWear: 0.05,
+  /** Brightness spread from stone to stone on pavement, 0-1 (streets/streetWear.ts). */
+  pavingStoneTone: 0.05,
+  /** Share of pavers that take an accent colour (about 1 in 20), 0-1 (streets/streetWear.ts). */
+  pavingAccentShare: 0.05,
+  /** Accent paver colours: warm grey, light grey-brown, pale ochre-grey, low contrast (streets/streetWear.ts). */
+  pavingAccentColours: ['#b3aca4', '#a79d90', '#b7b09a'],
+  /** Darkness of grime at the base of kerb faces, 0-1 (streets/streetWear.ts). */
+  pavingGrime: 0.22,
+  /** Darkness of scuffed pavement, 0-1 (streets/streetWear.ts). */
+  pavingWear: 0.07,
+  /** Darkness of bicycle tyre tracks (a thin pair, 0.55 m apart) on pavement, 0-1 (streets/streetWear.ts). */
+  pavingBikeTrack: 0.07,
+  /** Darkness of pedestrian footprint traces on pavement, 0-1 (streets/streetWear.ts). */
+  pavingFootprint: 0.08,
+  /** Darkness of dirty stains on pavement, 0-1 (streets/streetWear.ts). */
+  pavingStain: 0.12,
+  /** Darkness of gum-like spots on pavement, 0-1 (streets/streetWear.ts). */
+  pavingGumSpot: 0.12,
+  /** Darkness of dry puddle rings on pavement, 0-1 (streets/streetWear.ts). */
+  pavingPuddleMark: 0.05,
+  /** Darkness of dirt grouped in zones per 24 m block, 0-1 (streets/streetWear.ts). */
+  pavingDirtZone: 0.06,
+  /** Share of paint lost in worn spots, 0-1 (streets/streetWear.ts). */
+  paintWear: 0.6,
+  /** Uniform dimming of lane and crossing paint, 0-1 (streets/streetWear.ts). */
+  paintFade: 0.12,
 } as const;

@@ -13,18 +13,20 @@ import {
   FALLBACK_PRESET,
   MAX_FLOORS,
   MIN_FLOORS,
+  maxFloorsFor,
   computeLayout,
+  isFlatRoof,
   offsetPolygon,
   resolvePreset,
 } from './facade/layout';
-import { ROOF_TYPES, SPECS, lookFor, type RoofType } from './facade/presets';
+import { HOUSE_SHUTTER_OPTIONS, ROOF_TYPES, SPECS, lookFor, type FacadeKind, type RoofType } from './facade/presets';
 import { makeRng, hashSeed, pick, chance, range } from './facade/rng';
 import type { Colors, Ctx, HouseChimney } from './facade/parts';
 import { groundFacade } from './facade/ground';
 import { downpipes, topCornice, upperCurtainWall, upperPierFacade, upperRibbons } from './facade/upper';
 import { buildRoof } from './facade/roof';
 import { REAR_FLUSH_SETBACK, rearElevation } from './facade/rear';
-import { SURFACE } from './surface';
+import { SURFACE, roofSurfaceId } from './surface';
 import {
   AWNING_COLORS,
   BASE_STONE,
@@ -40,7 +42,7 @@ import { buildings } from '../config/tuning';
 export const PARTY_GAP = 0.025;
 
 export type { RoofType, HouseChimney };
-export { ROOF_TYPES, FALLBACK_PRESET, MIN_FLOORS, MAX_FLOORS, resolvePreset };
+export { ROOF_TYPES, FALLBACK_PRESET, MIN_FLOORS, MAX_FLOORS, maxFloorsFor, resolvePreset };
 
 export const HOUSE_PRESETS: readonly HousePreset[] = buildings.housePresets;
 
@@ -88,6 +90,20 @@ export function defaultHouseParams(preset: HousePreset, style: HouseStyle = 'cla
   };
 }
 
+/** Facade kinds that never carry shutters (curtain wall, ribbon windows, raw concrete). */
+const NO_SHUTTER_KINDS: readonly FacadeKind[] = ['tower', 'bauhaus', 'brutalist'];
+
+/** True when the preset's facade can carry shutters (classic style; the modern style never has them). */
+export function presetHasShutters(preset: HousePreset): boolean {
+  return !NO_SHUTTER_KINDS.includes(SPECS[resolvePreset(preset)].kind);
+}
+
+/** The preset's typical shutter colour: its classic shutter, else its fill shutter, else the first house shutter option. */
+export function presetDefaultShutter(preset: HousePreset): string {
+  const s = SPECS[resolvePreset(preset)];
+  return s.defaultShutter ?? s.fillShutter ?? HOUSE_SHUTTER_OPTIONS[0]!;
+}
+
 /** Default footprint in metres (x = width, z = depth) for a preset. */
 export function houseFootprint(preset: HousePreset): { width: number; depth: number } {
   const s = SPECS[resolvePreset(preset)];
@@ -120,6 +136,16 @@ function roofColors(ctx: { roof: RoofType; spec: (typeof SPECS)[keyof typeof SPE
     default:
       return [shiftLightness(ctx.spec.roofColor, j), col(ROOF_COLORS.zinc)];
   }
+}
+
+/**
+ * Deck colour (top of the walls and of flat roofs). Flat roofs get a small seeded lightness shift per house, from
+ * a separate stream (so no other house changes). Other roofs keep the old colour.
+ */
+function deckColor(roof: RoofType, kind: FacadeKind, rngTone: () => number): Col {
+  const base = roof === 'terrace' ? (kind === 'mediterranean' ? '#c9a184' : '#a58a68') : '#8d8a84';
+  if (!isFlatRoof(roof)) return col(base);
+  return shiftLightness(base, (rngTone() * 2 - 1) * 0.04);
 }
 
 /** Builds a house with its base at y = 0, centred on x and z, with the front at +z. */
@@ -164,7 +190,7 @@ export function buildHouse(params: HouseParams): THREE.Group {
     shop: modern ? col(pick(rng, ['#2a2c2f', '#3a3d40', '#4a4f53'])) : col(pick(rng, SHOPFRONT_COLORS)),
     awning: col(pick(rng, AWNING_COLORS)),
     white: col('#f3efe7'),
-    deck: col(lay.roof === 'terrace' ? (kind === 'mediterranean' ? '#c9a184' : '#a58a68') : '#8d8a84'),
+    deck: deckColor(lay.roof, kind, makeRng(hashSeed(seed, lay.preset, 'roofTone'))),
     chimney: brick ? scale(wall, 0.9) : shiftLightness(pick(rng, ['#d8ccb4', '#cfc2a8', '#c9b9a0']), 0),
     pot: col('#b5593a'),
     railGlass: col('#c3d4dc'),
@@ -194,6 +220,7 @@ export function buildHouse(params: HouseParams): THREE.Group {
   else if (lay.roof === 'low-tiled') roofSurface = SURFACE.TILE_TERRACOTTA;
   else if (lay.roof === 'gable' || lay.roof === 'hip') roofSurface = terracotta ? SURFACE.TILE_TERRACOTTA : SURFACE.TILE_SLATE;
   else if (lay.roof === 'step-gable') roofSurface = SURFACE.TILE_SLATE;
+  roofSurface = roofSurfaceId(roofSurface, lay.wallTop);
 
   const ctx: Ctx = {
     ...lay,
@@ -202,7 +229,7 @@ export function buildHouse(params: HouseParams): THREE.Group {
     rngGlass,
     look,
     c: colors,
-    hasShutters: colors.shutter !== null && kind !== 'tower' && kind !== 'bauhaus' && kind !== 'brutalist',
+    hasShutters: colors.shutter !== null && !NO_SHUTTER_KINDS.includes(kind),
     wallSurface: WALL_SURFACE[kind],
     roofSurface,
     rngRear: makeRng(hashSeed(seed, lay.preset, 'rear')),
@@ -278,6 +305,7 @@ export function buildHouse(params: HouseParams): THREE.Group {
 /** Inner volume: inset by the reveal on facades and a few cm on party walls (for flues). */
 function buildCore(ctx: Ctx): void {
   const { m, edges, look, c } = ctx;
+  const capSurface = isFlatRoof(ctx.roof) ? roofSurfaceId(SURFACE.ROOF_FLAT, ctx.wallTop) : SURFACE.PLAIN;
   m.frame = HOUSE_FRAME;
   const ring = (poly: [number, number][], y: number): P3[] => poly.map(([x, z]) => [x, y, z] as P3);
   // A set-back rear (ctx.rearSetback) moves that wall inward; other party walls keep 4 cm.
@@ -285,7 +313,7 @@ function buildCore(ctx: Ctx): void {
   const upper = offsetPolygon(edges, edges.map((e) => (e.facade ? look.r : inset(e))));
   const tower = ctx.spec.kind === 'tower';
   const sideColor = (i: number): Col => (edges[i].side === 'back' && !edges[i].facade ? c.rear : c.party);
-  const walls = (a: P3[], b: P3[], cap: Col | null): void => {
+  const walls = (a: P3[], b: P3[], cap: Col | null, capId: number = SURFACE.PLAIN): void => {
     const n = a.length;
     let ix = 0;
     let iy = 0;
@@ -302,18 +330,18 @@ function buildCore(ctx: Ctx): void {
         m.poly('body', [a[j], a[i], b[i], b[j]], sideColor(i), interior);
       }
     });
-    if (cap) m.poly('body', b, cap, interior);
+    if (cap) m.withSurface(capId, () => m.poly('body', b, cap, interior));
   };
   if (tower) {
     const lobby = offsetPolygon(edges, edges.map((e) => (e.facade ? 1.0 : inset(e))));
     m.addSolid(lobby, 0, ctx.groundH);
     m.addSolid(upper, ctx.groundH, ctx.wallTop);
     walls(ring(lobby, 0), ring(lobby, ctx.groundH), null);
-    walls(ring(upper, ctx.groundH), ring(upper, ctx.wallTop), c.deck);
+    walls(ring(upper, ctx.groundH), ring(upper, ctx.wallTop), c.deck, capSurface);
     m.poly('body', ring(upper, ctx.groundH), col('#d9d6cf'), [0, ctx.groundH + 1, 0]);
   } else {
     m.addSolid(upper, 0, ctx.wallTop);
-    walls(ring(upper, 0), ring(upper, ctx.wallTop), c.deck);
+    walls(ring(upper, 0), ring(upper, ctx.wallTop), c.deck, capSurface);
   }
 }
 
