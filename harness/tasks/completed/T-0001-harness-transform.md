@@ -19,14 +19,15 @@ created: 2026-11-06
 
 - [x] Hook runs `tsc --noEmit` on `src/`/`tests/` edits; silent on success, exit 2 with output on failure (tested by hand under Git Bash).
 - [x] `npm run check` green at `b45268c`: tsc exit 0, eslint clean, vitest 90 files and 1578 tests pass, 1 skipped, vite build exit 0.
-- Not verified: CI run on GitHub: not run (no push allowed).
+- [x] CI run on GitHub for PR #6 (head `1bd3e4a`): `check` job pass, 2m3s, run 42296978151.
 
 ## Checkpoints
 
 - 2026-11-06, Level 1 (harness transform): commit `dcb63d5` ("Harness transform: split oversized files, add guards and Level 1 docs"). Gate: tsc, vite build and vitest green (1573 tests); pedestrian timing flake noted (passes solo); lint not yet in the gate.
 - 2026-11-06, Level 2 (verification): commit `b45268c` ("Level 2 verification: ESLint, owner and ADR guards, acceptance criteria"). Gate: green (tsc, eslint, vitest, vite build as listed above).
+- 2026-11-06, merged: branch `harness_transform` (commits `dcb63d5`, `b45268c`, `1bd3e4a`) merged into `dev` through PR #6 by the human; merge commit `49af302`. Gate on PR head `1bd3e4a`: CI green.
 
 ## Handoff
 
-- Next step: owners fix the lint list, then `npm run check` must go green before the next checkpoint.
-- Open questions: whether `npm run check` should be re-run and recorded at each commit in `dcb63d5` and `b45268c`.
+- Next step: none for this task. Follow-ups belong to new tasks (Level 4 and 5 work continues on `harness_transform`).
+- Open questions: none.

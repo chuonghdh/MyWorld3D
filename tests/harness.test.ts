@@ -225,7 +225,8 @@ const TASK_STATES = ['proposed', 'assigned', 'in_progress', 'verifying', 'done',
 
 /** Front matter as key to value pairs, or null when the file does not open with a `---` block. */
 function frontMatter(text: string): Record<string, string> | null {
-  const lines = text.split('\n');
+  // Windows checkouts may store CRLF; parse both.
+  const lines = text.replace(/\r\n/g, '\n').split('\n');
   if (lines[0].trim() !== '---') return null;
   const end = lines.indexOf('---', 1);
   if (end < 0) return null;
