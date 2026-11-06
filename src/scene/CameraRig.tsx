@@ -25,6 +25,8 @@ import {
   easeInOut,
   lerp3,
   stepViewShift,
+  streetKeyAxes,
+  streetLookStep,
   streetStart,
   viewShiftTarget,
   walkStep,
@@ -36,6 +38,22 @@ import {
 
 import { RIGHT_PANEL_ATTR, measureLeftInset, measureRightInset } from './cameraDom';
 import { useCameraInput, type StreetState, type Tween } from './cameraInput';
+import {
+  boundsCentre,
+  mapLookAxes,
+  mapLookStep,
+  mapMoveAxis,
+  mapMoveSpeedAt,
+  moveCameraAlong,
+  pivotForSelection,
+  pivotSourceFrom,
+  sameSelection,
+  startPivotGlide,
+  stepPivotGlide,
+  type GroundPoint,
+  type PivotGlide,
+  type PivotTarget,
+} from './pivotMath';
 
 export { RIGHT_PANEL_ATTR, measureRightInset };
 
@@ -59,8 +77,15 @@ export function CameraRig() {
   const raycaster = useRef(new THREE.Raycaster());
   // Auto film holds the camera: FilmRig places it alone; orbit controls are off until the film ends.
   const autoHeld = useRef(false);
+  // Orbit pivot follows the selection centroid (map centre when cleared). A new selection sets pivotRequest.
+  const pivotGlide = useRef<PivotGlide | null>(null);
+  const pivotRequest = useRef<GroundPoint | null>(null);
+  const lastSelection = useRef<PivotTarget | null>(null);
+  // Map view look (Left/Right, W/S): view direction override, applied after the orbit update. Null = look at the pivot.
+  const lookOverride = useRef<V3 | null>(null);
 
   const layoutOf = () => getCityLayout(useWorldStore.getState().settings);
+
 
   // Leave the street walk and hand the camera back to the orbit controls, looking at a ground point ahead.
   const leaveStreet = () => {
@@ -93,6 +118,9 @@ export function CameraRig() {
   const startTween = (toPos: V3, toTarget: V3, toStreet = false, yaw = 0) => {
     const controls = controlsRef.current;
     if (!controls) return;
+    // A tween owns the pivot: a pivot glide in progress stops where it is.
+    pivotGlide.current = null;
+    lookOverride.current = null;
     const fromTarget: V3 = [controls.target.x, controls.target.y, controls.target.z];
     if (street.current.active) {
       const f = dirFromYaw(street.current.yaw);
@@ -136,10 +164,10 @@ export function CameraRig() {
         rightInset: inset,
       });
       // Pivot stays on the map centre; the view vector (distance and height) comes from the framing.
-      const cx = (g.minX + g.maxX) / 2;
-      const cz = (g.minZ + g.maxZ) / 2;
+      const { x: cx, z: cz } = boundsCentre(g);
       const v: V3 = [f.position[0] - f.target[0], f.position[1] - f.target[1], f.position[2] - f.target[2]];
       overviewOn.current = true;
+      pivotRequest.current = null;
       startTween([cx + v[0], v[1], cz + v[2]], [cx, 0, cz]);
       return;
     }
@@ -156,12 +184,26 @@ export function CameraRig() {
 
   useCameraInput({ controlsRef, tween, street, keys, cancelTween, leaveStreet });
 
+  // Orbit drag or zoom hands the view back to the pivot.
+  useEffect(() => {
+    const controls = controlsRef.current;
+    if (!controls) return;
+    const onStart = () => {
+      lookOverride.current = null;
+    };
+    controls.addEventListener('start', onStart);
+    return () => controls.removeEventListener('start', onStart);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   useFrame((_state, frameDt) => {
     const controls = controlsRef.current;
     if (!controls) return;
     if (autoFilmHoldsCamera()) {
       autoHeld.current = true;
+      lookOverride.current = null;
       controls.enabled = false;
+      pivotGlide.current = null;
       // The auto film frames the whole town: no panel offset, even on its first frame.
       viewShift.current = { x: 0, v: 0 };
       if (viewApplied.current) {
@@ -183,6 +225,11 @@ export function CameraRig() {
     }
     const dt = Math.min(frameDt, 0.1);
     const bounds = layoutOf().townBounds;
+    const selection = useWorldStore.getState().selected; // changed: pivot to its centroid, or the map centre
+    if (!sameSelection(selection, lastSelection.current)) {
+      lastSelection.current = selection;
+      pivotRequest.current = pivotForSelection(selection, pivotSourceFrom(layoutOf()), bounds);
+    }
 
     // Requests: the legacy Whole map counter and the preset queue.
     while (runtime.wholeMapRequests > 0) {
@@ -256,31 +303,85 @@ export function CameraRig() {
       if (tw.toStreet) distToTarget = Math.max(EYE_HEIGHT, (1 - easeInOut(tw.t)) * distToTarget);
     } else if (street.current.active) {
       const k = keys.current;
-      const fwd = (k.has('KeyW') || k.has('ArrowUp') ? 1 : 0) - (k.has('KeyS') || k.has('ArrowDown') ? 1 : 0);
-      const str = (k.has('KeyD') || k.has('ArrowRight') ? 1 : 0) - (k.has('KeyA') || k.has('ArrowLeft') ? 1 : 0);
+      const axes = streetKeyAxes(k);
       const run = k.has('ShiftLeft') || k.has('ShiftRight');
       const s = street.current;
-      const next = walkStep(s.x, s.z, s.yaw, fwd, str, dt, run, bounds);
+      const look = streetLookStep(s.yaw, s.pitch, axes, dt);
+      s.yaw = look.yaw;
+      s.pitch = look.pitch;
+      const next = walkStep(s.x, s.z, s.yaw, axes.walk, 0, dt, run, bounds);
       s.x = next.x;
       s.z = next.z;
       camera.position.set(s.x, EYE_HEIGHT, s.z);
       camera.rotation.set(s.pitch, s.yaw, 0, 'YXZ');
       distToTarget = EYE_HEIGHT;
     } else {
-      // Orbit: keep the pan target near the town and on or above the ground, moving the camera with it.
+      // Orbit: pivot glide (target and camera move by the same step, so the view does not jump), then the pan clamp.
       const t = controls.target;
-      const c = clampToBounds(t.x, t.z, bounds, -PAN_MARGIN);
-      const ty = clamp(t.y, 0, uiCamera.targetHeightMax);
+      const req = pivotRequest.current;
+      if (req) {
+        pivotRequest.current = null;
+        pivotGlide.current = startPivotGlide({ x: t.x, z: t.z }, req);
+      }
+      const pg = pivotGlide.current;
+      if (pg) {
+        const step = stepPivotGlide(pg, dt, uiCamera.pivotSeconds);
+        t.x += step.dx;
+        t.z += step.dz;
+        camera.position.x += step.dx;
+        camera.position.z += step.dz;
+        if (step.done) pivotGlide.current = null;
+      }
+      // While the Up/Down move key is held the pivot clamp is skipped: the keyboard move does not touch the target.
+      const mv = mapMoveAxis(keys.current);
+      const c = mv ? { x: t.x, z: t.z } : clampToBounds(t.x, t.z, bounds, -PAN_MARGIN);
+      const ty = mv ? t.y : clamp(t.y, 0, uiCamera.targetHeightMax);
       if (c.x !== t.x || c.z !== t.z || ty !== t.y) {
         camera.position.x += c.x - t.x;
         camera.position.z += c.z - t.z;
         camera.position.y += ty - t.y;
         t.set(c.x, ty, c.z);
       }
+      // Map Up/Down: only the camera moves, along its view direction. The orbit target is not changed.
+      if (mv) {
+        const dirV = new THREE.Vector3();
+        camera.getWorldDirection(dirV);
+        const p = moveCameraAlong(
+          [camera.position.x, camera.position.y, camera.position.z],
+          [dirV.x, dirV.y, dirV.z],
+          mv * mapMoveSpeedAt(camera.position.y, {
+            low: uiCamera.mapMoveSpeedLow,
+            high: uiCamera.mapMoveSpeedHigh,
+            lowHeight: uiCamera.mapMoveSpeedLowHeight,
+            highHeight: uiCamera.mapMoveSpeedHighHeight,
+          }) * dt,
+          { groundY: 0, bounds, margin: -PAN_MARGIN },
+        );
+        camera.position.set(p[0], p[1], p[2]);
+      }
+      // Map Left/Right and W/S: turn the view about the camera. The camera position and the orbit pivot stay.
+      // The start direction is the camera's own view direction, never the pivot.
+      const la = mapLookAxes(keys.current);
+      // Keyboard move or look pauses OrbitControls (enabled off): its damping cannot pull the camera back to the pivot.
+      controls.enabled = !(mv || la.turn || la.look);
+      if (la.turn || la.look) {
+        let base: V3 | null = lookOverride.current;
+        if (!base) {
+          const dirL = new THREE.Vector3();
+          camera.getWorldDirection(dirL);
+          base = [dirL.x, dirL.y, dirL.z];
+        }
+        lookOverride.current = mapLookStep(base, la, dt);
+      }
+      if (lookOverride.current) {
+        const l = lookOverride.current;
+        camera.lookAt(camera.position.x + l[0], camera.position.y + l[1], camera.position.z + l[2]);
+      }
       lastTarget.current.copy(t);
       distToTarget = camera.position.distanceTo(t);
     }
 
+    runtime.cameraHeight = camera.position.y;
     // Depth precision: planes follow the distance to the orbit target (see clipPlanes).
     const want = clipPlanes(distToTarget);
     if (clipPlanesStale(camera.near, camera.far, want)) {

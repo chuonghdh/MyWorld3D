@@ -42,6 +42,9 @@ export interface WorldState extends LayoutData {
   /** Tap mode from the camera height (see BLOCK_EDIT_HEIGHT_M). Transient, not saved. */
   editMode: EditMode;
   setEditMode: (mode: EditMode) => void;
+  /** The selected house, block or tree (camera orbit pivot follows it). Transient, not saved. */
+  selected: OverrideTarget | null;
+  setSelected: (target: OverrideTarget | null) => void;
   loadLayout: (layout: LayoutData) => void;
   setToggle: (key: keyof UiToggles, value: boolean) => void;
   /** Moves the time of day forward (wraps at 24). */
@@ -129,8 +132,10 @@ export const useWorldStore = create<WorldState>()((set, get) => {
     toggles: { ...DEFAULT_TOGGLES },
     suggestedQuality: null,
     editMode: 'block',
+    selected: null,
 
     setEditMode: (mode) => set((s) => (s.editMode === mode ? s : { editMode: mode })),
+    setSelected: (target) => set({ selected: target }),
     setSuggestedQuality: (suggestion) => set({ suggestedQuality: suggestion }),
     setQuality: (tier) => set((s) => (s.settings.quality === tier ? s : { settings: { ...s.settings, quality: tier } })),
 

@@ -139,7 +139,7 @@ describe('street walk', () => {
     expect(out.x).toBe(98);
     const diag = walkStep(0, 0, 0, 1, 1, 1, false, b);
     expect(Math.hypot(diag.x, diag.z)).toBeCloseTo(2.5, 9);
-    expect(EYE_HEIGHT).toBe(1.7);
+    expect(EYE_HEIGHT).toBe(2);
   });
 });
 

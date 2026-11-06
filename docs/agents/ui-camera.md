@@ -146,3 +146,28 @@ Knobs only: `filmDurationS`, `filmFps`, quality presets (`{ bitrateBps, fps }` p
 - Sounds: panel open/close/tick cues come from the audio `uiCue` API, only on user actions, never on load or restore, never while filming.
 - Type and roof: type is a picture carousel with rendered thumbnails; roof is a chip grid with a small profile icon. Picking a type resets the roof to that type's default; floors never change on a type or roof pick.
 - Shutter row appears only for types that carry shutters; colour choice is a compact bar that opens a 7-column grid.
+
+## Update 2026-11-06 (ui-camera): street keys
+- Street walk keys: Up/Down walk, Left/Right and A/D turn (yaw), W/S look up/down (pitch). Mapping is the pure helper `streetKeyAxes`; look step `streetLookStep`; one clamp `clampPitch` shared with mouse look. Shift still runs.
+- Pitch limit is now 80 degrees (was 1.2 rad, about 69 degrees), so mouse look also reaches 80 degrees. New knobs in `uiCamera`: `streetTurnSpeed` (0.8 rad/s; was 2), `streetPitchSpeed` (1.2 rad/s); `pitchLimit` = `(80 * Math.PI) / 180`. Parity entries and docs/TUNING.md rows added. HelpOverlay lists the new keys.
+- Tests: `tests/streetKeys.test.ts`; `tests/cameraRig.test.ts` and `tests/tuningParity.test.ts` pass. Not checked by eye in Chrome.
+
+## Update 2026-11-06 (ui-camera): orbit pivot follows the selection
+- Pivot = point the orbit rotates around. Default and cleared selection: centre of `townBounds` (map diagonal centre, ground level). Selected block: block bounds centre; house: lot position; tree: `streetTrees` position (same data as `useTownGreenery`).
+- Pure helpers in `src/scene/pivotMath.ts` (`pivotForSelection`, `selectionCentroid`, `boundsCentre`, `sameSelection`, `pivotSourceFrom`, `startPivotGlide`, `stepPivotGlide`), not `cameraMath.ts`, which is at the 350-line cap. Tests: `tests/orbitPivot.test.ts`.
+- Glide: `uiCamera.pivotSeconds` (0.8, ease in-out). Each frame target and camera move by the same step, so the view does not jump and a user pan mid-glide survives. Tween (overview, street) cancels a glide; overview sets the pivot to the map centre.
+- Selection lives in the store now: `WorldState.selected` / `setSelected` (transient). Trap: `App.tsx` still keeps `selected` in `useState` and never calls `setSelected`, so the pivot does not move until App wires it (owner Scene & QA). Needed: `select` calls `useWorldStore.getState().setSelected(target)` and the `selected` read comes from the store.
+- Open: block centre uses layout base bounds (slot), not the swapped content; merged blocks use their layout bounds.
+
+- 2026-11-06 (ui-camera): map view Up/Down move the camera along its own view direction (`mapMoveAxis`, `moveViewAlong` in `src/scene/pivotMath.ts`; knobs `uiCamera.mapMoveSpeedLow/High/LowHeight/HighHeight`, 15 to 40 m/s by camera height). Camera and orbit target translate by the same vector (3D-game move, not pivot-tied). Clamp for both points: not below ground (y = 0) and inside town bounds + PAN_MARGIN. Left/Right and W/S are not used in map view. Tests: `tests/mapMove.test.ts`.
+- 2026-11-06 (ui-camera): map view Left/Right and W/S turn the view about the camera (`mapLookAxes`, `mapLookStep` in `src/scene/pivotMath.ts`, reusing `streetLookStep`; speeds `streetTurnSpeed` / `streetPitchSpeed`, limit `pitchLimit`). Camera position and orbit pivot do not move; a view override is applied after the orbit update and cleared on orbit drag, tween, film. Tests: `tests/mapMove.test.ts`.
+
+- 2026-11-06 (ui-camera): map Up/Down is a 3D-game move: camera and orbit target shift by the same delta (forward times step), so the screen-centre point moves with the camera. The pan clamp runs before the move; the move is clamped to ground and town bounds for both points. OrbitControls offset (camera minus target) is kept, so damping does not pull the target back. Left/Right and W/S turn the view in place (camera and pivot do not move). Tests: `tests/mapMove.test.ts`.
+
+- 2026-11-06 (ui-camera): map keys never read the orbit pivot. Up/Down move only camera.position (`moveCameraAlong`); Left/Right and W/S start from the camera world direction (`getWorldDirection`). While any map key is held, `controls.enabled` is off so OrbitControls damping cannot pull the camera back; the pivot glide and mouse orbit are unchanged otherwise. Tests: `tests/mapMove.test.ts` (pure helpers; a CameraRig-level target check needs an R3F harness and is not automated).
+
+- 2026-11-06 (ui-camera): map move speed rises with camera height: 15 m/s at and below 25 m, 40 m/s at and above 400 m, linear between (`mapMoveSpeedAt` in `src/scene/pivotMath.ts`). Height label: `src/ui/HeightLabel.tsx` (text line above the Block editing badge, bottom centre, no box, soft shadow), reads `runtime.cameraHeight` (written by CameraRig each frame) on a 10 Hz timer; hidden in street walk and while filming. Pure formatter `src/ui/heightText.ts`. Tests: `tests/mapMove.test.ts`, `tests/heightLabel.test.ts`.
+
+- 2026-11-06 (ui-camera): Left/Right yaw speed cut 60%: `uiCamera.streetTurnSpeed` 2 to 0.8 rad/s. Shared by street view and map view (no separate map knob). W/S pitch speed unchanged.
+
+- 2026-11-06 (ui-camera): map view A/D turn the view left/right, same as Left/Right (in place, `mapLookAxes` in `src/scene/pivotMath.ts`, speed `streetTurnSpeed`); camera and pivot unchanged. Test: `tests/mapMove.test.ts`.

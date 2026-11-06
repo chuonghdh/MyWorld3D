@@ -1,3 +1,4 @@
+import { HeightLabel } from './ui/HeightLabel';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Canvas } from '@react-three/fiber';
 import * as THREE from 'three';
@@ -25,7 +26,9 @@ import { getLightingForTime } from './environment';
 // Scene shell: the 3D town fills the screen, the city settings sit on the right,
 // and the selected house or monument block gets a panel on the left.
 export function App() {
-  const [selected, setSelected] = useState<OverrideTarget | null>(null);
+  // Selection lives in the store (single source of truth): CameraRig reads the same value for the orbit pivot.
+  const selected = useWorldStore((s) => s.selected);
+  const setSelected = useWorldStore((s) => s.setSelected);
   // One side panel open at a time. Phones start with every panel folded to an icon.
   const [activePanel, setActivePanel] = useState<PanelId | null>(() => (isNarrowViewport('(max-width: 600px)') ? null : 'settings'));
   const focus = useMemo(() => ({ active: activePanel, setActive: setActivePanel }), [activePanel]);
@@ -37,7 +40,7 @@ export function App() {
     setSelected(target);
     const keepMap = target?.type === 'block' && useWorldStore.getState().editMode === 'block' && isNarrowViewport('(max-width: 600px)');
     if (target && !keepMap) setActivePanel('selection');
-  }, []);
+  }, [setSelected]);
   const settings = useWorldStore((s) => s.settings);
   const toggles = useWorldStore((s) => s.toggles);
   const setSetting = useWorldStore((s) => s.setSetting);
@@ -198,6 +201,7 @@ export function App() {
         onApply={blockEdit.apply}
       />
       <EditModeChip mode={editMode} busy={blockEdit.busy} />
+      <HeightLabel />
       <HelpOverlay />
       <PanelFocusContext.Provider value={focus}>
         <div data-mw-left-panel className="mw-left-panel">

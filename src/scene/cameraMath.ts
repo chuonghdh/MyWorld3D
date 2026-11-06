@@ -198,6 +198,44 @@ export function streetStart(roads: readonly StreetSegment[], px: number, pz: num
   };
 }
 
+/** Held street keys as signed axes: walk (+1 forward), turn (+1 right), look (+1 up). */
+export interface StreetKeyAxes {
+  walk: number;
+  turn: number;
+  look: number;
+}
+
+/** Keys to street axes. Up/Down walk; Left/Right and A/D turn; W/S look up and down. Opposite keys cancel. */
+export function streetKeyAxes(keys: ReadonlySet<string>): StreetKeyAxes {
+  const held = (...codes: string[]) => (codes.some((c) => keys.has(c)) ? 1 : 0);
+  return {
+    walk: held('ArrowUp') - held('ArrowDown'),
+    turn: held('ArrowRight', 'KeyD') - held('ArrowLeft', 'KeyA'),
+    look: held('KeyW') - held('KeyS'),
+  };
+}
+
+/** Street pitch clamped to +-pitchLimit (keys and mouse share this limit). */
+export function clampPitch(pitch: number): number {
+  return clamp(pitch, -uiCamera.pitchLimit, uiCamera.pitchLimit);
+}
+
+/**
+ * One frame of street look. Turning right lowers yaw (see mouse look in cameraInput.ts); looking up raises pitch.
+ * Pitch stays inside the limit.
+ */
+export function streetLookStep(
+  yaw: number,
+  pitch: number,
+  axes: StreetKeyAxes,
+  dt: number,
+): { yaw: number; pitch: number } {
+  return {
+    yaw: yaw - axes.turn * uiCamera.streetTurnSpeed * dt,
+    pitch: clampPitch(pitch + axes.look * uiCamera.streetPitchSpeed * dt),
+  };
+}
+
 /**
  * Street walk step. `forward`/`strafe` are in [-1, 1]; returns the new position clamped inside the town
  * bounds (shrunk by `margin`). Run multiplies the speed.

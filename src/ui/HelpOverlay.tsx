@@ -10,7 +10,9 @@ const CONTROLS: [string, string][] = [
   ['Move blocks, then click twice', 'Swap two blocks'],
   ['Space', 'Pause or resume'],
   ['1 / 2', 'Map view / street view'],
-  ['W A S D', 'Walk in street mode (Shift runs)'],
+  ['Up / Down', 'Walk forward and back in street view (Shift runs); move forward and back in map view'],
+  ['Left / Right, A / D', 'Turn left and right in street view; Left / Right and A / D turn the view in map view'],
+  ['W / S', 'Look up and down in street view; tilt the view in map view'],
   ['H or ?', 'Show or hide this help'],
   ['Esc', 'Close help, clear selection'],
 ];
