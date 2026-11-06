@@ -60,3 +60,5 @@ Reviewed 2026-11-01 at 02b0cdc
 - RNG stream shift: cathedral, open-air theatre, dinosaur park and pool changed their builder call order (new features draw from the same kit RNG), so their random colours, lit windows and crowds differ from before. Do not expect old screenshots to match.
 - Knobs: 18 monument knobs in `buildings` (civic, leisure, culture odds and crowds) plus the City Hall and School knobs. Each has a parity entry in `tests/tuningParity.test.ts` and a row in `docs/TUNING.md`.
 - Open: circus body sag not done; no close, medium or night look was checked by eye for the new kinds.
+
+- 2026-11-06 (scene-qa): building wind already follows sim time (`useTownFrame` calls `setBuildingWind(runtime.simTime, ...)` every frame; the `performance.now()` fallback in `tickBuildingWind` only runs before that). Locked by `tests/film/simClockVisuals.test.ts`.

@@ -14,6 +14,7 @@ import { houseBaseFor } from './scene/townBlocks';
 import { runtime } from './scene/runtime';
 import { CameraRig } from './scene/CameraRig';
 import { FilmRig } from './scene/FilmRig';
+import { canvasFrameloop, useFilmLoopHold } from './film/loopHold';
 import { BlockEditor } from './scene/BlockEditor';
 import { PostFX } from './scene/PostFX';
 import { ScreenshotRequest } from './scene/ScreenshotRequest';
@@ -58,6 +59,8 @@ export function App() {
   };
   const preset = QUALITY_PRESETS[settings.quality];
   const setSuggestedQuality = useWorldStore((s) => s.setSuggestedQuality);
+  // Auto film holds the loop ('never', fixed film-time steps). Controlled prop: R3F re-applies it on every render.
+  const filmLoopHeld = useFilmLoopHold((s) => s.held);
 
   const night = useMemo(() => getLightingForTime(settings.timeOfDay).sky.lightsOn, [settings.timeOfDay]);
 
@@ -149,6 +152,7 @@ export function App() {
     >
       <Canvas
         shadows="soft"
+        frameloop={canvasFrameloop(filmLoopHeld)}
         dpr={[1, preset.dprMax]}
         camera={{ position: [0, 380, 130], fov: 35, near: 1, far: 2000 }}
         onPointerMissed={() => setSelected(null)}

@@ -3,6 +3,7 @@ import * as THREE from 'three';
 import { generateCity, type CityLayout } from '../src/city';
 import { DEFAULT_SETTINGS } from '../src/store/model';
 import { createStreetscape, MESH_NAMES } from '../src/streets';
+import { runtime } from '../src/core/runtime';
 import {
   distanceToTriangle,
   planStreetDecor,
@@ -218,9 +219,11 @@ describe('street decor geometry', () => {
     expect(water).toBeInstanceOf(THREE.Mesh);
     const mat = water.material as THREE.ShaderMaterial;
     expect(typeof water.onBeforeRender).toBe('function');
+    const prevSim = runtime.simTime;
+    runtime.simTime = 4.5; // the water clock follows simulation time
     water.onBeforeRender({} as never, {} as never, {} as never, {} as never, mat, {} as never);
-    const t0 = mat.uniforms.uTime.value as number;
-    expect(t0).toBeGreaterThan(0);
+    runtime.simTime = prevSim;
+    expect(mat.uniforms.uTime.value as number).toBe(4.5);
     const day = mat.uniforms.uBright.value as number;
     s.setNightAmount(1);
     expect(mat.uniforms.uBright.value as number).toBeLessThan(day);

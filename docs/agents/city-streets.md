@@ -80,3 +80,5 @@ Reviewed 2026-11-01 at 02b0cdc
 - Rule: a City & Streets knob is a value a designer tunes for feel; geometry and algorithm literals stay in their file. Knobs live in `cityStreets` (src/config/tuning.ts) and are imported; the lab copy is `src/dev/treeCompare/labTuning.ts` (never imports config). Index: [docs/TUNING.md](../TUNING.md).
 - `furniture.ts` `SIGNAL_LAMP_PITCH` stays local.
 - Open: `scene/useTownGreenery.ts` still holds its own `TREE_SCALE` 1.35 (Scene & QA file).
+
+- 2026-11-06 (scene-qa): fountain water clock now reads `runtime.simTime` (core/runtime) in `onBeforeRender`, not `performance.now()`, so it freezes on pause and follows film time in the auto film. Test: `tests/film/simClockVisuals.test.ts`.

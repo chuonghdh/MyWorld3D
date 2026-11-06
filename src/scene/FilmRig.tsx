@@ -4,6 +4,8 @@
 // film time (simulation, audio tap, PostFX composer), so the world moves with the film, not with encode speed.
 // The city, seed, sun, moon and film fov are a snapshot taken when the run starts. The carrier bird (life/filmBird.ts,
 // one mesh) joins the scene at run start and is disposed when filming ends; the normal frameloop is then restored.
+// The loop hold lives in film/loopHold.ts (App's <Canvas frameloop> reads the same flag). The hold, the camera hold
+// and the bird start with the first setPose, so a start that fails before the run leaves the scene untouched.
 import { useEffect, useRef } from 'react';
 import { useThree } from '@react-three/fiber';
 import * as THREE from 'three';
@@ -12,7 +14,8 @@ import { useWorldStore } from '../store';
 import { getMoonDirection, getSunDirection } from '../environment/sun';
 import { currentFilmTime, type AutoFilmInputs } from '../film/autoRun';
 import { film } from '../config/tuning';
-import { createFixedStepper } from '../film/fixedStep';
+import type { FixedStepper } from '../film/fixedStep';
+import { holdFilmLoop, releaseFilmLoop, type LoopState } from '../film/loopHold';
 import { registerAutoFilmSource } from '../ui/filmSession';
 import { birdPoseAt, createFilmBird, type FilmBird, type FilmPathPose } from '../life/filmBird';
 import { buildFilmPath, wallFloorFn, type FilmPath, type FilmPose } from './filmPath';
@@ -33,7 +36,6 @@ export function FilmRig() {
   const camera = useThree((s) => s.camera) as THREE.PerspectiveCamera;
   const get = useThree((s) => s.get);
   const advance = useThree((s) => s.advance);
-  const setFrameloop = useThree((s) => s.setFrameloop);
   const filming = useWorldStore((s) => s.toggles.filming);
   const path = useRef<FilmPath | null>(null);
   const bird = useRef<FilmBird | null>(null);
@@ -62,19 +64,23 @@ export function FilmRig() {
         fovDeg: camera.fov,
       });
       const floor = wallFloorFn(layout);
-      if (!bird.current) {
-        bird.current = createFilmBird();
-        scene.add(bird.current.group);
-      }
-      autoHolds = true;
-      // Fixed film-time steps: stop the real-time loop; each renderFrame advances the whole scene by 1/fps.
-      setFrameloop('never');
-      loopHeld.current = true;
-      const stepper = createFixedStepper(film.fps, get().clock.elapsedTime, (ts) => advance(ts, true));
+      let stepper: FixedStepper | null = null;
+      // Run start (first frame): hold the camera, add the bird, stop the real-time loop.
+      const begin = (): FixedStepper => {
+        if (!bird.current) {
+          bird.current = createFilmBird();
+          scene.add(bird.current.group);
+        }
+        autoHolds = true;
+        loopHeld.current = true;
+        // Fixed film-time steps; the guard throws (film fails) if the loop is not 'never' at any step.
+        return holdFilmLoop(get as () => LoopState, advance, film.fps);
+      };
       return {
         path: path.current,
         canvas: gl.domElement,
         setPose: (pose: FilmPose) => {
+          if (!stepper) stepper = begin();
           const { position, target } = pose;
           camera.position.set(position[0], position[1], position[2]);
           camera.lookAt(target[0], target[1], target[2]);
@@ -88,11 +94,11 @@ export function FilmRig() {
           bird.current?.update(birdPoseAt(currentFilmTime(), sample));
         },
         // One fixed step: simulation, audio tap and the PostFX composer (priority 1) run with dt = 1/fps.
-        renderFrame: () => stepper.step(),
+        renderFrame: () => (stepper ??= begin()).step(),
       };
     });
     return () => registerAutoFilmSource(null);
-  }, [gl, scene, camera, get, advance, setFrameloop]);
+  }, [gl, scene, camera, get, advance]);
 
   // Filming ends (saved or cancelled): release the camera, remove the bird, restore the real-time loop.
   useEffect(() => {
@@ -107,9 +113,9 @@ export function FilmRig() {
     path.current = null;
     if (loopHeld.current) {
       loopHeld.current = false;
-      setFrameloop('always');
+      releaseFilmLoop(get as () => LoopState);
     }
-  }, [filming, scene, setFrameloop]);
+  }, [filming, scene, get]);
 
   return null;
 }

@@ -1,6 +1,6 @@
 // Fountain water: one small ShaderMaterial with rolling ripples and moving glints.
 // It needs no lights or textures; `uBright` darkens it at night. Time is written from the mesh's
-// onBeforeRender (see index.ts), so the scene needs no extra per-frame hook.
+// onBeforeRender (see index.ts) from runtime.simTime, so the scene needs no extra per-frame hook.
 
 import * as THREE from 'three';
 

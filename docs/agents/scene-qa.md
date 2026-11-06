@@ -101,3 +101,13 @@ Last smoke test: passed on 2026-10-29 (page title MyWorld3D, one canvas, WebGL o
 - **Bird:** `createFilmBird()` is added to the scene at run start and removed and disposed at run end. One mesh, no shadow. Its pose comes from `birdPoseAt` with a sampler over `FilmPath.poseAt`.
 - **Hand-off:** CameraRig sets `controls.enabled = false` while the film holds the camera. At film end the orbit target is set to the ground point the camera looks at, then orbit resumes.
 - **Open:** no UI starts an auto film yet. Camera jump at film start (orbit pose to path start) is not checked in Chrome. Building the path runs in the first film frame and may hitch.
+
+## Update 2026-11-06 (film frameloop)
+
+- **Gotcha:** R3F 8.17 `configure()` runs on every `<Canvas>` render and does `if (state.frameloop !== frameloop) state.setFrameloop(frameloop)` from the prop (default `'always'`). An imperative `setFrameloop('never')` is undone by the next App re-render (filming hides UI, film resize). The auto film then ran on wall time (~5 min for 60 s), so cars and walkers moved ~5x too fast in the MP4 while camera and bird followed film time. In `'always'` mode `advance()` also uses `clock.getDelta()`, so the fixed steps added almost nothing.
+- **Fix:** `src/film/loopHold.ts` is the one source of truth (`useFilmLoopHold.held`). `App.tsx` passes `frameloop={canvasFrameloop(held)}`. `holdFilmLoop` sets the flag and applies `'never'` at once, then reads the stepper start from the clock (setFrameloop resets `elapsedTime` to 0), so the first delta is exactly 1/fps. `releaseFilmLoop` restores `'always'` when filming ends.
+- **Guard:** each fixed step throws (film fails with a message) if the loop is not `'never'` or the clock is off the film timeline. `useTownFrame` gives dt 0 to any real-time frame while the hold is on.
+- **Start:** FilmRig takes the loop, camera hold and bird on the first `setPose`/`renderFrame`, not when the source is called, so a start that fails before the run (encoder open, size) leaves the loop and camera untouched.
+- **Manual film:** unchanged; it never holds the loop, so the Canvas stays `'always'` (real time).
+- Tests: `tests/film/loopHold.test.ts` (fake R3F root with configure, rAF and advance semantics).
+- Follow-up: fountain water clock moved to `runtime.simTime`; building wind was already sim-driven. `Selection.tsx` pulse uses R3F clock (film time when held; selection locked while filming).
