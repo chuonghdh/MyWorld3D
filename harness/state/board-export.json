@@ -1,0 +1,122 @@
+[
+  {
+    "id": "orchestrator",
+    "data": {
+      "name": "Orchestrator (lead)",
+      "role": "",
+      "seat": 0,
+      "status": "active",
+      "progress": 10,
+      "activity": "Working on a user request",
+      "updated": "2026-11-06T22:34:40Z"
+    }
+  },
+  {
+    "id": "buildings",
+    "data": {
+      "name": "Buildings",
+      "role": "",
+      "seat": 1,
+      "status": "waiting",
+      "progress": 100,
+      "activity": "Standby: not in the current run.",
+      "updated": "2026-11-06T22:34:40Z"
+    }
+  },
+  {
+    "id": "city-streets",
+    "data": {
+      "name": "City & Streets",
+      "role": "",
+      "seat": 2,
+      "status": "waiting",
+      "progress": 100,
+      "activity": "Standby: not in the current run.",
+      "updated": "2026-11-06T22:34:40Z"
+    }
+  },
+  {
+    "id": "traffic-life",
+    "data": {
+      "name": "Traffic & Life",
+      "role": "",
+      "seat": 3,
+      "status": "waiting",
+      "progress": 100,
+      "activity": "Standby: not in the current run.",
+      "updated": "2026-11-06T22:34:40Z"
+    }
+  },
+  {
+    "id": "sky-environment",
+    "data": {
+      "name": "Sky & Environment",
+      "role": "",
+      "seat": 4,
+      "status": "waiting",
+      "progress": 100,
+      "activity": "Standby: not in the current run.",
+      "updated": "2026-11-06T22:34:40Z"
+    }
+  },
+  {
+    "id": "audio",
+    "data": {
+      "name": "Audio",
+      "role": "",
+      "seat": 5,
+      "status": "waiting",
+      "progress": 100,
+      "activity": "Standby: not in the current run.",
+      "updated": "2026-11-06T22:34:40Z"
+    }
+  },
+  {
+    "id": "ui-camera",
+    "data": {
+      "name": "UI & Camera",
+      "role": "",
+      "seat": 6,
+      "status": "waiting",
+      "progress": 100,
+      "activity": "Standby: not in the current run.",
+      "updated": "2026-11-06T22:34:40Z"
+    }
+  },
+  {
+    "id": "scene-qa",
+    "data": {
+      "name": "Scene & QA",
+      "role": "",
+      "seat": 7,
+      "status": "done",
+      "progress": 100,
+      "activity": "DONE Level 4 guards: claims shape, overlap, brief fields, review section.",
+      "updated": "2026-11-06T22:34:40Z"
+    }
+  },
+  {
+    "id": "architect",
+    "data": {
+      "name": "Technical Architect",
+      "role": "",
+      "seat": 8,
+      "status": "done",
+      "progress": 100,
+      "activity": "DONE Level 4: brief template, claims.json, parallel and independent review rules.",
+      "updated": "2026-11-06T22:34:40Z"
+    }
+  },
+  {
+    "id": "independent-reviewer",
+    "data": {
+      "name": "Independent Reviewer",
+      "role": "",
+      "seat": 9,
+      "status": "done",
+      "progress": 100,
+      "activity": "Review gate trial: found 2 planted bugs, result changes requested. Trial file removed.",
+      "updated": "2026-11-06T22:34:40Z"
+    }
+  }
+]

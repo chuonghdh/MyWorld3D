@@ -524,3 +524,65 @@ describe('review records', () => {
     expect(globToRegExp('harness/*.md').test('harness/x/a.md')).toBe(false);
   });
 });
+
+// Enforcement guards: claim briefs, hooks that call board-set.mjs, and the board export.
+const BRIEF_FILES = import.meta.glob('../harness/briefs/*.md', { query: '?raw', import: 'default', eager: true }) as Record<string, string>;
+const SETTINGS = import.meta.glob('../.claude/settings.json', { query: '?raw', import: 'default', eager: true }) as Record<string, string>;
+const SETTINGS_LOCAL = import.meta.glob('../.claude/settings.local.json', { query: '?raw', import: 'default', eager: true }) as Record<string, string>;
+const BOARD_EXPORT_MODULE = import.meta.glob('../harness/scripts/board-export.mjs', { eager: true }) as Record<
+  string,
+  { buildExport?: (board: unknown) => unknown }
+>;
+const BOARD_EXPORT_JSON = import.meta.glob('../harness/state/board-export.json', { query: '?raw', import: 'default', eager: true }) as Record<
+  string,
+  string
+>;
+const BRIEF_FIELDS = ['Task id', 'Owner', 'Goal', 'Files in scope', 'Files out of scope', 'Reviewer', 'Claims', 'Acceptance commands', 'Report format'];
+
+describe('enforcement', () => {
+  it('every claim has a brief under harness/briefs/ with the required fields and a matching Owner', () => {
+    const json = JSON.parse(Object.values(CLAIMS)[0] ?? '{"claims":[]}') as { claims?: { task: string; owner: string; brief?: string }[] };
+    const problems: string[] = [];
+    for (const c of json.claims ?? []) {
+      const who = c.task;
+      if (!c.brief) {
+        problems.push(`${who}: no brief path`);
+        continue;
+      }
+      const text = BRIEF_FILES[`../${c.brief}`];
+      if (text === undefined) {
+        problems.push(`${who}: brief ${c.brief} not found`);
+        continue;
+      }
+      for (const f of BRIEF_FIELDS) {
+        if (fieldIn(text, f) === null) problems.push(`${who}: brief lacks ${f}`);
+      }
+      const owner = (fieldIn(text, 'Owner') ?? '').replace(/\(.*\)/, '').trim().toLowerCase();
+      if (owner !== c.owner.toLowerCase()) problems.push(`${who}: brief Owner "${owner}" does not match claim owner "${c.owner}"`);
+    }
+    expect(problems).toEqual([]);
+  });
+
+  it.skipIf(Object.keys(SETTINGS_LOCAL).length === 0)(
+    'settings.local.json has UserPromptSubmit and Stop hooks calling board-set.mjs; settings.json keeps the PostToolUse Edit|Write hook',
+    () => {
+      type Hooks = Record<string, { matcher?: string; hooks?: { command?: string }[] }[]>;
+      const shared = (JSON.parse(Object.values(SETTINGS)[0] ?? '{}') as { hooks?: Hooks }).hooks ?? {};
+      const local = (JSON.parse(Object.values(SETTINGS_LOCAL)[0] ?? '{}') as { hooks?: Hooks }).hooks ?? {};
+      const problems: string[] = [];
+      for (const ev of ['UserPromptSubmit', 'Stop']) {
+        const calls = (local[ev] ?? []).flatMap((h) => (h.hooks ?? []).map((x) => x.command ?? ''));
+        if (!calls.some((c) => c.includes('board-set.mjs'))) problems.push(`settings.local.json: ${ev} does not call board-set.mjs`);
+      }
+      if (!(shared.PostToolUse ?? []).some((h) => h.matcher === 'Edit|Write')) problems.push('settings.json: PostToolUse Edit|Write hook missing');
+      expect(problems).toEqual([]);
+    },
+  );
+
+  const exporter = Object.values(BOARD_EXPORT_MODULE)[0];
+  const exportReady = typeof exporter?.buildExport === 'function' && Object.keys(BOARD_EXPORT_JSON).length === 1;
+  it.skipIf(!exportReady)('harness/state/board-export.json equals buildExport(board.json)', () => {
+    const board = JSON.parse(Object.values(BOARD)[0] ?? '{}') as unknown;
+    expect(JSON.parse(Object.values(BOARD_EXPORT_JSON)[0] ?? 'null')).toEqual(exporter?.buildExport?.(board));
+  });
+});

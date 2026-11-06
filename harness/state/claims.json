@@ -3,23 +3,53 @@
     {
       "task": "T-0003-level4-closure",
       "owner": "architect",
-      "globs": ["harness/scripts/check-claims.mjs", "harness/scripts/check-claims.d.mts", "harness/workflows/WORKFLOW.md", "harness/templates/brief.md"],
+      "globs": [
+        "harness/scripts/check-claims.mjs",
+        "harness/scripts/check-claims.d.mts",
+        "harness/workflows/WORKFLOW.md",
+        "harness/templates/brief.md"
+      ],
       "status": "active",
-      "date": "2026-11-07"
+      "date": "2026-11-07",
+      "brief": "harness/briefs/T-0003-architect.md"
     },
     {
       "task": "T-0003-level4-closure",
       "owner": "scene-qa",
-      "globs": ["tests/harness.test.ts"],
+      "globs": [
+        "tests/harness.test.ts"
+      ],
       "status": "active",
-      "date": "2026-11-07"
+      "date": "2026-11-07",
+      "brief": "harness/briefs/T-0003-scene-qa.md"
     },
     {
       "task": "Level 4 pre-T-0003 (recorded retroactively: edits made before claims existed)",
       "owner": "architect",
-      "globs": ["AGENTS.md", "harness/scripts/board.mjs", "harness/state/README.md", "harness/workflows/bug-fix.md", "harness/workflows/feature-development.md"],
+      "globs": [
+        "AGENTS.md",
+        "harness/scripts/board.mjs",
+        "harness/state/README.md",
+        "harness/workflows/bug-fix.md",
+        "harness/workflows/feature-development.md"
+      ],
       "status": "active",
-      "date": "2026-11-07"
+      "date": "2026-11-07",
+      "brief": "harness/briefs/level4-pre-T0003-architect.md"
+    },
+    {
+      "task": "T-0004-enforcement",
+      "owner": "architect",
+      "globs": [
+        "harness/briefs/**",
+        "harness/scripts/board-set.mjs",
+        "harness/scripts/board-export.mjs",
+        "harness/state/board-export.json",
+        ".claude/settings.json"
+      ],
+      "status": "active",
+      "date": "2026-11-07",
+      "brief": "harness/briefs/T-0004-architect.md"
     }
   ]
 }
