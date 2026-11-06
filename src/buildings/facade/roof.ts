@@ -17,7 +17,7 @@ import {
 import { bayColumns, consoleBracket, frameBars, glassRail, pane, railU, type Ctx } from './parts';
 import { chance, int, pick, range } from './rng';
 import { WIND, anchorWeight } from './polish';
-import { SURFACE } from '../surface';
+import { SURFACE, roofSurfaceId } from '../surface';
 import type { Edge } from './layout';
 
 type SurfaceFn = (x: number, z: number) => number;
@@ -230,7 +230,8 @@ function parapets(ctx: Ctx, h: number, opts: { facadeColor?: Col; railing?: 'iro
     const color = seg.facade ? (opts.facadeColor ?? c.wall) : seg.side === 'back' ? c.rear : c.party;
     m.withSurface(ctx.wallSurface, () => m.b(color, -L / 2, L / 2, wallTop, wallTop + h, -t, 0, NY));
     const copeOut = seg.facade ? 0.05 : 0;
-    m.b(scale(c.trim, 0.96), -L / 2, L / 2, wallTop + h, wallTop + h + 0.08, -t - 0.04, copeOut, NY);
+    // Coping stone takes the membrane pattern and the roof moss like the flat top it sits on.
+    m.withSurface(roofSurfaceId(SURFACE.ROOF_FLAT, wallTop), () => m.b(scale(c.trim, 0.96), -L / 2, L / 2, wallTop + h, wallTop + h + 0.08, -t - 0.04, copeOut, NY));
     if (seg.facade && opts.railing) {
       const y = wallTop + h + 0.08;
       const n = -t / 2;

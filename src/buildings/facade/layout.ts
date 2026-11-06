@@ -9,6 +9,11 @@ import { buildings } from '../../config/tuning';
 export const MIN_FLOORS = buildings.minFloors;
 export const MAX_FLOORS = buildings.maxFloors;
 
+/** Highest storey count a preset may take: glass towers go higher (`glassTowerMaxFloors`), other presets use `MAX_FLOORS`. */
+export function maxFloorsFor(preset: HousePreset): number {
+  return resolvePreset(preset) === 'glass-tower' ? buildings.glassTowerMaxFloors : MAX_FLOORS;
+}
+
 /**
  * Used when a preset is 'as-block' and the caller has not resolved the block default.
  * The city layer should normally resolve the block default before calling buildHouse.
@@ -106,7 +111,7 @@ export function computeLayout(p: HouseInput): Layout {
   const spec = SPECS[preset];
   const modern = p.style === 'modern';
   const roof = p.roof;
-  const floors = clampInt(p.floors, MIN_FLOORS, MAX_FLOORS);
+  const floors = clampInt(p.floors, MIN_FLOORS, maxFloorsFor(p.preset));
   const W = clampNum(p.width, spec.width, 3, 60);
   const D = clampNum(p.depth, spec.depth, 3, 60);
   const fac: Facades = p.facades ? { ...p.facades } : { front: true, back: true, left: false, right: false };

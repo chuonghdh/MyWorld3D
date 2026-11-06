@@ -13,6 +13,7 @@ export {
   ROOF_TYPES,
   MIN_FLOORS,
   MAX_FLOORS,
+  maxFloorsFor,
 } from './house';
 export type { HouseParams, RoofType, HouseChimney } from './house';
 

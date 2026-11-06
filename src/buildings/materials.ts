@@ -42,7 +42,14 @@ export const glassUniforms = {
 
 type ShaderLike = { uniforms: Record<string, { value: unknown }>; vertexShader: string; fragmentShader: string };
 
+/** House roof moss strength (0-1), knob buildings.roofMossAmount. */
+export const roofMossUniform = { value: buildings.roofMossAmount };
+/** House wall weathering strength (0-1), knob buildings.wallWeatheringAmount. */
+export const wallWeatherUniform = { value: buildings.wallWeatheringAmount };
+
 function patchBody(shader: ShaderLike): void {
+  shader.uniforms.uRoofMoss = roofMossUniform;
+  shader.uniforms.uWallWeather = wallWeatherUniform;
   shader.uniforms.uWTime = windUniforms.uWTime;
   shader.uniforms.uWWind = windUniforms.uWWind;
   shader.uniforms.uWGust = windUniforms.uWGust;
@@ -79,7 +86,7 @@ export function getBodyMaterial(): THREE.MeshStandardMaterial {
     body.name = 'building-body';
     body.onBeforeCompile = (shader) => patchBody(shader as unknown as ShaderLike);
     body.onBeforeRender = tickBuildingWind;
-    body.customProgramCacheKey = () => 'building-body-v6';
+    body.customProgramCacheKey = () => 'building-body-v10';
   }
   return body;
 }

@@ -14,7 +14,7 @@ import {
   presetDefaultShutter,
   presetHasShutters,
   resolvePreset,
-  MAX_FLOORS,
+  maxFloorsFor,
   MIN_FLOORS,
 } from './house';
 
@@ -32,7 +32,7 @@ export const PREVIEW_SEED = 1;
 export function buildHousePreview(preset: HousePreset, floors: number = PREVIEW_FLOORS): THREE.Group {
   const p = resolvePreset(preset);
   const { width, depth } = houseFootprint(p);
-  const n = Number.isFinite(floors) ? Math.min(MAX_FLOORS, Math.max(MIN_FLOORS, Math.round(floors))) : PREVIEW_FLOORS;
+  const n = Number.isFinite(floors) ? Math.min(maxFloorsFor(p), Math.max(MIN_FLOORS, Math.round(floors))) : PREVIEW_FLOORS;
   const defaults = defaultHouseParams(p, 'classic');
   // Presets without a classic shutter (canal, brownstone, nordic) get their fill shutter, as a type picked in town does.
   const shutterColor = defaults.shutterColor ?? (presetHasShutters(p) ? presetDefaultShutter(p) : null);

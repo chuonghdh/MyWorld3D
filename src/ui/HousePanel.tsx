@@ -1,5 +1,5 @@
 import { useEffect } from 'react';
-import { HOUSE_SHUTTER_OPTIONS, HOUSE_WALL_OPTIONS } from '../buildings';
+import { HOUSE_SHUTTER_OPTIONS, HOUSE_WALL_OPTIONS, MIN_FLOORS, maxFloorsFor } from '../buildings';
 import { useWorldStore } from '../store';
 import { HOUSE_PRESETS, HOUSE_STYLES, ROOF_TYPES, type HouseOverride, type RoofType } from '../store/model';
 import type { HousePreset, HouseStyle } from '../core/types';
@@ -114,9 +114,10 @@ export function HousePanel({ houseId, base, onAction }: HousePanelProps) {
       <Slider
         id="house-floors"
         label="Floors"
-        value={eff.floors}
-        min={2}
-        max={8}
+        // Shown clamped to the type's maximum; the stored floors change only when the user moves the slider.
+        value={Math.min(eff.floors, maxFloorsFor(shownPreset))}
+        min={MIN_FLOORS}
+        max={maxFloorsFor(shownPreset)}
         step={1}
         format={(v) => String(v)}
         onChange={(v) => patch({ floors: v })}
