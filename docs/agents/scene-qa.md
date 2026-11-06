@@ -122,3 +122,8 @@ Last smoke test: passed on 2026-10-29 (page title MyWorld3D, one canvas, WebGL o
 ## Update 2026-11-06 (selection in store)
 - `App.tsx` reads `selected` and `setSelected` from `useWorldStore` (no React state). `select()` and `onPointerMissed` write the store; CameraRig reads the same field for the orbit pivot. Transient, not persisted.
 - Test: `tests/appSelection.test.ts` (store set/clear, App source reads the store).
+
+## Update 2026-11-06 (test fixes after child gait and building shader change)
+- `tests/clouds.test.ts`: building cache key expectation is now `building-body-v11` (shader key from `buildings/materials.ts`). Cloud-shadow splice check unchanged.
+- `tests/traffic.determinism.test.ts`: pedestrian baseline re-captured to `63333cfb` for the child gait change (d47180a). Verified: with child gait knobs reset to pre-change values the hash returns to `a8684131`, so only children changed. Vehicle baseline unchanged.
+- `tests/people.test.ts` "600 walkers" timing: passes alone; left as is (known load flake).
