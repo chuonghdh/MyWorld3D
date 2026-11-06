@@ -9,13 +9,13 @@ Reviewed 2026-11-01 at 02b0cdc
 - `scene/CameraRig.tsx` (263 lines): OrbitControls, zoom to cursor, `setViewOffset` for panel-aware framing, presets, drag-to-start street walk. `scene/cameraInput.ts` holds `useCameraInput` and the `Tween` / `StreetState` types.
 
 ## Conventions
-- Tunables (defaults, slider ranges, weather-lift rule, day length) live in `src/config/tuning.ts`, section `uiCamera`. Import them; do not add literals in `store/model.ts` or `ui/SettingsCity.tsx`.
+- Tunables (defaults, slider ranges, weather-lift rule, day length) live in `src/config/tuning/`, section `uiCamera`. Import them; do not add literals in `store/model.ts` or `ui/SettingsCity.tsx`.
 - UI is dark glass: tokens `--mw-*`. Drop-downs must be opaque (`.mw-select` uses solid background + `color-scheme: dark`), otherwise the browser draws the list white.
 - Settings persist in JSON. A new setting needs a default in `model.ts`, validation in `io.ts` and a test. Old saves migrate: `io.ts` maps the retired `drizzle` weather to `cloudy`.
 - The time bar is centred on the screen width, not on the free area; folded state keeps the analog clock with AM/PM.
 
 ## Traps
-- Camera: near/far tied to the target distance. Camera knobs (`maxDistance` 600 m, `minDistance`, `maxPolarAngle` PI/2.05, `blockEditHeightM`, walk speeds, look sensitivity) are in `src/config/tuning.ts` section `uiCamera`; `scene/cameraMath.ts` aliases them. The aircraft altitude band reads `maxDistance`.
+- Camera: near/far tied to the target distance. Camera knobs (`maxDistance` 600 m, `minDistance`, `maxPolarAngle` PI/2.05, `blockEditHeightM`, walk speeds, look sensitivity) are in `src/config/tuning/` section `uiCamera`; `scene/cameraMath.ts` aliases them. The aircraft altitude band reads `maxDistance`.
 - Overview rotates around the map centre; street view is entered by dragging the view switch onto the map (ray to y=0).
 - Keep every file in `src/scene` <= 350 lines. Largest owned file today: `CameraRig.tsx` 263.
 - Undo/redo was removed (not needed). Save/load (`io.ts`) stays; no UI control calls it yet.
@@ -84,7 +84,7 @@ Plan only, no source edits, no commit. Status: proposed, not started. Owner deci
 Knobs only: `filmDurationS`, `filmFps`, quality presets (`{ bitrateBps, fps }` per draft / standard / high), `orbitAltitudeM`, `cathedralRadiusM`, `descentHeightM`, `cruiseHeightM`, `clearanceM`, `filmMaxSpeedMs`, `perchDistanceM`, phase weights. Geometry and the spline tension stay local. Each new knob: one line in `docs/TUNING.md` and an entry in `tests/tuningParity.test.ts` (fragment entries near lines 318-320).
 
 ### Tests (planned)
-`tests/filmPath.test.ts` (vitest, node): no NaN for many seeds; endpoints equal the waypoints; every sample inside `townBounds` minus margin; `y >= floor + clearance`; step between samples <= `filmMaxSpeedMs * dt`; tangent continuity at waypoints; same seed and time give identical samples; sun below horizon picks the moon. `tests/cameraRig.test.ts` gets the film clip-plane case. `tests/store*.test.ts`: film state is not in `exportLayout`.
+`tests/film/filmPath.test.ts` (vitest, node): no NaN for many seeds; endpoints equal the waypoints; every sample inside `townBounds` minus margin; `y >= floor + clearance`; step between samples <= `filmMaxSpeedMs * dt`; tangent continuity at waypoints; same seed and time give identical samples; sun below horizon picks the moon. `tests/cameraRig.test.ts` gets the film clip-plane case. `tests/store*.test.ts`: film state is not in `exportLayout`.
 
 ### Open items
 - Scene & QA must agree to own `FilmRig.tsx`, `filmPath.ts`, and the `useTownFrame` and `PostFX` clock change.
@@ -117,7 +117,7 @@ Knobs only: `filmDurationS`, `filmFps`, quality presets (`{ bitrateBps, fps }` p
 - `FilmPicker.tsx`: mode labels "Follow You" (manual) and "Follow a Bird" (auto); internal mode names unchanged. Headings and description text removed; Auto shows only the toggle. Primary button "Record" (was Start).
 - Disable reasons: one line (`.mw-film-error`, nowrap + ellipsis, full text in `title`), only when the current mode cannot record. The Auto toggle carries its reason as a tooltip when disabled.
 - Known: "Window size" option reads the first `<canvas>` in the DOM and showed 300 x 150 in Chrome (not the 3D canvas). Not fixed here.
-- Auto film verified 2026-11-06: simTime - filmTime constant through the run, frameloop 'never'. `window.__r3f` is a frozen snapshot; read `window.__r3f.get().frameloop`.
+- Auto film verified 2026-11-06: simTime - filmTime constant through the run, frameloop 'never'.
 - 2026-11-06 follow-up: Follow a Bird shows the same Length and Output rows read-only (`film.autoSeconds`, Full HD only, fieldset `.is-fixed` at opacity 0.7), so the picker keeps the same height (measured 257.7 px in both modes).
 - 2026-11-06 fix: "Window size 300 x 150" bug. Root cause: `FilmPicker.windowSize()` and `filmSession.startManualFilm` used `document.querySelector('canvas')`, which can return a non-3D canvas. Both now use `film/resizeBridge.ts` `filmCanvas()` / `filmViewSize()` (the renderer `domElement` registered by PostFX). Tests in `tests/film/resizeBridge.test.ts`. Live Chrome check pending (extension was disconnected).
 - 2026-11-06 Settings panel: removed the Gust, Leaf devil and Whole map buttons, their `CityAction` members and their `App.tsx` cases. The features stay: `runtime.gustRequests` / `leafDevilRequests` / `wholeMapRequests` and their consumers in useTownFrame and CameraRig are unchanged (no UI trigger now). The remaining buttons (Tilt-shift, Golden Hour, Switch trees, Move blocks, Reset blocks, Reset houses) sit at the top of the panel.
@@ -156,13 +156,12 @@ Knobs only: `filmDurationS`, `filmFps`, quality presets (`{ bitrateBps, fps }` p
 - Pivot = point the orbit rotates around. Default and cleared selection: centre of `townBounds` (map diagonal centre, ground level). Selected block: block bounds centre; house: lot position; tree: `streetTrees` position (same data as `useTownGreenery`).
 - Pure helpers in `src/scene/pivotMath.ts` (`pivotForSelection`, `selectionCentroid`, `boundsCentre`, `sameSelection`, `pivotSourceFrom`, `startPivotGlide`, `stepPivotGlide`), not `cameraMath.ts`, which is at the 350-line cap. Tests: `tests/orbitPivot.test.ts`.
 - Glide: `uiCamera.pivotSeconds` (0.8, ease in-out). Each frame target and camera move by the same step, so the view does not jump and a user pan mid-glide survives. Tween (overview, street) cancels a glide; overview sets the pivot to the map centre.
-- Selection lives in the store now: `WorldState.selected` / `setSelected` (transient). Trap: `App.tsx` still keeps `selected` in `useState` and never calls `setSelected`, so the pivot does not move until App wires it (owner Scene & QA). Needed: `select` calls `useWorldStore.getState().setSelected(target)` and the `selected` read comes from the store.
+- Selection lives in the store now: `WorldState.selected` / `setSelected` (transient). App reads and sets it through the store (wired in `App.tsx`).
 - Open: block centre uses layout base bounds (slot), not the swapped content; merged blocks use their layout bounds.
 
-- 2026-11-06 (ui-camera): map view Up/Down move the camera along its own view direction (`mapMoveAxis`, `moveViewAlong` in `src/scene/pivotMath.ts`; knobs `uiCamera.mapMoveSpeedLow/High/LowHeight/HighHeight`, 15 to 40 m/s by camera height). Camera and orbit target translate by the same vector (3D-game move, not pivot-tied). Clamp for both points: not below ground (y = 0) and inside town bounds + PAN_MARGIN. Left/Right and W/S are not used in map view. Tests: `tests/mapMove.test.ts`.
+- 2026-11-06 (ui-camera): map view Up/Down move the camera along its own view direction (`mapMoveAxis`, `moveCameraAlong` in `src/scene/pivotMath.ts`; knobs `uiCamera.mapMoveSpeedLow/High/LowHeight/HighHeight`, 15 to 40 m/s by camera height). Only the camera moves; the orbit target is unchanged. The camera stays at or above ground (y = 0) and inside town bounds + PAN_MARGIN. Left/Right and W/S turn the view in place. Tests: `tests/mapMove.test.ts`.
 - 2026-11-06 (ui-camera): map view Left/Right and W/S turn the view about the camera (`mapLookAxes`, `mapLookStep` in `src/scene/pivotMath.ts`, reusing `streetLookStep`; speeds `streetTurnSpeed` / `streetPitchSpeed`, limit `pitchLimit`). Camera position and orbit pivot do not move; a view override is applied after the orbit update and cleared on orbit drag, tween, film. Tests: `tests/mapMove.test.ts`.
 
-- 2026-11-06 (ui-camera): map Up/Down is a 3D-game move: camera and orbit target shift by the same delta (forward times step), so the screen-centre point moves with the camera. The pan clamp runs before the move; the move is clamped to ground and town bounds for both points. OrbitControls offset (camera minus target) is kept, so damping does not pull the target back. Left/Right and W/S turn the view in place (camera and pivot do not move). Tests: `tests/mapMove.test.ts`.
 
 - 2026-11-06 (ui-camera): map keys never read the orbit pivot. Up/Down move only camera.position (`moveCameraAlong`); Left/Right and W/S start from the camera world direction (`getWorldDirection`). While any map key is held, `controls.enabled` is off so OrbitControls damping cannot pull the camera back; the pivot glide and mouse orbit are unchanged otherwise. Tests: `tests/mapMove.test.ts` (pure helpers; a CameraRig-level target check needs an R3F harness and is not automated).
 
@@ -171,3 +170,10 @@ Knobs only: `filmDurationS`, `filmFps`, quality presets (`{ bitrateBps, fps }` p
 - 2026-11-06 (ui-camera): Left/Right yaw speed cut 60%: `uiCamera.streetTurnSpeed` 2 to 0.8 rad/s. Shared by street view and map view (no separate map knob). W/S pitch speed unchanged.
 
 - 2026-11-06 (ui-camera): map view A/D turn the view left/right, same as Left/Right (in place, `mapLookAxes` in `src/scene/pivotMath.ts`, speed `streetTurnSpeed`); camera and pivot unchanged. Test: `tests/mapMove.test.ts`.
+
+## Harness refactor (2026-11-06)
+Split by responsibility, no behaviour change. Same exports and import paths.
+- `ui/TimeBar.tsx`: desktop bar and fold. `ui/TimeBarControls.tsx`: pause, auto, view switch, photo. `ui/TimeBarPhone.tsx`: phone window. `ui/TimeBarIcons.tsx`: clock text and icons.
+- `scene/CameraRig.tsx`: orbit, presets, street walk. `scene/cameraViewShift.ts`: panel view offset. `scene/cameraMapKeys.ts`: map Up/Down and look keys.
+- `scene/filmPath.ts`: planner. `scene/filmPathConsts.ts`: constants. `scene/filmPathPlan.ts`: descent road and finale search. `scene/filmPathKeys.ts`: keyframes per orbit scale.
+- `ui/panels.css`: entry of `@import`s, in cascade order. Rules in `ui/panels/*.css` (base, sections, swatches, timebar, timebar-fold, help, mobile, sides, view-mixer, block-edit).

@@ -1,0 +1,149 @@
+/* Side panels: House/Monument on the left, Settings on the right, both top-aligned under the screen edge. */
+.mw-left-panel,
+.mw-right-panel {
+  position: absolute;
+  top: 16px;
+  width: 300px;
+}
+
+.mw-left-panel {
+  left: 16px;
+}
+
+.mw-right-panel {
+  right: 16px;
+}
+
+/* Between 601 and 1020 px the centred time bar reaches the side panels. Collapsed panels shrink to one
+   icon that sits in the same row as the time bar; an open panel starts under that row. */
+@media (min-width: 601px) and (max-width: 1020px) {
+  .mw-left-panel,
+  .mw-right-panel {
+    top: 80px;
+  }
+}
+
+/* Phones and narrow windows (up to 1020 px): folded panels are icons in the top row. */
+@media (max-width: 1020px) {
+  .mw-left-panel:has(.is-collapsed),
+  .mw-right-panel:has(.is-collapsed) {
+    top: 16px;
+    width: auto;
+  }
+
+  .mw-panel.is-collapsed {
+    width: 44px;
+    min-width: 0;
+    border-radius: 12px;
+  }
+
+  .mw-panel.is-collapsed .mw-panel-head {
+    padding: 0;
+    justify-content: center;
+    height: 44px;
+  }
+
+  .mw-panel.is-collapsed .mw-panel-head .mw-dot,
+  .mw-panel.is-collapsed .mw-panel-head h2,
+  .mw-panel.is-collapsed .mw-panel-arrow {
+    display: none;
+  }
+
+  .mw-panel.is-collapsed .mw-panel-toggle {
+    width: 44px;
+    height: 44px;
+    border: 0;
+    background: transparent;
+  }
+
+  .mw-panel.is-collapsed .mw-panel-glyph {
+    display: inline-flex;
+  }
+}
+
+.mw-panel-glyph {
+  display: none;
+  align-items: center;
+  justify-content: center;
+}
+
+/* Phones: the time panel is two rows centred under the top edge. Row one is a window of three controls that
+   slides one control per arrow tap or swipe; row two is the clock. Background is dark and slightly transparent. */
+@media (max-width: 600px) {
+  .mw-timebar-phone {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 4px;
+    padding: 6px;
+    background: rgba(20, 17, 15, 0.78);
+  }
+
+  .mw-m-row {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+  }
+
+  .mw-m-window {
+    width: 132px;
+    overflow: hidden;
+    border-radius: 10px;
+  }
+
+  .mw-m-track {
+    display: flex;
+    transition: transform 0.25s ease;
+    touch-action: pan-y;
+  }
+
+  /* The view switch contributes its two buttons as separate controls in the track. */
+  .mw-m-track .mw-viewswitch {
+    display: contents;
+  }
+
+  .mw-m-track > *,
+  .mw-m-track .mw-viewswitch > button {
+    flex: 0 0 44px;
+    width: 44px;
+    min-width: 44px;
+  }
+
+  .mw-m-arrow {
+    width: 28px;
+    height: 44px;
+    padding: 0;
+    font: 600 20px/1 system-ui, sans-serif;
+    color: var(--mw-fg);
+    background: var(--mw-btn);
+    border: 1px solid var(--mw-line);
+    border-radius: 8px;
+    cursor: pointer;
+  }
+
+  .mw-m-arrow:disabled {
+    opacity: 0.35;
+    cursor: default;
+  }
+
+  .mw-m-clock {
+    justify-content: center;
+    padding: 2px 0 0;
+  }
+}
+
+/* Narrower windows: icon-only buttons so the centred bar clears the settings panel. */
+@media (max-width: 1279px) {
+  .mw-timebar .mw-label {
+    display: none;
+  }
+
+  .mw-timebar .mw-timebar-btn {
+    min-width: 0;
+    padding: 7px 10px;
+  }
+
+  .mw-timebar-clock {
+    min-width: 0;
+    font-size: 19px;
+  }
+}

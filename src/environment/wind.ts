@@ -10,12 +10,10 @@ export interface WindConfig {
   direction: number;
 }
 
-export interface GustEvent {
-  /** Time (seconds, same clock as the t arguments) when the gust started. */
-  start: number;
-  /** Extra speed added at the peak, in m/s. */
-  peak: number;
-}
+import type { GustEvent } from '../core/types';
+
+// GustEvent lives in core/types.ts so that core/runtime.ts does not import from a feature module.
+export type { GustEvent };
 
 export interface WindVector {
   /** East component (three.js +x). */

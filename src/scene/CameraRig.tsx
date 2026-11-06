@@ -24,27 +24,22 @@ import {
   dirFromYaw,
   easeInOut,
   lerp3,
-  stepViewShift,
   streetKeyAxes,
   streetLookStep,
   streetStart,
-  viewShiftTarget,
   walkStep,
   wholeMapFraming,
   type CameraPresetId,
   type ShiftState,
   type V3,
 } from './cameraMath';
-
-import { RIGHT_PANEL_ATTR, measureLeftInset, measureRightInset } from './cameraDom';
+import { RIGHT_PANEL_ATTR, measureRightInset } from './cameraDom';
 import { useCameraInput, type StreetState, type Tween } from './cameraInput';
+import { applyMapKeys } from './cameraMapKeys';
+import { stepPanelViewOffset } from './cameraViewShift';
 import {
   boundsCentre,
-  mapLookAxes,
-  mapLookStep,
   mapMoveAxis,
-  mapMoveSpeedAt,
-  moveCameraAlong,
   pivotForSelection,
   pivotSourceFrom,
   sameSelection,
@@ -85,7 +80,6 @@ export function CameraRig() {
   const lookOverride = useRef<V3 | null>(null);
 
   const layoutOf = () => getCityLayout(useWorldStore.getState().settings);
-
 
   // Leave the street walk and hand the camera back to the orbit controls, looking at a ground point ahead.
   const leaveStreet = () => {
@@ -193,7 +187,6 @@ export function CameraRig() {
     };
     controls.addEventListener('start', onStart);
     return () => controls.removeEventListener('start', onStart);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   useFrame((_state, frameDt) => {
@@ -252,29 +245,10 @@ export function CameraRig() {
     // glides (real frame time, also while paused) when a panel opens or closes. Filming hides the panels: the
     // offset is cleared at once so the film starts centred; after the film it glides back.
     const filming = useWorldStore.getState().toggles.filming;
-    const w = gl.domElement.clientWidth;
-    const h = gl.domElement.clientHeight;
-    if (filming || w <= 0 || h <= 0) {
-      viewShift.current = { x: 0, v: 0 };
-      if (viewApplied.current) {
-        camera.clearViewOffset();
-        viewApplied.current = null;
-      }
-    } else {
-      const target = overviewOn.current ? viewShiftTarget(measureLeftInset(), measureRightInset()) : 0;
-      viewShift.current = stepViewShift(viewShift.current, target, dt, uiCamera.panelShiftSeconds);
-      const x = viewShift.current.x;
-      const a = viewApplied.current;
-      if (x === 0 && target === 0) {
-        if (a) {
-          camera.clearViewOffset();
-          viewApplied.current = null;
-        }
-      } else if (!a || a.w !== w || a.h !== h || Math.abs(a.x - x) > 0.01) {
-        camera.setViewOffset(w, h, x, 0, w, h);
-        viewApplied.current = { w, h, x };
-      }
-    }
+    stepPanelViewOffset(camera, gl.domElement, overviewOn.current, filming, dt, {
+      shift: viewShift,
+      applied: viewApplied,
+    });
 
     let distToTarget: number;
     const tw = tween.current;
@@ -342,41 +316,7 @@ export function CameraRig() {
         camera.position.y += ty - t.y;
         t.set(c.x, ty, c.z);
       }
-      // Map Up/Down: only the camera moves, along its view direction. The orbit target is not changed.
-      if (mv) {
-        const dirV = new THREE.Vector3();
-        camera.getWorldDirection(dirV);
-        const p = moveCameraAlong(
-          [camera.position.x, camera.position.y, camera.position.z],
-          [dirV.x, dirV.y, dirV.z],
-          mv * mapMoveSpeedAt(camera.position.y, {
-            low: uiCamera.mapMoveSpeedLow,
-            high: uiCamera.mapMoveSpeedHigh,
-            lowHeight: uiCamera.mapMoveSpeedLowHeight,
-            highHeight: uiCamera.mapMoveSpeedHighHeight,
-          }) * dt,
-          { groundY: 0, bounds, margin: -PAN_MARGIN },
-        );
-        camera.position.set(p[0], p[1], p[2]);
-      }
-      // Map Left/Right and W/S: turn the view about the camera. The camera position and the orbit pivot stay.
-      // The start direction is the camera's own view direction, never the pivot.
-      const la = mapLookAxes(keys.current);
-      // Keyboard move or look pauses OrbitControls (enabled off): its damping cannot pull the camera back to the pivot.
-      controls.enabled = !(mv || la.turn || la.look);
-      if (la.turn || la.look) {
-        let base: V3 | null = lookOverride.current;
-        if (!base) {
-          const dirL = new THREE.Vector3();
-          camera.getWorldDirection(dirL);
-          base = [dirL.x, dirL.y, dirL.z];
-        }
-        lookOverride.current = mapLookStep(base, la, dt);
-      }
-      if (lookOverride.current) {
-        const l = lookOverride.current;
-        camera.lookAt(camera.position.x + l[0], camera.position.y + l[1], camera.position.z + l[2]);
-      }
+      applyMapKeys(camera, controls, keys.current, mv, lookOverride, bounds, dt);
       lastTarget.current.copy(t);
       distToTarget = camera.position.distanceTo(t);
     }

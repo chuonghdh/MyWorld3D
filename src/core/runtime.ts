@@ -1,7 +1,7 @@
 // Mutable runtime state shared between the R3F scene, the UI and the feature modules (sky, aircraft).
 // Kept outside React state because gusts and leaf devils change every frame. Lives in core so that no feature
-// module has to import from scene/. Only types are imported from above core; they are erased at build time.
-import type { GustEvent } from '../environment/wind';
+// module has to import from scene/.
+import type { GustEvent } from './types';
 
 /** Camera presets a UI can request through runtime.cameraPresetRequests. */
 export type CameraPresetId = 'overview' | 'street';

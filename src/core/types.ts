@@ -73,3 +73,11 @@ export interface WorldSettings {
   /** Block merges: each group lists the ids of 2 to 4 neighbouring house blocks (see city/merge.ts). Default none. */
   blockMerges?: string[][];
 }
+
+/** A wind gust. Time is in seconds on the same clock as the wind functions' t argument. */
+export interface GustEvent {
+  /** Time (seconds) when the gust started. */
+  start: number;
+  /** Extra speed added at the peak, in m/s. */
+  peak: number;
+}

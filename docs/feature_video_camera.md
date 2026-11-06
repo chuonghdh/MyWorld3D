@@ -127,7 +127,7 @@ Verification limits: the built-in browser pane cannot paint frames. Visual and t
 
 ## 6. Tests
 
-- `tests/filmPath.test.ts` (node): no NaN across seeds; endpoints match waypoints; samples inside bounds minus margin; `y >= floor + clearance`; step <= max speed x dt; tangent continuity; determinism; sun below horizon gives the moon.
+- `tests/film/filmPath.test.ts` (node): no NaN across seeds; endpoints match waypoints; samples inside bounds minus margin; `y >= floor + clearance`; step <= max speed x dt; tangent continuity; determinism; sun below horizon gives the moon.
 - Film clock: auto frame count equals `autoSeconds x fps`; game minutes covered equal `autoVirtualMinutes`.
 - Audio: listener step per 1/60 s bounded across 7.5 to 8.5 m and 44 to 46 m; ground gate ramp endpoints; suspended context makes update a no-op; distance gain monotone along the path.
 - Store: film state is not in `exportLayout`.

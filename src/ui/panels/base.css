@@ -1,0 +1,118 @@
+/* Panel styles. Dark translucent card, matching the reference screenshots. */
+:root {
+  --mw-bg: rgba(28, 24, 22, 0.82);
+  --mw-fg: #f1ebe3;
+  --mw-muted: #a79c92;
+  --mw-accent: #e8833a;
+  --mw-line: rgba(255, 255, 255, 0.12);
+  --mw-btn: rgba(255, 255, 255, 0.07);
+}
+
+@media (prefers-color-scheme: light) {
+  :root:not([data-theme="dark"]) {
+    --mw-bg: rgba(30, 26, 24, 0.82);
+  }
+}
+
+:root[data-theme="dark"] {
+  --mw-bg: rgba(28, 24, 22, 0.82);
+}
+
+.mw-panel {
+  width: 300px;
+  max-height: calc(100vh - 32px);
+  display: flex;
+  flex-direction: column;
+  background: var(--mw-bg);
+  color: var(--mw-fg);
+  border-radius: 14px;
+  border: 1px solid var(--mw-line);
+  backdrop-filter: blur(10px);
+  font: 13px/1.35 system-ui, -apple-system, 'Segoe UI', sans-serif;
+  box-sizing: border-box;
+  overflow: hidden;
+}
+
+.mw-panel-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 12px 14px;
+  border-bottom: 1px solid var(--mw-line);
+}
+
+.mw-panel-head h2 {
+  flex: 1;
+  margin: 0;
+  font-size: 12px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  font-weight: 600;
+}
+
+.mw-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--mw-accent);
+}
+
+.mw-panel-body {
+  padding: 12px 14px 14px;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.mw-group-title {
+  font-size: 10px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--mw-muted);
+  margin-top: 4px;
+}
+
+/* Slide open/close (ui/slide.ts): the grid row animates 0fr <-> 1fr, so the height follows the content
+   without measuring it. Open ease-out, close ease-in; durations come from tuning via --mw-slide-open/close.
+   Also under prefers-reduced-motion (user's choice, 2026-11-06).
+   The closed content is hidden from focus and screen readers once the close finishes (visibility delay). */
+.mw-slide {
+  display: grid;
+  grid-template-rows: 0fr;
+  min-height: 0;
+  transition: grid-template-rows var(--mw-slide-close, 0.22s) cubic-bezier(0.4, 0, 1, 1);
+}
+
+.mw-slide.is-open {
+  grid-template-rows: 1fr;
+  transition: grid-template-rows var(--mw-slide-open, 0.3s) cubic-bezier(0.2, 0, 0, 1);
+}
+
+.mw-slide-inner {
+  min-height: 0;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  opacity: 0;
+  visibility: hidden;
+  transition: opacity var(--mw-slide-close, 0.22s) cubic-bezier(0.4, 0, 1, 1), visibility 0s linear var(--mw-slide-close, 0.22s);
+}
+
+.mw-slide.is-open > .mw-slide-inner {
+  opacity: 1;
+  visibility: visible;
+  transition: opacity var(--mw-slide-open, 0.3s) cubic-bezier(0.2, 0, 0, 1), visibility 0s;
+}
+
+/* The panel body scrolls inside the panel's max height: the slide takes the remaining space. */
+.mw-panel-slide {
+  flex: 0 1 auto;
+}
+
+.mw-panel-slide > .mw-slide-inner > .mw-panel-body {
+  min-height: 0;
+}
+
+/* No reduced-motion override: panels and sections always slide (user's choice, 2026-11-06). */
+

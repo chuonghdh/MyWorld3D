@@ -1,7 +1,7 @@
 # Tuning parameters
-Reviewed 2026-11-02 at dev (ce8de5a). Designer knobs live in `src/config/tuning/`; rows that still point to code are not yet tunable.
+Reviewed 2026-11-06 at dev (292b724). Designer knobs live in `src/config/tuning/`; rows that still point to code are not yet tunable.
 
-Every value a user may want to adjust, in one place. Values that moved live in `src/config/tuning/` (one file per owner section, re-exported by `index.ts`: `buildings`, `uiCamera`, `cityStreets`, `trafficLife`, `audio`, `skyEnvironment`). Rows point there with the config key. Rows that did not move point at the code location. Sliders in the UI write to the store (`src/store/model.ts` defaults); their ranges are listed where the slider is defined.
+Every value a user may want to adjust, in one place. Values that moved live in `src/config/tuning/` (one file per owner section, re-exported by `index.ts`: `audio`, `buildings`, `cityStreets`, `film`, `sceneQa`, `skyEnvironment`, `trafficLife`, `uiCamera`). Rows point there with the config key. Rows that did not move point at the code location. Sliders in the UI write to the store (`src/store/model.ts` defaults); their ranges are listed where the slider is defined.
 
 ## How to change a value
 
@@ -402,6 +402,27 @@ Shader-only wear on the road, pavement and paint (`src/streets/streetWear.ts`). 
 | Pavement stain | 0.12 | 0..1 | Darkness of dirty stains on pavement | src/config/tuning/cityStreets.ts (`cityStreets.pavingStain`) | City & Streets |
 | Paint loss | 0.6 | 0..1 | Share of paint lost in worn spots | src/config/tuning/cityStreets.ts (`cityStreets.paintWear`) | City & Streets |
 | Paint fade | 0.12 | 0..1 | Uniform dimming of lane and crossing paint | src/config/tuning/cityStreets.ts (`cityStreets.paintFade`) | City & Streets |
+
+## 14. Street and map camera limits (added 2026-11-06)
+
+| Parameter | Current value | Unit/range | What it controls | File:line (constant) | Owner |
+|---|---|---|---|---|---|
+| Orbit max distance | 600 | metres | Farthest orbit distance; the aircraft altitude band depends on it | src/config/tuning/uiCamera.ts (`uiCamera.maxDistance`) | UI & Camera |
+| Orbit min distance | 4 | metres | Closest orbit distance | src/config/tuning/uiCamera.ts (`uiCamera.minDistance`) | UI & Camera |
+| Camera tween time | 1 | seconds | Duration of an overview or street camera tween | src/config/tuning/uiCamera.ts (`uiCamera.tweenSeconds`) | UI & Camera |
+| Pan margin | 40 | metres | How far the orbit target may leave the town bounds | src/config/tuning/uiCamera.ts (`uiCamera.panMargin`) | UI & Camera |
+| Block select height | 200 | metres | Camera height above which a tap selects a whole block | src/config/tuning/uiCamera.ts (`uiCamera.blockEditHeightM`) | UI & Camera |
+| Max polar angle | PI / 2.05 | radians | Lowest orbit angle from straight up (keeps the camera above ground) | src/config/tuning/uiCamera.ts (`uiCamera.maxPolarAngle`) | UI & Camera |
+| Orbit damping | 0.08 | 0..1 | OrbitControls damping factor | src/config/tuning/uiCamera.ts (`uiCamera.dampingFactor`) | UI & Camera |
+| Target height max | 40 | metres | Highest orbit target height | src/config/tuning/uiCamera.ts (`uiCamera.targetHeightMax`) | UI & Camera |
+| Street walk speed | 2.5 | m/s | Walk speed in street view | src/config/tuning/uiCamera.ts (`uiCamera.walkSpeed`) | UI & Camera |
+| Street run speed | 6 | m/s | Run speed in street view (Shift) | src/config/tuning/uiCamera.ts (`uiCamera.walkRunSpeed`) | UI & Camera |
+| Street mouse look | 0.004 | radians per pixel | Mouse look sensitivity in street view | src/config/tuning/uiCamera.ts (`uiCamera.lookSensitivity`) | UI & Camera |
+| Whole-map fit margin | 1.06 | factor | Whole-map framing margin on the town width | src/config/tuning/uiCamera.ts (`uiCamera.fitMargin`) | UI & Camera |
+| Block pick plane height | 150 | metres | Invisible block-edit pick plane (above every roof) | src/config/tuning/uiCamera.ts (`uiCamera.pickHeightM`) | UI & Camera |
+| Block decal height | 0.3 | metres | Block-edit decals above the ground | src/config/tuning/uiCamera.ts (`uiCamera.decalHeightM`) | UI & Camera |
+| Tap slop | 6 | pixels | Pointer movement above which a click counts as a drag | src/config/tuning/uiCamera.ts (`uiCamera.tapSlopPx`) | UI & Camera |
+| Courtyard tree radius | 1.5 | metres (times tree scale) | Clearance radius around each courtyard tree | src/config/tuning/cityStreets.ts (`cityStreets.courtyardTreeRadius`); used by src/city/streetscape.ts:41 | City & Streets |
 
 ## Not yet tunable (hardcoded)
 

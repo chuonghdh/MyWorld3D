@@ -3,7 +3,7 @@ Reviewed 2026-11-01 at 02b0cdc
 
 **Owns:** `src/audio/**`, `src/ui/SoundMixer.tsx`, `src/scene/audioBridge.ts`, `docs/AUDIO.md` and the audio tests (`tests/audio*.test.ts`, `tests/helpers/fakeAudio.ts`).
 
-**Tuning rule:** tunable levels, ranges, intervals, windows and mixer defaults live in the `audio` section of `src/config/tuning.ts`; modules import them (`audio as audioTuning`) and keep the exported const names. Synthesis and algorithm constants (partials, filter shapes) stay local.
+**Tuning rule:** tunable levels, ranges, intervals, windows and mixer defaults live in the `audio` section of `src/config/tuning/`; modules import them (`audio as audioTuning`) and keep the exported const names. Synthesis and algorithm constants (partials, filter shapes) stay local.
 
 ## Architecture (see `docs/AUDIO.md`)
 - `index.ts` facade: `init`, `update(frame)`, `setSoundEnabled`, volumes, `dispose`. Context -> master -> limiter (DynamicsCompressor, threshold -9 dB, ratio 12) -> destination.
@@ -142,3 +142,11 @@ P1 listener math + smoother (golden test: manual camera poses outside the band u
 ## Update 2026-11-06 (audio): single UI tick
 - `uiCue('tick')` for switching house or block with the left panel open: one ratchet tick from the same partials (2350/3000/460 Hz), 1.5 ms attack, 20 ms decay +-10 % (about 20-30 ms with the ring), gain 0.55 x `audio.uiCueTickLevel` (0.75), pitch jitter +-4 % for the whole tick, no grind. Same routing, Sound switch, rate limit and film exclusion.
 - New knob `audio.uiCueTickLevel` (TUNING.md row, tuningParity entry). Not listened to.
+
+## Harness refactor (2026-11-06)
+- `animals.ts`, `music.ts`, `nature.ts`, `people.ts`, `vehicles.ts` keep their names and factories; each re-exports its parts (`export *`).
+- Animals: `animalsPure.ts` (knobs, pure helpers, songs), `animalsVoices.ts` (song, bark, meow, flutter builders).
+- Music: `musicMood.ts` (mood, fades, scheduler), `musicVoices.ts` (Web Audio voices, reverb impulse).
+- Nature: `natureCore.ts` (knobs, pure helpers, voice types).
+- People: `peopleCore.ts` (knobs, pose, speakers, helpers), `peopleVoices.ts` (chat, footsteps), `peopleUmbrella.ts` (umbrella rain).
+- Vehicles: `vehiclesCore.ts` (knobs, engine model, helpers), `vehiclesEngine.ts` (engine voice), `vehiclesSignals.ts` (indicator, horns).

@@ -1,0 +1,300 @@
+/* Collapsible sections (controls.tsx Section). The header reuses .mw-group-title for the label. */
+.mw-section {
+  display: flex;
+  flex-direction: column;
+}
+
+.mw-section-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  min-height: 34px;
+  margin: 0;
+  padding: 0 10px 0 12px;
+  background: var(--mw-btn);
+  border: 0;
+  border-left: 3px solid transparent;
+  border-radius: 8px;
+  color: var(--mw-muted);
+  font: inherit;
+  cursor: pointer;
+  transition: background-color 0.15s ease, border-color 0.15s ease;
+}
+
+.mw-section-head .mw-group-title {
+  margin-top: 0;
+}
+
+/* Open section: warm accent tint and a thin accent edge; closed stays neutral. */
+.mw-section:not(.is-closed) > .mw-section-head {
+  background: color-mix(in srgb, var(--mw-accent) 12%, var(--mw-btn));
+  border-left-color: var(--mw-accent);
+}
+
+.mw-section:not(.is-closed) > .mw-section-head .mw-group-title {
+  color: var(--mw-fg);
+}
+
+.mw-section-head:hover,
+.mw-section-head:focus-visible {
+  background: rgba(255, 255, 255, 0.12);
+}
+
+.mw-section:not(.is-closed) > .mw-section-head:hover,
+.mw-section:not(.is-closed) > .mw-section-head:focus-visible {
+  background: color-mix(in srgb, var(--mw-accent) 20%, var(--mw-btn));
+}
+
+.mw-section-head:hover .mw-group-title,
+.mw-section-head:hover .mw-section-chevron {
+  color: var(--mw-fg);
+}
+
+.mw-section-head:focus-visible {
+  outline: 2px solid var(--mw-accent);
+  outline-offset: 2px;
+}
+
+.mw-section-chevron {
+  color: var(--mw-fg);
+}
+
+.mw-section-head:focus-visible {
+  outline: 2px solid var(--mw-accent);
+  outline-offset: 2px;
+}
+
+.mw-section-chevron {
+  width: 7px;
+  height: 7px;
+  margin-right: 4px;
+  border-right: 1.5px solid currentColor;
+  border-bottom: 1.5px solid currentColor;
+  transform: translateY(-2px) rotate(45deg);
+  transition: transform 0.15s ease;
+}
+
+.mw-section.is-closed .mw-section-chevron {
+  transform: rotate(-45deg);
+}
+
+.mw-section-body {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding-top: 12px;
+}
+
+/* Checkbox-style on/off rows (controls.tsx CheckToggle). */
+.mw-check-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 18px;
+}
+
+.mw-check {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 32px;
+  font-size: 13px;
+  color: var(--mw-fg);
+  cursor: pointer;
+}
+
+.mw-check input {
+  width: 16px;
+  height: 16px;
+  margin: 0;
+  accent-color: var(--mw-accent);
+  cursor: pointer;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .mw-section-chevron,
+  .mw-section-head {
+    transition: none;
+  }
+}
+
+.mw-field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-width: 0;
+}
+
+.mw-field-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 8px;
+}
+
+.mw-value {
+  font-variant-numeric: tabular-nums;
+  color: var(--mw-muted);
+  white-space: nowrap;
+}
+
+.mw-muted {
+  color: var(--mw-muted);
+  font-size: 12px;
+}
+
+.mw-strong {
+  font-size: 15px;
+  font-weight: 600;
+}
+
+.mw-range {
+  width: 100%;
+  accent-color: var(--mw-accent);
+  margin: 0;
+}
+
+.mw-grid-2 {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+}
+
+.mw-compass-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.mw-compass {
+  width: 56px;
+  height: 56px;
+  flex: none;
+  fill: none;
+  stroke: var(--mw-muted);
+  stroke-width: 1.5;
+}
+
+.mw-compass circle {
+  stroke-opacity: 0.6;
+}
+
+.mw-compass polygon {
+  fill: var(--mw-accent);
+  stroke: none;
+}
+
+.mw-segmented {
+  display: flex;
+  gap: 6px;
+}
+
+.mw-seg,
+.mw-btn,
+.mw-chip,
+.mw-select {
+  font: inherit;
+  color: var(--mw-fg);
+  background: var(--mw-btn);
+  border: 1px solid var(--mw-line);
+  border-radius: 8px;
+  cursor: pointer;
+}
+
+.mw-seg {
+  flex: 1;
+  padding: 6px 4px;
+  font-size: 12px;
+}
+
+.mw-seg.is-active,
+.mw-chip.is-active {
+  background: rgba(232, 131, 58, 0.28);
+  border-color: var(--mw-accent);
+}
+
+.mw-button-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+}
+
+.mw-button-grid-2 {
+  grid-template-columns: 1fr 1fr;
+}
+
+.mw-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  min-height: 40px;
+  padding: 8px;
+  text-align: center;
+  line-height: 1.15;
+}
+
+.mw-btn.is-active {
+  background: rgba(232, 131, 58, 0.28);
+  border-color: var(--mw-accent);
+}
+
+.mw-btn-icon {
+  opacity: 0.8;
+}
+
+.mw-chip-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 6px;
+}
+
+.mw-chip {
+  padding: 6px 4px;
+  font-size: 12px;
+}
+
+/* Chips with a leading icon (roof profile, ui/roofIcons.tsx). */
+.mw-chip-grid .mw-chip:has(.mw-roof-icon) {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
+}
+
+.mw-roof-icon {
+  flex: none;
+}
+
+.mw-select {
+  width: 100%;
+  padding: 7px 28px 7px 8px;
+  /* The drop-down list is drawn by the browser from the select's own colours, so they must be opaque. */
+  color-scheme: dark;
+  background-color: #2a2420;
+  color: var(--mw-fg);
+  appearance: none;
+  -webkit-appearance: none;
+  background-image:
+    linear-gradient(45deg, transparent 50%, var(--mw-muted) 50%),
+    linear-gradient(135deg, var(--mw-muted) 50%, transparent 50%);
+  background-position: calc(100% - 15px) 50%, calc(100% - 10px) 50%;
+  background-size: 5px 5px, 5px 5px;
+  background-repeat: no-repeat;
+}
+
+.mw-select:hover {
+  border-color: var(--mw-accent);
+}
+
+.mw-select option,
+.mw-select optgroup {
+  background-color: #2a2420;
+  color: var(--mw-fg);
+}
+
+.mw-select option:checked {
+  background-color: #4a3526;
+  color: #fff;
+}
+

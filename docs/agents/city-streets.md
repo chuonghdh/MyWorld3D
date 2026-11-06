@@ -77,11 +77,10 @@ Reviewed 2026-11-01 at 02b0cdc
 `npx vitest run tests/streets.test.ts tests/streetDecor.test.ts tests/kerbCorners.test.ts tests/budget.test.ts tests/layoutKey.test.ts tests/blockMerge.test.ts`. No test covers `pavementSurfaces` leaf rest yet.
 
 ## Tuning
-- Rule: a City & Streets knob is a value a designer tunes for feel; geometry and algorithm literals stay in their file. Knobs live in `cityStreets` (src/config/tuning.ts) and are imported; the lab copy is `src/dev/treeCompare/labTuning.ts` (never imports config). Index: [docs/TUNING.md](../TUNING.md).
+- Rule: a City & Streets knob is a value a designer tunes for feel; geometry and algorithm literals stay in their file. Knobs live in `cityStreets` (src/config/tuning/) and are imported; the lab copy is `src/dev/treeCompare/labTuning.ts` (never imports config). Index: [docs/TUNING.md](../TUNING.md).
 - `furniture.ts` `SIGNAL_LAMP_PITCH` stays local.
 - Open: `scene/useTownGreenery.ts` still holds its own `TREE_SCALE` 1.35 (Scene & QA file).
 
-- 2026-11-06 (scene-qa): fountain water clock now reads `runtime.simTime` (core/runtime) in `onBeforeRender`, not `performance.now()`, so it freezes on pause and follows film time in the auto film. Test: `tests/film/simClockVisuals.test.ts`.
 
 ## Update 2026-11-06 (city-streets): street surface wear
 - Self-critique before the change: asphalt was flat #4a4a50 with only about 7 % grain; sidewalks were one uniform pale tone with no joints; lane and crossing paint was perfectly even and crisp.
@@ -122,3 +121,10 @@ Reviewed 2026-11-01 at 02b0cdc
 
 ## Update 2026-11-06 (city-streets): road dirt and lane wear doubled
 - Knob values doubled (defaults only, no shader or geometry change): `roadWornLift` 0.1 to 0.2, `roadOilStain` 0.08 to 0.16, `roadPatchSeam` 0.06 to 0.12, `paintWear` 0.3 to 0.6, `paintFade` 0.06 to 0.12. Sidewalk pavement knobs unchanged. Parity entries, `tests/streetWear.test.ts` expectations and `docs/TUNING.md` rows updated.
+
+## Harness refactor (2026-11-06)
+- Pure moves, no output change. Files over 350 lines split; each former file keeps its exports (barrel `export *` or re-export).
+- `city/generate.ts` (292): `gridLines.ts` (street widths, jittered lines, cells, cut splits, `laneOffsetFor`), `spawnPoints.ts`, `monuments.ts` (`chooseMonuments`, `MONUMENT_SHARE`), `trafficPlan.ts` (`planTraffic`: lights and lane paths).
+- `streets/natureTrees.ts` (136): `natureTypes.ts`, `natureLayout.ts` (slots, `natureItems`), `natureGeometry.ts` (islands, thinning, foliage split, snow caps), `natureLeafMaterial.ts` (variety shader), `natureAsset.ts` (`natureAssetFromGltf`).
+- `streets/surfaces.ts` (149): `surfaceLevels.ts` (heights, `COLORS`), `surfaceRoads.ts` (roads, markings, junction slabs), `surfaceKerbs.ts` (rounded kerbs, sidewalks).
+- `streets/decor.ts` (44): `decorTypes.ts`, `decorFrames.ts` (road frames, obstacles), `decorSolids.ts`, `decorRoads.ts` (decals, tactile bars), `decorFountain.ts`.

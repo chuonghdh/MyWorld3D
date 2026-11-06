@@ -10,7 +10,9 @@
 import * as THREE from 'three';
 import type { CityLayout } from '../city/layout';
 import { FlockSystem, PigeonSystem } from './birds';
-import { ButterflySystem, CatSystem, SquirrelSystem } from './pets';
+import { CatSystem } from './pets';
+import { SquirrelSystem } from './squirrels';
+import { ButterflySystem } from './butterflies';
 import { pushLifeEvent } from './common';
 import type { LifeContext, LifeEvent, LifeQuality, LifeSystem } from './common';
 
