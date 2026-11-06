@@ -10,4 +10,4 @@ Each source folder has one owning specialist, recorded in `docs/agents/README.md
 
 ## Consequences
 - Cross-area work needs a named lead specialist and a brief that lists the files.
-- Ownership is documented, not enforced by a guard. No test checks that a file has an owner (see `docs/HARNESS.md`, known gaps).
+- Ownership is documented, not enforced by a guard. No test checks that a file has an owner (see `harness/README.md`, known gaps).

@@ -13,5 +13,5 @@ Rules that exist only in prose drift. Agents forget them between sessions.
 - Guards are not weakened to pass. Fix the code or record a reasoned exception in the guard file.
 
 ## Consequences
-- A failing guard fails the check. Known gaps are listed in `docs/HARNESS.md`.
+- A failing guard fails the check. Known gaps are listed in `harness/README.md`.
 - Visual quality and frame time are still checked by hand in connected Chrome.

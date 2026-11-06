@@ -17,4 +17,4 @@ Each ADR records one decision: Context, Decision, Consequences. Status is Accept
 | [0011](0011-feedback-loop-hook-check-ci.md) | Feedback loop is a hook, npm run check, and CI | Accepted |
 | [0012](0012-lint-eslint.md) | ESLint; only passing rules are errors | Accepted |
 
-See also: `docs/ARCHITECTURE.md`, `docs/CODING_STANDARDS.md`, `docs/HARNESS.md`.
+See also: `docs/ARCHITECTURE.md`, `docs/CODING_STANDARDS.md`, `harness/README.md`.

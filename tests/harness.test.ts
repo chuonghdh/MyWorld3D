@@ -1,9 +1,9 @@
-// Harness guards: mechanical rules from CLAUDE.md and docs/HARNESS.md. A failure means a rule broke: fix the code.
+// Harness guards: mechanical rules from CLAUDE.md and harness/README.md. A failure means a rule broke: fix the code.
 // Only the size ratchet (OVERSIZED below) may be edited by hand, and only to lower a number or remove an entry.
 // Core/store layering is in layers.test.ts; tuning parity is in tuningParity.test.ts.
 import { describe, expect, it } from 'vitest';
 import claudeMd from '../CLAUDE.md?raw';
-import harnessMd from '../docs/HARNESS.md?raw';
+import harnessMd from '../harness/README.md?raw';
 
 const SOURCES = import.meta.glob('../src/**/*.{ts,tsx}', { query: '?raw', import: 'default', eager: true }) as Record<
   string,
@@ -155,8 +155,8 @@ describe('docs point at real files', () => {
     return hit(p) || (!p.includes('/') && hit('docs/' + p));
   };
 
-  // Every docs/**/*.md (ADRs and architecture included) and AGENTS.md, plus CLAUDE.md and HARNESS.md.
-  const DOC_TEXTS = import.meta.glob(['../docs/**/*.md', '../AGENTS.md'], { query: '?raw', import: 'default', eager: true }) as Record<
+  // Every docs/**/*.md (ADRs and architecture included), harness/**/*.md and AGENTS.md, plus CLAUDE.md and harness/README.md.
+  const DOC_TEXTS = import.meta.glob(['../docs/**/*.md', '../AGENTS.md', '../harness/**/*.md'], { query: '?raw', import: 'default', eager: true }) as Record<
     string,
     string
   >;
@@ -211,5 +211,136 @@ describe('ownership and ADR records', () => {
       return need.map((h) => `${k}: missing ${h}`);
     });
     expect(problems).toEqual([]);
+  });
+});
+
+// Workflow guards: task records, handoff template and the state list (harness/workflows/WORKFLOW.md).
+const TASK_DOCS = import.meta.glob(['../harness/tasks/active/T-*.md', '../harness/tasks/completed/T-*.md'], { query: '?raw', import: 'default', eager: true }) as Record<string, string>;
+const HANDOFF_TEMPLATE = import.meta.glob('../harness/state/handoffs/TEMPLATE.md', { query: '?raw', import: 'default', eager: true }) as Record<
+  string,
+  string
+>;
+const WORKFLOW_DOCS = import.meta.glob('../harness/workflows/WORKFLOW.md', { query: '?raw', import: 'default', eager: true }) as Record<string, string>;
+const TASK_STATES = ['proposed', 'assigned', 'in_progress', 'verifying', 'done', 'blocked', 'cancelled'];
+
+/** Front matter as key to value pairs, or null when the file does not open with a `---` block. */
+function frontMatter(text: string): Record<string, string> | null {
+  const lines = text.split('\n');
+  if (lines[0].trim() !== '---') return null;
+  const end = lines.indexOf('---', 1);
+  if (end < 0) return null;
+  const out: Record<string, string> = {};
+  for (const line of lines.slice(1, end)) {
+    const i = line.indexOf(':');
+    if (i > 0) out[line.slice(0, i).trim()] = line.slice(i + 1).trim();
+  }
+  return out;
+}
+
+/** Text of one `## heading` section (up to the next `## ` heading). */
+function sectionOf(text: string, heading: string): string | null {
+  const lines = text.split('\n');
+  const start = lines.findIndex((l) => l.startsWith('## ' + heading));
+  if (start < 0) return null;
+  const next = lines.findIndex((l, i) => i > start && l.startsWith('## '));
+  return lines.slice(start + 1, next < 0 ? undefined : next).join('\n');
+}
+
+describe('workflow records', () => {
+  it('every task record has front matter (id, title, status, owner, branch, created) and the four sections', () => {
+    expect(Object.keys(TASK_DOCS).length).toBeGreaterThan(0);
+    const problems: string[] = [];
+    for (const [key, text] of Object.entries(TASK_DOCS)) {
+      const name = key.split('/').pop() ?? '';
+      const fm = frontMatter(text);
+      if (!fm) {
+        problems.push(`${name}: no front matter`);
+        continue;
+      }
+      if (fm.id !== name.replace(/\.md$/, '')) problems.push(`${name}: id "${fm.id}" does not match file name`);
+      for (const k of ['title', 'owner', 'branch']) if (!fm[k]) problems.push(`${name}: missing ${k}`);
+      if (!TASK_STATES.includes(fm.status ?? '')) problems.push(`${name}: status "${fm.status}" not one of the seven states`);
+      if (!/^\d{4}-\d{2}-\d{2}$/.test(fm.created ?? '')) problems.push(`${name}: created must be YYYY-MM-DD`);
+      for (const s of ['Spec', 'Acceptance', 'Checkpoints', 'Handoff']) if (sectionOf(text, s) === null) problems.push(`${name}: missing section ${s}`);
+    }
+    expect(problems).toEqual([]);
+  });
+
+  it('a task with status done has no unchecked acceptance item', () => {
+    const problems: string[] = [];
+    for (const [key, text] of Object.entries(TASK_DOCS)) {
+      const fm = frontMatter(text);
+      if (fm?.status !== 'done') continue;
+      const open = (sectionOf(text, 'Acceptance') ?? '').split('\n').filter((l) => l.trim().startsWith('- [ ]'));
+      for (const l of open) problems.push(`${key.split('/').pop()}: ${l.trim()}`);
+    }
+    expect(problems).toEqual([]);
+  });
+
+  it('the handoff template has the sections Next step, Open questions, Verified and Not verified', () => {
+    const text = Object.values(HANDOFF_TEMPLATE)[0] ?? '';
+    const missing = ['Next step', 'Open questions', 'Verified', 'Not verified'].filter((h) => sectionOf(text, h) === null);
+    expect(Object.keys(HANDOFF_TEMPLATE)).toHaveLength(1);
+    expect(missing).toEqual([]);
+  });
+
+  it('WORKFLOW.md names all seven task states', () => {
+    const tokens = new Set((Object.values(WORKFLOW_DOCS)[0] ?? '').toLowerCase().split(/[^a-z_]+/));
+    const missing = TASK_STATES.filter((s) => !tokens.has(s));
+    expect(Object.keys(WORKFLOW_DOCS)).toHaveLength(1);
+    expect(missing).toEqual([]);
+  });
+});
+
+// Harness structure and config guards (harness/README.md). Scripts named in harness/, docs/ or CLAUDE.md must exist.
+const HARNESS_FILES = import.meta.glob(['../harness/**/*', '../harness/**/.gitkeep'], { query: '?raw', import: 'default', eager: true }) as Record<string, string>;
+const DOCS_ALL = import.meta.glob('../docs/**/*.md', { query: '?raw', import: 'default', eager: true }) as Record<string, string>;
+
+describe('harness structure', () => {
+  const REQUIRED_DIRS = [
+    'tasks/backlog',
+    'tasks/active',
+    'tasks/completed',
+    'state/handoffs',
+    'workflows',
+    'config',
+    'scripts',
+    'runs',
+    'evals/regression',
+    'evals/test-cases',
+  ];
+
+  it('harness/ has every required folder with at least one file', () => {
+    const keys = Object.keys(HARNESS_FILES);
+    const missing = REQUIRED_DIRS.filter((d) => !keys.some((k) => k.startsWith(`../harness/${d}/`)));
+    expect(missing).toEqual([]);
+  });
+
+  it('config/policies.json and config/quality-gates.json parse as JSON', () => {
+    const problems = ['policies.json', 'quality-gates.json'].flatMap((f) => {
+      const text = HARNESS_FILES[`../harness/config/${f}`];
+      if (text === undefined) return [`${f}: missing`];
+      try {
+        JSON.parse(text);
+        return [];
+      } catch (e) {
+        return [`${f}: ${(e as Error).message}`];
+      }
+    });
+    expect(problems).toEqual([]);
+  });
+
+  it('every script named in harness/, docs/ or CLAUDE.md exists in harness/scripts/', () => {
+    const scripts = new Set(
+      Object.keys(HARNESS_FILES)
+        .filter((k) => k.startsWith('../harness/scripts/'))
+        .map((k) => k.split('/').pop()),
+    );
+    const named = new Set<string>();
+    for (const t of [...Object.values(HARNESS_FILES), ...Object.values(DOCS_ALL), claudeMd]) {
+      for (const m of t.matchAll(/harness\/scripts\/([\w.-]+\.mjs)/g)) named.add(m[1]);
+    }
+    const missing = [...named].filter((n) => !scripts.has(n));
+    expect(missing).toEqual([]);
   });
 });

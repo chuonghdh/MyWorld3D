@@ -2,11 +2,12 @@
 Stack: Vite, TS, Three.js, R3F, zustand, vitest.
 
 ## Context (Read First)
-- Harness (how rules are enforced, guards, ratchets): `docs/HARNESS.md`
+- Harness (how rules are enforced, guards, ratchets): `harness/README.md`
 - Map: `docs/REPO_MAP.md`
 - Agents: `docs/agents/README.md` -> specialist handbook
 - Audio: `docs/AUDIO.md`
 - Tuning index: `docs/TUNING.md`
+- Workflow (task states, checkpoints, handoff, approval gates): `harness/workflows/WORKFLOW.md`
 
 ## Rules
 - Chat: VI. Code/Docs/Commits: EN.

@@ -12,4 +12,4 @@ Large files are hard for agents to edit safely and drift into mixed responsibili
 
 ## Consequences
 - Splitting is part of a feature task when the file is touched.
-- The ratchet covers `.ts` and `.tsx` only. CSS (`src/ui/panels.css`) is not guarded (see `docs/HARNESS.md`).
+- The ratchet covers `.ts` and `.tsx` only. CSS (`src/ui/panels.css`) is not guarded (see `harness/README.md`).

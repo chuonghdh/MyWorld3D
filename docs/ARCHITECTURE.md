@@ -36,7 +36,7 @@ From bottom to top. A layer may import only the layers below it (enforced by `te
 - Triangle, shadow and draw-call limits are guarded by `tests/budget.test.ts`. The values are not restated here; read the test and the Scene & QA handbook (`docs/agents/scene-qa.md`).
 - Repeated parts use instanced meshes. New meshes count against the draw-call limit.
 - Targets and asset rules: `docs/agents/architect.md` (performance standards, asset pipelines).
-- Frame time and visual quality are checked by hand in connected Chrome (`docs/HARNESS.md`, known gaps).
+- Frame time and visual quality are checked by hand in connected Chrome (`harness/README.md`, known gaps).
 
 ## Links
 
@@ -44,5 +44,5 @@ From bottom to top. A layer may import only the layers below it (enforced by `te
 - Owners and handbooks: `docs/agents/README.md`, `docs/agents/architect.md`
 - Tuning: `docs/TUNING.md`, `docs/adr/0003-tuning-knobs-in-config.md`
 - Audio: `docs/AUDIO.md`
-- Harness and guards: `docs/HARNESS.md`
+- Harness and guards: `harness/README.md`
 - Coding rules: `docs/CODING_STANDARDS.md`

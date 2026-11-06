@@ -1,0 +1,83 @@
+{
+  "version": 1,
+  "description": "Gate commands, run in order by harness/scripts/verify.mjs. Equivalent to npm run check (tsc, lint, vitest, build).",
+  "gates": [
+    {
+      "id": "typecheck",
+      "command": "npx tsc --noEmit"
+    },
+    {
+      "id": "lint",
+      "command": "npm run lint"
+    },
+    {
+      "id": "test",
+      "command": "npx vitest run"
+    },
+    {
+      "id": "build",
+      "command": "npx vite build"
+    }
+  ],
+  "knownFlakes": [
+    {
+      "test": "pedestrian timing test (name in CLAUDE.md QA section)",
+      "action": "Rerun the failing file alone: npx vitest run <file>. Report as flake only if it passes solo."
+    }
+  ],
+  "acceptance": [
+    {
+      "changeType": "feature",
+      "scope": "src/** behaviour, visuals, sound",
+      "commands": [
+        "npm run check",
+        "rerun a flaky test alone: npx vitest run <file>"
+      ],
+      "humanChecks": [
+        "Visual: day and night, the touched view",
+        "Audio: the touched system",
+        "Browser: no new console errors",
+        "Perf: no frame-time drop on the seeded city"
+      ]
+    },
+    {
+      "changeType": "refactor",
+      "scope": "behaviour-neutral",
+      "commands": [
+        "npm run check",
+        "compare a seeded hash or layout key before and after where tests have one"
+      ],
+      "humanChecks": [
+        "Visual: one screenshot of the same view before and after, identical"
+      ]
+    },
+    {
+      "changeType": "docs",
+      "scope": "docs/**, CLAUDE.md, AGENTS.md, harness/**",
+      "commands": [
+        "npx vitest run tests/harness.test.ts",
+        "node harness/scripts/validate-task.mjs"
+      ],
+      "humanChecks": []
+    },
+    {
+      "changeType": "config_toolchain",
+      "scope": "package.json, vite.config.*, tsconfig*, eslint.config.js",
+      "commands": [
+        "npm run check",
+        "npm run dev starts"
+      ],
+      "humanChecks": [
+        "Browser: app loads at the dev URL with no console errors",
+        "Build output opens"
+      ]
+    }
+  ],
+  "rules": [
+    "A change of a tuned value needs its docs/TUNING.md row and a tests/tuningParity.test.ts entry.",
+    "A new file over 350 lines fails the guard; split it, do not raise the limit.",
+    "Decisions that change a rule get a new ADR under docs/adr/.",
+    "Commit and push only on the user's request (docs/adr/0008-commit-and-branch-workflow.md)."
+  ],
+  "printRule": "Print only failures."
+}

@@ -70,3 +70,19 @@ To shrink a file, split it by responsibility (no behaviour change) and lower or 
 - Audio is checked by tests and by ear. No automated loudness check.
 - CSS size is not guarded (`src/ui/panels.css`, 1247 lines). Vite returns processed CSS for `?raw`, so line counts are not reliable from the test. Split it by panel when next touched.
 - Owner files: `docs/agents/README.md` lists owners. No guard checks that a file has an owner yet.
+
+## Layout
+
+| Path | Role |
+|---|---|
+| `harness/README.md` | This file: guards, enforcement, known gaps |
+| `harness/config/policies.json` | Task states, transitions, retry policy, approval gates (data) |
+| `harness/config/quality-gates.json` | Gate commands in order, acceptance rules by change type (data) |
+| `harness/workflows/` | WORKFLOW.md (lifecycle), feature-development, bug-fix, release |
+| `harness/tasks/` | Task records: backlog, active, completed; TEMPLATE.md |
+| `harness/state/` | Handoffs (`handoffs/`) and what state means (`README.md`) |
+| `harness/scripts/` | verify.mjs (gates, failures only), collect-evidence.mjs, validate-task.mjs |
+| `harness/runs/` | Result file per verify run (not committed) |
+| `harness/evals/` | Regression and test-case folders (empty) |
+
+Human summary of acceptance: `docs/ACCEPTANCE.md`. Architecture and coding rules stay in `docs/`.

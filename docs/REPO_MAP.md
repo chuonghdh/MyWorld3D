@@ -30,7 +30,7 @@ Barrel = a file that only re-exports its parts (`export * from`); import the bar
 | `src/film` | Video film: clock, fixed-step driver, auto path run, recorder and encoder, audio snapshot, loop hold, canvas resize bridge | `autoPath.ts`, `autoRun.ts`, `filmClock.ts`, `fixedStep.ts`, `loopHold.ts`, `recorder.ts`, `autoEncoder.ts`, `audioSnapshot.ts`, `resizeBridge.ts` | UI & Camera (clock, path); Scene & QA (recorder, loop hold); Audio (snapshot) |
 | `src/config` | Tunable values only: one file per section under `src/config/tuning/`, index re-exports; parity guard in `tests/tuningParity.test.ts` | `src/config/tuning/index.ts` and section files | Technical Architect (each section owned by its specialist) |
 | `tests` | Vitest suites, one file per area; harness guards (dependency direction, determinism, file-size ratchet, docs links) | `helpers/fakeAudio.ts`, `helpers/cityBuild.ts`, `helpers/geometryAudit.ts`, `budget.test.ts`, `harness.test.ts` | Owner of the area under test (`harness.test.ts`: Technical Architect) |
-| `docs` | Product and design docs, audio and agent handbooks, harness rules | `BRD.md`, `DESIGN-3D.md`, `REVIEW-01.md`, `AUDIO.md`, `REPO_MAP.md`, `HARNESS.md`, `agents/` | Scene & QA |
+| `docs` | Product and design docs, audio and agent handbooks, harness rules | `BRD.md`, `DESIGN-3D.md`, `REVIEW-01.md`, `AUDIO.md`, `REPO_MAP.md`, `harness/README.md`, `agents/` | Scene & QA |
 
 ## Common questions: where to look
 
