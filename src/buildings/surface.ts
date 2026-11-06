@@ -9,7 +9,7 @@
 export const SURFACE = {
   /** Flat colour, no pattern. Also the default for geometry without the attribute. */
   PLAIN: 0,
-  /** Running-bond brick, 0.215 x 0.065 m with 10 mm joints; a few bricks lighter, darker or slightly off-line. */
+  /** Running-bond brick, 0.48375 x 0.14625 m (2.25x the original size) with 4 mm joints; a few bricks lighter, darker or slightly off-line. */
   BRICK: 1,
   /** Curved clay roof tiles in overlapping rows (~0.30 x 0.40 m), per-tile tone variation. */
   TILE_TERRACOTTA: 2,
@@ -33,6 +33,8 @@ export const SURFACE = {
   ZINC_AGED: 11,
   /** Flat roof membrane: fine gravel, tar and bitumen patches, membrane seams every 3 m, faint drainage scuffs. */
   ROOF_FLAT: 12,
+  /** Window trims, sills and lintels: patchy mould and stains, darker top faces where rain pools. */
+  TRIM_AGED: 13,
 } as const;
 
 export type SurfaceId = (typeof SURFACE)[keyof typeof SURFACE];

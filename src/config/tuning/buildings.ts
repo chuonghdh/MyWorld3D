@@ -28,6 +28,10 @@ export const buildings = {
   roofMossAmount: 0.9,
   /** House wall weathering (grime, rain streaks, damp, chipping, sun fade), 0-1. Shader uniform uWallWeather (materials.ts). */
   wallWeatheringAmount: 0.6,
+  /** Window trim, sill and lintel ageing: mould and stains on the faces, 0-1. Shader uniform uTrimAge (materials.ts). */
+  trimAgeAmount: 0.84,
+  /** Darkening of the upward faces of window trims (rain pools), 0-1. Shader uniform uTrimTop (materials.ts). */
+  trimTopDarken: 0.6,
   /** House preset choices, in panel order (store and buildings re-export). */
   housePresets: [
     'as-block',

@@ -218,6 +218,8 @@ const VALUES: Entry[] = [
   { id: 'glass tower max floors', file: CONFIG_FILE, name: 'glassTowerMaxFloors', value: '12' },
   { id: 'roof moss amount', file: CONFIG_FILE, name: 'roofMossAmount', value: '0.9' },
   { id: 'wall weathering amount', file: CONFIG_FILE, name: 'wallWeatheringAmount', value: '0.6' },
+  { id: 'trim age amount', file: CONFIG_FILE, name: 'trimAgeAmount', value: '0.84' },
+  { id: 'trim top darken', file: CONFIG_FILE, name: 'trimTopDarken', value: '0.6' },
   { id: 'floor range by street class', file: CONFIG_FILE, name: 'floorRange', value: '{ avenue: [5, 7], street: [3, 6] }' },
   // 9. UI & Camera (step 3): store defaults and slider ranges, now in config uiCamera
   { id: 'default seed', file: CONFIG_FILE, name: 'defaultSeed', value: '1' },

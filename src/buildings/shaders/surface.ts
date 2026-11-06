@@ -30,6 +30,8 @@ varying vec3 vObjNormal;
 float gSurfH;
 uniform float uRoofMoss;
 uniform float uWallWeather;
+uniform float uTrimAge;
+uniform float uTrimTop;
 
 float hash12(vec2 p) {
   vec3 p3 = fract(vec3(p.xyx) * 0.1031);
@@ -57,9 +59,9 @@ float cellFade(float cell, float px) {
   return smoothstep(1.5, 3.0, cell / max(px, 1e-5));
 }
 
-// Running-bond brick 0.215 x 0.065 m, 8 mm joints, low-contrast mortar (fine joints read at 5 m).
+// Running-bond brick 0.48375 x 0.14625 m (2.25x the original 0.215 x 0.065 m), 4 mm joints, low-contrast mortar. Used only by SURFACE.BRICK.
 vec3 patBrick(vec3 c, vec2 p, float px, out float h) {
-  vec2 sz = vec2(0.215, 0.065);
+  vec2 sz = vec2(0.48375, 0.14625);
   float row = floor(p.y / sz.y);
   float cu = p.x / sz.x + 0.5 * mod(row, 2.0);
   vec2 cell = vec2(floor(cu), row);
@@ -227,6 +229,20 @@ vec3 patWallWeather(vec3 c, vec2 p, float wy, vec3 nrm, float px, float amt) {
   return r;
 }
 
+// Window trims, sills and lintels. amt = uTrimAge (mould and stains on the faces), top = uTrimTop (how much darker
+// the upward faces are, where rain pools). nrm is the object normal; faces with nrm.y near 1 count as tops.
+vec3 patTrimAged(vec3 c, vec2 p, vec3 nrm, float amt, float top) {
+  float up = smoothstep(0.6, 0.9, nrm.y);
+  float mottle = vnoise(p * 4.0 + 3.0);
+  float mould = smoothstep(0.55, 0.8, mottle);
+  float blotch = smoothstep(0.5, 0.75, vnoise(p * 0.9 + 6.0));
+  float stain = smoothstep(0.6, 0.85, vnoise(vec2(p.x * 12.0, p.y * 0.4)));
+  vec3 mouldCol = c * vec3(0.62, 0.68, 0.58);
+  vec3 r = mix(c, mouldCol, amt * (0.30 * mould + 0.25 * blotch + 0.35 * up * blotch));
+  r *= 1.0 - amt * 0.12 * stain * (0.5 + up);
+  return r * (1.0 - top * up);
+}
+
 // Weathered roofs (cathedral): the slate or zinc pattern, then moss and lichen toward the eaves and on
 // the north-facing side (object frame), soft streaks down the slope, and a faded, warmer upper slope.
 // wy is the object-space height (m), nrm the object-space normal.
@@ -335,6 +351,7 @@ gSurfH = 0.0;
     else if (vSurface < 10.5) sc = patSlateAged(sc, sp, vObjPos.y, sn, surfPx, sh);
     else if (vSurface < 11.5) sc = patZincAged(sc, sp, vObjPos.y, sn, surfPx, sh);
     else if (vSurface < 12.5) sc = patRoofFlat(sc, sp, surfPx, sh);
+    else if (vSurface < 13.5) sc = patTrimAged(sc, sp, sn, uTrimAge, uTrimTop);
     // House roofs (tile, slate, zinc, membrane): moss and lichen. Zinc takes less, the membrane less again.
     // House walls (brick, timber, stucco, stone, concrete): weathering layer.
     if (vSurface < 1.5 || vSurface > 3.5 && vSurface < 7.5) {

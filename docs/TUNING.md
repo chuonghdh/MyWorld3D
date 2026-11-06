@@ -252,6 +252,8 @@ Master and category defaults are set in the mixer; category list is in `src/audi
 |---|---|---|---|---|---|
 | Floors, min | 2 | floors | Minimum floors of a house | src/config/tuning/buildings.ts (`buildings.minFloors`); HousePanel slider src/ui/HousePanel.tsx:102 | Buildings / UI & Camera |
 | Floors, max | 8 | floors | Maximum floors of a house | src/config/tuning/buildings.ts (`buildings.maxFloors`); HousePanel slider src/ui/HousePanel.tsx:103 | Buildings / UI & Camera |
+| Trim age amount | 0.84 | 0-1 | Mould and stains on window trims, sills and lintels | src/config/tuning/buildings.ts (`buildings.trimAgeAmount`), uniform in src/buildings/materials.ts | Buildings |
+| Trim top darken | 0.6 | 0-1 | Darkening of the upward faces of window trims where rain pools | src/config/tuning/buildings.ts (`buildings.trimTopDarken`), uniform in src/buildings/materials.ts | Buildings |
 | Wall weathering amount | 0.6 | 0-1 | Grime, rain streaks, damp, chipping and sun fade on house walls (brick, stone, stucco, concrete, timber); cathedral keeps its own | src/config/tuning/buildings.ts (`buildings.wallWeatheringAmount`), shader uniform in src/buildings/materials.ts | Buildings |
 | Roof moss amount | 0.9 | 0-1 | Moss and lichen strength on house roofs (tiles, slate, zinc, flat membrane); cathedral roofs keep their own | src/config/tuning/buildings.ts (`buildings.roofMossAmount`), shader uniform in src/buildings/materials.ts | Buildings |
 | Floors, glass tower max | 12 | floors | Maximum floors of a glass tower (other presets keep the max above) | src/config/tuning/buildings.ts (`buildings.glassTowerMaxFloors`), `maxFloorsFor` in src/buildings/facade/layout.ts | Buildings |
