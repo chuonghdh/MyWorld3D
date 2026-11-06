@@ -5,6 +5,8 @@ export {
   defaultHouseParams,
   houseFootprint,
   houseHeight,
+  presetHasShutters,
+  presetDefaultShutter,
   resolvePreset,
   FALLBACK_PRESET,
   HOUSE_PRESETS,
@@ -29,3 +31,5 @@ export {
   SHOPFRONT_COLORS,
 } from './palette';
 export type { WallColorName, ShutterColorName } from './palette';
+
+export { buildHousePreview, housePreviewBounds, disposeHousePreview, PREVIEW_FLOORS, PREVIEW_SEED } from './preview';

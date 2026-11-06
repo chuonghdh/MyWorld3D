@@ -162,39 +162,7 @@ export function Select<T extends string>({
   );
 }
 
-export function Swatches({
-  label,
-  colors,
-  value,
-  onChange,
-}: {
-  label: string;
-  colors: readonly string[];
-  value: string;
-  onChange: (c: string) => void;
-}) {
-  return (
-    <div className="mw-field">
-      <div className="mw-field-head">
-        <span>{label}</span>
-        <span className="mw-value">{value}</span>
-      </div>
-      <div className="mw-swatches" role="group" aria-label={label}>
-        {colors.map((c) => (
-          <button
-            key={c}
-            type="button"
-            className={c === value ? 'mw-swatch is-active' : 'mw-swatch'}
-            style={{ background: c }}
-            aria-label={`${label} ${c}`}
-            aria-pressed={c === value}
-            onClick={() => onChange(c)}
-          />
-        ))}
-      </div>
-    </div>
-  );
-}
+export { Swatches, SwatchGroup } from './Swatches';
 
 /** The two side panels: city settings, and the selected house or monument. Only one is open at a time. */
 export type PanelId = 'settings' | 'selection';

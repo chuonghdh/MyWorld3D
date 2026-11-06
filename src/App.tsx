@@ -19,6 +19,7 @@ import { BlockEditor } from './scene/BlockEditor';
 import { PostFX } from './scene/PostFX';
 import { ScreenshotRequest } from './scene/ScreenshotRequest';
 import { FirstFrame } from './scene/FirstFrame';
+import { HouseThumbRenderer } from './scene/HouseThumbRenderer';
 import { getLightingForTime } from './environment';
 
 // Scene shell: the 3D town fills the screen, the city settings sit on the right,
@@ -178,6 +179,7 @@ export function App() {
         <PostFX tiltShift={toggles.tiltShift} night={night} bloomScale={preset.bloom} msaa={preset.msaa} />
         <ScreenshotRequest />
         <FirstFrame />
+        <HouseThumbRenderer />
       </Canvas>
 
       {/* Centred on the full screen width; below 1280 px it shrinks to icons so it clears the side panels. */}

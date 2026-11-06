@@ -58,6 +58,8 @@ export interface PresetSpec {
   defaultWall: string;
   modernWall: string;
   defaultShutter: string | null;
+  /** Shutter used when a classic preset without its own shutters is given some (picked on a bare lot). Default: none. */
+  fillShutter?: string;
   defaultGround: GroundFloorUse;
   /** Upper floor height. */
   floorH: number;
@@ -98,6 +100,7 @@ export const SPECS: Record<ConcretePreset, PresetSpec> = {
     defaultWall: BRICK_COLORS.red,
     modernWall: '#6e3a2c',
     defaultShutter: null,
+    fillShutter: SHUTTER_COLORS.sage,
     defaultGround: 'residential',
     floorH: 3.3,
     bay: 2.0,
@@ -183,6 +186,7 @@ export const SPECS: Record<ConcretePreset, PresetSpec> = {
     defaultWall: BRICK_COLORS.brown,
     modernWall: '#7d4a36',
     defaultShutter: null,
+    fillShutter: SHUTTER_COLORS.grey,
     defaultGround: 'residential',
     floorH: 3.3,
     bay: 2.3,
@@ -200,6 +204,7 @@ export const SPECS: Record<ConcretePreset, PresetSpec> = {
     defaultWall: '#b5533c',
     modernWall: '#34322f',
     defaultShutter: null,
+    fillShutter: SHUTTER_COLORS.cream,
     defaultGround: 'residential',
     floorH: 2.9,
     bay: 2.4,

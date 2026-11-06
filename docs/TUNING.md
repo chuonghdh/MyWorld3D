@@ -342,6 +342,18 @@ Test thresholds: change only when the scene change is intended. Raising a budget
 | Auto cruise clearance | 15 | m | Height above the highest roof kept by the cruise and perch flight. ESTIMATE, measure in P6 | src/config/tuning/film.ts (`film.cruiseClearanceM`) | Scene & QA |
 | Auto street clearance | 3 | m | Lateral distance from building walls for the descent street choice. ESTIMATE, measure in P6 | src/config/tuning/film.ts (`film.streetClearanceM`) | Scene & QA |
 
+## 12. House type thumbnails (House panel carousel)
+
+| Parameter | Current value | Unit/range | What it controls | File:line (constant) | Owner |
+|---|---|---|---|---|---|
+| Thumbnail size | 256 | px (square) | Render size of one house type picture (about 2x the shown icon) | src/config/tuning/sceneQa.ts (`sceneQa.houseThumbs.thumbSizePx`) | Scene & QA |
+| Thumbnail margin | 1.12 | factor (1 = tight) | Empty space around the house in the picture | src/config/tuning/sceneQa.ts (`sceneQa.houseThumbs.thumbMargin`) | Scene & QA |
+| Thumbnail view angle | 35 | degrees | Camera angle around the house from the front (3/4 view) | src/config/tuning/sceneQa.ts (`sceneQa.houseThumbs.thumbAzimuthDeg`) | Scene & QA |
+| Thumbnail view height | 18 | degrees | Camera angle above the horizon | src/config/tuning/sceneQa.ts (`sceneQa.houseThumbs.thumbElevationDeg`) | Scene & QA |
+| Thumbnail field of view | 28 | degrees | Thumbnail camera vertical field of view | src/config/tuning/sceneQa.ts (`sceneQa.houseThumbs.thumbFovDeg`) | Scene & QA |
+| Thumbnail key light | 3 | intensity | Warm key light of the thumbnail scene | src/config/tuning/sceneQa.ts (`sceneQa.houseThumbs.thumbKeyIntensity`) | Scene & QA |
+| Thumbnail fill light | 1.6 | intensity | Sky and ground fill light of the thumbnail scene | src/config/tuning/sceneQa.ts (`sceneQa.houseThumbs.thumbFillIntensity`) | Scene & QA |
+
 ## Not yet tunable (hardcoded)
 
 Values buried in code with no named constant or config entry. Changing them is not a one-line edit; the owner must add a constant first.

@@ -541,4 +541,25 @@ describe('film path knobs in config (video P5)', () => {
   });
 });
 
+/** House type thumbnail knobs (House panel carousel): config value, and the renderer reads the config object. */
+const SCENE_QA_FILE = 'src/config/tuning/sceneQa.ts';
+const HOUSE_THUMB_KNOBS: Entry[] = [
+  { id: 'house thumb size', file: SCENE_QA_FILE, name: 'thumbSizePx', value: '256' },
+  { id: 'house thumb margin', file: SCENE_QA_FILE, name: 'thumbMargin', value: '1.12' },
+  { id: 'house thumb azimuth', file: SCENE_QA_FILE, name: 'thumbAzimuthDeg', value: '35' },
+  { id: 'house thumb elevation', file: SCENE_QA_FILE, name: 'thumbElevationDeg', value: '18' },
+  { id: 'house thumb fov', file: SCENE_QA_FILE, name: 'thumbFovDeg', value: '28' },
+  { id: 'house thumb key light', file: SCENE_QA_FILE, name: 'thumbKeyIntensity', value: '3' },
+  { id: 'house thumb fill light', file: SCENE_QA_FILE, name: 'thumbFillIntensity', value: '1.6' },
+];
+
+describe('house thumbnail knobs in config', () => {
+  it.each(HOUSE_THUMB_KNOBS.map((e) => [e.name, e] as const))('config value: %s', (_name, e) => {
+    expect(propValue(SCENE_QA_FILE, e.name)).toBe(e.value);
+  });
+  it.each(HOUSE_THUMB_KNOBS.map((e) => [e.name, e] as const))('renderer reads config: %s', (_name, e) => {
+    expect(norm(source('src/scene/HouseThumbRenderer.tsx'))).toContain(`.${e.name}`);
+  });
+});
+
 export const ASSERTED_VALUE_COUNT = VALUES.length + FRAGMENTS.length + LAB_MIRROR.length + DUPLICATE_LISTS.length + 1;

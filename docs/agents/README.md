@@ -60,3 +60,5 @@ Owns / Key files / Conventions / Traps (what bit us, why) / Decisions (and the r
 - Visual motion uses sim time only (see architect.md, 2026-11-06). Canvas `frameloop` is a controlled prop (`src/film/loopHold.ts`).
 - Dev check of the R3F loop: `window.__r3f` is a snapshot from `onCreated`; read live state with `window.__r3f.get()`.
 - UI changes today (owner UI & Camera, see ui-camera.md): film picker is "Follow You" / "Follow a Bird" + Record; Settings panel cleanup, collapsible sections, Golden Hour button.
+- Vite stale module (2026-11-06): the dev server kept serving an old `HousePanel.tsx` after an agent edit, so the user saw a fixed bug. Check with `fetch('/src/<file>').then(r => r.text())` in the page; fix by touching the changed files (or restarting Vite), then the user reloads.
+- Ownership rule (2026-11-06, user): every file change goes to the owner of its directory, even a small helper. Notes go only in the owner's handbook. Reason: cross-owner edits scatter notes across handbooks and make later fixes read many .md files (more tokens).

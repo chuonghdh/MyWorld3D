@@ -32,6 +32,16 @@ export const SHUTTER_COLORS = {
   oxblood: '#7a2e2a',
   cream: '#e9dcc0',
   grey: '#6c7378',
+  // Appended 2026-11-06: keep the five above first and in order (saved overrides and defaults index them).
+  deepGreen: '#2f4a36',
+  olive: '#6b6a3a',
+  navy: '#2b3a55',
+  duckEgg: '#7fa6a0',
+  burgundy: '#5e2230',
+  ochre: '#c4943a',
+  white: '#f2f0ea',
+  charcoal: '#3a3c3e',
+  wood: '#7a5636',
 } as const;
 
 export type ShutterColorName = keyof typeof SHUTTER_COLORS;

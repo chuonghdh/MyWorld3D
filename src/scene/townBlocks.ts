@@ -1,7 +1,7 @@
 // Block pieces of the town: types and pure helpers for placing, building parameters and picking.
 import * as THREE from 'three';
 import type { Block, CityLayout, Lot, Rect } from '../city';
-import { defaultHouseParams, type HouseParams } from '../buildings';
+import { defaultHouseParams, presetDefaultShutter, presetHasShutters, type HouseParams } from '../buildings';
 import type { HouseOverride } from '../store';
 import type { MonumentKind } from '../core/types';
 import { blockPresetFor, lotStyle } from './cityStyle';
@@ -73,15 +73,17 @@ export function houseParamsFor(lot: Lot, blockId: string, ov: HouseOverride): Ho
   const style = lotStyle(lot, blockPresetFor(styleKeyFor(lot, blockId)));
   const preset = ov.preset && ov.preset !== 'as-block' ? ov.preset : style.preset;
   const defaults = defaultHouseParams(preset, ov.style ?? 'classic');
-  const floors = preset === 'glass-tower' ? Math.max(lot.floors, 7) : lot.floors;
+  // A type the user picked gets shutters when it can carry them, even on a lot whose style has none.
+  // Untouched houses keep the lot's look.
+  const pickedShutter = ov.preset && ov.preset !== 'as-block' && presetHasShutters(preset) ? presetDefaultShutter(preset) : null;
   return {
     ...defaults,
     preset,
-    floors: ov.floors ?? floors,
+    floors: ov.floors ?? lot.floors,
     roof: ov.roof ?? defaults.roof,
     style: ov.style ?? defaults.style,
     wallColor: ov.wallColor ?? style.wallColor,
-    shutterColor: ov.shutterColor ?? style.shutterColor,
+    shutterColor: ov.shutterColor ?? style.shutterColor ?? pickedShutter,
     width: lot.width,
     depth: lot.depth,
     facades: lot.facades,

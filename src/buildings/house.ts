@@ -17,7 +17,7 @@ import {
   offsetPolygon,
   resolvePreset,
 } from './facade/layout';
-import { ROOF_TYPES, SPECS, lookFor, type RoofType } from './facade/presets';
+import { HOUSE_SHUTTER_OPTIONS, ROOF_TYPES, SPECS, lookFor, type FacadeKind, type RoofType } from './facade/presets';
 import { makeRng, hashSeed, pick, chance, range } from './facade/rng';
 import type { Colors, Ctx, HouseChimney } from './facade/parts';
 import { groundFacade } from './facade/ground';
@@ -86,6 +86,20 @@ export function defaultHouseParams(preset: HousePreset, style: HouseStyle = 'cla
     wallColor: modern ? s.modernWall : s.defaultWall,
     shutterColor: modern ? null : s.defaultShutter,
   };
+}
+
+/** Facade kinds that never carry shutters (curtain wall, ribbon windows, raw concrete). */
+const NO_SHUTTER_KINDS: readonly FacadeKind[] = ['tower', 'bauhaus', 'brutalist'];
+
+/** True when the preset's facade can carry shutters (classic style; the modern style never has them). */
+export function presetHasShutters(preset: HousePreset): boolean {
+  return !NO_SHUTTER_KINDS.includes(SPECS[resolvePreset(preset)].kind);
+}
+
+/** The preset's typical shutter colour: its classic shutter, else its fill shutter, else the first house shutter option. */
+export function presetDefaultShutter(preset: HousePreset): string {
+  const s = SPECS[resolvePreset(preset)];
+  return s.defaultShutter ?? s.fillShutter ?? HOUSE_SHUTTER_OPTIONS[0]!;
 }
 
 /** Default footprint in metres (x = width, z = depth) for a preset. */
@@ -202,7 +216,7 @@ export function buildHouse(params: HouseParams): THREE.Group {
     rngGlass,
     look,
     c: colors,
-    hasShutters: colors.shutter !== null && kind !== 'tower' && kind !== 'bauhaus' && kind !== 'brutalist',
+    hasShutters: colors.shutter !== null && !NO_SHUTTER_KINDS.includes(kind),
     wallSurface: WALL_SURFACE[kind],
     roofSurface,
     rngRear: makeRng(hashSeed(seed, lay.preset, 'rear')),
