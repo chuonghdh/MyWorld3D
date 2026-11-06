@@ -167,3 +167,49 @@ describe('docs point at real files', () => {
     expect(missing).toEqual([]);
   });
 });
+
+// Ownership and ADR guards (ADR 0001 ownership, ADR 0009 harness enforcement).
+const OWNERS_DOCS = import.meta.glob(['../docs/agents/*.md', '../docs/REPO_MAP.md'], { query: '?raw', import: 'default', eager: true }) as Record<
+  string,
+  string
+>;
+const ADR_DOCS = import.meta.glob('../docs/adr/[0-9][0-9][0-9][0-9]-*.md', { query: '?raw', import: 'default', eager: true }) as Record<
+  string,
+  string
+>;
+
+describe('ownership and ADR records', () => {
+  const readme = OWNERS_DOCS['../docs/agents/README.md'] ?? '';
+  const repoMap = OWNERS_DOCS['../docs/REPO_MAP.md'] ?? '';
+
+  it('every src folder (except dev) appears in the ownership table or REPO_MAP', () => {
+    const folders = [...new Set([...FILE_SET].filter((f) => f.startsWith('src/') && f.split('/').length > 2).map((f) => f.split('/')[1]))].filter(
+      (f) => f !== 'dev',
+    );
+    const tableRows = `${readme}\n${repoMap}`.split('\n').filter((l) => l.startsWith('|')).join('\n');
+    const missing = folders.filter((f) => !tableRows.includes(`src/${f}`));
+    expect(missing).toEqual([]);
+  });
+
+  it('every handbook linked from the ownership table exists in docs/agents/', () => {
+    const have = new Set(Object.keys(OWNERS_DOCS).map((k) => k.split('/').pop()));
+    const missing = [...readme.matchAll(/\]\(([\w-]+\.md)\)/g)].map((m) => m[1]).filter((l) => !have.has(l));
+    expect(missing).toEqual([]);
+  });
+
+  it('every REPO_MAP owner names a specialist from the ownership table', () => {
+    const specialists = [...readme.matchAll(/^\|\s*\d+\s*\|\s*([^|]+?)\s*\|/gm)].map((m) => m[1]);
+    const rows = repoMap.split('\n').filter((l) => l.startsWith('| `'));
+    const missing = rows.filter((l) => !specialists.some((n) => (l.split('|')[4] ?? '').includes(n))).map((l) => l.split('|')[1]);
+    expect(missing).toEqual([]);
+  });
+
+  it('every ADR has Status, Context, Decision and Consequences', () => {
+    const problems = Object.entries(ADR_DOCS).flatMap(([k, t]) => {
+      const need = ['Context', 'Decision', 'Consequences'].filter((h) => !t.split('\n').some((l) => l.trim() === '## ' + h));
+      if (!/^(##\s+Status\b|Status:)/m.test(t)) need.push('Status');
+      return need.map((h) => `${k}: missing ${h}`);
+    });
+    expect(problems).toEqual([]);
+  });
+});

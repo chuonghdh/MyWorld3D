@@ -5,7 +5,15 @@ Reviewed 2026-11-06. Each rule below is either enforced by a guard or checked by
 ## TypeScript
 
 - `strict`, `noUnusedLocals`, `noUnusedParameters` are on (`tsconfig.json`). Check: `npx tsc --noEmit`.
-- No `any` (`: any` or `as any`) and no `@ts-ignore` or `@ts-expect-error` in `src` or `tests`. Checked by grep on 2026-11-06: none found.
+- No `any` (`: any` or `as any`): enforced by ESLint `@typescript-eslint/no-explicit-any` (error, ADR 0012). No `@ts-ignore` or `@ts-expect-error` in `src` or `tests`: checked by grep on 2026-11-06, none found.
+- Rules of hooks and hook dependencies: ESLint `react-hooks/rules-of-hooks` (error) and `react-hooks/exhaustive-deps` (error). Run `npm run lint`.
+
+## Lint (ESLint, `eslint.config.js`, ADR 0012)
+
+- `npm run lint` = `eslint src tests --max-warnings 0`. It is part of `npm run check`, after `tsc`.
+- Only rules the repo passes are errors. Rules with existing violations are off in the config, with their counts written next to them. Turn a rule on only when its count is zero, in the same change that fixes the violations.
+- Counts on 2026-11-06, for owners to fix: `react-hooks/exhaustive-deps` 3 (`src/App.tsx` 1, `src/scene/Town.tsx` 1, `src/sky/SkyDome.tsx` 1; Scene & QA and Sky & Environment). Unused `eslint-disable` directive 2 (`src/scene/CameraRig.tsx`: UI & Camera; `tests/budget.test.ts`: Scene & QA). Remove the directive when the hook it silences is fixed.
+- Off, pending fixes: `no-unused-vars` and `@typescript-eslint/no-unused-vars` 5 (buildings 1, tests 4), `prefer-const` 4 (buildings 1, life 1, tests 2), `no-useless-assignment` 12 (audio 1, buildings 1, life 3, traffic 1, ui 2, tests 4), `@typescript-eslint/no-unused-expressions` 1 (`src/dev/treeCompare`).
 - Relative imports only inside a layer; cross-layer rules are in ADR 0010 and `tests/layers.test.ts`.
 - Type-only imports from `scene` or `ui` into feature code are also forbidden (`tests/harness.test.ts`).
 

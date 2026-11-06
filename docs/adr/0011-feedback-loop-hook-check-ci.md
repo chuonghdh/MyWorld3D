@@ -7,8 +7,8 @@ The project rule is "run the checks after every change, print only failures". Be
 
 ## Decision
 - PostToolUse hook on `Edit|Write` in `.claude/settings.json`: runs `npx tsc --noEmit` for `.ts`/`.tsx` under `src/` or `tests/`. Silent on success, exit 2 with errors on failure.
-- `npm run check` = `tsc --noEmit && vitest run && vite build`.
-- CI (`.github/workflows/ci.yml`): `npm ci` then `npm run check` on Node 20.
+- `npm run check` = `tsc --noEmit && npm run lint && vitest run && vite build` (lint added by ADR 0012).
+- CI (`.github/workflows/ci.yml`): `npm ci` then `npm run check` on Node 20 (includes lint, ADR 0012).
 - Vitest is not in the hook because the full suite is too slow to run per edit. Measured: `tsc --noEmit` about 8.4 s.
 
 ## Consequences

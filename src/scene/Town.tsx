@@ -55,12 +55,12 @@ export function Town({ onSelect, selected }: { onSelect: (target: OverrideTarget
   const layout = getCityLayout(settings);
   const preset = QUALITY_PRESETS[settings.quality];
 
-  const freshIds = layout.blocks.map((b) => b.id);
+  // Memoised on layout: the ids change exactly when the layout does, so the effect below runs as before.
+  const freshIds = useMemo(() => layout.blocks.map((b) => b.id), [layout]);
   const orderIsFresh = storedBase.length === freshIds.length && freshIds.every((id) => storedBase.includes(id));
   useEffect(() => {
     if (!orderIsFresh) setBlockOrder(freshIds);
-    // freshIds is derived from layout; re-running on layout change is intended.
-  }, [layout, orderIsFresh]);
+  }, [freshIds, orderIsFresh, setBlockOrder]);
 
   const base = orderIsFresh ? storedBase : freshIds;
   const order = orderIsFresh && storedOrder.length === freshIds.length ? storedOrder : base;

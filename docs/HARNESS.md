@@ -18,7 +18,7 @@ mechanical, and make every failure loud and cheap to see.
 | Layer | Where | When it runs | Output on success |
 |---|---|---|---|
 | Edit hook | `.claude/settings.json` (`PostToolUse`, matcher `Edit\|Write`) | After each Edit/Write of a `.ts`/`.tsx` file under `src/` or `tests/`: runs `npx tsc --noEmit` | Silent |
-| Full check | `package.json` script `check` (`tsc --noEmit && vitest run && vite build`) | On demand, before a commit or merge | Silent except the failing step |
+| Full check | `package.json` script `check` (`tsc --noEmit && npm run lint && vitest run && vite build`) | On demand, before a commit or merge | Silent except the failing step |
 | CI | `.github/workflows/ci.yml` | Push and pull request on `dev` and `master`: `npm ci`, then `npm run check` (Node 20, npm cache) | Job log; fails on any step |
 
 - The hook exits 2 on a type error, so the error text goes back to the agent. Other edits (docs, CSS, JSON) do not trigger it.

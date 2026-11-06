@@ -15,5 +15,6 @@ Each ADR records one decision: Context, Decision, Consequences. Status is Accept
 | [0009](0009-harness-enforcement.md) | Rules are enforced by guards, hooks and CI | Accepted |
 | [0010](0010-layering.md) | Dependency layers | Accepted |
 | [0011](0011-feedback-loop-hook-check-ci.md) | Feedback loop is a hook, npm run check, and CI | Accepted |
+| [0012](0012-lint-eslint.md) | ESLint; only passing rules are errors | Accepted |
 
 See also: `docs/ARCHITECTURE.md`, `docs/CODING_STANDARDS.md`, `docs/HARNESS.md`.

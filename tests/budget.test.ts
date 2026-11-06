@@ -262,7 +262,6 @@ describe('render budget (seeded default city)', () => {
   }, 300_000);
 
   it('measures the scene', () => {
-    // eslint-disable-next-line no-console
     console.log('BUDGET', JSON.stringify({ total, blocks, bodyAll, detailMeshes, calls: total.mainMeshes + total.shadowMeshes }));
     expect(total.main).toBeGreaterThan(1_000_000);
   });

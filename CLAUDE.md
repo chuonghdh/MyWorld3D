@@ -23,7 +23,7 @@ Stack: Vite, TS, Three.js, R3F, zustand, vitest.
 - Never weaken a guard test to pass. Fix the code, or record a reasoned exception in the guard file.
 
 ## QA & Terminal
-- CMD: `npm run check` (= `tsc --noEmit`, `vitest run`, `vite build`; rerun pedestrian flake solo). Edit hook runs tsc on `src/`/`tests/` `.ts` edits (`.claude/settings.json`).
+- CMD: `npm run check` (= `tsc --noEmit`, `npm run lint`, `vitest run`, `vite build`; rerun pedestrian flake solo). Edit hook runs tsc on `src/`/`tests/` `.ts` edits (`.claude/settings.json`).
 - TERMINAL RULE: Suppress success logs. Print ONLY failures/summaries to save tokens.
 - Visuals: Built-in pane lacks frame painting. Use connected Chrome or report blind spots.
 

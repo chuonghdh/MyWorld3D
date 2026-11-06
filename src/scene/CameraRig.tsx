@@ -187,7 +187,6 @@ export function CameraRig() {
     };
     controls.addEventListener('start', onStart);
     return () => controls.removeEventListener('start', onStart);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   useFrame((_state, frameDt) => {
