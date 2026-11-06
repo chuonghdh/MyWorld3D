@@ -120,3 +120,25 @@ P1 listener math + smoother (golden test: manual camera poses outside the band u
 - **Knob added:** `film.audioBitrate` = 192000 (TUNING.md row, tuningParity entry).
 - **Quiet auto film (root cause):** the Chrome film peaked at -38.1 dB, mean -58.5 dB. Not a pipeline fault: snapshots, volumes and Sound switch are read correctly, and the tap is wired (`useTownFrame.ts`). The overview listener sits on the ground point the camera looks at, so the sounds are 100 to 300+ m away. The inverse law (`refDistance` 4 m, `maxDistance` 250 m) gives about -36 dB, and zoom attenuation adds about -10 dB at 300 m. The manual film is at ground zoom (about -4 dB).
 - **Fix:** `renderFilmAudio` takes `peakTargetDb`, scales the mix to that peak (one gain), throws on a silent mix. `autoRun` passes `film.audioPeakTargetDb` (-3). Knob row in TUNING.md and tuningParity entry. Expected gain from the measured file: +35 dB. Not verified by a real render.
+
+## Update 2026-11-06 (lead): film time
+- The auto film now really steps the town by 1/fps (frameloop held 'never', 2f99377), so audio snapshots line up with film time. Earlier MP4s had the town on wall time; audio was not re-measured after the fix (open item).
+
+## Update 2026-11-06 (audio): UI panel cues
+- New `src/audio/uiCue.ts` and facade `uiCue(kind: 'open' | 'close')` (exported from `src/audio/index.ts`), for UI & Camera to call on panel and section expand/collapse.
+- Sound: pink noise through a bandpass (Q 1.3) sweeping 650 -> 1700 Hz (open, attack 70 ms, decay 120 ms) or 1400 -> 520 Hz (close, attack 40 ms, decay 140 ms), plus a sine tick (open 1180 Hz at +60 ms, close 820 Hz at +100 ms; 4 ms attack, 50 ms decay, glide down 6 %, gain 0.12 of the swish). Spread per cue: Hz +-6 %, times +-10 %, gains +-15 %. Total about 170-210 ms, all below 2 kHz, linear envelopes from and to zero.
+- Routing: own gain node straight to `ctx.destination`, outside master, limiter and record tap, so cues never reach the manual recording or the offline auto film (that render builds its own context and never calls uiCue). Level = `audio.uiCueLevel` (0.35) x master slider x effects slider. No-op before init, with Sound off, with the context not running, or within `audio.uiCueMinGapS` (0.06 s) of the last cue. Errors are swallowed (one warning).
+- New knobs: `audio.uiCueLevel`, `audio.uiCueMinGapS` (TUNING.md rows, tuningParity entries). No new mixer category: the cue follows the effects slider; a separate UI slider would need a SoundMixer change.
+- Tests: `tests/audioUiCue.test.ts`. Not listened to: level and timbre are unverified by ear.
+
+## Update 2026-11-06 (audio): UI cue redesign, clockwork ratchet
+- User feedback: the swish was too airy. `uiCue` (same API, routing, rate limit, film exclusion) is now a clockwork ratchet; the swish and sine tick are gone.
+- Ticks: `audio.uiCueTicks` (7) white-noise impulses, first to last over `audio.uiCueDurationS` (0.26 s). Each: 1.5 ms attack, 16 ms decay (+-20 %), into three parallel bandpasses: metal 2350 Hz Q 14 (x2.2), metal 3000 Hz Q 18 (x1.1), brass/wood knock 460 Hz Q 5 (x1.6). Tick gain 0.55.
+- Open (winding): each gap 0.86 of the previous (speeds up), pitch +2.5 % per tick. Close (unwinding): gap ratio 1/0.86 (slows down), pitch -2.5 % per tick, last tick is a latch: knock 330 Hz x2.2, metal partials x0.45, 30 ms decay, gain x0.8.
+- Jitter per tick: gaps +-10 %, partial Hz +-3 %, levels +-18 %. Grind: brown noise, bandpass Q 0.9 drifting 150 -> 230 Hz (open) or back (close), 40 ms attack, gain 0.22, ends 60 ms after the last tick.
+- New knobs: `audio.uiCueTicks`, `audio.uiCueDurationS` (TUNING.md rows, tuningParity entries). Partials, ratios and jitter stay local in `src/audio/uiCue.ts`.
+- Not listened to: level, timbre and the band-limited noise loudness (high-Q gains are compensation guesses) are unverified by ear.
+
+## Update 2026-11-06 (audio): single UI tick
+- `uiCue('tick')` for switching house or block with the left panel open: one ratchet tick from the same partials (2350/3000/460 Hz), 1.5 ms attack, 20 ms decay +-10 % (about 20-30 ms with the ring), gain 0.55 x `audio.uiCueTickLevel` (0.75), pitch jitter +-4 % for the whole tick, no grind. Same routing, Sound switch, rate limit and film exclusion.
+- New knob `audio.uiCueTickLevel` (TUNING.md row, tuningParity entry). Not listened to.

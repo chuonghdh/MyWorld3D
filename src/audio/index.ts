@@ -8,8 +8,11 @@ import { SOUND_SYSTEM_FACTORIES } from './systems';
 import { createRecordTap, type RecordTap } from './recordTap';
 import { createMixChain } from './mixChain';
 import { routeFrame } from './route';
+import { playUiCue, uiCueAllowed, uiCueParams, type UiCueKind } from './uiCue';
+import { audio as audioTuning } from '../config/tuning';
 
 export { quietFrame } from './route';
+export type { UiCueKind } from './uiCue';
 
 export type VehicleClass = AudioVehicleClass;
 export type { AudioFrame, SoundSystem, SoundSystemFactory } from './frame';
@@ -29,6 +32,9 @@ let systems: SoundSystem[] = [];
 let limiterNode: DynamicsCompressorNode | null = null;
 let tap: RecordTap | null = null;
 let soundEnabled = true;
+/** Interface cue output: straight to the speakers, outside master, limiter and record tap (never filmed). */
+let uiOut: GainNode | null = null;
+let lastUiCueT = -Infinity;
 /** Volumes requested before init() (or kept across it); applied to the bus on creation. */
 const volumes: VolumeSettings = defaultVolumes();
 const warned = new Set<string>();
@@ -67,6 +73,8 @@ export function init(): boolean {
   ctx = context;
   bus = b;
   limiterNode = mix.limiter;
+  uiOut = context.createGain();
+  uiOut.connect(context.destination);
 
   systems = [];
   for (const make of SOUND_SYSTEM_FACTORIES) {
@@ -77,6 +85,26 @@ export function init(): boolean {
     }
   }
   return true;
+}
+
+/**
+ * Soft interface cue: 'open'/'close' ratchet for a panel or section, 'tick' for a house/block switch. No-op before init(), with the Sound switch
+ * off, while the context is not running, or within `audio.uiCueMinGapS` of the previous cue. Never throws.
+ * Level: `audio.uiCueLevel` x master slider x effects slider. Not in the record stream or the offline film.
+ */
+export function uiCue(kind: UiCueKind): void {
+  try {
+    if (!ctx || !uiOut || !soundEnabled || ctx.state !== 'running') return;
+    const now = ctx.currentTime;
+    if (!uiCueAllowed(now, lastUiCueT, audioTuning.uiCueMinGapS)) return;
+    const level = audioTuning.uiCueLevel * volumes.master * volumes.groups.effects;
+    if (!(level > 0)) return;
+    lastUiCueT = now;
+    uiOut.gain.setValueAtTime(level, now);
+    playUiCue(ctx, uiOut, uiCueParams(kind), now);
+  } catch (err) {
+    warnOnce('uiCue', err);
+  }
 }
 
 export function isReady(): boolean {
@@ -167,6 +195,9 @@ export function dispose(): void {
   tap?.dispose();
   tap = null;
   limiterNode = null;
+  uiOut?.disconnect();
+  uiOut = null;
+  lastUiCueT = -Infinity;
   bus?.dispose();
   bus = null;
   if (ctx) void ctx.close();

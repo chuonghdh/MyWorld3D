@@ -24,14 +24,17 @@ import {
   dirFromYaw,
   easeInOut,
   lerp3,
+  stepViewShift,
   streetStart,
+  viewShiftTarget,
   walkStep,
   wholeMapFraming,
   type CameraPresetId,
+  type ShiftState,
   type V3,
 } from './cameraMath';
 
-import { RIGHT_PANEL_ATTR, measureRightInset } from './cameraDom';
+import { RIGHT_PANEL_ATTR, measureLeftInset, measureRightInset } from './cameraDom';
 import { useCameraInput, type StreetState, type Tween } from './cameraInput';
 
 export { RIGHT_PANEL_ATTR, measureRightInset };
@@ -49,7 +52,9 @@ export function CameraRig() {
   const lastTarget = useRef(new THREE.Vector3());
   // Overview keeps the pivot on the map centre and shifts the picture instead (camera view offset).
   const overviewOn = useRef(false);
-  const viewShift = useRef(-1);
+  // Panel view offset: animated shift (px) and speed, and the w/h/x last given to setViewOffset (null = cleared).
+  const viewShift = useRef<ShiftState>({ x: 0, v: 0 });
+  const viewApplied = useRef<{ w: number; h: number; x: number } | null>(null);
   const ndc = useRef(new THREE.Vector2());
   const raycaster = useRef(new THREE.Raycaster());
   // Auto film holds the camera: FilmRig places it alone; orbit controls are off until the film ends.
@@ -157,6 +162,12 @@ export function CameraRig() {
     if (autoFilmHoldsCamera()) {
       autoHeld.current = true;
       controls.enabled = false;
+      // The auto film frames the whole town: no panel offset, even on its first frame.
+      viewShift.current = { x: 0, v: 0 };
+      if (viewApplied.current) {
+        camera.clearViewOffset();
+        viewApplied.current = null;
+      }
       return;
     }
     if (autoHeld.current) {
@@ -190,20 +201,32 @@ export function CameraRig() {
       const hit = new THREE.Vector3();
       if (raycaster.current.ray.intersectPlane(GROUND, hit)) startStreetAt(hit.x, hit.z);
     }
-    // Overview: shift the picture so the town centre sits in the free area left of the settings panel.
-    // Filming hides the panels: the film is centred on the whole town (no offset); the offset returns when it ends.
+    // Overview: shift the picture so the town centre sits in the free area between the side panels. The shift
+    // glides (real frame time, also while paused) when a panel opens or closes. Filming hides the panels: the
+    // offset is cleared at once so the film starts centred; after the film it glides back.
     const filming = useWorldStore.getState().toggles.filming;
-    if (overviewOn.current && !filming) {
-      const w = gl.domElement.clientWidth;
-      const h = gl.domElement.clientHeight;
-      const shift = measureRightInset() / 2;
-      if (w > 0 && h > 0 && Math.abs(shift - viewShift.current) > 0.5) {
-        camera.setViewOffset(w, h, shift, 0, w, h);
-        viewShift.current = shift;
+    const w = gl.domElement.clientWidth;
+    const h = gl.domElement.clientHeight;
+    if (filming || w <= 0 || h <= 0) {
+      viewShift.current = { x: 0, v: 0 };
+      if (viewApplied.current) {
+        camera.clearViewOffset();
+        viewApplied.current = null;
       }
-    } else if (viewShift.current >= 0) {
-      camera.clearViewOffset();
-      viewShift.current = -1;
+    } else {
+      const target = overviewOn.current ? viewShiftTarget(measureLeftInset(), measureRightInset()) : 0;
+      viewShift.current = stepViewShift(viewShift.current, target, dt, uiCamera.panelShiftSeconds);
+      const x = viewShift.current.x;
+      const a = viewApplied.current;
+      if (x === 0 && target === 0) {
+        if (a) {
+          camera.clearViewOffset();
+          viewApplied.current = null;
+        }
+      } else if (!a || a.w !== w || a.h !== h || Math.abs(a.x - x) > 0.01) {
+        camera.setViewOffset(w, h, x, 0, w, h);
+        viewApplied.current = { w, h, x };
+      }
     }
 
     let distToTarget: number;

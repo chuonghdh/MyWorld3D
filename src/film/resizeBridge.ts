@@ -33,7 +33,8 @@ export interface FilmGl {
   setPixelRatio(ratio: number): void;
   getSize(target: SizeTarget): SizeTarget;
   setSize(width: number, height: number, updateStyle?: boolean): void;
-  domElement: { style: FilmStyle };
+  /** The 3D view canvas. width/height are the drawing buffer in device pixels (optional for test fakes). */
+  domElement: { style: FilmStyle; width?: number; height?: number };
 }
 
 /** Structural subset of THREE.PerspectiveCamera used by the bridge. */
@@ -173,6 +174,23 @@ export function renderFilmComposer(dt: number): boolean {
   if (!c || !c.render) return false;
   c.render(dt);
   return true;
+}
+
+/**
+ * The registered 3D view canvas (the WebGL renderer's domElement), or null when no scene is mounted.
+ * Use this, not document.querySelector('canvas'): other canvases (clock, overlays) can come first in the DOM.
+ */
+export function filmCanvas(): FilmGl['domElement'] | null {
+  return root ? root.gl.domElement : null;
+}
+
+/** Drawing-buffer size of the 3D view in device pixels, or null when no scene is mounted or the size is unknown. */
+export function filmViewSize(): { width: number; height: number } | null {
+  const el = root?.gl.domElement;
+  if (!el || !Number.isFinite(el.width) || !Number.isFinite(el.height)) return null;
+  const width = el.width as number;
+  const height = el.height as number;
+  return width > 0 && height > 0 ? { width, height } : null;
 }
 
 /**

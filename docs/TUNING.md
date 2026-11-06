@@ -171,6 +171,9 @@ Base counts are scaled by the graphics tier: factor low 0.4, medium 0.7, high 1 
 | Moon disc size | 0.045 x 0.4 | sky units | Moon disc radius | src/config/tuning/skyEnvironment.ts (`skyEnvironment.sky.oldMoonRadius`), 372 (`discScale`) | Sky & Environment |
 | Day length | 1440 | real seconds (24 min) | One in-app day in auto time | src/config/tuning/uiCamera.ts (`uiCamera.dayLengthS`) | UI & Camera / Sky & Environment |
 | Time of day slider | 0-24, step 0.25 | hours | Clock; default 17.5 | src/config/tuning/uiCamera.ts (`uiCamera.defaultTimeOfDay`), 91 (`timeMax`), 93 (`timeStep`); slider src/ui/SettingsCity.tsx | UI & Camera |
+| Panel shift glide | 1.5 | seconds (real time) | How long the overview glides to re-centre the town when a side panel opens or closes | src/config/tuning/uiCamera.ts (`uiCamera.panelShiftSeconds`); spring src/scene/cameraMath.ts (`stepViewShift`), used in src/scene/CameraRig.tsx | UI & Camera |
+| Panel slide open / close | 0.3 / 0.22 | seconds | Slide time of side panels and settings sections (open ease-out, close ease-in; instant under reduced motion) | src/config/tuning/uiCamera.ts (`uiCamera.panelAnimSeconds`, `panelCloseSeconds`); CSS vars via src/ui/slide.ts, rules `.mw-slide` in src/ui/panels.css | UI & Camera |
+| Golden Hour button time | 18 | hours (6:00 PM) | Time the Golden Hour button sets; auto time off, simulation keeps running | src/config/tuning/uiCamera.ts (`uiCamera.goldenHourTime`); button src/ui/SettingsCity.tsx, action src/ui/goldenHour.ts | UI & Camera |
 | Overview camera direction | [0, 2.45, 0.63] (up, back) | unitless | Camera height and distance of the standard overview (same angle, larger distance than before) | src/config/tuning/uiCamera.ts (`uiCamera.overviewDirection`); parity in tests/tuningParity.test.ts | UI & Camera / Scene & QA |
 | Golden-hour shadow clamp | 24 | degrees | Minimum elevation of the shadow-casting sun | src/scene/townShadow.ts:15 (`MIN_LIGHT_ELEVATION_DEG`, stays in code) | Scene & QA / Sky & Environment |
 | Golden phase threshold | altitude below 6 deg | degrees | When the phase is "golden" | src/environment/sun.ts:162 (literal, stays in code) | Sky & Environment |
@@ -230,6 +233,11 @@ Master and category defaults are set in the mixer; category list is in `src/audi
 | Thunder loudness | 2 | gain | Thunder volume | src/config/tuning/audio.ts (`audio.thunderLoudness`) | Audio |
 | Music level | 0.8 | gain | Music volume | src/config/tuning/audio.ts (`audio.musicLevel`) | Audio |
 | Music duck level | 0.55 | gain | Music volume when ducked | src/config/tuning/audio.ts (`audio.duckLevel`) | Audio |
+| UI cue level | 0.35 | gain | Panel open/close cue volume (times master and effects sliders) | src/config/tuning/audio.ts (`audio.uiCueLevel`) | Audio |
+| UI cue min gap | 0.06 | seconds | Quicker repeated panel cues are dropped | src/config/tuning/audio.ts (`audio.uiCueMinGapS`) | Audio |
+| UI cue ticks | 7 | count | Clockwork ratchet ticks per panel cue | src/config/tuning/audio.ts (`audio.uiCueTicks`) | Audio |
+| UI cue duration | 0.26 | seconds | First to last ratchet tick of a panel cue | src/config/tuning/audio.ts (`audio.uiCueDurationS`) | Audio |
+| UI cue single tick level | 0.75 | gain | House/block switch tick against one ratchet tick | src/config/tuning/audio.ts (`audio.uiCueTickLevel`) | Audio |
 | Music fade | 2 | seconds | Mood crossfade | src/audio/music.ts:17 (`FADE_SECONDS`, stays in code) | Audio |
 | Music mood hours | dawn 6.5 golden, golden 17-19 | clock hours | Which mood plays when | src/audio/music.ts:26-33 (`MOOD_KEYS`, stays in code) | Audio |
 | Vehicle engine voices | 8 | voices | Max simultaneous engine sounds | src/audio/vehicles.ts:27 (`ENGINE_VOICES`, stays in code) | Audio |

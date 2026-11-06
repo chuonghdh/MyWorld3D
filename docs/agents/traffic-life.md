@@ -182,3 +182,7 @@ Plan only, no source edits. Auto film mode: a carrier bird flies high over the t
 - **Isolation:** no `src` file imports `filmBird` yet (FilmRig not wired). Test guards against traffic, pedestrian, pigeon, flock, audio imports and RNG/clock use.
 - **Knobs:** unchanged (7, 3, 2.6). Parity and TUNING.md rows already present.
 - **Open:** FilmRig mount pending (Scene & QA). Bird look unchanged, awaiting lead OK.
+
+## Update 2026-11-06 (lead): auto film speed
+- Cars and pedestrians looked ~5x fast in the auto film. Not a traffic bug: the R3F loop fell back to 'always' and the town ran on wall time. Fixed in `src/film/loopHold.ts` (2f99377). Sim per step stays exact (vehicles and walkers move speed x dt).
+- Keep all motion on the `dt` from `useTownFrame`; no wall clocks in `src/traffic` or `src/life`.

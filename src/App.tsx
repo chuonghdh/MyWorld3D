@@ -4,7 +4,7 @@ import * as THREE from 'three';
 import { getCityLayout } from './city';
 import {
   BlockEditOverlay, BlockPanel, DEFAULT_HOUSE_BASE, EditModeChip, HelpOverlay, HousePanel, MonumentPanel, PanelFocusContext,
-  SettingsCity, TimeBar, FilmRecChip, isNarrowViewport, type CityAction, type PanelId,
+  PanelExit, SettingsCity, TimeBar, FilmRecChip, isNarrowViewport, type CityAction, type PanelId,
 } from './ui';
 import { rectCentre, useBlockEdit } from './ui/useBlockEdit';
 import { QUALITY_PRESETS, TREE_SPECIES, detectDevice, suggestQuality, useWorldStore, type OverrideTarget } from './store';
@@ -80,12 +80,6 @@ export function App() {
 
   function handleAction(action: CityAction, value?: boolean) {
     switch (action) {
-      case 'gust':
-        runtime.gustRequests++;
-        break;
-      case 'leafDevil':
-        runtime.leafDevilRequests++;
-        break;
       case 'sound':
         if (value !== undefined) setSetting('soundEnabled', value);
         audio.init();
@@ -105,9 +99,6 @@ export function App() {
         loadLayout({ ...state, treeOverrides });
         break;
       }
-      case 'wholeMap':
-        runtime.cameraPresetRequests.push('overview');
-        break;
       case 'moveBlocks':
         setToggle('moveBlocks', value ?? !toggles.moveBlocks);
         runtime.pendingBlockId = null;
@@ -207,7 +198,9 @@ export function App() {
       <EditModeChip mode={editMode} busy={blockEdit.busy} />
       <HelpOverlay />
       <PanelFocusContext.Provider value={focus}>
-        <div className="mw-left-panel">{panel}</div>
+        <div data-mw-left-panel className="mw-left-panel">
+          <PanelExit selectionId={selected ? `${selected.type}:${selected.id}` : blockEdit.blockId}>{panel}</PanelExit>
+        </div>
         <div data-mw-right-panel className="mw-right-panel">
           <SettingsCity onAction={handleAction} />
         </div>

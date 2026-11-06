@@ -15,15 +15,6 @@
   box-shadow: 0 12px 32px rgba(0, 0, 0, 0.45);
   font: 13px/1.4 system-ui, -apple-system, 'Segoe UI', sans-serif;
 }
-.mw-film-picker h2 {
-  margin: 0 0 4px;
-  font-size: 15px;
-  font-weight: 600;
-}
-.mw-film-picker p {
-  margin: 0 0 12px;
-  color: var(--mw-muted);
-}
 .mw-film-row {
   display: flex;
   flex-direction: column;
@@ -77,6 +68,9 @@
 .mw-film-error {
   margin: 0 0 10px;
   color: #f0a27a;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 .mw-film-actions {
   display: flex;
@@ -165,6 +159,14 @@ html.mw-filming .mw-help {
 }
 .mw-film-fields:disabled {
   opacity: 0.45;
+}
+/* Follow a Bird: fixed values, read-only but legible (lighter dim than an unavailable mode, no pointer). */
+.mw-film-fields.is-fixed:disabled {
+  opacity: 0.7;
+}
+.mw-film-fields.is-fixed input,
+.mw-film-fields.is-fixed select {
+  cursor: default;
 }
 .mw-film-actions button:disabled {
   opacity: 0.45;

@@ -12,6 +12,7 @@ export { TimeBar } from './TimeBar';
 export { FilmButton } from './FilmButton';
 export { FilmRecChip } from './FilmRecChip';
 export { PanelFocusContext } from './controls';
+export { PanelExit } from './PanelExit';
 export type { PanelId, PanelFocus } from './controls';
 export { HelpOverlay } from './HelpOverlay';
 export { isNarrowViewport, screenshotFilename, isHelpKey } from './uiUtils';

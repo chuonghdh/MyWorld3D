@@ -55,3 +55,8 @@ Owns / Key files / Conventions / Traps (what bit us, why) / Decisions (and the r
 - After every commit or new dependency, add a dated "Update" section to each affected handbook. Include: new rules, new libraries (with version and why), tuning knobs moved, and open items.
 - The Technical Architect keeps the cross-cutting list (dependencies, budgets, codec rules) and reviews the other handbooks.
 - Dashboard: follow the standby rule (memory `feedback_dashboard-status-labels`).
+
+## Update 2026-11-06 (lead): today's rules
+- Visual motion uses sim time only (see architect.md, 2026-11-06). Canvas `frameloop` is a controlled prop (`src/film/loopHold.ts`).
+- Dev check of the R3F loop: `window.__r3f` is a snapshot from `onCreated`; read live state with `window.__r3f.get()`.
+- UI changes today (owner UI & Camera, see ui-camera.md): film picker is "Follow You" / "Follow a Bird" + Record; Settings panel cleanup, collapsible sections, Golden Hour button.

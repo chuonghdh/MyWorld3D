@@ -167,3 +167,9 @@ Plan only. No source edits, no commits. Feature: camera button next to Photo in 
 - RISK: `avc1.42E028` is H.264 Baseline level 3.0 (frame-size limit about 720x576). Film 1080p (1920x1080) needs level 4.0, e.g. `avc1.42E028`. Chrome may reject or downgrade the 1080p option. Not verified in a browser. Action: level check in `recorder.ts` plus a 1080p test.
 - Lazy load: `src/film/autoEncoder.ts` uses `await import('mp4-muxer')`; the top-level import is type-only. Nothing in `src` statically imports `autoEncoder.ts` yet, so no chunk exists yet. Keep the dynamic import. Verify chunk size with `npx vite build` once P3 is wired, and check the chunk is absent from the main bundle.
 - Not verified: browser support notes (Chrome, Firefox, Safari), Chrome fallback to WebM, ffmpeg volume figures, mixer default 80 to 40, peak clipping.
+
+## Update 2026-11-06 (lead): film time rules
+- R3F loop: `<Canvas frameloop>` is a controlled prop. R3F 8.17.10 `configure()` re-applies the prop on every Canvas render, so an imperative `setFrameloop` is undone by the next App re-render. One source of truth: `src/film/loopHold.ts` (`useFilmLoopHold`, `canvasFrameloop`, `holdFilmLoop`, `releaseFilmLoop`). Commit 2f99377.
+- Visual motion must follow sim time (`runtime.simTime` or the R3F `dt`), never `performance.now()` / `Date.now()`. Wall clocks are only for UI chips, perf timers and file names. Reason: the auto film renders slower than real time; a wall clock runs ~5x fast in the MP4.
+- Auto film step guard: a fixed step throws (film fails) if the loop is not 'never' or the clock drifted off the film timeline.
+- Film canvas: use `filmCanvas()` / `filmViewSize()` from `src/film/resizeBridge.ts`; never `document.querySelector('canvas')` (another canvas can come first).

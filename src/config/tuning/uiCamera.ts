@@ -30,6 +30,14 @@ export const uiCamera = {
   timeMax: 24,
   /** Time-of-day slider step (hours). */
   timeStep: 0.25,
+  /** Seconds the overview glides when a side panel opens or closes (view offset, real time, also while paused). */
+  panelShiftSeconds: 1.5,
+  /** Panel and settings-section slide open time, seconds (ease-out). 0 = instant. */
+  panelAnimSeconds: 0.3,
+  /** Panel and settings-section slide close time, seconds (ease-in; a little shorter than opening). */
+  panelCloseSeconds: 0.22,
+  /** Golden Hour button: clock hour it sets (18 = 6:00 PM); auto time is switched off so the clock holds there. */
+  goldenHourTime: 18,
   /** Wind speed slider maximum (m/s). */
   windSpeedMax: 20,
   /** Wind speed slider step (m/s). */

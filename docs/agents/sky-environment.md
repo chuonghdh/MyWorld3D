@@ -88,3 +88,11 @@ Reviewed 2026-11-01 at 02b0cdc
 - **Trails:** `SLOTS` 4. The empty-slot value in `advanceTrails` is `-Infinity` so id -2 is not skipped.
 - **Tests:** `tests/aircraft.test.ts` covers the opening flight and the schedule invariants.
 - **Open:** the tilt and altitude are visual choices; the user has seen the flight but did not confirm the final angle.
+
+## Update 2026-11-06: contrail rebuild on time jumps
+
+- **Clock:** aircraft read `runtime.simTime` (`scene/useTownFrame.ts`), not the time of day. The Light slider and Golden Hour change `settings.timeOfDay` only, so they never move flights or trails. `simTime` only grows by the frame dt.
+- **Rebuild:** `aircraft/index.ts update()` treats the first update, any backwards step and any forward step over `REBUILD_GAP` (= `MAX_SAMPLES_PER_FRAME * SAMPLE_STEP`, 16 s) as a jump: the ribbon is cleared and every trail is rebuilt from its flight's path over the last `CONTRAIL_LIFE` (budget `QUADS_PER_SLOT` per slot, one-off). Trails advance whenever `t` changes, independent of dt, so a jump while paused also rebuilds.
+- **Grid:** the first sample of an adopted flight sits on the flight's own `SAMPLE_STEP` grid from `f.start`, so a rebuilt trail matches a stepped one (test: `a rebuilt trail matches one grown by normal stepping`).
+- Before: the first update and jumps wrote at most 40 samples per slot per frame and frames with dt = 0 wrote nothing, so a backlog left at pause time stayed until play resumed. Normal stepping and the auto film (1/30 s steps) take the unchanged per-frame path.
+- **Open:** the user's no-trail screenshot was not reproduced (pause + Golden Hour keeps the trail in Chrome). Other causes that remain by design: no samples are written while `contrailStrength` <= 0.02 (cloudy, rain, snow, fog), so switching to clear weather shows a trail only from that moment; the trail is fully transparent for the first 2.5 s (fresh fade) and starts 10 m behind the hull. `INTRO_FLIGHT_ID` (-2) equals the id of yesterday's window-22 flight (day -1 ids are -24..-1); audio keys could collide if both fly at once. Not fixed.

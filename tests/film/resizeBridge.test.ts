@@ -1,7 +1,9 @@
 import { afterEach, describe, expect, it } from 'vitest';
 import {
   applyFilmSize,
+  filmCanvas,
   filmFrameFor,
+  filmViewSize,
   fitInside,
   isFilmSizeApplied,
   registerFilmRoot,
@@ -231,5 +233,27 @@ describe('window resize guard while filming', () => {
     root.gl.setSize(900, 400, true);
     expect(state.logical).toEqual({ w: 900, h: 400 });
     expect(state.buffer).toEqual({ w: 1800, h: 800 });
+  });
+});
+
+describe('3D view canvas lookup', () => {
+  it('returns the registered renderer canvas and its buffer size, not any other canvas', () => {
+    expect(filmCanvas()).toBeNull();
+    expect(filmViewSize()).toBeNull();
+    const { root } = fakeRoot();
+    const el = { ...root.gl.domElement, width: 2734, height: 1538 };
+    root.gl.domElement = el;
+    registerFilmRoot(root);
+    expect(filmCanvas()).toBe(el);
+    expect(filmViewSize()).toEqual({ width: 2734, height: 1538 });
+  });
+
+  it('reports no size when the canvas has none (falls back to the window in the picker)', () => {
+    const { root } = fakeRoot();
+    registerFilmRoot(root);
+    expect(filmViewSize()).toBeNull();
+    root.gl.domElement.width = 0;
+    root.gl.domElement.height = 0;
+    expect(filmViewSize()).toBeNull();
   });
 });

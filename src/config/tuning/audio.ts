@@ -60,4 +60,14 @@ export const audio = {
   duckLevel: 0.55,
   /** Thunder loudness multiplier (audio/weather.ts THUNDER_LOUDNESS). */
   thunderLoudness: 2,
+  /** Panel open/close cue level before master and effects sliders, gain (audio/index.ts uiCue). */
+  uiCueLevel: 0.35,
+  /** Shortest gap between two panel cues; quicker repeats are dropped, seconds (audio/index.ts uiCue). */
+  uiCueMinGapS: 0.06,
+  /** Clockwork ratchet ticks in one panel cue, count (audio/uiCue.ts uiCueParams). */
+  uiCueTicks: 7,
+  /** Time from first to last ratchet tick of a panel cue, seconds (audio/uiCue.ts uiCueParams). */
+  uiCueDurationS: 0.26,
+  /** Single tick (switching house or block) level against one ratchet tick, gain (audio/uiCue.ts singleTickParams). */
+  uiCueTickLevel: 0.75,
 } as const;

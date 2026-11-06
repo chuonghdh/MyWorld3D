@@ -5,7 +5,11 @@ import {
   clipPlanes,
   dirFromYaw,
   easeInOut,
+  leftPanelInset,
   panelInset,
+  stepViewShift,
+  viewShiftTarget,
+  type ShiftState,
   streetStart,
   walkStep,
   wholeMapFraming,
@@ -145,5 +149,59 @@ describe('setTimeOfDay', () => {
     expect(useWorldStore.getState().settings.timeOfDay).toBe(17.5);
     useWorldStore.getState().setTimeOfDay(22);
     expect(useWorldStore.getState().settings.timeOfDay).toBe(22);
+  });
+});
+
+describe('panel view shift glide', () => {
+  it('targets the centre of the free area between the panels', () => {
+    expect(viewShiftTarget(0, 324)).toBe(162);
+    expect(viewShiftTarget(324, 0)).toBe(-162);
+    expect(viewShiftTarget(324, 324)).toBe(0);
+    expect(leftPanelInset(316, 1600, false)).toBe(324);
+    expect(leftPanelInset(316, 1600, true)).toBe(0);
+    expect(leftPanelInset(null, 1600, false)).toBe(0);
+    expect(leftPanelInset(1500, 1600, false)).toBe(800);
+  });
+
+  function run(from: ShiftState, target: number, seconds: number, dt = 1 / 60) {
+    const xs: number[] = [];
+    let s = from;
+    const n = Math.round(seconds / dt);
+    for (let i = 0; i < n; i++) {
+      s = stepViewShift(s, target, dt, 1.5);
+      xs.push(s.x);
+    }
+    return { s, xs };
+  }
+
+  it('eases in and out, never overshoots, and settles within about the glide time', () => {
+    const { s, xs } = run({ x: 0, v: 0 }, 162, 2);
+    expect(s).toEqual({ x: 162, v: 0 });
+    for (let i = 1; i < xs.length; i++) expect(xs[i]).toBeGreaterThanOrEqual(xs[i - 1]);
+    expect(Math.max(...xs)).toBeLessThanOrEqual(162);
+    // Ease in: the first frame moves less than the steepest frame.
+    const steps = xs.map((x, i) => x - (i ? xs[i - 1] : 0));
+    expect(steps[0]).toBeLessThan(Math.max(...steps) / 2);
+    // Visibly done by the glide time: within 2 px at 1.5 s.
+    expect(162 - xs[Math.round(1.5 * 60) - 1]).toBeLessThan(2);
+    // Not a jump: under a quarter of the way after 0.1 s.
+    expect(xs[5]).toBeLessThan(162 / 4);
+  });
+
+  it('retargets mid-move without a jump or overshoot', () => {
+    const half = run({ x: 0, v: 0 }, 162, 0.4).s;
+    const before = half.x;
+    const next = stepViewShift(half, -162, 1 / 60, 1.5);
+    expect(Math.abs(next.x - before)).toBeLessThan(10);
+    const { s, xs } = run(next, -162, 3);
+    expect(s).toEqual({ x: -162, v: 0 });
+    expect(Math.min(...xs)).toBeGreaterThanOrEqual(-162);
+  });
+
+  it('jumps when the glide time is zero and is frame-rate independent', () => {
+    expect(stepViewShift({ x: 0, v: 0 }, 50, 1 / 60, 0)).toEqual({ x: 50, v: 0 });
+    const a = run({ x: 0, v: 0 }, 162, 0.5, 1 / 30).s.x;
+    const b = run({ x: 0, v: 0 }, 162, 0.5, 1 / 120).s.x;
+    expect(Math.abs(a - b)).toBeLessThan(1e-6);
   });
 });

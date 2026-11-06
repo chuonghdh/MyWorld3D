@@ -5,7 +5,7 @@ import { film } from '../config/tuning';
 import { useWorldStore } from '../store';
 import { getRecordStream } from '../audio';
 import { downloadBlob, filmFileName, isRecordingSupported, startRecording, type FilmRecording } from '../film/recorder';
-import { applyFilmSize, restoreFilmSize } from '../film/resizeBridge';
+import { applyFilmSize, filmCanvas, restoreFilmSize } from '../film/resizeBridge';
 import { openAutoEncoder } from '../film/autoEncoder';
 import { audioTapSnapshots } from '../film/audioSnapshot';
 import { getGroupVolumes } from '../audio';
@@ -173,7 +173,7 @@ export function startManualFilm(req: ManualFilmRequest): string | null {
   if (active || autoActive || autoStarting) return 'A film is already recording';
   const unavailable = filmUnavailableReason(typeof MediaRecorder !== 'undefined', isRecordingSupported());
   if (unavailable) return unavailable;
-  const canvas = document.querySelector('canvas');
+  const canvas = filmCanvas();
   if (!(canvas instanceof HTMLCanvasElement)) return 'No 3D view to record';
   // Drive the GL buffer, camera aspect and composer to the output size; restored when the film ends.
   if (!applyFilmSize(req.width, req.height)) return 'No 3D view to record';
