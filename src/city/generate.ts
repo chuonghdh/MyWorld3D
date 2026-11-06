@@ -4,44 +4,25 @@
 // v2: a jittered grid of streets with one avenue each way through the middle, perimeter blocks
 // with continuous street walls (corner lots first, then 6-13 m frontages), courtyards, monument
 // plazas, and street furniture data. See docs/DESIGN-3D.md section 4.
+// Helpers live beside this file: gridLines.ts, spawnPoints.ts, monuments.ts, trafficPlan.ts.
 
 import { createRng } from '../core/rng';
-import { buildings, cityStreets } from '../config/tuning';
-import type { BlockKind, MonumentKind, StreetClass, Vec2, WorldSettings } from '../core/types';
+import type { BlockKind, WorldSettings } from '../core/types';
 import { monumentLot, perimeterLots, type EdgeClasses } from './blocks';
-import { ARM_E, ARM_N, ARM_S, ARM_W, armCount, junctionArms } from './junctionArms';
+import { ARM_E, ARM_N, ARM_S, ARM_W, junctionArms } from './junctionArms';
 import { hashId, houseBlockId, mergedBlockId, memberIds, resolveBlockMerges, unionBounds, type MergeRect } from './merge';
-import type {
-  Block,
-  BlockMerge,
-  CityLayout,
-  Lot,
-  RoadSegment,
-  Rect,
-  TrafficLight,
-  TrafficLightTiming,
-  TrafficPath,
-} from './layout';
+import type { Block, BlockMerge, CityLayout, Lot, RoadSegment, Rect } from './layout';
 import { buildStreetscape, type GridLine, type PlazaInfo } from './streetscape';
+import { GRID_MARGIN, cellBounds, classifyLines, jitteredLines, splitAround } from './gridLines';
+import { chooseMonuments } from './monuments';
+import { planTraffic } from './trafficPlan';
 
-// Geometry constants (metres).
-export const STREET_WIDTH = 8;
-export const STREET_SIDEWALK = 3;
-export const AVENUE_WIDTH = 11;
-export const AVENUE_SIDEWALK = 4.5;
-/** Keeps road centre lines (and the street sidewalks on outer roads) inside the town bounds. */
-const GRID_MARGIN = 6;
-/** Target and allowed distance between road centre lines. */
-const CELL_TARGET = 50;
-const CELL_MIN = 40;
-const CELL_MAX = 60;
+export { STREET_WIDTH, STREET_SIDEWALK, AVENUE_WIDTH, AVENUE_SIDEWALK, laneOffsetFor } from './gridLines';
+export { spawnPointsFor } from './spawnPoints';
+export { MONUMENT_SHARE, chooseMonuments } from './monuments';
+
 /** Blocks smaller than this in either direction are skipped. */
 const MIN_BLOCK = 6;
-
-// Block kind. The monument blocks are chosen per seed (chooseMonuments), not per block.
-export const MONUMENT_SHARE = cityStreets.monumentShare;
-/** Kinds every town has exactly once, on two seeded blocks. Other monument kinds fill the rest. */
-const STANDARD_MONUMENTS: readonly MonumentKind[] = ['gothic-cathedral', 'city-hall'];
 
 // Independent RNG streams.
 const GRID_SALT = 0x51ed270b;
@@ -51,152 +32,7 @@ const FURNITURE_SALT = 0x7f4a7c15;
 const MERGE_SALT = 0x3c6ef372;
 const MONUMENT_SALT = 0x6a09e667;
 
-// Traffic.
-const TRAFFIC_SPAWN_SPACING = cityStreets.trafficSpawnSpacing; // metres of path per spawn point at trafficMultiplier = 1
 const LANES_PER_ROAD = 2;
-
-const LIGHT_TIMING: TrafficLightTiming = cityStreets.lightTiming;
-
-/**
- * Distance from an avenue's centre line to its lane centres. Avenues have parked cars along both
- * kerbs (up to about 3.15 m from the centre line at their inner side); a bus (half width 1.25 m) plus
- * 0.15 m of clearance must fit between that and the lane centre, so lane centre = half width - 3.75.
- * Streets have no parking and keep a quarter of the width.
- */
-export function laneOffsetFor(line: { width: number; cls: string }): number {
-  return line.cls === 'avenue' ? line.width / 2 - 3.75 : line.width / 4;
-}
-
-/**
- * Jittered road centre lines from `min` to `max` inclusive. Gaps stay within CELL_MIN..CELL_MAX
- * whenever the span allows it. The number of draws depends only on the span.
- */
-function jitteredLines(min: number, max: number, rng: () => number): number[] {
-  const span = max - min;
-  const n = Math.max(1, Math.round(span / CELL_TARGET));
-  const mean = span / n;
-  const lo = Math.min(CELL_MIN, mean);
-  const hi = Math.max(CELL_MAX, mean);
-  let gaps = Array.from({ length: n }, () => mean * (1 + (rng() - 0.5) * 0.36));
-  const sum0 = gaps.reduce((a, b) => a + b, 0);
-  gaps = gaps.map((g) => (g * span) / sum0);
-  for (let iter = 0; iter < 20; iter++) {
-    gaps = gaps.map((g) => Math.min(hi, Math.max(lo, g)));
-    const diff = span - gaps.reduce((a, b) => a + b, 0);
-    if (Math.abs(diff) < 1e-9) break;
-    const free = gaps.map((g) => (diff > 0 ? g < hi - 1e-9 : g > lo + 1e-9));
-    const count = free.filter(Boolean).length;
-    if (count === 0) break;
-    gaps = gaps.map((g, k) => (free[k] ? g + diff / count : g));
-  }
-  const lines = [min];
-  let acc = min;
-  for (let k = 0; k < n - 1; k++) {
-    acc += gaps[k];
-    lines.push(acc);
-  }
-  lines.push(max);
-  return lines;
-}
-
-/** Grid lines with their street class: the interior line nearest the centre is the avenue. */
-function classifyLines(positions: number[]): GridLine[] {
-  let avenue = -1;
-  let best = Infinity;
-  for (let k = 1; k < positions.length - 1; k++) {
-    if (Math.abs(positions[k]) < best) {
-      best = Math.abs(positions[k]);
-      avenue = k;
-    }
-  }
-  return positions.map((pos, k) => {
-    const cls: StreetClass = k === avenue ? 'avenue' : 'street';
-    return {
-      pos,
-      cls,
-      width: cls === 'avenue' ? AVENUE_WIDTH : STREET_WIDTH,
-      sidewalk: cls === 'avenue' ? AVENUE_SIDEWALK : STREET_SIDEWALK,
-    };
-  });
-}
-
-function polylineLength(points: readonly Vec2[]): number {
-  let total = 0;
-  for (let i = 1; i < points.length; i++) {
-    const a = points[i - 1];
-    const b = points[i];
-    total += Math.hypot(b.x - a.x, b.z - a.z);
-  }
-  return total;
-}
-
-/** Evenly spaced spawn points along a path; count scales with trafficMultiplier. */
-export function spawnPointsFor(waypoints: readonly Vec2[], trafficMultiplier: number): Vec2[] {
-  const length = polylineLength(waypoints);
-  const count = Math.max(0, Math.round((trafficMultiplier * length) / TRAFFIC_SPAWN_SPACING));
-  if (count === 0 || waypoints.length < 2) return [];
-
-  const spawns: Vec2[] = [];
-  for (let k = 0; k < count; k++) {
-    const target = (k / count) * length;
-    let walked = 0;
-    for (let i = 1; i < waypoints.length; i++) {
-      const a = waypoints[i - 1];
-      const b = waypoints[i];
-      const segLen = Math.hypot(b.x - a.x, b.z - a.z);
-      if (target <= walked + segLen || i === waypoints.length - 1) {
-        const t = segLen > 0 ? Math.min(1, (target - walked) / segLen) : 0;
-        spawns.push({ x: a.x + (b.x - a.x) * t, z: a.z + (b.z - a.z) * t });
-        break;
-      }
-      walked += segLen;
-    }
-  }
-  return spawns;
-}
-
-/** Splits [lo, hi] around the cut intervals and returns the pieces that remain (longer than a micron). */
-function splitAround(lo: number, hi: number, cuts: readonly { a: number; b: number }[]): [number, number][] {
-  const out: [number, number][] = [];
-  let cur = lo;
-  for (const c of [...cuts].sort((p, q) => p.a - q.a)) {
-    if (c.a > cur) out.push([cur, c.a]);
-    cur = Math.max(cur, c.b);
-  }
-  if (hi > cur) out.push([cur, hi]);
-  return out.filter(([a, b]) => b - a > 1e-6);
-}
-
-/** Bounds of grid cell (c, r): the cell between its four street lines, inside their sidewalks. */
-function cellBounds(xs: readonly GridLine[], zs: readonly GridLine[], c: number, r: number): Rect {
-  const inner = (line: GridLine) => line.width / 2 + line.sidewalk;
-  return {
-    minX: xs[c].pos + inner(xs[c]),
-    maxX: xs[c + 1].pos - inner(xs[c + 1]),
-    minZ: zs[r].pos + inner(zs[r]),
-    maxZ: zs[r + 1].pos - inner(zs[r + 1]),
-  };
-}
-
-/**
- * Picks the monument blocks among `total` buildable blocks, with the layout RNG. The count is round(total * share),
- * raised to the two standard monuments on a small town and capped at total (so a town of fewer than 5 blocks
- * is not 1 in 5). The first two picks take the cathedral and the City Hall; every later pick takes a kind from the
- * rest of buildings.monumentKinds. Same seed and total, same picks.
- */
-export function chooseMonuments(total: number, rng: () => number): { index: number; kind: MonumentKind }[] {
-  const count = Math.min(total, Math.max(STANDARD_MONUMENTS.length, Math.round(total * MONUMENT_SHARE)));
-  const order = Array.from({ length: total }, (_, k) => k);
-  for (let k = total - 1; k > 0; k--) {
-    const j = Math.floor(rng() * (k + 1));
-    [order[k], order[j]] = [order[j], order[k]];
-  }
-  const others = buildings.monumentKinds.filter((k) => !STANDARD_MONUMENTS.includes(k));
-  return order.slice(0, count).map((index, n) => ({
-    index,
-    kind: n < STANDARD_MONUMENTS.length ? STANDARD_MONUMENTS[n] : others[Math.floor(rng() * others.length)],
-  }));
-}
 
 export function generateCity(settings: WorldSettings): CityLayout {
   const { seed, townWidth, townDepth, streetTreeMultiplier, trafficMultiplier } = settings;
@@ -422,66 +258,20 @@ export function generateCity(settings: WorldSettings): CityLayout {
     return !(m && removedJunction(Number(m[1]), Number(m[2])));
   });
 
-  // Fixed-timing traffic lights at every intersection that remains with three or four arms. A junction a merge
-  // leaves with two arms (straight on or a bend) has no signal; without merges every junction has four arms.
-  const trafficLights: TrafficLight[] = [];
-  xs.forEach((vx, i) => {
-    zs.forEach((hz, j) => {
-      if (removedJunction(i, j)) return;
-      if (merges.length > 0 && armCount(armsAt(vx.pos, hz.pos)) <= 2) return;
-      trafficLights.push({
-        id: `light-${i}-${j}`,
-        position: { x: vx.pos, z: hz.pos },
-        timing: { ...LIGHT_TIMING },
-      });
-    });
+  // Fixed-timing traffic lights and lane paths (trafficPlan.ts).
+  const { trafficLights, trafficPaths } = planTraffic({
+    xs,
+    zs,
+    vParts,
+    hParts,
+    vSplit: xs.map((_, i) => vCuts(i).length > 0),
+    hSplit: zs.map((_, j) => hCuts(j).length > 0),
+    hasMerges: merges.length > 0,
+    removedJunction,
+    armsAt,
+    trafficMultiplier,
   });
 
-  // Traffic lanes: one path per direction along every road piece, lane centre at a quarter of the width.
-  const trafficPaths: TrafficPath[] = [];
-  const addPath = (roadId: string, direction: 1 | -1, waypoints: Vec2[], lightIds: string[]) => {
-    trafficPaths.push({
-      id: `path-${roadId}-${direction === 1 ? 'pos' : 'neg'}`,
-      roadId,
-      direction,
-      lane: direction === 1 ? 0 : 1,
-      waypoints,
-      spawnPoints: spawnPointsFor(waypoints, trafficMultiplier),
-      trafficLightIds: lightIds,
-    });
-  };
-
-  const zIdx = zs.map((_, j) => j);
-  const xIdx = xs.map((_, i) => i);
-  xs.forEach((line, i) => {
-    const split = vCuts(i).length > 0;
-    vParts[i].forEach(([a, b], k) => {
-      const roadId = split ? `road-v-${i}-${k}` : `road-v-${i}`;
-      const idx = zIdx.filter((j) => zs[j].pos >= a - 1e-9 && zs[j].pos <= b + 1e-9);
-      for (const direction of [1, -1] as const) {
-        // Offset = direction * lane offset (a quarter of the width on streets, clear of parked cars on avenues).
-        const offset = direction * laneOffsetFor(line);
-        const ordered = direction === 1 ? idx : [...idx].reverse();
-        const waypoints = ordered.map((j) => ({ x: line.pos + offset, z: zs[j].pos }));
-        const lightIds = ordered.map((j) => `light-${i}-${j}`);
-        if (waypoints.length >= 2) addPath(roadId, direction, waypoints, lightIds);
-      }
-    });
-  });
-  zs.forEach((line, j) => {
-    const split = hCuts(j).length > 0;
-    hParts[j].forEach(([a, b], k) => {
-      const roadId = split ? `road-h-${j}-${k}` : `road-h-${j}`;
-      const idx = xIdx.filter((i) => xs[i].pos >= a - 1e-9 && xs[i].pos <= b + 1e-9);
-      for (const direction of [1, -1] as const) {
-        const offset = direction * laneOffsetFor(line);
-        const ordered = direction === 1 ? idx : [...idx].reverse();
-        const waypoints = ordered.map((i) => ({ x: xs[i].pos, z: line.pos + offset }));
-        const lightIds = ordered.map((i) => `light-${i}-${j}`);
-        if (waypoints.length >= 2) addPath(roadId, direction, waypoints, lightIds);
-      }
-    });
-  });
 
   return {
     seed,
