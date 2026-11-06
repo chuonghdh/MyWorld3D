@@ -82,3 +82,40 @@ Reviewed 2026-11-01 at 02b0cdc
 - Open: `scene/useTownGreenery.ts` still holds its own `TREE_SCALE` 1.35 (Scene & QA file).
 
 - 2026-11-06 (scene-qa): fountain water clock now reads `runtime.simTime` (core/runtime) in `onBeforeRender`, not `performance.now()`, so it freezes on pause and follows film time in the auto film. Test: `tests/film/simClockVisuals.test.ts`.
+
+## Update 2026-11-06 (city-streets): street surface wear
+- Self-critique before the change: asphalt was flat #4a4a50 with only about 7 % grain; sidewalks were one uniform pale tone with no joints; lane and crossing paint was perfectly even and crisp.
+- New `streets/streetWear.ts`: shader-only wear for the road (aggregate, block tone, worn patches, oil stains, faint seams), pavement (1.5 m slab joints, base grime on kerb faces, scuffing) and paint (fading, worn spots). No mesh, no texture, no draw call. Patched in `streets/index.ts` in place of `attachRoadGrain`.
+- Road and pavement are told apart by vertex-colour luminance (no new attribute). Patterns are world-space and offset by `streetWearSeed(layout.seed)`, so the same town always looks the same.
+- Knobs: `cityStreets.roadBlockTone`, `roadAggregate`, `roadWornLift`, `roadOilStain`, `roadPatchSeam`, `pavingJoint`, `pavingGrime`, `pavingWear`, `paintWear`, `paintFade` (docs/TUNING.md section 13, parity entries added).
+- Budget unchanged: streetscape 8 meshes; seed 1 100,266 triangles, seed 7 102,798 (`tests/streetWear.test.ts`, baseline captured before the change).
+- Open: no kerb-top edge grime (needs a per-vertex edge attribute from the builders); paint edge wear is noise, not true edge data; oil and tyre tracks along lanes come from the existing `tyreTracks` map, not new.
+- Not verified by eye: the built-in pane cannot paint frames and no GL context ran the new GLSL. Check the road, kerbs and lane paint in Chrome after a reload.
+
+## Update 2026-11-06 (city-streets): pavement feedback
+- Paving recoloured to a light blue-grey natural stone (subtle): sidewalk `#c6cbcf` (was `#ddd6c8`), sidewalkBand `#b8bec3`, plazaLight `#cad0d3`, plazaDark `#b9c0c4`, plazaBorder `#a9b0b5`; fountain plaza `decorGeometry.ts` plazaA/plazaB/plazaBorder match. Curb unchanged.
+- New shader patterns on pavement, seeded per 40 m cell (bicycle tracks), per 2.5 m cell (footprints) and world-space (stains): knobs `cityStreets.pavingBikeTrack` 0.1, `pavingFootprint` 0.08, `pavingStain` 0.12 (TUNING.md section 13, parity entries). No new geometry; budget unchanged.
+- Colour values are local constants in `surfaces.ts` COLORS (not knobs). Not verified by eye.
+
+## Update 2026-11-06 (city-streets): car tracks and bicycle track fix
+- Car-like tracks on pavement came from `streets/tyreTracks.ts`: its mask (snow-cover, read by the surface material's weather patch) was stamped on every road path and also reached sidewalks. Fix: `onCarriageway` gates every stamp to road pieces and junction squares (0.2 m slack). Test: `tests/streetWear.test.ts` (no marked texel off the carriageway).
+- Bicycle track is now a thin pair: lines 0.55 m apart, about 3.6 cm wide each, 1.5 m segments with 1.5 m gaps, seeded angle per 40 m cell. `pavingBikeTrack` 0.07 (was 0.1). Footprints and stains unchanged.
+
+## Update 2026-11-06 (city-streets): kerb strip paving
+- Kerb strip reverted to the sidewalk treatment: `COLORS.curb` now equals the sidewalk colour (`#c6cbcf`), so the strip is paved like the slabs with the same joints and slab tone. The kerb-only shader path and its knobs were removed; no separate kerb texture remains.
+
+## Update 2026-11-06 (city-streets): removed the furniture-zone strips
+- The two light-grey strips along the road edges were the decorative "furniture zone" paving band (`surfaces.ts` `buildSidewalks`, overlay `sidewalkBand`). Not structural: no drainage, kerb height or shadow role. Removed with its tree-pit cuts and the `sidewalkBand` colour; `buildSidewalks` no longer takes `overlay`.
+- Kerb boxes (kerb faces and top) stay as geometry and use the sidewalk paving colour. Streetscape after removal: seed 1 99,890 triangles, seed 7 102,422 (down from 100,266 / 102,798); 8 meshes unchanged (`tests/streetWear.test.ts` baseline updated).
+
+## Update 2026-11-06 (city-streets): removed tan paving slabs
+- The large tan/beige tiles (1.5 m, two shades, avenue sidewalks near the shopfronts) came from the decor "paving variation" layer: `planPaving` in `streets/decor.ts`, drawn in `decorGeometry.ts` with `slabDark`/`slabLight`. Not a structural element (no loading or ramp role). Removed the planner, the `paving` plan field, the draw loop, the two colours and the decor test assertions. Other decor (furniture, manholes, patches, tactile bars, fountain) is unchanged; its rng is separate, so their placement is unchanged.
+- Sidewalk paving is now only the 0.40 x 0.15 m stone pavers from `streetWear.ts`. Streetscape after removal: seed 1 99,076 triangles, seed 7 101,658 (8 meshes unchanged).
+
+## Update 2026-11-06 (city-streets): accent pavers
+- About 1 in 10 pavers (`cityStreets.pavingAccentShare` 0.1) take one of three accent colours (`cityStreets.pavingAccentColours`: dark grey `#4f5458`, light brown `#b59a78`, yellow-brown ochre `#c4a14e`), chosen per paver by a seeded hash in `streetWear.ts`. The light blue-grey stays the main tone. Shader only, no new geometry; budget unchanged.
+- Accent pavers revised: density 1 in 20 (`pavingAccentShare` 0.05); colours now warm, low-contrast greys: `#b3aca4` warm grey, `#a79d90` light grey-brown, `#b7b09a` pale ochre-grey (was dark grey, light brown and saturated ochre).
+
+## Update 2026-11-06 (city-streets): pavement dirt
+- Added shader-only dirt on pavement: gum-like spots (`cityStreets.pavingGumSpot` 0.12, one candidate per 1.2 m cell), dry puddle rings (`pavingPuddleMark` 0.05, noise contours) and dirt zones per 24 m block (`pavingDirtZone` 0.06, seeded). Soft dark patches are the existing `pavingStain` (0.12).
+- Not done: grouping dirt near the kerb, shopfronts, bins and benches needs per-vertex distance or facade data that the surface builder does not carry; the per-block zones stand in for it.

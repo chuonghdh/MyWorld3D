@@ -29,12 +29,11 @@ export const COLORS = {
   townEdge: '#bfb8aa',
   asphalt: '#4a4a50',
   paint: '#efeee8',
-  sidewalk: '#ddd6c8',
-  sidewalkBand: '#cfc6b4',
-  curb: '#bfb8aa',
-  plazaLight: '#d9cfbd',
-  plazaDark: '#c9bda6',
-  plazaBorder: '#b9ab92',
+  sidewalk: '#c6cbcf',
+  curb: '#c6cbcf',
+  plazaLight: '#cad0d3',
+  plazaDark: '#b9c0c4',
+  plazaBorder: '#a9b0b5',
   gravel: '#d8ccae',
   treePit: '#3b3228',
   treePitEdge: '#8e877b',
@@ -239,7 +238,7 @@ function roundedKerbCorner(surf: MeshBuilder, uCorner: number, dirU: 1 | -1, sid
 }
 
 /** Raised sidewalks on both sides of a road, clipped where they meet crossing roads. */
-function buildSidewalks(road: RoadSegment, layout: CityLayout, surf: MeshBuilder, overlay: MeshBuilder): void {
+function buildSidewalks(road: RoadSegment, layout: CityLayout, surf: MeshBuilder): void {
   const ax = axes(road);
   const sw = road.sidewalkWidth;
   if (ax.u1 - ax.u0 <= 0.01 || !(sw > 0)) return;
@@ -295,23 +294,6 @@ function buildSidewalks(road: RoadSegment, layout: CityLayout, surf: MeshBuilder
       if (ub > ua) {
         w = worldRect(ax, ua, ub, vWalk0, vWalk1);
         surf.box(w[0], w[1], GROUND_Y, SIDEWALK_TOP, w[2], w[3], COLORS.sidewalk);
-        // Furniture zone: a slightly darker paving band beside the curb.
-        const band = Math.min(road.streetClass === 'avenue' ? 1.4 : 0.9, (vWalk1 - vWalk0) * 0.45);
-        const b0 = side > 0 ? vWalk0 : vWalk1 - band;
-        const b1 = side > 0 ? vWalk0 + band : vWalk1;
-        // Leave holes for tree pits so the two decals never overlap.
-        const pitCuts: Cut[] = [];
-        for (const tree of layout.streetTrees) {
-          if (tree.setting !== 'street') continue;
-          const tu = ax.horizontal ? tree.position.x : tree.position.z;
-          const tv = ax.horizontal ? tree.position.z : tree.position.x;
-          if (tv + TREE_PIT_SIZE / 2 <= b0 || tv - TREE_PIT_SIZE / 2 >= b1) continue;
-          pitCuts.push({ a: tu - TREE_PIT_SIZE / 2, b: tu + TREE_PIT_SIZE / 2, kind: 'walk' });
-        }
-        for (const bp of subtractIntervals(ua, ub, pitCuts)) {
-          w = worldRect(ax, bp.a, bp.b, b0, b1);
-          overlay.rect(SIDEWALK_OVERLAY_Y, w[0], w[1], w[2], w[3], COLORS.sidewalkBand);
-        }
       }
     }
   }
@@ -446,7 +428,7 @@ export function buildSurfaces(layout: CityLayout, surf: MeshBuilder, overlay: Me
   for (const it of layout.intersections) buildIntersection(it, surf);
   for (const road of layout.roads) {
     buildRoad(road, layout, surf, overlay);
-    buildSidewalks(road, layout, surf, overlay);
+    buildSidewalks(road, layout, surf);
   }
   for (const cw of layout.crosswalks) buildCrosswalk(cw, overlay);
   for (const block of layout.blocks) {

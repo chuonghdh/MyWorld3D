@@ -140,3 +140,9 @@ Knobs only: `filmDurationS`, `filmFps`, quality presets (`{ bitrateBps, fps }` p
 
 - 2026-11-06 Roof chips: the Roof control is the chip grid again (the carousel was dropped after review). Each chip has a 16 px profile icon (`ui/roofIcons.tsx`, inline SVG, currentColor). No roof-thumb fetch on panel open.
 - 2026-11-06 Floors range: the House Floors slider takes its max from `maxFloorsFor(shownPreset)` (buildings; Glass tower up to 12, others 8) and its min from `MIN_FLOORS`. The shown value is clamped to the type's max, but stored floors change only when the user moves the slider (switching from Glass tower to a type with max 8 keeps the stored value until then).
+
+## Update 2026-11-06 (lead): UI rules from the session
+- Panels, sections and the time bar slide (open 0.3 s, close 0.22 s), always, regardless of the OS reduced-motion setting (user choice). Motion durations are knobs.
+- Sounds: panel open/close/tick cues come from the audio `uiCue` API, only on user actions, never on load or restore, never while filming.
+- Type and roof: type is a picture carousel with rendered thumbnails; roof is a chip grid with a small profile icon. Picking a type resets the roof to that type's default; floors never change on a type or roof pick.
+- Shutter row appears only for types that carry shutters; colour choice is a compact bar that opens a 7-column grid.

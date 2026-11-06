@@ -359,6 +359,34 @@ Test thresholds: change only when the scene change is intended. Raising a budget
 | Thumbnail key light | 3 | intensity | Warm key light of the thumbnail scene | src/config/tuning/sceneQa.ts (`sceneQa.houseThumbs.thumbKeyIntensity`) | Scene & QA |
 | Thumbnail fill light | 1.6 | intensity | Sky and ground fill light of the thumbnail scene | src/config/tuning/sceneQa.ts (`sceneQa.houseThumbs.thumbFillIntensity`) | Scene & QA |
 
+## 13. Street surface wear (City & Streets)
+
+Shader-only wear on the road, pavement and paint (`src/streets/streetWear.ts`). Patterns are seeded per town, so the same layout always looks the same. Amounts are 0-1 darkness or lift.
+
+| Parameter | Current value | Unit/range | What it controls | File:line (constant) | Owner |
+|---|---|---|---|---|---|
+| Asphalt block tone | 0.04 | 0..1 | Brightness spread per 24 m block (and per pavement slab) | src/config/tuning/cityStreets.ts (`cityStreets.roadBlockTone`) | City & Streets |
+| Asphalt aggregate | 0.05 | 0..1 | Fine speckle strength on asphalt | src/config/tuning/cityStreets.ts (`cityStreets.roadAggregate`) | City & Streets |
+| Worn patch lift | 0.1 | 0..1 | Extra lightness of worn asphalt patches | src/config/tuning/cityStreets.ts (`cityStreets.roadWornLift`) | City & Streets |
+| Oil stain | 0.08 | 0..1 | Darkness of oil stains on asphalt | src/config/tuning/cityStreets.ts (`cityStreets.roadOilStain`) | City & Streets |
+| Patch seam | 0.06 | 0..1 | Darkness of faint patch seam lines | src/config/tuning/cityStreets.ts (`cityStreets.roadPatchSeam`) | City & Streets |
+| Slab joint | 0.16 | 0..1 | Darkness of the joints between stone pavers (0.40 x 0.15 m, staggered bond) | src/config/tuning/cityStreets.ts (`cityStreets.pavingJoint`) | City & Streets |
+| Paver joint width | 0.012 | metres | Width of the joints between stone pavers | src/config/tuning/cityStreets.ts (`cityStreets.pavingJointWidth`) | City & Streets |
+| Paver edge wear | 0.05 | 0..1 | Faint edge wear along each paver | src/config/tuning/cityStreets.ts (`cityStreets.pavingEdgeWear`) | City & Streets |
+| Paver stone tone | 0.05 | 0..1 | Brightness spread from stone to stone on pavement | src/config/tuning/cityStreets.ts (`cityStreets.pavingStoneTone`) | City & Streets |
+| Pavement gum spot | 0.12 | 0..1 | Darkness of gum-like spots on pavement | src/config/tuning/cityStreets.ts (`cityStreets.pavingGumSpot`) | City & Streets |
+| Pavement puddle mark | 0.05 | 0..1 | Darkness of dry puddle rings on pavement | src/config/tuning/cityStreets.ts (`cityStreets.pavingPuddleMark`) | City & Streets |
+| Pavement dirt zone | 0.06 | 0..1 | Darkness of dirt grouped in zones per 24 m block | src/config/tuning/cityStreets.ts (`cityStreets.pavingDirtZone`) | City & Streets |
+| Paver accent share | 0.05 | 0..1 (about 1 in 20) | Share of pavers that take an accent colour, seeded per paver | src/config/tuning/cityStreets.ts (`cityStreets.pavingAccentShare`) | City & Streets |
+| Paver accent colours | #b3aca4, #a79d90, #b7b09a | hex, three | Warm grey, light grey-brown and pale ochre-grey accent pavers (low contrast) | src/config/tuning/cityStreets.ts (`cityStreets.pavingAccentColours`) | City & Streets |
+| Kerb base grime | 0.22 | 0..1 | Grime at the base of kerb faces | src/config/tuning/cityStreets.ts (`cityStreets.pavingGrime`) | City & Streets |
+| Pavement scuff | 0.07 | 0..1 | Darkness of scuffed pavement | src/config/tuning/cityStreets.ts (`cityStreets.pavingWear`) | City & Streets |
+| Bicycle track | 0.07 | 0..1 | Darkness of bicycle tyre tracks (thin pair, 0.55 m apart) on pavement | src/config/tuning/cityStreets.ts (`cityStreets.pavingBikeTrack`) | City & Streets |
+| Footprint | 0.08 | 0..1 | Darkness of pedestrian footprint traces on pavement | src/config/tuning/cityStreets.ts (`cityStreets.pavingFootprint`) | City & Streets |
+| Pavement stain | 0.12 | 0..1 | Darkness of dirty stains on pavement | src/config/tuning/cityStreets.ts (`cityStreets.pavingStain`) | City & Streets |
+| Paint loss | 0.3 | 0..1 | Share of paint lost in worn spots | src/config/tuning/cityStreets.ts (`cityStreets.paintWear`) | City & Streets |
+| Paint fade | 0.06 | 0..1 | Uniform dimming of lane and crossing paint | src/config/tuning/cityStreets.ts (`cityStreets.paintFade`) | City & Streets |
+
 ## Not yet tunable (hardcoded)
 
 Values buried in code with no named constant or config entry. Changing them is not a one-line edit; the owner must add a constant first.

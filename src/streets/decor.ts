@@ -4,7 +4,6 @@
 // Families planned here:
 //   solids      bus stops (shelter + sign), kiosks, bike racks            avenue (and rack on streets) sidewalks
 //   road decals manholes, patches, cracks, wheel-wear bands               lanes of every road
-//   paving      slab shade variation                                      avenue sidewalks
 //   curbs       tactile warning bars (kerb corners are in surfaces.ts)   crosswalk ends
 //   fountain    one fountain plaza (+ benches, static pigeons)            the best free courtyard
 //
@@ -64,8 +63,6 @@ export type PatchKind = 'dark' | 'light' | 'wear' | 'crack';
 /** Axis-aligned road decal. */
 export interface RoadPatch { kind: PatchKind; minX: number; maxX: number; minZ: number; maxZ: number; roadId: string }
 
-export interface PavingTile { minX: number; maxX: number; minZ: number; maxZ: number; shade: 'dark' | 'light' }
-
 /**
  * Rounded kerb corner of an intersection: (x, z) is the carriageway corner; (sx, sz) point into the sidewalk.
  * The geometry itself is built into the sidewalk surfaces (surfaces.ts); the plan keeps the list so the tactile
@@ -96,7 +93,6 @@ export interface DecorPlan {
   solids: DecorSolid[];
   manholes: Manhole[];
   patches: RoadPatch[];
-  paving: PavingTile[];
   kerbCorners: KerbCorner[];
   tactile: TactileBar[];
   fountain: FountainPlan | null;
@@ -212,11 +208,10 @@ export function planStreetDecor(layout: CityLayout, greenery: readonly GreeneryT
   const frames = layout.roads.map(frameOf);
   const obstacles = obstaclesOf(layout);
 
-  const plan: DecorPlan = { solids: [], manholes: [], patches: [], paving: [], kerbCorners: [], tactile: [], fountain: null };
+  const plan: DecorPlan = { solids: [], manholes: [], patches: [], kerbCorners: [], tactile: [], fountain: null };
 
   planSolids(frames, obstacles, rng, plan);
   planRoadDecals(frames, rng, plan);
-  planPaving(frames, rng, plan);
   planKerbs(layout, frames, plan);
   plan.fountain = planFountain(layout, createRng((Math.imul(layout.seed | 0, 40503) ^ 0xf0f7a1) >>> 0), greenery);
   return plan;
@@ -328,38 +323,6 @@ function planRoadDecals(frames: readonly Frame[], rng: () => number, plan: Decor
           put('wear', len, 0.4, sgn * (lane + 0.55));
         } else if (rKind < 0.78) {
           put('crack', 2.2 + rLen * 2.4, 0.06 + rWid * 0.04, sgn * (lane + (rJit - 0.5) * 0.8));
-        }
-      }
-    }
-  }
-}
-
-function planPaving(frames: readonly Frame[], rng: () => number, plan: DecorPlan): void {
-  const TILE = 1.5;
-  const GAP = 0.03;
-  const INNER = 2.0; // beyond the tree pits (curb + 0.65 .. 1.95)
-  for (const f of frames) {
-    if (f.road.streetClass !== 'avenue' || f.sw < INNER + 1) continue;
-    for (const seg of freeSegments(f, frames, 0.3)) {
-      const cols = Math.max(1, Math.round((seg.b - seg.a) / TILE));
-      const colW = (seg.b - seg.a) / cols;
-      const rows = Math.max(1, Math.round((f.sw - INNER) / 1.25));
-      const rowW = (f.sw - INNER) / rows;
-      for (const side of [-1, 1] as const) {
-        for (let i = 0; i < cols; i++) {
-          for (let j = 0; j < rows; j++) {
-            const roll = rng();
-            if (roll >= 0.55) continue;
-            const a0 = seg.a + i * colW + GAP, a1 = seg.a + (i + 1) * colW - GAP;
-            const l0 = f.half + INNER + j * rowW + GAP, l1 = f.half + INNER + (j + 1) * rowW - GAP;
-            const p0 = toWorld(f, a0, side * l0);
-            const p1 = toWorld(f, a1, side * l1);
-            plan.paving.push({
-              minX: Math.min(p0.x, p1.x), maxX: Math.max(p0.x, p1.x),
-              minZ: Math.min(p0.z, p1.z), maxZ: Math.max(p0.z, p1.z),
-              shade: roll < 0.3 ? 'dark' : 'light',
-            });
-          }
         }
       }
     }
