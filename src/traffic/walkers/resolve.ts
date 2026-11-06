@@ -4,6 +4,7 @@ import { POSE_WALK, POSE_STAND, POSE_CHAT, POSE_SIT, BODY_CHILD, BODY_TEEN, SIDE
 import { inRoad } from './graph';
 import { clamp } from './movement';
 import type { Pedestrians } from '../pedestrians';
+import { trafficLife } from '../../config/tuning';
 
 /** Computes final positions, poses, followers and dogs for every live slot. */
 export function resolve(sys: Pedestrians, dt: number): void {
@@ -43,7 +44,7 @@ export function resolve(sys: Pedestrians, dt: number): void {
           pose = POSE_WALK;
           spd = sys.speed[i] * (st === S_MOVE ? 0.8 : sys.speedMul);
           // Children are erratic: their gait rate wobbles (render only; positions are unchanged).
-          if (sys.body[i] === BODY_CHILD) spd *= 1 + 0.25 * Math.sin(sys.time * 2.3 + sys.phase[i]);
+          if (sys.body[i] === BODY_CHILD) spd *= 1 + trafficLife.childCadenceWobble * Math.sin(sys.time * 2.3 + sys.phase[i]);
           if (st === S_WALK) {
             const e = sys.edge[i];
             if (g.cross[e] === 1) {
@@ -116,7 +117,7 @@ export function resolve(sys: Pedestrians, dt: number): void {
       // A follower keeps the leader's pace: a child walking with an adult goes at the adult's pace (the adult waits).
       // Children keep their own erratic wobble on top; teens take a slightly quicker rate.
       const rate = sys.body[i] === BODY_TEEN ? 1.1 : 1;
-      const wobble = sys.body[i] === BODY_CHILD ? 1 + 0.25 * Math.sin(sys.time * 2.3 + sys.phase[i]) : 1;
+      const wobble = sys.body[i] === BODY_CHILD ? 1 + trafficLife.childCadenceWobble * Math.sin(sys.time * 2.3 + sys.phase[i]) : 1;
       sys.ospeed[i] = sys.ospeed[L] * rate * wobble;
       visible++;
       clamp(sys, i);

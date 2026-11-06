@@ -67,9 +67,9 @@ describe('street wear knobs', () => {
     }).toEqual({
       roadBlockTone: 0.04,
       roadAggregate: 0.05,
-      roadWornLift: 0.1,
-      roadOilStain: 0.08,
-      roadPatchSeam: 0.06,
+      roadWornLift: 0.2,
+      roadOilStain: 0.16,
+      roadPatchSeam: 0.12,
       pavingJoint: 0.16,
       pavingGrime: 0.22,
       pavingWear: 0.07,
@@ -83,8 +83,8 @@ describe('street wear knobs', () => {
       pavingGumSpot: 0.12,
       pavingPuddleMark: 0.05,
       pavingDirtZone: 0.06,
-      paintWear: 0.3,
-      paintFade: 0.06,
+      paintWear: 0.6,
+      paintFade: 0.12,
     });
   });
 

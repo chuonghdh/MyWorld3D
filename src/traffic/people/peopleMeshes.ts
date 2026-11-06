@@ -73,6 +73,7 @@ export function createPeopleMeshes(pedestrianCapacity = 512, dogCapacity = 256):
   const models: PersonModel[] = KINDS.map((k) => buildPerson(k));
   const materials = models.map((m) => createPersonMaterials(m, uniforms));
   const gait: Float32Array[] = [];
+  const gait2: Float32Array[] = [];
   const look: Float32Array[] = [];
   const look2: Float32Array[] = [];
   const bodies = models.map((m, i) => {
@@ -84,6 +85,7 @@ export function createPeopleMeshes(pedestrianCapacity = 512, dogCapacity = 256):
     mesh.customDepthMaterial = materials[i].depth;
     mesh.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
     gait.push(instancedAttr(mesh, 'aGait', 4, pedestrianCapacity));
+    gait2.push(instancedAttr(mesh, 'aGait2', 4, pedestrianCapacity));
     look.push(instancedAttr(mesh, 'aLook', 4, pedestrianCapacity));
     look2.push(instancedAttr(mesh, 'aLook2', 4, pedestrianCapacity));
     group.add(mesh);
@@ -239,6 +241,11 @@ export function createPeopleMeshes(pedestrianCapacity = 512, dogCapacity = 256):
         g[o4 + 1] = ped.phase;
         g[o4 + 2] = walking ? 0 : ped.pose === POSE_WALK ? 1 : ped.pose;
         g[o4 + 3] = spec.amp;
+        const g2 = gait2[bi];
+        g2[o4] = spec.ease;
+        g2[o4 + 1] = spec.kneeK;
+        g2[o4 + 2] = spec.armK;
+        g2[o4 + 3] = spec.bobK;
         const lk = look[bi];
         lk[o4] = ped.top % PALETTE_SIZES.top;
         lk[o4 + 1] = ped.pants % PALETTE_SIZES.pants;
@@ -295,6 +302,7 @@ export function createPeopleMeshes(pedestrianCapacity = 512, dogCapacity = 256):
         const mesh = bodies[b];
         finish(mesh, counts[b]);
         (mesh.geometry.getAttribute('aGait') as THREE.BufferAttribute).needsUpdate = true;
+        (mesh.geometry.getAttribute('aGait2') as THREE.BufferAttribute).needsUpdate = true;
         (mesh.geometry.getAttribute('aLook') as THREE.BufferAttribute).needsUpdate = true;
         (mesh.geometry.getAttribute('aLook2') as THREE.BufferAttribute).needsUpdate = true;
       }

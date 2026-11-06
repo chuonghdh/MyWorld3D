@@ -2,7 +2,8 @@
 //   - applyRig() swings legs, knees, arms and elbows by part id, bobs the body, seats people, gestures when
 //     chatting and hides the hat, scarf and bag a person does not wear,
 //   - pickColour() resolves the per-instance clothing colours from palette uniform arrays.
-// Per-instance attributes: aGait (omega, phase, pose, amplitude), aLook (top, pants, hair, skin),
+// Per-instance attributes: aGait (omega, phase, pose, amplitude), aGait2 (swing ease, knee, arm, bob multipliers;
+// adults 0, 1, 1, 1), aLook (top, pants, hair, skin),
 // aLook2 (accent, flag bits, sex 0 man or 1 woman, hair style). Flag bits (see outfit.ts): 1 hat, 2 scarf, 4 bag,
 // 8 bare shins, 16 short sleeves, 32 umbrella, 256 coat, 512 beard, 1024 moustache, then pattern bits.
 // Per-vertex morph attributes aMorph and aMorphN move a male shape towards the female shape by the sex value.
@@ -80,6 +81,7 @@ void rotYZ(inout vec3 p, inout vec3 n, vec2 pv, float th) {
 const PERSON_DECL = /* glsl */ `
 attribute vec4 aRig;
 attribute vec4 aGait;
+attribute vec4 aGait2;
 attribute vec4 aLook;
 attribute vec4 aLook2;
 attribute vec3 aMorph;
@@ -153,22 +155,28 @@ bool applyRig(inout vec3 p, inout vec3 n) {
   float chat = (pose > 1.5 && pose < 2.5) ? 1.0 : 0.0;
   float sit = pose > 2.5 ? 1.0 : 0.0;
   float amp = aGait.w;
+  float eased = aGait2.x;
+  float kneeK = aGait2.y;
+  float armK = aGait2.z;
+  float bobK = aGait2.w;
   float a = uTime * aGait.x + aGait.y;
-  float bob = walk * amp * 0.026 * abs(sin(a));
+  float bob = walk * amp * 0.026 * bobK * abs(sin(a));
   bool isLeft = (part == 1 || part == 3 || part == 5 || part == 7);
   float side = isLeft ? 0.0 : 3.14159265;
   float sa = sin(a + side);
   float ca = cos(a + side);
+  // Eased swing: s + e*0.5*(s - s^3) keeps the peaks and dwells longer at the turnaround. e = 0 is the plain sine.
+  float ss = sa + eased * 0.5 * (sa - sa * sa * sa);
   if (part >= 1 && part <= 4) {
-    float thigh = walk * amp * 0.55 * sa + sit * 1.45;
+    float thigh = walk * amp * 0.55 * ss + sit * 1.45;
     if (part >= 3) {
-      float knee = walk * amp * 0.85 * max(0.0, ca) + sit * 1.45;
+      float knee = walk * amp * 0.85 * kneeK * max(0.0, ca) + sit * 1.45;
       rotYZ(p, n, aRig.zw, -knee);
     }
     rotYZ(p, n, uHip, thigh);
   } else if (part >= 5 && part <= 8) {
     bool isRight = !isLeft;
-    float swing = -walk * amp * 0.5 * sa + sit * 0.45;
+    float swing = -walk * amp * 0.5 * armK * ss + sit * 0.45;
     float elbow = walk * amp * (0.3 + 0.25 * max(0.0, -sa)) + sit * 0.6;
     if (chat > 0.5) {
       if (isRight) {

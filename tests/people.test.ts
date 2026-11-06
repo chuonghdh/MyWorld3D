@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import type { CityLayout, Crosswalk } from '../src/city/layout';
 import { generateCity } from '../src/city';
 import { DEFAULT_SETTINGS } from '../src/store/model';
+import { trafficLife } from '../src/config/tuning';
 import { TrafficLightController, lightStateAt } from '../src/traffic/lights';
 import {
   MAX_DOGS,
@@ -102,7 +103,30 @@ describe('people models', () => {
     expect(gaitOf('elder', 0).cycle).toBeLessThan(gaitOf('adult', 0).cycle);
     expect(gaitOf('elder', 0).amp).toBeLessThan(gaitOf('adult', 0).amp);
     expect(gaitOf('child', 0).cycle).toBeLessThan(gaitOf('adult', 0).cycle);
-    expect(gaitOf('child', 0).amp).toBeGreaterThan(gaitOf('adult', 0).amp);
+    expect(gaitOf('child', 0).amp).toBeLessThan(gaitOf('adult', 0).amp);
+  });
+
+  it('gives children a natural child cadence and swing defaults, adults the plain sine gait', () => {
+    for (const female of [0, 1] as const) {
+      const child = gaitOf('child', female);
+      expect(child.cycle).toBe(1.425);
+      expect(child.amp).toBe(0.9);
+      expect(child.ease).toBe(0.35);
+      expect(child.kneeK).toBe(1.3);
+      expect(child.armK).toBe(0.8);
+      expect(child.bobK).toBe(1.6);
+    }
+    for (const kind of ['adult', 'teen', 'elder'] as const) {
+      for (const female of [0, 1] as const) {
+        const g = gaitOf(kind, female);
+        expect(g.ease).toBe(0);
+        expect(g.kneeK).toBe(1);
+        expect(g.armK).toBe(1);
+        expect(g.bobK).toBe(1);
+      }
+    }
+    expect(gaitOf('adult', 0).cycle).toBe(1.5);
+    expect(gaitOf('adult', 0).amp).toBe(1);
   });
 
   it('builds a dog with about 100-160 triangles', () => {
@@ -312,12 +336,13 @@ describe('appearance, outfits and pace', () => {
       }
     }
     expect(samples).toBeGreaterThan(200);
-    // The child's speed is the adult's times the wobble (0.75 to 1.25), so the average ratio is about 1.
+    // The child's speed is the adult's times the wobble (1 +- childCadenceWobble), so the average ratio is about 1.
     const mean = wobbleSum / samples;
     expect(mean).toBeGreaterThan(0.97);
     expect(mean).toBeLessThan(1.03);
-    expect(wobbleMin).toBeGreaterThanOrEqual(0.74);
-    expect(wobbleMax).toBeLessThanOrEqual(1.26);
+    const w = trafficLife.childCadenceWobble;
+    expect(wobbleMin).toBeGreaterThanOrEqual(1 - w - 0.01);
+    expect(wobbleMax).toBeLessThanOrEqual(1 + w + 0.01);
   });
 });
 

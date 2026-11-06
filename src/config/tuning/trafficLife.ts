@@ -38,4 +38,18 @@ export const trafficLife = {
   filmBirdMinDistanceM: 3,
   /** Film carrier bird: scale of the flyer model (life/filmBird.ts). */
   filmBirdScale: 2.6,
+  /** Child walk: metres per full gait cycle (two steps), both sexes. Longer than before = slower cadence; feet keep pace with speed (traffic/people/personGeometry.ts). */
+  childStrideCycleM: 1.425,
+  /** Child walk: leg and arm swing amplitude multiplier, 1 = adult swing (traffic/people/personGeometry.ts). */
+  childSwingAmp: 0.9,
+  /** Child walk: swing ease 0-1; 0 is a plain sine, higher dwells longer at the turnaround (traffic/people/rigShader.ts). */
+  childSwingEase: 0.35,
+  /** Child walk: knee bend multiplier in the swing phase, 1 = adult (traffic/people/rigShader.ts). */
+  childKneeK: 1.3,
+  /** Child walk: arm counter-swing multiplier, 1 = adult (traffic/people/rigShader.ts). */
+  childArmK: 0.8,
+  /** Child walk: hip and body bob multiplier at step rate, 1 = adult (traffic/people/rigShader.ts). */
+  childBobK: 1.6,
+  /** Child walk: gait-rate wobble as a fraction of speed (0.05 = plus or minus 5 percent), render only (traffic/walkers/resolve.ts). */
+  childCadenceWobble: 0.05,
 } as const;

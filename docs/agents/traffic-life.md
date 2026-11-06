@@ -186,3 +186,14 @@ Plan only, no source edits. Auto film mode: a carrier bird flies high over the t
 ## Update 2026-11-06 (lead): auto film speed
 - Cars and pedestrians looked ~5x fast in the auto film. Not a traffic bug: the R3F loop fell back to 'always' and the town ran on wall time. Fixed in `src/film/loopHold.ts` (2f99377). Sim per step stays exact (vehicles and walkers move speed x dt).
 - Keep all motion on the `dt` from `useTownFrame`; no wall clocks in `src/traffic` or `src/life`.
+
+## Update 2026-11-06 (traffic-life): child walk gait
+- Child walk made calmer. Cycle 0.8 to 0.95 m (slower cadence; speed unchanged, so feet keep pace), swing 1.25 to 0.9 of adult size, eased swing (`eased` in `rigShader.ts`: dwell at the turnaround, peaks kept), knee bend x1.3, arm counter-swing x0.8, step-rate body bob x1.6.
+- Knobs: `trafficLife.childStrideCycleM`, `childSwingAmp`, `childSwingEase`, `childKneeK`, `childArmK`, `childBobK` (config, parity, `docs/TUNING.md`). Adults, teens and elders keep their values (ease 0, multipliers 1 via new per-instance attribute `aGait2`).
+- Trap: `aGait2` is a new per-instance attribute; any new gait field needs a place in `peopleMeshes.ts` (create, write, needsUpdate).
+- Open: child stride rate still wobbles +-25 percent (`walkers/resolve.ts`); this may still read as jittery. Not checked by eye.
+
+## Update 2026-11-06 (traffic-life): child cadence 50% slower
+- Child stride cycle 0.95 to 1.425 m (`trafficLife.childStrideCycleM`): gait cycle time about 1.5x longer at the same walk speed, feet keep pace (phase rate = speed / cycle, `peopleMeshes.ts`). Adults, teens and elders unchanged.
+- Child gait-rate wobble +-25 percent to +-5 percent (new knob `trafficLife.childCadenceWobble`, `walkers/resolve.ts`, render only). Per-person phase offset kept.
+- Tests: `people.test.ts` child defaults and wobble bounds read the knobs; `tuningParity.test.ts` entries added. Pedestrian determinism hash `EXPECTED_PEDESTRIANS` likely changes (child `speed` output); not re-captured yet.

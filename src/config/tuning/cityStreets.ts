@@ -47,11 +47,11 @@ export const cityStreets = {
   /** Fine aggregate speckle strength on asphalt, 0-1 (streets/streetWear.ts). */
   roadAggregate: 0.05,
   /** Extra lightness of worn asphalt patches, 0-1 (streets/streetWear.ts). */
-  roadWornLift: 0.1,
+  roadWornLift: 0.2,
   /** Darkness of oil stains on asphalt, 0-1 (streets/streetWear.ts). */
-  roadOilStain: 0.08,
+  roadOilStain: 0.16,
   /** Darkness of faint patch seam lines on asphalt, 0-1 (streets/streetWear.ts). */
-  roadPatchSeam: 0.06,
+  roadPatchSeam: 0.12,
   /** Darkness of the joints between stone pavers on pavement, 0-1 (streets/streetWear.ts). */
   pavingJoint: 0.16,
   /** Width of the joints between stone pavers, metres (streets/streetWear.ts). */
@@ -81,7 +81,7 @@ export const cityStreets = {
   /** Darkness of dirt grouped in zones per 24 m block, 0-1 (streets/streetWear.ts). */
   pavingDirtZone: 0.06,
   /** Share of paint lost in worn spots, 0-1 (streets/streetWear.ts). */
-  paintWear: 0.3,
+  paintWear: 0.6,
   /** Uniform dimming of lane and crossing paint, 0-1 (streets/streetWear.ts). */
-  paintFade: 0.06,
+  paintFade: 0.12,
 } as const;

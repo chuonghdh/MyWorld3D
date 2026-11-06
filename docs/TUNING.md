@@ -77,6 +77,13 @@ Base counts are scaled by the graphics tier: factor low 0.4, medium 0.7, high 1 
 | Film bird distance | 7 | metres | Preferred distance of the auto-film carrier bird from the camera | src/config/tuning/trafficLife.ts (`trafficLife.filmBirdDistanceM`) | Traffic & Life |
 | Film bird min distance | 3 | metres | Closest the auto-film bird may come to the camera (never cuts into the view) | src/config/tuning/trafficLife.ts (`trafficLife.filmBirdMinDistanceM`) | Traffic & Life |
 | Film bird scale | 2.6 | multiplier | Size of the auto-film carrier bird model | src/config/tuning/trafficLife.ts (`trafficLife.filmBirdScale`) | Traffic & Life |
+| Child stride cycle | 1.425 | metres per full gait cycle | src/config/tuning/trafficLife.ts (`trafficLife.childStrideCycleM`); used by src/traffic/people/personGeometry.ts | Traffic & Life |
+| Child cadence wobble | 0.05 | fraction of speed (plus or minus) | src/config/tuning/trafficLife.ts (`trafficLife.childCadenceWobble`); used by src/traffic/walkers/resolve.ts | Traffic & Life |
+| Child swing amplitude | 0.9 | multiplier (1 = adult) | src/config/tuning/trafficLife.ts (`trafficLife.childSwingAmp`); used by src/traffic/people/personGeometry.ts | Traffic & Life |
+| Child swing ease | 0.35 | 0-1 | src/config/tuning/trafficLife.ts (`trafficLife.childSwingEase`); used by src/traffic/people/personGeometry.ts | Traffic & Life |
+| Child knee bend | 1.3 | multiplier (1 = adult) | src/config/tuning/trafficLife.ts (`trafficLife.childKneeK`); used by src/traffic/people/personGeometry.ts | Traffic & Life |
+| Child arm swing | 0.8 | multiplier (1 = adult) | src/config/tuning/trafficLife.ts (`trafficLife.childArmK`); used by src/traffic/people/personGeometry.ts | Traffic & Life |
+| Child body bob | 1.6 | multiplier (1 = adult) | src/config/tuning/trafficLife.ts (`trafficLife.childBobK`); used by src/traffic/people/personGeometry.ts | Traffic & Life |
 | Bee share | 0.2 | fraction of butterflies/bees | Share of the 30 that are bees | src/life/pets.ts:567 (literal `n * 0.2`, stays in code) | Traffic & Life |
 | Bird audio cap | 3 to 6 flap birds, max flaps 3 | birds / flaps | Wing-flap sound events | src/audio/animals.ts:35-40 (`FLAP_BIRDS_MIN/MAX`, `MAX_FLAPS`, stay in code) | Audio |
 | Dog bark range | 120 | metres | Audible range of barking dogs | src/audio/animals.ts:42 (`DOG_RANGE_M`, stays in code) | Audio |
@@ -367,9 +374,9 @@ Shader-only wear on the road, pavement and paint (`src/streets/streetWear.ts`). 
 |---|---|---|---|---|---|
 | Asphalt block tone | 0.04 | 0..1 | Brightness spread per 24 m block (and per pavement slab) | src/config/tuning/cityStreets.ts (`cityStreets.roadBlockTone`) | City & Streets |
 | Asphalt aggregate | 0.05 | 0..1 | Fine speckle strength on asphalt | src/config/tuning/cityStreets.ts (`cityStreets.roadAggregate`) | City & Streets |
-| Worn patch lift | 0.1 | 0..1 | Extra lightness of worn asphalt patches | src/config/tuning/cityStreets.ts (`cityStreets.roadWornLift`) | City & Streets |
-| Oil stain | 0.08 | 0..1 | Darkness of oil stains on asphalt | src/config/tuning/cityStreets.ts (`cityStreets.roadOilStain`) | City & Streets |
-| Patch seam | 0.06 | 0..1 | Darkness of faint patch seam lines | src/config/tuning/cityStreets.ts (`cityStreets.roadPatchSeam`) | City & Streets |
+| Worn patch lift | 0.2 | 0..1 | Extra lightness of worn asphalt patches | src/config/tuning/cityStreets.ts (`cityStreets.roadWornLift`) | City & Streets |
+| Oil stain | 0.16 | 0..1 | Darkness of oil stains on asphalt | src/config/tuning/cityStreets.ts (`cityStreets.roadOilStain`) | City & Streets |
+| Patch seam | 0.12 | 0..1 | Darkness of faint patch seam lines | src/config/tuning/cityStreets.ts (`cityStreets.roadPatchSeam`) | City & Streets |
 | Slab joint | 0.16 | 0..1 | Darkness of the joints between stone pavers (0.40 x 0.15 m, staggered bond) | src/config/tuning/cityStreets.ts (`cityStreets.pavingJoint`) | City & Streets |
 | Paver joint width | 0.012 | metres | Width of the joints between stone pavers | src/config/tuning/cityStreets.ts (`cityStreets.pavingJointWidth`) | City & Streets |
 | Paver edge wear | 0.05 | 0..1 | Faint edge wear along each paver | src/config/tuning/cityStreets.ts (`cityStreets.pavingEdgeWear`) | City & Streets |
@@ -384,8 +391,8 @@ Shader-only wear on the road, pavement and paint (`src/streets/streetWear.ts`). 
 | Bicycle track | 0.07 | 0..1 | Darkness of bicycle tyre tracks (thin pair, 0.55 m apart) on pavement | src/config/tuning/cityStreets.ts (`cityStreets.pavingBikeTrack`) | City & Streets |
 | Footprint | 0.08 | 0..1 | Darkness of pedestrian footprint traces on pavement | src/config/tuning/cityStreets.ts (`cityStreets.pavingFootprint`) | City & Streets |
 | Pavement stain | 0.12 | 0..1 | Darkness of dirty stains on pavement | src/config/tuning/cityStreets.ts (`cityStreets.pavingStain`) | City & Streets |
-| Paint loss | 0.3 | 0..1 | Share of paint lost in worn spots | src/config/tuning/cityStreets.ts (`cityStreets.paintWear`) | City & Streets |
-| Paint fade | 0.06 | 0..1 | Uniform dimming of lane and crossing paint | src/config/tuning/cityStreets.ts (`cityStreets.paintFade`) | City & Streets |
+| Paint loss | 0.6 | 0..1 | Share of paint lost in worn spots | src/config/tuning/cityStreets.ts (`cityStreets.paintWear`) | City & Streets |
+| Paint fade | 0.12 | 0..1 | Uniform dimming of lane and crossing paint | src/config/tuning/cityStreets.ts (`cityStreets.paintFade`) | City & Streets |
 
 ## Not yet tunable (hardcoded)
 

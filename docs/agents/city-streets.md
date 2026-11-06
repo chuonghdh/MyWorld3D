@@ -119,3 +119,6 @@ Reviewed 2026-11-01 at 02b0cdc
 ## Update 2026-11-06 (city-streets): pavement dirt
 - Added shader-only dirt on pavement: gum-like spots (`cityStreets.pavingGumSpot` 0.12, one candidate per 1.2 m cell), dry puddle rings (`pavingPuddleMark` 0.05, noise contours) and dirt zones per 24 m block (`pavingDirtZone` 0.06, seeded). Soft dark patches are the existing `pavingStain` (0.12).
 - Not done: grouping dirt near the kerb, shopfronts, bins and benches needs per-vertex distance or facade data that the surface builder does not carry; the per-block zones stand in for it.
+
+## Update 2026-11-06 (city-streets): road dirt and lane wear doubled
+- Knob values doubled (defaults only, no shader or geometry change): `roadWornLift` 0.1 to 0.2, `roadOilStain` 0.08 to 0.16, `roadPatchSeam` 0.06 to 0.12, `paintWear` 0.3 to 0.6, `paintFade` 0.06 to 0.12. Sidewalk pavement knobs unchanged. Parity entries, `tests/streetWear.test.ts` expectations and `docs/TUNING.md` rows updated.
