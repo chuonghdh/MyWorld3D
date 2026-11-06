@@ -2,7 +2,7 @@
 // (rendered by scene/houseThumbs.ts, HouseGlyph until it arrives), label below. Slides by arrow buttons,
 // drag or swipe (scroll-snap), the mouse wheel and Left/Right/Home/End on the focused card (roving tabindex).
 // The current card is centred on open without animation, smoothly after that.
-import { useEffect, useLayoutEffect, useRef, useState, type KeyboardEvent as ReactKeyboardEvent, type PointerEvent as ReactPointerEvent } from 'react';
+import { useEffect, useLayoutEffect, useRef, useState, type KeyboardEvent as ReactKeyboardEvent, type PointerEvent as ReactPointerEvent, type ReactNode } from 'react';
 import { HouseGlyph } from './controls';
 import { selectionTickCue } from './panelCue';
 import './carousel.css';
@@ -15,14 +15,12 @@ export interface CarouselItem<T extends string> {
 /** Pixels a press may move before it counts as a drag (then the click does not pick). */
 const DRAG_SLOP_PX = 6;
 
-function Thumb({ src }: { src: string | undefined }) {
+function Thumb({ src, placeholder }: { src: string | undefined; placeholder: ReactNode }) {
   const [loaded, setLoaded] = useState(false);
   useEffect(() => setLoaded(false), [src]);
   return (
     <span className="mw-carousel-pic" aria-hidden="true">
-      <span className="mw-carousel-glyph">
-        <HouseGlyph />
-      </span>
+      <span className="mw-carousel-glyph">{placeholder}</span>
       {src && <img src={src} alt="" draggable={false} className={loaded ? 'is-loaded' : undefined} onLoad={() => setLoaded(true)} />}
     </span>
   );
@@ -34,12 +32,15 @@ export function PresetCarousel<T extends string>({
   value,
   thumbs,
   onChange,
+  placeholder,
 }: {
   label: string;
   items: readonly CarouselItem<T>[];
   value: T;
   thumbs: Partial<Record<T, string>>;
   onChange: (v: T) => void;
+  /** Shown until a picture arrives (default: the house glyph). */
+  placeholder?: ReactNode;
 }) {
   const track = useRef<HTMLDivElement>(null);
   const cards = useRef(new Map<T, HTMLButtonElement>());
@@ -179,7 +180,7 @@ export function PresetCarousel<T extends string>({
                 onClick={() => pick(item.value)}
                 onKeyDown={(e) => onKey(e, i)}
               >
-                <Thumb src={thumbs[item.value]} />
+                <Thumb src={thumbs[item.value]} placeholder={placeholder ?? <HouseGlyph />} />
                 <span className="mw-carousel-label">{item.label}</span>
               </button>
             );

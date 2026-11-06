@@ -20,6 +20,7 @@ export const useHouseThumbs = create<HouseThumbsState>((set, get) => ({
   },
 }));
 
+
 /** Stores one finished thumbnail (renderer side). */
 export function storeHouseThumb(preset: HousePreset, dataUrl: string): void {
   useHouseThumbs.setState((s) => ({ thumbs: { ...s.thumbs, [preset]: dataUrl } }));

@@ -32,4 +32,10 @@ export {
 } from './palette';
 export type { WallColorName, ShutterColorName } from './palette';
 
-export { buildHousePreview, housePreviewBounds, disposeHousePreview, PREVIEW_FLOORS, PREVIEW_SEED } from './preview';
+export {
+  buildHousePreview,
+  housePreviewBounds,
+  disposeHousePreview,
+  PREVIEW_FLOORS,
+  PREVIEW_SEED,
+} from './preview';

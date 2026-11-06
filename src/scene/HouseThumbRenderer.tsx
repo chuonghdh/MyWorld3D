@@ -10,7 +10,7 @@ import { OutputPass } from 'three/examples/jsm/postprocessing/OutputPass.js';
 import { HOUSE_PRESETS, buildHousePreview, disposeHousePreview, housePreviewBounds } from '../buildings';
 import { sceneQa } from '../config/tuning';
 import { useWorldStore } from '../store';
-import { flipAndUnpremultiply, frameThumbCamera, nextThumbPreset, storeHouseThumb, useHouseThumbs } from './houseThumbs';
+import { flipAndUnpremultiply, frameThumbCamera, nextThumbPreset, storeHouseThumb, useHouseThumbs, type Vec3 } from './houseThumbs';
 
 const KEY_COLOR = 0xfff0d8;
 const SKY_COLOR = 0xf4f1ea;
@@ -63,13 +63,12 @@ const _key = new THREE.Vector3();
 const _up = new THREE.Vector3(0, 1, 0);
 const KEY_SWING_RAD = (-50 * Math.PI) / 180;
 
-function renderThumb(gl: THREE.WebGLRenderer, k: Kit, preset: (typeof HOUSE_PRESETS)[number]): string {
+/** Renders one group framed on its box (min/max in the group's space) and returns a PNG data URL. */
+function renderGroup(gl: THREE.WebGLRenderer, k: Kit, house: THREE.Group, boxMin: Vec3, boxMax: Vec3): string {
   const t = sceneQa.houseThumbs;
-  const house = buildHousePreview(preset);
   k.scene.add(house);
   try {
-    const b = housePreviewBounds(house);
-    const f = frameThumbCamera(b.min.toArray(), b.max.toArray(), {
+    const f = frameThumbCamera(boxMin, boxMax, {
       fovDeg: t.thumbFovDeg,
       azimuthDeg: t.thumbAzimuthDeg,
       elevationDeg: t.thumbElevationDeg,
@@ -113,6 +112,12 @@ function renderThumb(gl: THREE.WebGLRenderer, k: Kit, preset: (typeof HOUSE_PRES
     k.scene.remove(house);
     disposeHousePreview(house);
   }
+}
+
+function renderThumb(gl: THREE.WebGLRenderer, k: Kit, preset: (typeof HOUSE_PRESETS)[number]): string {
+  const house = buildHousePreview(preset);
+  const b = housePreviewBounds(house);
+  return renderGroup(gl, k, house, b.min.toArray(), b.max.toArray());
 }
 
 export function HouseThumbRenderer() {

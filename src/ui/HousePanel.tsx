@@ -5,6 +5,7 @@ import { HOUSE_PRESETS, HOUSE_STYLES, ROOF_TYPES, type HouseOverride, type RoofT
 import type { HousePreset, HouseStyle } from '../core/types';
 import { ActionButton, HouseGlyph, Panel, Segmented, Slider, SwatchGroup, Swatches } from './controls';
 import { PresetCarousel } from './PresetCarousel';
+import { RoofIcon } from './roofIcons';
 import { useHouseThumbs } from '../scene/houseThumbs';
 import { shownHouseRoof, shownShutter, typePickPatch } from './houseRoof';
 
@@ -69,7 +70,7 @@ export function HousePanel({ houseId, base, onAction }: HousePanelProps) {
   const clearOverride = useWorldStore((st) => st.clearOverride);
   const thumbs = useHouseThumbs((st) => st.thumbs);
   const requestThumbs = useHouseThumbs((st) => st.request);
-  // Thumbnails are rendered once on demand (scene/houseThumbs.ts); the glyph shows until each arrives.
+  // Thumbnails are rendered once on demand (scene/houseThumbs.ts); placeholders show until each arrives.
   useEffect(() => {
     requestThumbs();
   }, [requestThumbs]);
@@ -134,7 +135,8 @@ export function HousePanel({ houseId, base, onAction }: HousePanelProps) {
               aria-pressed={r === eff.roof}
               onClick={() => patch({ roof: r })}
             >
-              {ROOF_LABEL[r]}
+              <RoofIcon roof={r} />
+              <span>{ROOF_LABEL[r]}</span>
             </button>
           ))}
         </div>

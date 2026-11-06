@@ -372,6 +372,18 @@
   font-size: 12px;
 }
 
+/* Chips with a leading icon (roof profile, ui/roofIcons.tsx). */
+.mw-chip-grid .mw-chip:has(.mw-roof-icon) {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
+}
+
+.mw-roof-icon {
+  flex: none;
+}
+
 .mw-select {
   width: 100%;
   padding: 7px 28px 7px 8px;

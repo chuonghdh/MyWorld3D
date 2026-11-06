@@ -117,3 +117,4 @@ Last smoke test: passed on 2026-10-29 (page title MyWorld3D, one canvas, WebGL o
 - 2026-11-06: glass-tower 7-floor minimum removed (`townBlocks.houseParamsFor`, mirror in `tests/helpers/cityBuild.ts`); every preset uses `ov.floors ?? lot.floors` (user decision).
 - 2026-11-06: `houseParamsFor` gives a user-picked type (ov.preset, not as-block) its `presetDefaultShutter` when the lot style has none and the preset can carry shutters; untouched houses keep the lot look.
 - 2026-11-06: `scene/cityStyle.ts` town shutters now read `SHUTTER_COLORS` (sage, blue, oxblood, cream, grey; same order) from `buildings` instead of hex literals (duplicate-value rule).
+- 2026-11-06 (roof icons dropped): the Roof picker stays buttons with small icons; no roof pictures are rendered (`houseThumbs.ts` and `HouseThumbRenderer.tsx` are type-only again).
