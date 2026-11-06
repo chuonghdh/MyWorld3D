@@ -106,7 +106,7 @@ Pedestrians (`src/traffic/walkers/`):
 - Open: the curve values and the 0.2 floor are set by numbers, not checked by eye. Verify the night feel at street level.
 
 ## Tuning rule (step 6)
-- Rule: traffic and life knobs live in `src/config/tuning.ts` (`trafficLife`). Feature files import them; geometry and algorithm constants stay local. Moved: density floor, vehicles per path, spawn min/max, turn odds and turn speeds, horn cooldown/global gap/chance, dog share, pigeon/cat/squirrel/butterfly counts. Each moved value has a parity entry in `tests/tuningParity.test.ts`.
+- Rule: traffic and life knobs live in `src/config/tuning/` (`trafficLife`). Feature files import them; geometry and algorithm constants stay local. Moved: density floor, vehicles per path, spawn min/max, turn odds and turn speeds, horn cooldown/global gap/chance, dog share, pigeon/cat/squirrel/butterfly counts. Each moved value has a parity entry in `tests/tuningParity.test.ts`.
 - Open: cruise speeds (`VEHICLE_SPECS`) and walker caps stay local. `docs/TUNING.md` location cells still point at the old files.
 
 ## Session 2026-11-04 (film bird plan)
@@ -121,7 +121,7 @@ Plan only, no source edits. Auto film mode: a carrier bird flies high over the t
 
 **Recommendation: dedicated film carrier, reuse only the visuals**
 - Do not reuse `PigeonSystem` or `FlockSystem`: they are stateful, consume RNG per frame, scare-test against vehicle and pedestrian lists, and have closed loops, not a film path.
-- Add `src/film/filmBird.ts` (or `src/scene/filmCarrier.ts`): pure `poseAt(filmT) -> {position, heading, pitch, roll}` from a piecewise path (Catmull-Rom or analytic arcs) built once from the layout. No RNG, no `dt` integration.
+- Add `src/life/filmBird.ts` (or src/scene/filmCarrier.ts (planned)): pure `poseAt(filmT) -> {position, heading, pitch, roll}` from a piecewise path (Catmull-Rom or analytic arcs) built once from the layout. No RNG, no `dt` integration.
 - Visual: `buildFlyerGeometry` + `createAnimalMaterial('flyer')` + `attachAnim` + `setPose` (`common.ts`) into one `InstancedMesh(count 1)` that lives outside `life.group`. This keeps the life test (`<= 6` meshes, `life.test.ts:236`) intact. Perch: `buildPigeonGeometry` at a larger scale. Carrier casts no shadow (`fitSunShadow` reads the camera, `useTownFrame.ts:116`, so camera jumps already move the shadow frustum).
 - Trade-off: a separate rig costs 1 draw call in film mode only, is replayable from the film clock, and touches no existing RNG. Reusing the bird would tie film timing to frame dt and to the life RNG.
 
@@ -136,11 +136,11 @@ Plan only, no source edits. Auto film mode: a carrier bird flies high over the t
 - Opposite perch: the road in front (`roads`, orientation and width, `sidewalkWidth`), then the lot on the far side whose `facing` points back at the cathedral. Pick the roof-edge point the way `roofSpots` does (`spots.ts:109-114`) with `roofHeight(lot)+0.35`. Deterministic tie-break by lot `id`. Fallback: a sidewalk spot from `sidewalkSpots` on the far curb.
 - Data needed: `blocks` (id, kind, monument, bounds), `lots` (id, blockId, position, facing, width, depth, floors), `roads`, `intersections`, `lamps`, `streetTrees`, `trafficLights`, `townBounds`.
 
-**Knobs (new section `src/config/tuning/filmBird.ts`, owner Traffic & Life for the carrier, UI & Camera for the lens; index in `docs/TUNING.md`)**
+**Knobs (new section src/config/tuning/ (planned filmBird section), owner Traffic & Life for the carrier, UI & Camera for the lens; index in `docs/TUNING.md`)**
 - Start altitude above the town (m), town circle radius (m), cathedral orbit radius (m), street descent height above roofs (m), minimum street clearance (m), sky tilt angle (deg), perch hold time (s), segment durations (s). Geometry and the path shape stay local.
 
 **Tests to add**
-- `tests/filmBird.test.ts`: same film time gives the same pose; the path stays inside `townBounds` minus a margin; street segment clearance vs roofs and furniture; perch lies on the opposite lot's roof edge and faces the cathedral; film mode off leaves life and traffic counts and hashes unchanged.
+- `tests/film/filmBird.test.ts`: same film time gives the same pose; the path stays inside `townBounds` minus a margin; street segment clearance vs roofs and furniture; perch lies on the opposite lot's roof edge and faces the cathedral; film mode off leaves life and traffic counts and hashes unchanged.
 - `tests/tuningParity.test.ts`: one entry per new knob.
 
 **Phases and acceptance**
@@ -197,3 +197,11 @@ Plan only, no source edits. Auto film mode: a carrier bird flies high over the t
 - Child stride cycle 0.95 to 1.425 m (`trafficLife.childStrideCycleM`): gait cycle time about 1.5x longer at the same walk speed, feet keep pace (phase rate = speed / cycle, `peopleMeshes.ts`). Adults, teens and elders unchanged.
 - Child gait-rate wobble +-25 percent to +-5 percent (new knob `trafficLife.childCadenceWobble`, `walkers/resolve.ts`, render only). Per-person phase offset kept.
 - Tests: `people.test.ts` child defaults and wobble bounds read the knobs; `tuningParity.test.ts` entries added. Pedestrian determinism hash `EXPECTED_PEDESTRIANS` likely changes (child `speed` output); not re-captured yet.
+
+## Harness refactor (2026-11-06)
+- `people/`: `personGeometry.ts` (build, gait lookup), `personShape.ts`, `personParts.ts` (PART, REGION), `personSpec.ts` (specs); `rigShader.ts` (materials), `rigShaderGlsl.ts` (chunks, order unchanged).
+- `vehicleMeshes.ts` (meshes), `vehicleShader.ts` (patch, snow stays in NORMAL_SPIN), `vehicleGlow.ts` (headlight pools).
+- `vehicles/models.ts` (cars, van, scooter), `vehicles/modelsHeavy.ts` (bus, truck).
+- `birds.ts` (classes, constants, flock defs), `pigeonMotion.ts` and `flockMotion.ts` (update and helpers as functions of the instance).
+- `pets.ts` (cats, count helpers, roofHeight), `squirrels.ts`, `butterflies.ts`; `life/index.ts` imports them directly.
+- Counts, bee share and child gait knob stay in the files the parity test names (`birds.ts`, `pets.ts`, `personGeometry.ts`).

@@ -1,7 +1,7 @@
 # Public buildings review (ten monuments)
 
 Scene & QA review, branch optimize_02. Review and planning only: no source file was changed.
-Scope: `buildings.monumentKinds` in `src/config/tuning.ts`. Builders: `src/buildings/monument.ts`, `src/buildings/monuments/{kit,civic,leisure,culture}.ts`.
+Scope: `buildings.monumentKinds` in src/config/tuning/ (formerly tuning.ts). Builders: `src/buildings/monument.ts`, `src/buildings/monuments/`.
 
 ## Status (as of this branch state)
 
@@ -263,9 +263,9 @@ Everything else follows, in the order in the lanes below: fire station, stadium,
 - **Layout shift:** monuments are picked from `monumentKinds` per monument block. Adding kinds changes which kind every seeded monument block gets, so every town layout changes once. Note it in the handbook, as for the earlier merge change.
 - **Knobs:** each new kind needs a rate or weight knob in the `buildings` section and a parity entry.
 
-**N1 School (new, last).** Files: `src/core/types.ts`, `src/config/tuning.ts`, `src/buildings/monuments/civic.ts` (or a new `education.ts` if civic.ts grows past 400 lines, which it will not if the school stays short), `monument.ts`. Work: one-storey and two-storey hall, bell-less tower or cupola, playground greenery (counts to knob). Acceptance: tests `monuments` and `geometry`; budget C1; by-eye at medium range. Budget: about +6k main; blocked until A3 and the draw-call check. Risk: high (new kind, layout shift, shadow).
+**N1 School (new, last).** Files: `src/core/types.ts`, src/config/tuning/ (formerly tuning.ts), `src/buildings/monuments/civic.ts` (or a new `education.ts` if civic.ts grows past 400 lines, which it will not if the school stays short), `monument.ts`. Work: one-storey and two-storey hall, bell-less tower or cupola, playground greenery (counts to knob). Acceptance: tests `monuments` and `geometry`; budget C1; by-eye at medium range. Budget: about +6k main; blocked until A3 and the draw-call check. Risk: high (new kind, layout shift, shadow).
 
-**N2 City Hall (new, second).** Files: `src/core/types.ts`, `src/config/tuning.ts`, `src/buildings/monuments/civic.ts`, `monument.ts`. Work: stone civic hall with a central clock tower, colonnade, flag on a `withWind(WIND.FLAG)` pole, steps. Reuse existing kit parts (columns, cornice, clock face material). Acceptance: tests `monuments`, `geometry`, `budget`; by-eye from the street and the overview. Budget: about +8k main; blocked until A3. Risk: high. Must land in the civic lane after B1 and B3 are planned, but is built first in that lane because of priority.
+**N2 City Hall (new, second).** Files: `src/core/types.ts`, src/config/tuning/ (formerly tuning.ts), `src/buildings/monuments/civic.ts`, `monument.ts`. Work: stone civic hall with a central clock tower, colonnade, flag on a `withWind(WIND.FLAG)` pole, steps. Reuse existing kit parts (columns, cornice, clock face material). Acceptance: tests `monuments`, `geometry`, `budget`; by-eye from the street and the overview. Budget: about +8k main; blocked until A3. Risk: high. Must land in the civic lane after B1 and B3 are planned, but is built first in that lane because of priority.
 
 **Civic lane order (revised):** N2 City Hall, then B1 Hospital, then B3 Supermarket, then B2 Fire station, then N1 School.
 
@@ -281,7 +281,7 @@ Ordering rules: tasks marked **[SHARED]** edit a file used by several monuments 
 
 **Phase A (serial, shared)**
 
-**Task A1 [SHARED] Monument tuning knobs.** Files: `src/config/tuning.ts` (`buildings` section only), `tests/tuningParity.test.ts`, `docs/TUNING.md`. Work: add the knobs in X2 with one doc line each; no feature behaviour change yet, defaults set to current literal values so output is byte-identical. Acceptance: `tests/tuningParity.test.ts` passes with the new entries; `npx tsc --noEmit`; output of the ten monuments unchanged (vitest monuments suite). Budget effect: 0. Risk: low. Owner: Buildings, with Scene & QA on parity.
+**Task A1 [SHARED] Monument tuning knobs.** Files: src/config/tuning/ (formerly tuning.ts) (`buildings` section only), `tests/tuningParity.test.ts`, `docs/TUNING.md`. Work: add the knobs in X2 with one doc line each; no feature behaviour change yet, defaults set to current literal values so output is byte-identical. Acceptance: `tests/tuningParity.test.ts` passes with the new entries; `npx tsc --noEmit`; output of the ten monuments unchanged (vitest monuments suite). Budget effect: 0. Risk: low. Owner: Buildings, with Scene & QA on parity.
 
 **Task A2 [SHARED] Water basin helper and window LOD.** Files: `src/buildings/monuments/kit.ts` (add `waterBasin`, optional back-face skip in `windowAt`/`wing`). Work: helper only; no caller changes yet. Acceptance: the helper compiles and is unit-tested with a small geometry check (`tests/monuments*`); back-face skip is off by default so output is unchanged. Budget effect: 0 until used. Risk: medium (kit is used by all ten; `uv` wind rule in Buildings handbook must hold). Owner: Buildings.
 

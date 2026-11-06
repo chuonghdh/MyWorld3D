@@ -51,7 +51,7 @@ export function App() {
   // Starting a film drops the current selection so no panel or block outline is recorded by accident.
   useEffect(() => {
     if (toggles.filming) setSelected(null);
-  }, [toggles.filming]);
+  }, [toggles.filming, setSelected]); // setSelected is a stable store action; listing it changes no run.
 
   const layout = getCityLayout(settings);
   const editMode = useWorldStore((s) => s.editMode);

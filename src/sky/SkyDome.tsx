@@ -38,8 +38,14 @@ export function SkyDome({ timeOfDay, season, cloudiness = 0.25, flash = 0, overl
   );
 
   const fogKey = fogColor ? `${fogColor.r},${fogColor.g},${fogColor.b}` : '';
+  // Latest fog colour for the effect below. A ref, not a dependency: a new object with the same values (fogKey)
+  // must not re-run the effect. Effects run in order, so this is updated before the sky effect reads it.
+  const fogRef = useRef(fogColor);
   useEffect(() => {
-    const v = computeSkyState({ timeOfDay, season, cloudiness, flash, fogColor });
+    fogRef.current = fogColor;
+  });
+  useEffect(() => {
+    const v = computeSkyState({ timeOfDay, season, cloudiness, flash, fogColor: fogRef.current });
     dome.set(v);
     ground.set(v, fogNear, fogFar);
     // fogColor is tracked through fogKey so a new object with the same values does not recompute.

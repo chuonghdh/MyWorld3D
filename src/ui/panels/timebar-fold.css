@@ -1,0 +1,57 @@
+/* Time bar fold (TimeBar.tsx): controls and the small clock slide sideways with the panel timings
+   (grid columns 0fr <-> 1fr), so the bar width animates and nothing jumps. Always animated (user's choice,
+   2026-11-06). The bar gap moves into each slide (trailing padding) so a closed slide leaves no gap. */
+.mw-timebar.mw-timebar-sliding {
+  gap: 0;
+  --mw-tb-gap: 8px;
+}
+
+.mw-hslide {
+  display: grid;
+  grid-template-columns: 0fr;
+  transition: grid-template-columns var(--mw-slide-close, 0.22s) cubic-bezier(0.4, 0, 1, 1);
+}
+
+.mw-hslide.is-open {
+  grid-template-columns: 1fr;
+  transition: grid-template-columns var(--mw-slide-open, 0.3s) cubic-bezier(0.2, 0, 0, 1);
+}
+
+.mw-hslide-inner {
+  min-width: 0;
+  overflow: hidden;
+  opacity: 0;
+  visibility: hidden;
+  transition: opacity var(--mw-slide-close, 0.22s) cubic-bezier(0.4, 0, 1, 1), visibility 0s linear var(--mw-slide-close, 0.22s);
+}
+
+.mw-hslide.is-open > .mw-hslide-inner {
+  opacity: 1;
+  visibility: visible;
+  transition: opacity var(--mw-slide-open, 0.3s) cubic-bezier(0.2, 0, 0, 1), visibility 0s;
+}
+
+/* The row carries the gap and trailing spacing, so the clipped inner box can close to 0 px. */
+.mw-hslide-row {
+  display: flex;
+  align-items: center;
+  gap: var(--mw-tb-gap);
+  padding-right: var(--mw-tb-gap);
+  white-space: nowrap;
+  width: max-content;
+}
+
+.mw-hslide-row > * {
+  flex: none;
+}
+
+.mw-clock-folded {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.mw-clock-folded .mw-clock-period {
+  margin-left: 0;
+}
+

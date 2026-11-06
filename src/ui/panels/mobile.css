@@ -1,0 +1,151 @@
+/* ===== Mobile / touch layout (Round 4.5) =====
+   Under 600 px: panels become bottom sheets (Settings is collapsed by default, see Panel in controls.tsx),
+   buttons are at least 40 px high, the time bar shrinks and the tool bar moves under it.
+   The panel wrappers in App.tsx carry inline positions, so the panels themselves go position: fixed. */
+@media (max-width: 600px) {
+  .mw-left-panel {
+    left: 8px;
+  }
+
+  .mw-right-panel {
+    right: 8px;
+  }
+
+  /* An open panel fills the phone screen; folding it returns to the icon in the top row. */
+  .mw-panel:not(.is-collapsed) {
+    position: fixed;
+    inset: 0;
+    width: auto;
+    max-height: none;
+    border-radius: 0;
+    border: 0;
+    z-index: 30;
+  }
+
+  .mw-panel:not(.is-collapsed) .mw-panel-slide {
+    flex: 1 1 auto;
+  }
+
+  .mw-panel:not(.is-collapsed) .mw-panel-body {
+    flex: 1;
+    min-height: 0;
+    overflow: auto;
+  }
+
+  .mw-btn,
+  .mw-seg,
+  .mw-select,
+  .mw-timebar-btn,
+  .mw-panel-toggle {
+    min-height: 40px;
+  }
+
+  .mw-panel-toggle {
+    min-width: 40px;
+  }
+
+  .mw-timebar.mw-timebar-sliding {
+    --mw-tb-gap: 4px;
+  }
+
+  .mw-timebar {
+    gap: 4px;
+    padding: 4px 6px;
+    border-radius: 12px;
+  }
+
+  .mw-timebar-btn {
+    min-width: 0;
+    padding: 4px 8px;
+    gap: 4px;
+    font-size: 12px;
+  }
+
+  .mw-timebar-clock {
+    min-width: 0;
+    padding: 2px 6px;
+    font-size: 15px;
+  }
+
+  .mw-toolbar {
+    left: auto;
+    right: 8px;
+    bottom: auto;
+    top: 64px;
+    flex-direction: column;
+    padding: 4px;
+  }
+
+  .mw-help-row {
+    grid-template-columns: 110px 1fr;
+  }
+}
+
+/* Time bar extras: analog clock when folded, walking figure, drag ghost. */
+.mw-timebar-fold {
+  min-width: 0;
+  padding: 7px 9px;
+}
+
+.mw-clock-analog {
+  width: 36px;
+  height: 36px;
+  flex: none;
+}
+
+.mw-clock-analog circle {
+  fill: rgba(0, 0, 0, 0.35);
+  stroke: var(--mw-line);
+  stroke-width: 1.2;
+}
+
+.mw-clock-analog .pivot {
+  fill: var(--mw-accent);
+  stroke: none;
+}
+
+.mw-clock-analog line {
+  stroke: var(--mw-fg);
+  stroke-linecap: round;
+}
+
+.mw-clock-analog .hour {
+  stroke-width: 2.2;
+}
+
+.mw-clock-analog .minute {
+  stroke: var(--mw-accent);
+  stroke-width: 1.4;
+}
+
+.mw-walk-ghost {
+  position: fixed;
+  transform: translate(-50%, -50%);
+  pointer-events: none;
+  z-index: 60;
+  filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.5));
+}
+
+/* Top bar placement: centred on the full screen width. */
+.mw-topbar-host {
+  position: absolute;
+  top: 16px;
+  left: 0;
+  right: 0;
+  display: flex;
+  justify-content: center;
+  pointer-events: none;
+}
+
+.mw-topbar-host > * {
+  pointer-events: auto;
+}
+
+/* AM / PM next to the clock, and the folded analog clock with its period. */
+.mw-clock-period {
+  margin-left: 6px;
+  font: 600 11px/1 system-ui, -apple-system, 'Segoe UI', sans-serif;
+  letter-spacing: 0.04em;
+  color: var(--mw-muted);
+}
+

@@ -96,12 +96,12 @@ Plan only. No source edits, no commits. Feature: camera button next to Photo in 
 2. Resolution: default 1920x1080 @ 30 fps. Output size is set explicitly (pixel ratio 1 during film), not from devicePixelRatio. Optional 2x supersample (render 3840x2160, downsample) only on high tier, after measurement. 4K HalfFloat MSAA4 target is ~265 MB of GPU memory: not on phones. Tilt-shift forced off during film (blur is not sharpness). Audit texture anisotropy and mipmaps; set renderer-wide max anisotropy if missing.
 3. Audio: offline re-render for Auto needs (a) `AudioBus` / systems typed on `BaseAudioContext`, (b) seeded RNG (`synth.ts` `createRandom`) in every system used by film, (c) no `Date.now` or wall clock. Film bird voice goes in category `wind` (Nature slider) and is exempt from the aerial quiet frame, else a high bird is silent. Positional level already rises with proximity (PannerNode inverse). `zoomAttenuation` still lowers the whole bus at altitude; state this to the user.
 4. Modules (new, all <= 350 lines):
-   - `src/film/flightPath.ts` (pure keyframes, Catmull-Rom, input is sun/moon direction and cathedral site). Owner: UI & Camera (camera path), data from Sky & Environment and Buildings.
-   - `src/film/driver.tsx` (mounted in Canvas, fixed-dt stepping, cancel and unmount cleanup). Owner: Scene & QA.
+   - src/film/flightPath.ts (planned) (pure keyframes, Catmull-Rom, input is sun/moon direction and cathedral site). Owner: UI & Camera (camera path), data from Sky & Environment and Buildings.
+   - src/film/driver.tsx (planned) (mounted in Canvas, fixed-dt stepping, cancel and unmount cleanup). Owner: Scene & QA.
    - `src/film/recorder.ts` (VideoEncoder + muxer, MediaRecorder fallback, backpressure: `encodeQueueSize` cap, `VideoFrame.close()` each frame). Owner: Scene & QA.
-   - `src/film/offlineAudio.ts` (snapshot store and offline render glue). Owner: Audio.
+   - src/film/offlineAudio.ts (planned) (snapshot store and offline render glue). Owner: Audio.
    - `src/life/filmBird.ts` (one merged mesh, reuses the `flyer` animal material key, no new shader). Owner: Traffic & Life.
-   - `src/ui/FilmMenu.tsx` (menu, progress, cancel); `TimeBar.tsx` only mounts it. Owner: UI & Camera.
+   - src/ui/FilmMenu.tsx (planned) (menu, progress, cancel); `TimeBar.tsx` only mounts it. Owner: UI & Camera.
    - `src/config/tuning/film.ts` (new section; knobs: fps, width, height, bitrate, phase durations, circle radii, skim height, tilt angle, perch offset, snapshot Hz). Add to `index.ts`, `tests/tuningParity.test.ts` and `docs/TUNING.md`.
 5. Cross-owner file list: `src/core/runtime.ts` (fixedDt, film request; no feature imports, Scene & QA), `src/scene/useTownFrame.ts` (read fixedDt), `src/scene/PostFX.tsx` (size and tilt override), `src/scene/CameraRig.tsx` (film camera mode suspends input, UI & Camera), `src/audio/index.ts` + `bus.ts` + `synth.ts` + `systems.ts` (Audio), `src/life/index.ts` (Traffic & Life), `src/sky/state.ts` (pure `sunDirAt(time)` export, Sky & Environment), `src/buildings/monuments/culture.ts` (site export, Buildings). Architect reviews the merge (dependency direction: `film` imports scene only via the driver mount; `core` gets no feature import).
 
@@ -141,7 +141,7 @@ Plan only. No source edits, no commits. Feature: camera button next to Photo in 
 
 ### Notes for lead
 - Dashboard card for Technical Architect not updated here (lead rule 5).
-- CLAUDE.md names `src/config/tuning.ts`; actual path is the `src/config/tuning/` directory. Fix in CLAUDE.md or flag to the lead.
+- Resolved: CLAUDE.md names the `src/config/tuning/` directory, not a single file.
 
 ## Update 2026-11-04 (lead): new dependency, rules, commits
 
@@ -179,3 +179,9 @@ Plan only. No source edits, no commits. Feature: camera button next to Photo in 
 - Surface weathering (roof moss, wall weathering, window trim ageing, brick size) is shader-only: no new geometry or materials per house, budget unchanged (main 1,428,818, shadow 576,406, 127 calls at the last check). Any budget change must be stated with before and after numbers.
 - Per-house variation comes from object-position noise or a seeded value, never from a random call at render time.
 - Surface ids route the look: a new surface needs its own id and an explicit routing list, so the cathedral and other monuments keep their look.
+
+## Update 2026-11-06 (architect): harness made real
+- Edit hook: `.claude/settings.json` PostToolUse, matcher `Edit|Write`, runs `tsc --noEmit` on `.ts`/`.tsx` under `src/` or `tests/`. Silent on success, exit 2 with errors on failure. Replaces the echo-only Bash hook. Measured: tsc about 8.4 s; the targeted vitest run is about the same, so tsc is kept.
+- `npm run check` = `tsc --noEmit && vitest run && vite build`. No dependency change.
+- CI: `.github/workflows/ci.yml` on push and PR to `dev` and `master`, Node 20, `npm ci`, `npm run check`. Not yet run on GitHub.
+- Keep the hook command free of backslashes (Windows paths are normalised in JS). Backslashes were lost when Node spawned Git Bash.

@@ -1,0 +1,39 @@
+{
+  "version": 1,
+  "taskStates": ["proposed", "assigned", "in_progress", "verifying", "done", "blocked", "cancelled"],
+  "transitions": {
+    "proposed": ["assigned", "cancelled"],
+    "assigned": ["in_progress", "blocked", "cancelled"],
+    "in_progress": ["verifying", "blocked"],
+    "verifying": ["done", "in_progress", "blocked"],
+    "blocked": ["assigned", "in_progress"],
+    "done": [],
+    "cancelled": []
+  },
+  "doneRule": "The gate (harness/config/quality-gates.json) is green at the recorded commit. Human checks not done are recorded as not verified. A failing gate means in_progress or blocked, not done.",
+  "retry": {
+    "maxAttemptsSameCheck": 2,
+    "onExhausted": "Stop. Record the failure output (failures only) in the task record, set state to blocked, report to the human."
+  },
+  "checkpoint": {
+    "requires": ["gate result", "changed files", "commit hash, or 'uncommitted, working tree'"],
+    "forbidden": ["git stash"]
+  },
+  "recovery": {
+    "forbiddenCommands": ["git reset", "git checkout --", "git stash"],
+    "steps": ["Read the diff (git status, git diff on files in scope)", "Fix forward if the change is yours and the cause is clear", "Otherwise ask the human; do not revert"]
+  },
+  "approvalGates": [
+    { "id": "commit", "rule": "Commit only on the human's request (ADR 0008)" },
+    { "id": "push", "rule": "Push only on the human's request" },
+    { "id": "merge_to_dev", "rule": "Merge to dev only on the human's request" },
+    { "id": "merge_to_master", "rule": "Open a pull request to master or merge to master only on the human's request" },
+    { "id": "branch_delete", "rule": "Delete a branch only on the human's request" },
+    { "id": "claude_config_change", "rule": "Any change under .claude/ (hooks, permissions, settings)" },
+    { "id": "dependency_change", "rule": "Add, remove or change a dependency in package.json" },
+    { "id": "adr_change", "rule": "A new ADR, or changing an accepted ADR" },
+    { "id": "config_default_change", "rule": "A default in src/config/tuning/ that changes shipped behaviour" },
+    { "id": "outside_owner_files", "rule": "Any file outside the owner's files (docs/agents/README.md)" }
+  ],
+  "approvalScope": "Per action. A yes to one commit does not cover the next."
+}
