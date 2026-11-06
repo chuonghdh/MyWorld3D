@@ -1,0 +1,25 @@
+{
+  "claims": [
+    {
+      "task": "T-0003-level4-closure",
+      "owner": "architect",
+      "globs": ["harness/scripts/check-claims.mjs", "harness/scripts/check-claims.d.mts", "harness/workflows/WORKFLOW.md", "harness/templates/brief.md"],
+      "status": "active",
+      "date": "2026-11-07"
+    },
+    {
+      "task": "T-0003-level4-closure",
+      "owner": "scene-qa",
+      "globs": ["tests/harness.test.ts"],
+      "status": "active",
+      "date": "2026-11-07"
+    },
+    {
+      "task": "Level 4 pre-T-0003 (recorded retroactively: edits made before claims existed)",
+      "owner": "architect",
+      "globs": ["AGENTS.md", "harness/scripts/board.mjs", "harness/state/README.md", "harness/workflows/bug-fix.md", "harness/workflows/feature-development.md"],
+      "status": "active",
+      "date": "2026-11-07"
+    }
+  ]
+}

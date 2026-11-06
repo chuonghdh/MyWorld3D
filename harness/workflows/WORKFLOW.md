@@ -72,3 +72,25 @@ The agent does not do these without a clear yes from the human in chat, given fo
 - any file outside the owner's files (`docs/agents/README.md`)
 
 Approval is per action. A yes to one commit does not cover the next.
+
+## Parallel work
+
+- Two active tasks may run in parallel only if their claim globs do not overlap (`harness/state/claims.json`).
+- A task claims its globs before work starts (status active, with its date).
+- Before a commit, the lead runs `node harness/scripts/check-claims.mjs --staged`. The commit must not include unclaimed files.
+- Claims are released (status released in claims.json) when the task is done.
+- Overlapping globs: one task waits, or the human decides the order. Do not edit a file another active claim covers.
+
+## Independent review
+
+- Before a task moves to done, a reviewer who did not write the change reads the diff against the brief (`harness/templates/brief.md`).
+- The reviewer records a Review section in the task record with: reviewer, diff range, findings (severity and file:line), and result (pass or changes requested).
+- The reviewer does not edit code. Changes requested send the task back to in_progress.
+- Use the code-review skill where it fits (a diff against a branch or commit range).
+
+## Dashboard sync
+
+- `harness/state/board.json` is the source of truth. The lead updates it first, mirrors it to the artifact (URL in its `_comment`), then runs `node harness/scripts/board.mjs` to confirm the summary matches.
+- Status rules: active = running now; permission = blocked on a user decision (activity names the decision); done = nothing left for this run (follow-ups and commits are named in activity, not run items); waiting = standby.
+- The orchestrator is active while it works on the user's current request, with or without agents running. It sets itself done or permission in the same turn as its final report.
+- An agent that finishes sets its own row to done (progress 100) in board.json; the lead mirrors it.

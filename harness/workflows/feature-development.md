@@ -3,6 +3,7 @@
 Source: `harness/workflows/WORKFLOW.md`. Gates: `harness/config/quality-gates.json`. Approvals: `harness/config/policies.json`.
 
 1. Record the task in `harness/tasks/active/` from `harness/tasks/TEMPLATE.md` (state: assigned). List files in scope.
+   Write the brief from `harness/templates/brief.md` and claim the globs in `harness/state/claims.json` before work starts.
 2. Read the owner handbook for the area (`docs/agents/README.md`).
 3. Change the files in scope (state: in_progress). Knobs go to `src/config/tuning/`; no `Math.random` in layout code.
 4. Run gates: `node harness/scripts/verify.mjs` (typecheck, lint, test, build). Print failures only.

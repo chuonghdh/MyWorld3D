@@ -15,6 +15,7 @@ For agent tools other than Claude Code. The same rules live in `CLAUDE.md`.
 - `docs/TUNING.md`: designer knobs and where they live
 - `docs/AUDIO.md`: audio routing
 - `docs/agents/README.md`: specialist owners and handbooks
+- `harness/templates/brief.md` (delegation brief) and `harness/state/claims.json` (claimed globs for parallel work)
 
 ## Core rules
 - Chat in Vietnamese. Code, docs and commits in English.
