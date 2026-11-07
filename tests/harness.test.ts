@@ -505,7 +505,8 @@ describe('enforcement', () => {
     expect(problems).toEqual([]);
   });
 
-  it('settings.json keeps the PostToolUse Edit|Write hook', () => {
+  // .claude/ is gitignored, so CI has no settings.json: skip there, as the guard did before.
+  it.skipIf(Object.keys(SETTINGS).length === 0)('settings.json keeps the PostToolUse Edit|Write hook', () => {
     type Hooks = Record<string, { matcher?: string; hooks?: { command?: string }[] }[]>;
     const shared = (JSON.parse(Object.values(SETTINGS)[0] ?? '{}') as { hooks?: Hooks }).hooks ?? {};
     const problems: string[] = [];
