@@ -140,7 +140,6 @@ Plan only. No source edits, no commits. Feature: camera button next to Photo in 
 - Confirm: Manual recording excludes UI and uses realtime audio tap.
 
 ### Notes for lead
-- Dashboard card for Technical Architect not updated here (lead rule 5).
 - Resolved: CLAUDE.md names the `src/config/tuning/` directory, not a single file.
 
 ## Update 2026-11-04 (lead): new dependency, rules, commits
@@ -149,7 +148,6 @@ Plan only. No source edits, no commits. Feature: camera button next to Photo in 
 - **Film commits on `feature_video_camera`:** `457be77` (manual film, aircraft, audio defaults), `157c706` (P2 dry run, `src/film/autoPath.ts`).
 - **Codec rule:** MediaRecorder MIME strings with more than one codec must quote the list: `video/mp4;codecs="avc1.42E028,mp4a.40.2"`. The unquoted form is rejected by Chrome and silently falls back to WebM. Tests pin the quoted strings in `tests/film/recorder.test.ts`.
 - **Tuning placement:** new audio defaults live in `audio.categoryDefaults`; the opening-flight tilt in `skyEnvironment.aircraft.introTiltDeg`; the overview direction in `uiCamera.overviewDirection`; film knobs `autoSeconds`, `autoVirtualMinutes` in `film.ts`.
-- **Dashboard rule (user, standing):** on every new run, done agents not in the run go to standby, and the Orchestrator and assigned agents update automatically. Recorded in memory `feedback_dashboard-status-labels`.
 - **Working method (user, standing):** assign implementation work to the specialist agents (Scene & QA for film code, Audio for sound, Sky & Environment for aircraft). The lead reviews, runs `tsc` and tests, and updates docs. Do not leave the Orchestrator working alone.
 
 ### Review requested from Technical Architect

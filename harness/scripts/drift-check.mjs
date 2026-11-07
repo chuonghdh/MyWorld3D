@@ -1,7 +1,6 @@
-// Drift check for the harness. Reports four kinds of drift and exits 1 when any is found:
+// Drift check for the harness. Reports three kinds of drift and exits 1 when any is found:
 //   claims-on-done      an active claim belongs to a task whose record is done
 //   stale-active-tasks  a record in harness/tasks/active/ was created more than 14 days ago
-//   board-without-task  a board agent (not the orchestrator) is active with no active claim or active task for it
 //   dead-doc-links      a backticked repo path in CLAUDE.md, AGENTS.md, docs/ or harness/ does not exist
 // Writes a report to harness/runs/drift-<timestamp>.json. Prints only drift lines. Exit 0 when clean.
 import { existsSync, readdirSync, readFileSync, writeFileSync } from 'node:fs';
@@ -37,7 +36,6 @@ const records = [...listMd('harness/tasks/backlog'), ...listMd('harness/tasks/ac
   folder: p.split('/')[2],
 }));
 const claims = JSON.parse(read('harness/state/claims.json')).claims ?? [];
-const board = JSON.parse(read('harness/state/board.json'));
 
 const drift = [];
 
@@ -57,14 +55,6 @@ for (const r of records.filter((x) => x.folder === 'active')) {
   else if (days > STALE_DAYS) drift.push({ check: 'stale-active-tasks', detail: `${r.id} in active/ for ${days} days (created ${r.fm.created})` });
 }
 
-// board-without-task
-const activeTaskOwners = new Set(records.filter((r) => r.folder === 'active').map((r) => r.fm.owner));
-const claimOwners = new Set(claims.filter((c) => c.status === 'active').map((c) => c.owner));
-for (const a of board.agents ?? []) {
-  if (a.id === 'orchestrator' || a.status !== 'active') continue;
-  if (!activeTaskOwners.has(a.id) && !claimOwners.has(a.id)) drift.push({ check: 'board-without-task', detail: `board row ${a.id} is active with no active task or claim` });
-}
-
 // dead-doc-links
 const docFiles = ['CLAUDE.md', 'AGENTS.md', ...listDocs('docs'), ...listDocs('harness')];
 function listDocs(dir) {
@@ -81,7 +71,7 @@ function listDocs(dir) {
   walk(dir);
   return out;
 }
-const repoPath = /^(docs|src|tests|public|dashboard|harness|\.github)\//;
+const repoPath = /^(docs|src|tests|public|harness|\.github)\//;
 for (const f of docFiles) {
   if (!existsSync(join(root, f))) continue;
   for (const m of read(f).matchAll(/`([^`\s]+)`/g)) {

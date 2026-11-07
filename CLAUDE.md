@@ -13,7 +13,7 @@ Stack: Vite, TS, Three.js, R3F, zustand, vitest.
 - Chat: VI. Code/Docs/Commits: EN.
 - Commit ONLY on user prompt. Append system attribution.
 - Fix root causes. No coplanar geometry. Keep visuals/perf high.
-- Delegate to specialists via message (no respawn). Update dashboard on assign/finish.
+- Delegate to specialists via message (no respawn).
 - Dependencies: feature modules never import `scene` or `ui`; `core` imports no feature module. Guarded by `tests/layers.test.ts` and `tests/harness.test.ts`.
 - Layout is deterministic: no `Math.random` in layout code (guarded). Seeds only.
 - Files over 350 lines are not allowed to grow. Split by responsibility (ratchet in `tests/harness.test.ts`).

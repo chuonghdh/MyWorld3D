@@ -8,7 +8,6 @@
 - [ ] Claims checked: node harness/scripts/check-claims.mjs --staged exits 0
 - [ ] Brief linked (path under harness/briefs/)
 - [ ] Reviewer named and different from the owner
-- [ ] Board updated (harness/state/board.json) when agent status changed
 - [ ] Not verified listed below (human checks, GitHub runs, anything not run)
 
 ## Not verified

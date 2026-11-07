@@ -15,7 +15,6 @@ const REPO_FILES = {
   ...import.meta.glob('../docs/**/*'),
   ...import.meta.glob('../src/**/*'),
   ...import.meta.glob('../tests/**/*'),
-  ...import.meta.glob('../dashboard/**/*'),
   ...import.meta.glob('../public/**/*'),
   ...import.meta.glob('../*.{md,json,html,ts}'),
 };
@@ -146,7 +145,7 @@ describe('docs point at real files', () => {
   const refs = (md: string) =>
     [...md.matchAll(/`([^`\s]+)`/g)]
       .map((m) => m[1].split(':')[0])
-      .filter((p) => /^(docs|src|tests|public|dashboard)\//.test(p) || /^[\w-]+\.(md|json|html)$/.test(p))
+      .filter((p) => /^(docs|src|tests|public)\//.test(p) || /^[\w-]+\.(md|json|html)$/.test(p))
       .filter((p) => !p.includes('*'));
 
   // A bare doc name (BRD.md) resolves from the repo root or from docs/.
@@ -342,8 +341,12 @@ describe('harness structure', () => {
     for (const t of [...Object.values(HARNESS_FILES), ...Object.values(DOCS_ALL), claudeMd]) {
       for (const m of t.matchAll(/harness\/scripts\/([\w.-]+\.mjs)/g)) named.add(m[1]);
     }
-    const missing = [...named].filter((n) => !scripts.has(n));
+    // Reasoned exception: the Agent Office board scripts were removed on 2026-11-07. Old briefs and claims keep their
+    // history and still name them. They must stay absent, which the next test checks.
+    const RETIRED_SCRIPTS = ['board-set.mjs', 'board-export.mjs', 'board.mjs', 'board-hook.mjs'];
+    const missing = [...named].filter((n) => !scripts.has(n) && !RETIRED_SCRIPTS.includes(n));
     expect(missing).toEqual([]);
+    expect(RETIRED_SCRIPTS.filter((n) => scripts.has(n))).toEqual([]);
   });
 });
 
@@ -419,58 +422,6 @@ describe('orchestration', () => {
   });
 });
 
-// Agent Office board source of truth (harness/state/board.json). Edit the file, then mirror it to the artifact.
-const BOARD = import.meta.glob('../harness/state/board.json', { query: '?raw', import: 'default', eager: true }) as Record<string, string>;
-const BOARD_STATUSES = ['active', 'waiting', 'done', 'permission'];
-
-describe('agent office board', () => {
-  const text = Object.values(BOARD)[0] ?? '';
-  const board = (text ? JSON.parse(text) : { agents: [], events: [] }) as {
-    agents: Record<string, unknown>[];
-    events: Record<string, unknown>[];
-  };
-
-  it('board.json parses, agent ids are unique and each agent has name, seat, status, progress and activity', () => {
-    expect(Object.keys(BOARD)).toHaveLength(1);
-    const ids = board.agents.map((a) => a.id);
-    const problems = [...ids.filter((id, i) => ids.indexOf(id) !== i).map((id) => `duplicate agent id ${String(id)}`)];
-    for (const a of board.agents) for (const k of ['name', 'seat', 'status', 'progress', 'activity']) if (a[k] === undefined || a[k] === '') problems.push(`${String(a.id)}: missing ${k}`);
-    expect(problems).toEqual([]);
-  });
-
-  it('agent status is one of active, waiting, done, permission', () => {
-    const bad = board.agents.filter((a) => !BOARD_STATUSES.includes(String(a.status))).map((a) => `${String(a.id)}: ${String(a.status)}`);
-    expect(bad).toEqual([]);
-  });
-
-  it('progress is 0 to 100 and a done agent has progress 100', () => {
-    const problems = board.agents.flatMap((a) => {
-      const p = Number(a.progress);
-      const out: string[] = [];
-      if (typeof a.progress !== 'number' || p < 0 || p > 100) out.push(`${String(a.id)}: progress ${String(a.progress)} out of 0 to 100`);
-      if (a.status === 'done' && p !== 100) out.push(`${String(a.id)}: done with progress ${String(a.progress)}`);
-      return out;
-    });
-    expect(problems).toEqual([]);
-  });
-
-  it('when any agent is active, the orchestrator is active; the orchestrator id is present', () => {
-    const orch = board.agents.find((a) => a.id === 'orchestrator');
-    const anyActive = board.agents.some((a) => a.status === 'active');
-    const problems: string[] = [];
-    if (!orch) problems.push('orchestrator id missing');
-    else if (anyActive && orch.status !== 'active') problems.push(`orchestrator is ${String(orch.status)} while an agent is active`);
-    expect(problems).toEqual([]);
-  });
-
-  it('every event has id, title, at and text, and event ids are unique', () => {
-    const ids = board.events.map((e) => e.id);
-    const problems = ids.filter((id, i) => ids.indexOf(id) !== i).map((id) => `duplicate event id ${String(id)}`);
-    for (const e of board.events) for (const k of ['id', 'title', 'at', 'text']) if (e[k] === undefined || e[k] === '') problems.push(`${String(e.id)}: missing ${k}`);
-    expect(problems).toEqual([]);
-  });
-});
-
 // Review records (T-0003): reviewer is independent of the owner, result is one of three values.
 // A done task whose Result is "changes requested" fails: WORKFLOW sends it back to in_progress.
 const CHECK_CLAIMS = import.meta.glob('../harness/scripts/check-claims.mjs', { query: '?raw', import: 'default', eager: true }) as Record<string, string>;
@@ -525,18 +476,9 @@ describe('review records', () => {
   });
 });
 
-// Enforcement guards: claim briefs, hooks that call board-set.mjs, and the board export.
+// Enforcement guards: claim briefs and the edit hook in settings.json.
 const BRIEF_FILES = import.meta.glob('../harness/briefs/*.md', { query: '?raw', import: 'default', eager: true }) as Record<string, string>;
 const SETTINGS = import.meta.glob('../.claude/settings.json', { query: '?raw', import: 'default', eager: true }) as Record<string, string>;
-const SETTINGS_LOCAL = import.meta.glob('../.claude/settings.local.json', { query: '?raw', import: 'default', eager: true }) as Record<string, string>;
-const BOARD_EXPORT_MODULE = import.meta.glob('../harness/scripts/board-export.mjs', { eager: true }) as Record<
-  string,
-  { buildExport?: (board: unknown) => unknown }
->;
-const BOARD_EXPORT_JSON = import.meta.glob('../harness/state/board-export.json', { query: '?raw', import: 'default', eager: true }) as Record<
-  string,
-  string
->;
 const BRIEF_FIELDS = ['Task id', 'Owner', 'Goal', 'Files in scope', 'Files out of scope', 'Reviewer', 'Claims', 'Acceptance commands', 'Report format'];
 
 describe('enforcement', () => {
@@ -563,27 +505,12 @@ describe('enforcement', () => {
     expect(problems).toEqual([]);
   });
 
-  it.skipIf(Object.keys(SETTINGS_LOCAL).length === 0)(
-    'settings.local.json has UserPromptSubmit and Stop hooks calling board-set.mjs; settings.json keeps the PostToolUse Edit|Write hook',
-    () => {
-      type Hooks = Record<string, { matcher?: string; hooks?: { command?: string }[] }[]>;
-      const shared = (JSON.parse(Object.values(SETTINGS)[0] ?? '{}') as { hooks?: Hooks }).hooks ?? {};
-      const local = (JSON.parse(Object.values(SETTINGS_LOCAL)[0] ?? '{}') as { hooks?: Hooks }).hooks ?? {};
-      const problems: string[] = [];
-      for (const ev of ['UserPromptSubmit', 'Stop']) {
-        const calls = (local[ev] ?? []).flatMap((h) => (h.hooks ?? []).map((x) => x.command ?? ''));
-        if (!calls.some((c) => c.includes('board-set.mjs'))) problems.push(`settings.local.json: ${ev} does not call board-set.mjs`);
-      }
-      if (!(shared.PostToolUse ?? []).some((h) => h.matcher === 'Edit|Write')) problems.push('settings.json: PostToolUse Edit|Write hook missing');
-      expect(problems).toEqual([]);
-    },
-  );
-
-  const exporter = Object.values(BOARD_EXPORT_MODULE)[0];
-  const exportReady = typeof exporter?.buildExport === 'function' && Object.keys(BOARD_EXPORT_JSON).length === 1;
-  it.skipIf(!exportReady)('harness/state/board-export.json equals buildExport(board.json)', () => {
-    const board = JSON.parse(Object.values(BOARD)[0] ?? '{}') as unknown;
-    expect(JSON.parse(Object.values(BOARD_EXPORT_JSON)[0] ?? 'null')).toEqual(exporter?.buildExport?.(board));
+  it('settings.json keeps the PostToolUse Edit|Write hook', () => {
+    type Hooks = Record<string, { matcher?: string; hooks?: { command?: string }[] }[]>;
+    const shared = (JSON.parse(Object.values(SETTINGS)[0] ?? '{}') as { hooks?: Hooks }).hooks ?? {};
+    const problems: string[] = [];
+    if (!(shared.PostToolUse ?? []).some((h) => h.matcher === 'Edit|Write')) problems.push('settings.json: PostToolUse Edit|Write hook missing');
+    expect(problems).toEqual([]);
   });
 });
 
@@ -619,12 +546,12 @@ const PR_TEMPLATE = import.meta.glob('../.github/pull_request_template.md', { qu
 const DRIFT_SCRIPT = import.meta.glob('../harness/scripts/drift-check.mjs', { query: '?raw', import: 'default', eager: true }) as Record<string, string>;
 const WORKFLOWS = import.meta.glob('../.github/workflows/*.yml', { query: '?raw', import: 'default', eager: true }) as Record<string, string>;
 const CODEOWNERS = import.meta.glob(['../.github/CODEOWNERS', '../CODEOWNERS'], { query: '?raw', import: 'default', eager: true }) as Record<string, string>;
-const PR_ITEMS = ['acceptance', 'claims', 'brief', 'reviewer', 'board', 'not verified'];
+const PR_ITEMS = ['acceptance', 'claims', 'brief', 'reviewer', 'not verified'];
 /** Drift surfaces the drift check must name (T-0006 brief: four drift checks). */
-const DRIFT_CHECK_NAMES = ['claims-on-done', 'stale-active-tasks', 'board-without-task', 'dead-doc-links'];
+const DRIFT_CHECK_NAMES = ['claims-on-done', 'stale-active-tasks', 'dead-doc-links'];
 
 describe('pull request, drift and CI', () => {
-  it('the PR template exists and has a "- [ ]" item for acceptance, claims, brief, reviewer, board and not verified', () => {
+  it('the PR template exists and has a "- [ ]" item for acceptance, claims, brief, reviewer and not verified', () => {
     expect(Object.keys(PR_TEMPLATE)).toHaveLength(1);
     const items = (Object.values(PR_TEMPLATE)[0] ?? '').split('\n').filter((l) => l.trim().startsWith('- [ ]')).map((l) => l.toLowerCase());
     const missing = PR_ITEMS.filter((k) => !items.some((l) => l.includes(k)));

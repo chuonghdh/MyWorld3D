@@ -63,6 +63,14 @@
       "status": "released",
       "date": "2026-11-07",
       "brief": "harness/briefs/T-0006-scene-qa.md"
+    },
+    {
+      "task": "T-0007-remove-agent-office",
+      "owner": "lead",
+      "globs": [".github/pull_request_template.md", "CLAUDE.md", "dashboard/agents-dashboard.html", "docs/REPO_MAP.md", "docs/agents/README.md", "docs/agents/architect.md", "docs/agents/scene-qa.md", "docs/feature_video_camera.md", "harness/scripts/board-export.mjs", "harness/scripts/board-set.mjs", "harness/scripts/board.mjs", "harness/scripts/check-claims.mjs", "harness/scripts/drift-check.mjs", "harness/state/README.md", "harness/state/board-export.json", "harness/state/board.json", "harness/workflows/WORKFLOW.md", "src/ui/SettingsCity.tsx", "src/ui/WeatherIcons.tsx", "src/ui/controls.tsx", "src/ui/panels/sections.css", "tests/harness.test.ts", "harness/state/claims.json", "harness/briefs/T-0007-lead.md"],
+      "status": "active",
+      "date": "2026-11-07",
+      "brief": "harness/briefs/T-0007-lead.md"
     }
   ]
 }

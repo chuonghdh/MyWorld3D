@@ -178,4 +178,3 @@ Method and running log: `feature_video_camera token log` in the session scratchp
 
 - Code, comments and docs in English. Chat in Vietnamese.
 - Commit only when the user asks.
-- Dashboard: "MyWorld3D Agent Office" is updated at each assign, start and finish.

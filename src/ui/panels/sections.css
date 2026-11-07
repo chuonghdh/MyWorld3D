@@ -201,10 +201,25 @@
   cursor: pointer;
 }
 
+.mw-segmented-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+}
+
 .mw-seg {
   flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
   padding: 6px 4px;
   font-size: 12px;
+}
+
+.mw-seg-icon {
+  flex: none;
+  width: 14px;
+  height: 14px;
 }
 
 .mw-seg.is-active,

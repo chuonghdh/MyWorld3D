@@ -13,7 +13,7 @@ instead of spawning a fresh agent. That way what it learned (traps, decisions, c
 | 4 | Sky & Environment | `src/sky/**`, `src/environment/**`, `src/weather/**`, `src/aircraft/**` | [sky-environment.md](sky-environment.md) |
 | 5 | Audio | `src/audio/**`, `src/scene/audioBridge.ts`, `src/ui/SoundMixer.tsx`, `docs/AUDIO.md`, audio tests (`tests/audio*.test.ts`, `tests/helpers/fakeAudio.ts`) | [audio.md](audio.md) |
 | 6 | UI & Camera | `src/ui/**` (except SoundMixer), `src/store/**`, `src/scene/CameraRig.tsx`, `cameraInput.ts`, `cameraDom.ts`, `cameraMath.ts`, `Selection.tsx`, `selectionMath.ts`, block edit (`BlockEditor.tsx`, `blockEditMath.ts`, `blockEditAnchors.ts`) | [ui-camera.md](ui-camera.md) |
-| 7 | Scene & QA | `src/scene/**` (rest), `src/core/**`, `src/App.tsx`, `src/main.tsx`, `src/dev/treeCompare/**`, `tree-compare.html`, `dashboard/`, `public/models/**`, `tests/helpers/**`, perf budgets, docs | [scene-qa.md](scene-qa.md) |
+| 7 | Scene & QA | `src/scene/**` (rest), `src/core/**`, `src/App.tsx`, `src/main.tsx`, `src/dev/treeCompare/**`, `tree-compare.html`, `public/models/**`, `tests/helpers/**`, perf budgets, docs | [scene-qa.md](scene-qa.md) |
 | 8 | Technical Architect | Cross-cutting structure, asset pipeline, performance standards, toolchain (no feature code). Reviews `src/shaders/**` | [architect.md](architect.md) |
 
 Shared, no single owner: `src/shaders/**` (cloud shade and wet surface patches). Buildings and Sky & Environment both use it; changes need both owners and an architect review.
@@ -35,12 +35,10 @@ When a change touches a knob, the owner updates the config, the parity test and 
    determinism). The specialist reads its handbook first.
 4. **Handbook upkeep.** At the end of every task the specialist appends what it learned to its handbook:
    new traps, decisions with the reason, and what is left undone. The lead reviews that diff.
-5. **Dashboard upkeep.** The "MyWorld3D Agent Office" dashboard shows one card per specialist. The lead updates its
-   status when a task is assigned, started and finished, and adds an event to the log.
-6. **Verification before reporting.** `npx tsc --noEmit`, `npx vitest run`, `npx vite build`. The built-in browser pane
+5. **Verification before reporting.** `npx tsc --noEmit`, `npx vitest run`, `npx vite build`. The built-in browser pane
    cannot paint frames: check the scene graph, uniforms, shader compile (force a render in a standalone renderer) and
    console errors, and say plainly what was not seen by eye.
-7. **Project rules.** Commits, code comments and docs are in English. Commit only when the user says so. Root-cause
+6. **Project rules.** Commits, code comments and docs are in English. Commit only when the user says so. Root-cause
    fixes, no coplanar geometry, no loss of visual quality or performance.
 
 ## Handbook template
@@ -54,7 +52,6 @@ Owns / Key files / Conventions / Traps (what bit us, why) / Decisions (and the r
 
 - After every commit or new dependency, add a dated "Update" section to each affected handbook. Include: new rules, new libraries (with version and why), tuning knobs moved, and open items.
 - The Technical Architect keeps the cross-cutting list (dependencies, budgets, codec rules) and reviews the other handbooks.
-- Dashboard: follow the standby rule (memory `feedback_dashboard-status-labels`).
 
 ## Update 2026-11-06 (lead): today's rules
 - Visual motion uses sim time only (see architect.md, 2026-11-06). Canvas `frameloop` is a controlled prop (`src/film/loopHold.ts`).

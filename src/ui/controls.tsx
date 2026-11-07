@@ -41,12 +41,14 @@ export function Slider({ label, value, min, max, step, format, onChange, id, bac
 interface SegmentedProps<T extends string> {
   label?: string;
   value: T;
-  options: { value: T; label: string }[];
+  options: { value: T; label: string; icon?: ReactNode }[];
   onChange: (v: T) => void;
   ariaLabel: string;
+  /** Lay the options out as a 3-column grid (wraps to more rows) instead of one row. */
+  grid?: boolean;
 }
 
-export function Segmented<T extends string>({ label, value, options, onChange, ariaLabel }: SegmentedProps<T>) {
+export function Segmented<T extends string>({ label, value, options, onChange, ariaLabel, grid }: SegmentedProps<T>) {
   return (
     <div className="mw-field">
       {label && (
@@ -55,7 +57,7 @@ export function Segmented<T extends string>({ label, value, options, onChange, a
           <span className="mw-value">{options.find((o) => o.value === value)?.label}</span>
         </div>
       )}
-      <div className="mw-segmented" role="group" aria-label={ariaLabel}>
+      <div className={grid ? 'mw-segmented mw-segmented-grid' : 'mw-segmented'} role="group" aria-label={ariaLabel}>
         {options.map((o) => (
           <button
             key={o.value}
@@ -64,6 +66,7 @@ export function Segmented<T extends string>({ label, value, options, onChange, a
             aria-pressed={o.value === value}
             onClick={() => onChange(o.value)}
           >
+            {o.icon}
             {o.label}
           </button>
         ))}
