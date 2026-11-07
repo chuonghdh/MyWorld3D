@@ -4,6 +4,7 @@ import { WEATHER_KINDS, WEATHER_LABEL, type WeatherKind } from '../weather/weath
 import type { Season } from '../core/types';
 import { ActionButton, CheckToggle, Panel, Section, Segmented, SettingsGlyph, Slider } from './controls';
 import { SoundMixer } from './SoundMixer';
+import { WeatherGlyph } from './WeatherIcons';
 import { applyGoldenHour } from './goldenHour';
 import { uiCamera } from '../config/tuning';
 
@@ -143,8 +144,9 @@ export function SettingsCity({ onAction }: SettingsCityProps) {
         <Segmented<WeatherKind>
           label="Weather"
           ariaLabel="Weather"
+          grid
           value={s.weather}
-          options={WEATHER_KINDS.map((v) => ({ value: v, label: WEATHER_LABEL[v] }))}
+          options={WEATHER_KINDS.map((v) => ({ value: v, label: WEATHER_LABEL[v], icon: <WeatherGlyph kind={v} /> }))}
           onChange={(v) => {
             setSetting('weather', v);
             // Picking a weather with the slider at the bottom would show nothing: lift it to a visible level.

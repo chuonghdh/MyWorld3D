@@ -21,5 +21,3 @@ Schema (one entry per task):
 - `date`: YYYY-MM-DD when the claim was made or released
 
 Rules: a task writes its entry before work starts (status active). It sets status to released when the task is done. Released entries stay in the file as history, or are removed in the same change. Keep the file as valid JSON.
-
-`harness/state/board.json` is the source of truth for the Agent Office board (print it with `node harness/scripts/board.mjs`).

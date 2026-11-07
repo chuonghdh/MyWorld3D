@@ -8,7 +8,7 @@ Barrel = a file that only re-exports its parts (`export * from`); import the bar
 
 | Folder | What it does | Entry / key files | Owner |
 |---|---|---|---|
-| `index.html`, `tree-compare.html`, `dashboard/` | Vite entry for the app; dev-only tree lab page; agent office dashboard (not built into the app) | `index.html`, `tree-compare.html`, `dashboard/agents-dashboard.html` | Scene & QA |
+| `index.html`, `tree-compare.html` | Vite entry for the app; dev-only tree lab page | `index.html`, `tree-compare.html` | Scene & QA |
 | `public/models` | Static glTF nature assets loaded at runtime (`quaternius/` for city trees; `kenney-nature/` is not referenced by `src`) | `public/models/` | Scene & QA |
 | `src/main.tsx`, `src/App.tsx`, `src/vite-env.d.ts` | Mount, Canvas, panel wiring, selection state, boot | `App.tsx` | Scene & QA (lead edits App) |
 | `src/core` | Shared pure modules below features: seeded RNG, shared types, runtime state (gusts, camera requests), block ids, weather kinds. Tunable values: `src/config/tuning/` (one file per section) | `types.ts`, `rng.ts`, `runtime.ts`, `blockIds.ts`, `weatherKinds.ts` | Scene & QA |

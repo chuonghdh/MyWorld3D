@@ -8,7 +8,7 @@ import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const root = join(dirname(fileURLToPath(import.meta.url)), '..', '..');
-const EXEMPT = ['harness/state/board.json', 'harness/state/claims.json', 'harness/tasks/**'];
+const EXEMPT = ['harness/state/claims.json', 'harness/tasks/**'];
 
 /** Runs a read-only git command. -z output: paths are NUL-separated and never quoted. */
 function git(args) {

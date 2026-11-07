@@ -3,3 +3,6 @@ dist/
 .vite/
 *.log
 .claude/
+
+# Run records (written by harness/scripts/verify.mjs and run-evals.mjs). Kept locally, not committed.
+harness/runs/*.json
