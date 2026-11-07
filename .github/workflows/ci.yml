@@ -6,6 +6,9 @@ on:
   pull_request:
     branches: [dev, master]
 
+permissions:
+  contents: read
+
 jobs:
   check:
     runs-on: ubuntu-latest
@@ -16,4 +19,18 @@ jobs:
           node-version: 20
           cache: npm
       - run: npm ci
+      - name: Audit runtime dependencies (gating)
+        run: npm audit --omit=dev --audit-level=high
+      - name: Audit dev tooling (report only, does not gate)
+        run: npm audit || true
       - run: npm run check
+
+  secrets:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: gitleaks/gitleaks-action@v2.3.7
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

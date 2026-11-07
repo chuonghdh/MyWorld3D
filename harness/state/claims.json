@@ -3,53 +3,66 @@
     {
       "task": "T-0003-level4-closure",
       "owner": "architect",
-      "globs": [
-        "harness/scripts/check-claims.mjs",
-        "harness/scripts/check-claims.d.mts",
-        "harness/workflows/WORKFLOW.md",
-        "harness/templates/brief.md"
-      ],
-      "status": "active",
+      "globs": ["harness/scripts/check-claims.mjs", "harness/scripts/check-claims.d.mts", "harness/workflows/WORKFLOW.md", "harness/templates/brief.md"],
+      "status": "released",
       "date": "2026-11-07",
       "brief": "harness/briefs/T-0003-architect.md"
     },
     {
       "task": "T-0003-level4-closure",
       "owner": "scene-qa",
-      "globs": [
-        "tests/harness.test.ts"
-      ],
-      "status": "active",
+      "globs": ["tests/harness.test.ts"],
+      "status": "released",
       "date": "2026-11-07",
       "brief": "harness/briefs/T-0003-scene-qa.md"
     },
     {
       "task": "Level 4 pre-T-0003 (recorded retroactively: edits made before claims existed)",
       "owner": "architect",
-      "globs": [
-        "AGENTS.md",
-        "harness/scripts/board.mjs",
-        "harness/state/README.md",
-        "harness/workflows/bug-fix.md",
-        "harness/workflows/feature-development.md"
-      ],
-      "status": "active",
+      "globs": ["AGENTS.md", "harness/scripts/board.mjs", "harness/state/README.md", "harness/workflows/bug-fix.md", "harness/workflows/feature-development.md"],
+      "status": "released",
       "date": "2026-11-07",
       "brief": "harness/briefs/level4-pre-T0003-architect.md"
     },
     {
       "task": "T-0004-enforcement",
       "owner": "architect",
-      "globs": [
-        "harness/briefs/**",
-        "harness/scripts/board-set.mjs",
-        "harness/scripts/board-export.mjs",
-        "harness/state/board-export.json",
-        ".claude/settings.json"
-      ],
-      "status": "active",
+      "globs": ["harness/briefs/T-0004-architect.md", "harness/scripts/board-set.mjs", "harness/scripts/board-export.mjs", ".claude/settings.json"],
+      "status": "released",
       "date": "2026-11-07",
       "brief": "harness/briefs/T-0004-architect.md"
+    },
+    {
+      "task": "T-0005-level5-observability-evals",
+      "owner": "architect",
+      "globs": ["harness/scripts/verify.mjs", "harness/scripts/collect-evidence.mjs", "harness/scripts/run-evals.mjs", "harness/runs/.gitkeep", ".gitignore", ".github/workflows/evals.yml", "harness/briefs/T-0005-architect.md", "harness/state/board-export.json"],
+      "status": "active",
+      "date": "2026-11-07",
+      "brief": "harness/briefs/T-0005-architect.md"
+    },
+    {
+      "task": "T-0005-level5-observability-evals",
+      "owner": "scene-qa",
+      "globs": ["harness/evals/**", "harness/briefs/T-0005-scene-qa.md"],
+      "status": "active",
+      "date": "2026-11-07",
+      "brief": "harness/briefs/T-0005-scene-qa.md"
+    },
+    {
+      "task": "T-0006-level5-security-pr-drift",
+      "owner": "architect",
+      "globs": [".github/**", "CODEOWNERS", "package.json", "package-lock.json", "harness/scripts/drift-check.mjs", "harness/briefs/T-0006-architect.md"],
+      "status": "active",
+      "date": "2026-11-07",
+      "brief": "harness/briefs/T-0006-architect.md"
+    },
+    {
+      "task": "T-0006-level5-security-pr-drift",
+      "owner": "scene-qa",
+      "globs": ["tests/harness.test.ts", "harness/briefs/T-0006-scene-qa.md"],
+      "status": "active",
+      "date": "2026-11-07",
+      "brief": "harness/briefs/T-0006-scene-qa.md"
     }
   ]
 }

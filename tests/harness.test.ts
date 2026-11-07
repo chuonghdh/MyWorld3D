@@ -586,3 +586,74 @@ describe('enforcement', () => {
     expect(JSON.parse(Object.values(BOARD_EXPORT_JSON)[0] ?? 'null')).toEqual(exporter?.buildExport?.(board));
   });
 });
+
+// Continuous evaluation (T-0005): the regression case list must point at real test files.
+const EVAL_CASES = import.meta.glob('../harness/evals/regression/cases.json', { query: '?raw', import: 'default', eager: true }) as Record<string, string>;
+const TEST_TEXTS = import.meta.glob('../tests/*.test.ts', { query: '?raw', import: 'default', eager: true }) as Record<string, string>;
+
+describe('eval cases', () => {
+  it('cases.json parses; every case has id, title, file and covers; ids are unique; each file exists under tests/ and has a test', () => {
+    const json = JSON.parse(Object.values(EVAL_CASES)[0] ?? '{"cases":[]}') as { cases?: { id?: string; title?: string; file?: string; covers?: string }[] };
+    const cases = json.cases ?? [];
+    const problems: string[] = [];
+    const ids = cases.map((c) => c.id);
+    for (const id of ids.filter((x, i) => ids.indexOf(x) !== i)) problems.push(`duplicate id ${String(id)}`);
+    for (const c of cases) {
+      for (const k of ['id', 'title', 'file', 'covers'] as const) if (!c[k]) problems.push(`${String(c.id)}: missing ${k}`);
+      const rel = `./${(c.file ?? '').slice(6)}`;
+      if (!c.file?.startsWith('tests/')) {
+        problems.push(`${String(c.id)}: file must be under tests/`);
+        continue;
+      }
+      // The glob skips this file itself; it always contains describe blocks.
+      const text = c.file === 'tests/harness.test.ts' ? 'describe(' : TEST_TEXTS[rel];
+      if (text === undefined) problems.push(`${String(c.id)}: ${c.file} not found`);
+      else if (!/\b(describe|it|test)\s*\(/.test(text)) problems.push(`${String(c.id)}: ${c.file} has no test`);
+    }
+    expect(problems).toEqual([]);
+  });
+});
+
+// PR, drift and CI guards (T-0006): PR template checklist, drift-check script, workflow shape, code owners.
+const PR_TEMPLATE = import.meta.glob('../.github/pull_request_template.md', { query: '?raw', import: 'default', eager: true }) as Record<string, string>;
+const DRIFT_SCRIPT = import.meta.glob('../harness/scripts/drift-check.mjs', { query: '?raw', import: 'default', eager: true }) as Record<string, string>;
+const WORKFLOWS = import.meta.glob('../.github/workflows/*.yml', { query: '?raw', import: 'default', eager: true }) as Record<string, string>;
+const CODEOWNERS = import.meta.glob(['../.github/CODEOWNERS', '../CODEOWNERS'], { query: '?raw', import: 'default', eager: true }) as Record<string, string>;
+const PR_ITEMS = ['acceptance', 'claims', 'brief', 'reviewer', 'board', 'not verified'];
+/** Drift surfaces the drift check must name (T-0006 brief: four drift checks). */
+const DRIFT_CHECK_NAMES = ['claims-on-done', 'stale-active-tasks', 'board-without-task', 'dead-doc-links'];
+
+describe('pull request, drift and CI', () => {
+  it('the PR template exists and has a "- [ ]" item for acceptance, claims, brief, reviewer, board and not verified', () => {
+    expect(Object.keys(PR_TEMPLATE)).toHaveLength(1);
+    const items = (Object.values(PR_TEMPLATE)[0] ?? '').split('\n').filter((l) => l.trim().startsWith('- [ ]')).map((l) => l.toLowerCase());
+    const missing = PR_ITEMS.filter((k) => !items.some((l) => l.includes(k)));
+    expect(missing).toEqual([]);
+  });
+
+  it('harness/scripts/drift-check.mjs exists and names the four drift checks', () => {
+    expect(Object.keys(DRIFT_SCRIPT)).toHaveLength(1);
+    const text = (Object.values(DRIFT_SCRIPT)[0] ?? '').toLowerCase();
+    const missing = DRIFT_CHECK_NAMES.filter((n) => !text.includes(n));
+    expect(missing).toEqual([]);
+  });
+
+  it('every workflow parses as YAML-shaped text: no tab indents, top-level name, on and jobs keys', () => {
+    expect(Object.keys(WORKFLOWS).length).toBeGreaterThan(0);
+    const problems: string[] = [];
+    for (const [key, text] of Object.entries(WORKFLOWS)) {
+      const name = key.split('/').pop();
+      if (text.split('\n').some((l) => /^\t/.test(l))) problems.push(`${name}: tab indent`);
+      const topKeys = text.split('\n').filter((l) => /^[A-Za-z"'_]/.test(l)).map((l) => l.split(':')[0].replace(/["']/g, '').trim());
+      for (const k of ['name', 'on', 'jobs']) if (!topKeys.includes(k)) problems.push(`${name}: missing top-level ${k}`);
+    }
+    expect(problems).toEqual([]);
+  });
+
+  it('CODEOWNERS exists and lists harness/ and .github/', () => {
+    expect(Object.keys(CODEOWNERS)).toHaveLength(1);
+    const text = Object.values(CODEOWNERS)[0] ?? '';
+    expect(text).toContain('harness/');
+    expect(text).toContain('.github/');
+  });
+});

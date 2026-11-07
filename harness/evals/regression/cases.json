@@ -1,0 +1,11 @@
+{
+  "cases": [
+    { "id": "layout-key", "title": "City layout key and layout hashes stay fixed", "file": "tests/layoutKey.test.ts", "covers": "determinism" },
+    { "id": "monument-layout", "title": "Monument placement is deterministic per seed", "file": "tests/monumentLayout.test.ts", "covers": "determinism" },
+    { "id": "traffic-determinism", "title": "Traffic and pedestrian runs match their baseline hashes", "file": "tests/traffic.determinism.test.ts", "covers": "determinism" },
+    { "id": "tuning-parity", "title": "Every tuned knob keeps its recorded value and is documented", "file": "tests/tuningParity.test.ts", "covers": "tuning" },
+    { "id": "budget", "title": "Triangle, shadow and draw-call budgets on a seeded city", "file": "tests/budget.test.ts", "covers": "budget" },
+    { "id": "layers", "title": "Core and store do not import feature modules", "file": "tests/layers.test.ts", "covers": "layers" },
+    { "id": "harness-guards", "title": "Harness guards: dependency direction, size ratchet, docs links, workflow records", "file": "tests/harness.test.ts", "covers": "harness" }
+  ]
+}

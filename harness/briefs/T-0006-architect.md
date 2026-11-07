@@ -1,0 +1,11 @@
+# Brief: T-0006 (architect)
+
+- **Task id:** T-0006-level5-security-pr-drift
+- **Owner:** architect
+- **Reviewer:** independent-reviewer
+- **Goal:** Level 5 part 2. (a) Security: secret scan (gitleaks) in CI; `npm audit --omit=dev --audit-level=high` gating in CI, and the dev-tooling audit reported but not gating; Dependabot config; CODEOWNERS for `harness/`, `.github/`. Note: `.claude/` is gitignored and not tracked, so it cannot have CODEOWNERS. Try upgrading vitest and vite to the versions that fix the audit findings; if the upgrade breaks tests, stop, revert the upgrade, and report. (b) PR lifecycle: `.github/pull_request_template.md` with a checklist (acceptance run, claims, brief, reviewer, board, not verified) and a CI job that fails when a PR body does not tick the checklist items. (c) Continuous harness improvement: a weekly workflow that runs `node harness/scripts/drift-check.mjs`, which reports drift (claims active on done tasks, tasks in active/ older than 14 days, board rows active without a matching task, docs references that do not exist) and exits 1 when drift is found; it writes its report under harness/runs/. Done when each piece is in place, `npm audit` gate result is reported, and drift-check runs locally.
+- **Files in scope:** `.github/**`, `.gitignore`, `CODEOWNERS` (repo root if needed), `dependabot.yml` under `.github/`, `package.json` and `package-lock.json` (only the vitest and vite upgrade, if it passes), `harness/scripts/drift-check.mjs`.
+- **Files out of scope:** `src/**`, `tests/**` (Scene & QA; drift-check guard only), `.claude/**`, `harness/state/board.json`, `harness/state/claims.json`.
+- **Claims:** the globs above, status active, in `harness/state/claims.json`. Release (status released) when the task is done.
+- **Acceptance commands:** `npm audit --omit=dev --audit-level=high` (must exit 0); `npm run check` (run by the lead before commit); `node harness/scripts/drift-check.mjs` (exit 0 or a named drift list); workflow YAML parses.
+- **Report format:** at most 10 lines: files changed with line counts before and after; audit result before and after (dev and prod, counts by severity); gate result per command (failures only); not verified (GitHub runs, human checks) and why.

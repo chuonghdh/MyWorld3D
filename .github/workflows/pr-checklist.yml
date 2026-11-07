@@ -1,0 +1,19 @@
+name: PR checklist
+
+on:
+  pull_request:
+    types: [opened, edited, synchronize, reopened]
+
+permissions:
+  contents: read
+
+jobs:
+  checklist:
+    if: github.actor != 'dependabot[bot]'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Fail when a checklist item is unticked
+        env:
+          PR_BODY: ${{ github.event.pull_request.body }}
+        run: |
+          node -e "const body = process.env.PR_BODY || ''; const open = body.split('\n').filter((l) => l.trim().startsWith('- [ ]')); if (open.length) { console.log('Unticked checklist items:'); for (const l of open) console.log(l.trim()); process.exit(1); } if (!/- \[x\]/i.test(body)) { console.log('No ticked checklist item found in the PR body.'); process.exit(1); }"

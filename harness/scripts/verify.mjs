@@ -1,5 +1,5 @@
 // Runs the gates in harness/config/quality-gates.json in order. Prints only failures.
-// Writes a result file to harness/runs/. Exit code 0 when every gate passes, 1 otherwise.
+// Writes a result file to harness/runs/ (commit, branch, gate ids, gate results). Exit code 0 when every gate passes, 1 otherwise.
 import { readFileSync, writeFileSync } from 'node:fs';
 import { spawnSync } from 'node:child_process';
 import { dirname, join } from 'node:path';
@@ -9,6 +9,14 @@ const root = join(dirname(fileURLToPath(import.meta.url)), '..', '..');
 const config = JSON.parse(readFileSync(join(root, 'harness/config/quality-gates.json'), 'utf8'));
 const startedAt = new Date();
 const results = [];
+
+/** Read-only git query. Returns 'unknown' when git is not available. */
+function gitValue(args) {
+  const r = spawnSync('git', args, { cwd: root, encoding: 'utf8' });
+  return r.status === 0 ? r.stdout.trim() : 'unknown';
+}
+const commit = gitValue(['rev-parse', '--short', 'HEAD']);
+const branch = gitValue(['rev-parse', '--abbrev-ref', 'HEAD']);
 
 for (const gate of config.gates) {
   const t = Date.now();
@@ -22,7 +30,14 @@ for (const gate of config.gates) {
 const overall = results.every((g) => g.status === 'pass') ? 'pass' : 'fail';
 const finishedAt = new Date();
 const runFile = join(root, 'harness/runs', `${startedAt.toISOString().replace(/[:.]/g, '-')}.json`);
-writeFileSync(runFile, JSON.stringify({ startedAt, finishedAt, status: overall, gates: results }, null, 2) + '\n');
+writeFileSync(
+  runFile,
+  JSON.stringify(
+    { startedAt, finishedAt, commit, branch, status: overall, gateIds: results.map((g) => g.id), gates: results },
+    null,
+    2,
+  ) + '\n',
+);
 
 for (const g of results) {
   if (g.status === 'pass') continue;
