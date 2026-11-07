@@ -1,6 +1,5 @@
 {
   "_comment": "Source of truth for the Agent Office board. Update this file first, then mirror it to the artifact (https://claude.ai/artifact/2SNdpvqoWTNC6FdQEsCAZC). Statuses: active = running now; permission = blocked on a user decision (say what in activity); done = nothing left for this run (follow-ups and commits are not run items); waiting = standby. Orchestrator is active only while some agent is active. Full rule in harness/workflows/WORKFLOW.md (Dashboard sync).",
-  "updated": "2026-11-07T12:13:15Z",
   "run": "level4-orchestration",
   "agents": [
     {

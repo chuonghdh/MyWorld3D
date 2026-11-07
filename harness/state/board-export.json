@@ -5,10 +5,10 @@
       "name": "Orchestrator (lead)",
       "role": "",
       "seat": 0,
-      "status": "active",
-      "progress": 10,
-      "activity": "Working on a user request",
-      "updated": "2026-11-07T08:08:44Z"
+      "status": "done",
+      "progress": 100,
+      "activity": "Turn ended",
+      "updated": null
     }
   },
   {
@@ -20,7 +20,7 @@
       "status": "waiting",
       "progress": 100,
       "activity": "Standby: not in the current run.",
-      "updated": "2026-11-07T08:08:44Z"
+      "updated": null
     }
   },
   {
@@ -32,7 +32,7 @@
       "status": "waiting",
       "progress": 100,
       "activity": "Standby: not in the current run.",
-      "updated": "2026-11-07T08:08:44Z"
+      "updated": null
     }
   },
   {
@@ -44,7 +44,7 @@
       "status": "waiting",
       "progress": 100,
       "activity": "Standby: not in the current run.",
-      "updated": "2026-11-07T08:08:44Z"
+      "updated": null
     }
   },
   {
@@ -56,7 +56,7 @@
       "status": "waiting",
       "progress": 100,
       "activity": "Standby: not in the current run.",
-      "updated": "2026-11-07T08:08:44Z"
+      "updated": null
     }
   },
   {
@@ -68,7 +68,7 @@
       "status": "waiting",
       "progress": 100,
       "activity": "Standby: not in the current run.",
-      "updated": "2026-11-07T08:08:44Z"
+      "updated": null
     }
   },
   {
@@ -80,7 +80,7 @@
       "status": "waiting",
       "progress": 100,
       "activity": "Standby: not in the current run.",
-      "updated": "2026-11-07T08:08:44Z"
+      "updated": null
     }
   },
   {
@@ -91,8 +91,8 @@
       "seat": 7,
       "status": "done",
       "progress": 100,
-      "activity": "Guards for T-0006 in place: PR template checklist, drift-check names, workflow shape, CODEOWNERS. Waiting for Architect files to pass. Not committed.",
-      "updated": "2026-11-07T08:08:44Z"
+      "activity": "DONE T-0006 guards. Not committed.",
+      "updated": null
     }
   },
   {
@@ -101,10 +101,10 @@
       "name": "Technical Architect",
       "role": "",
       "seat": 8,
-      "status": "active",
-      "progress": 0,
-      "activity": "Assigned T-0006: security (gitleaks, audit gate, Dependabot, CODEOWNERS), PR template and check, drift check.",
-      "updated": "2026-11-07T08:08:44Z"
+      "status": "done",
+      "progress": 100,
+      "activity": "DONE T-0006: gitleaks and audit gate in CI, Dependabot, CODEOWNERS (placeholder owner), PR checklist, drift check. Upgrade of vite and vitest reverted (21 tests broke). Not committed.",
+      "updated": null
     }
   },
   {
@@ -116,7 +116,7 @@
       "status": "done",
       "progress": 100,
       "activity": "Review gate trial: found 2 planted bugs, result changes requested. Trial file removed.",
-      "updated": "2026-11-07T08:08:44Z"
+      "updated": null
     }
   }
 ]

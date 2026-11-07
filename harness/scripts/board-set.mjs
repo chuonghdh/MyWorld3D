@@ -32,19 +32,18 @@ if (status === 'done' && progress !== 100) problems.push(`done needs progress 10
 if (!activity.trim()) problems.push('activity is empty');
 
 if (problems.length === 0) {
-  const now = new Date().toISOString().replace(/\.\d{3}Z$/, 'Z');
   const next = structuredClone(board);
   const row = next.agents.find((a) => a.id === id);
   row.status = status;
   row.progress = progress;
   row.activity = activity;
-  next.updated = now;
   const anyActive = next.agents.some((a) => a.status === 'active');
   const orch = next.agents.find((a) => a.id === 'orchestrator');
   if (!orch) problems.push('orchestrator id missing');
   else if (anyActive && orch.status !== 'active') problems.push(`orchestrator is ${orch.status} while an agent is active`);
   if (problems.length === 0) {
-    writeFileSync(file, JSON.stringify(next, null, 2) + '\n');
+    // Write only when the row actually changes, so the tracked file does not churn on every turn.
+    if (JSON.stringify(next) !== JSON.stringify(board)) writeFileSync(file, JSON.stringify(next, null, 2) + '\n');
     process.exit(0);
   }
 }

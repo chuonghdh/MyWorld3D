@@ -17,7 +17,7 @@ const rows = board.agents.map((a) => ({
     status: a.status,
     progress: a.progress,
     activity: a.activity,
-    updated: a.updated ?? board.updated,
+    updated: a.updated ?? null,
   },
 }));
 
