@@ -36,7 +36,7 @@
       "task": "T-0005-level5-observability-evals",
       "owner": "architect",
       "globs": ["harness/scripts/verify.mjs", "harness/scripts/collect-evidence.mjs", "harness/scripts/run-evals.mjs", "harness/runs/.gitkeep", ".gitignore", ".github/workflows/evals.yml", "harness/briefs/T-0005-architect.md", "harness/state/board-export.json"],
-      "status": "active",
+      "status": "released",
       "date": "2026-11-07",
       "brief": "harness/briefs/T-0005-architect.md"
     },
@@ -44,7 +44,7 @@
       "task": "T-0005-level5-observability-evals",
       "owner": "scene-qa",
       "globs": ["harness/evals/**", "harness/briefs/T-0005-scene-qa.md"],
-      "status": "active",
+      "status": "released",
       "date": "2026-11-07",
       "brief": "harness/briefs/T-0005-scene-qa.md"
     },
@@ -52,7 +52,7 @@
       "task": "T-0006-level5-security-pr-drift",
       "owner": "architect",
       "globs": [".github/**", "CODEOWNERS", "package.json", "package-lock.json", "harness/scripts/drift-check.mjs", "harness/briefs/T-0006-architect.md"],
-      "status": "active",
+      "status": "released",
       "date": "2026-11-07",
       "brief": "harness/briefs/T-0006-architect.md"
     },
@@ -60,7 +60,7 @@
       "task": "T-0006-level5-security-pr-drift",
       "owner": "scene-qa",
       "globs": ["tests/harness.test.ts", "harness/briefs/T-0006-scene-qa.md"],
-      "status": "active",
+      "status": "released",
       "date": "2026-11-07",
       "brief": "harness/briefs/T-0006-scene-qa.md"
     }
