@@ -60,7 +60,6 @@ Owns / Key files / Conventions / Traps (what bit us, why) / Decisions (and the r
 - Ownership rule (2026-11-06, user): every file change goes to the owner of its directory, even a small helper. Notes go only in the owner's handbook. Reason: cross-owner edits scatter notes across handbooks and make later fixes read many .md files (more tokens).
 
 ## Update 2026-11-06 (lead): working rules from the session
-- Dashboard: an agent is Working while it works. The Orchestrator stays Working while agents of the run work or while it waits to report; all move to Done together when the run is reported.
 - Assignment: one brief per owner (table above). Never hand an owner's file to another agent to save a hand-off.
 - Quick-check requests: when the user says "no tests", run only `npx tsc --noEmit`; do not run vitest or the browser check.
 - Amounts a designer may change are knobs in `src/config/tuning/`; shader constants stay local (CLAUDE.md).
