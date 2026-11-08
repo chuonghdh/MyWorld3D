@@ -44,19 +44,17 @@ export interface SunDirection {
   azimuthDeg: number;
 }
 
-function toDirection(altitude: number, azimuthFromSouthWest: number): SunDirection {
-  // suncalc azimuth: 0 = south, positive towards west.
-  const cosAlt = Math.cos(altitude);
-  const x = -Math.sin(azimuthFromSouthWest) * cosAlt; // east component
-  const y = Math.sin(altitude);
-  const z = Math.cos(azimuthFromSouthWest) * cosAlt; // south component
-  const azimuthDeg = (((azimuthFromSouthWest + Math.PI) * 180) / Math.PI) % 360;
+function toDirection(altitudeDeg: number, azimuthFromNorthDeg: number): SunDirection {
+  // suncalc v2: azimuth 0 = north, 90 = east, 180 = south, 270 = west (clockwise); altitude is apparent.
+  const alt = (altitudeDeg * Math.PI) / 180;
+  const az = (azimuthFromNorthDeg * Math.PI) / 180;
+  const cosAlt = Math.cos(alt);
   return {
-    x,
-    y,
-    z,
-    altitudeDeg: (altitude * 180) / Math.PI,
-    azimuthDeg: (azimuthDeg + 360) % 360,
+    x: Math.sin(az) * cosAlt, // east component
+    y: Math.sin(alt),
+    z: -Math.cos(az) * cosAlt, // south component
+    altitudeDeg,
+    azimuthDeg: ((azimuthFromNorthDeg % 360) + 360) % 360,
   };
 }
 
