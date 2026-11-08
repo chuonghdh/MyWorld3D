@@ -1,6 +1,6 @@
 // Agent bridge helpers (ADR 0013), shared by server.mjs and hook.mjs and unit-tested. Node 22, no dependencies.
 import { readFileSync } from 'node:fs';
-import { isAbsolute, join, relative } from 'node:path';
+import { join } from 'node:path';
 
 /** Words that may survive from an Agent description: specialist names only (used to pick the desk). */
 const NAME_WORDS = new Set(['buildings', 'building', 'city', 'streets', 'street', 'traffic', 'life', 'sky', 'environment', 'audio', 'ui', 'camera', 'scene', 'qa', 'technical', 'architect', '&', 'and']);
@@ -8,12 +8,18 @@ const PATH_KEYS = ['file_path', 'notebook_path', 'path'];
 const ID_KEYS = ['subagent_type', 'name', 'to'];
 
 /** Repo-relative path when inside `cwd`, else the base name only (no home directories leave the machine). */
+// Platform-independent: Windows drive paths count as absolute even on Linux (node:path does not), and both sides are
+// compared with forward slashes, so the result is the same on every OS.
+const WIN_DRIVE = /^[A-Za-z]:\//;
+const fwd = (s) => s.split('\\').join('/');
 export function safePath(p, cwd) {
   if (typeof p !== 'string' || !p) return undefined;
-  const norm = p.split('\\').join('/');
-  if (!isAbsolute(p)) return norm;
-  const rel = relative(cwd, p).split('\\').join('/');
-  return rel && !rel.startsWith('..') && !isAbsolute(rel) ? rel : norm.split('/').pop();
+  const norm = fwd(p);
+  if (!(WIN_DRIVE.test(norm) || norm.startsWith('/'))) return norm;
+  const root = fwd(String(cwd ?? '')).replace(/\/+$/, '');
+  // Inside the repo: the path relative to it. Outside: only the base name.
+  if (root && norm.toLowerCase().startsWith(root.toLowerCase() + '/')) return norm.slice(root.length + 1);
+  return norm.split('/').pop();
 }
 
 /**
