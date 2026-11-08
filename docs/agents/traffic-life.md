@@ -205,3 +205,71 @@ Plan only, no source edits. Auto film mode: a carrier bird flies high over the t
 - `birds.ts` (classes, constants, flock defs), `pigeonMotion.ts` and `flockMotion.ts` (update and helpers as functions of the instance).
 - `pets.ts` (cats, count helpers, roofHeight), `squirrels.ts`, `butterflies.ts`; `life/index.ts` imports them directly.
 - Counts, bee share and child gait knob stay in the files the parity test names (`birds.ts`, `pets.ts`, `personGeometry.ts`).
+
+## Review 2026-11-08 (Traffic & Life)
+
+Checked against the working tree (branch feat/agent-working-room). No tests run. Line numbers below are current; where the body above gives an older number, the number here wins.
+
+**Still valid**
+- Key files and module map: every file under `src/traffic/vehicles/`, `src/traffic/walkers/`, `src/traffic/people/`, and `src/life/` exists as listed. Note: `people/` means `src/traffic/people/`.
+- Knob list: all 22 `trafficLife` keys exist in `src/config/tuning/trafficLife.ts`. Moved-knob list (Tuning rule) matches the imports in `vehicles/constants.ts`, `walkers/constants.ts`, `life/pets.ts`, `life/birds.ts`, `people/personGeometry.ts`, `walkers/resolve.ts`. All have parity entries in `tests/tuningParity.test.ts` (lines 53-74, 344-352).
+- Shader: `vehicle-shader-v2` cache key (`vehicleShader.ts:122`); `NORMAL_SPIN` replaces `#include <beginnormal_vertex>` (`:112`); `snowInst`, `vSnowUp`, `vFrontGlass` present. Trap confirmed: three 0.170.0 `meshlambert` runs `color_vertex` (line 23) before `beginnormal_vertex` (line 28).
+- `setSnow` chain: `traffic/meshes.ts:50-51` and `vehicleMeshes.ts:187`.
+- Horns: `hornRng` seeded in `vehicles/build.ts:18`; `tryHorn`/`takeHorns` in `vehicles/horns.ts`; `HORN_PED_HOLD_S`, `HORN_COOLDOWN_S`, `HORN_GLOBAL_GAP_S`, `HORN_CHANCE` present. Tests in `tests/vehicleHorns.test.ts` (45 s, 6 s, half, main-sim unchanged) match the Decisions.
+- Turns: `decideTurn` (`vehicles/turns.ts:8`), `gateOpen` (`junctions.ts:191`), `decideAmongAllowed` (`vehicles.ts:290`). Turn chances are aliases of `trafficLife` (`constants.ts:25-27`).
+- Edge extension: `EDGE_EXTENSION = 28` (`vehicles/constants.ts:19`); tests pass `edgeExtension: 0` (`tests/traffic.test.ts:110`, plus `vehicles.test.ts`, `vehicleOverlap.test.ts`).
+- Density: `trafficDensity.ts` and `tests/trafficDensity.test.ts` (peaks, dip, floor, monotonic, wrap, 03:00 vs 11:00).
+- Block merges: `tests/blockMergeTraffic.test.ts` covers `block-2-2..3-3` and `block-1-0..1-2`, the renormalised T split, closed ends, and the 20-minute run.
+- Life: `SCARE_RADIUS = 4` (`birds.ts:19`); `roofHeight` (`spots.ts:28`, 3.6 + (floors-1) x 3.1); `roofSpots` (`spots.ts:99`); `FLYER_SCALE = 2.6` (`birds.ts:178`); no life mesh sets `castShadow` (only `filmBird.ts:133` sets it false). `tests/life.test.ts` determinism at `:41`.
+- Budget: `tests/budget.test.ts:7-9` says moving actors (vehicles, walkers, birds) are excluded from the static estimate.
+- Hashes: `EXPECTED_VEHICLES = 'b0d22ec1'` (`tests/traffic.determinism.test.ts:125`).
+- Guards: 350-line limit (`harness.test.ts:127-148`, `OVERSIZED` is empty; largest traffic/life file is `life/birds.ts` at 333 lines). No `Math.random` in `traffic` and `life` (`harness.test.ts:85, 87-93`). Feature modules do not import `scene` or `ui` (`harness.test.ts:56-81`; grep of `src/traffic` and `src/life` finds no such import).
+- `vehicleSurfaces.ts` is exported from `traffic/index.ts` only; no consumer. Still unwired.
+- Verify command paths (`tests/vehicle*.test.ts`, `people.test.ts`, `blockMergeTraffic.test.ts`, `traffic.determinism.test.ts`) exist.
+- People: adult-walks-at-child-pace and wobble test (`tests/people.test.ts:314-345`); six-seed avenue test (`people.test.ts:385-389`).
+- Film bird (`src/life/filmBird.ts`): knobs 7, 3, 2.6 (`trafficLife.ts:36-40`) and parity rows (`tuningParity.test.ts:70-72, 348-350`). It has no import of traffic, walkers, pigeons, flocks or audio. Test `tests/film/filmBird.test.ts:155` enforces this.
+
+**Corrections (value or path)**
+1. `vehicles.ts` is 320 lines, not 314.
+2. `vehicles/models.ts` is 302 lines and is no longer "448 lines, not split". The heavy models (bus, truck) moved to `vehicles/modelsHeavy.ts`.
+3. `pathOpenness` lives in `vehicles/geometry.ts:68` (called from `vehicles/build.ts:54`), not `vehicles.ts`.
+4. `buildArms` is at `vehicles/build.ts:167` (was :165).
+5. `headlightThreshold` is at `vehicleMeshes.ts:51` (was :49).
+6. `setSnow` call site is `scene/useTownFrame.ts:111` (was :107).
+7. `EXPECTED_PEDESTRIANS` is now `63333cfb` (`tests/traffic.determinism.test.ts:135`, re-captured 2026-11-06 for the child gait). Conventions still says `499b5c20` and the 11-04 film note says `a8684131`. Both are stale.
+8. `DENSITY_CURVE` no longer exists in `walkers/density.ts`. The curve is `TRAFFIC_DENSITY_CURVE` in `src/traffic/trafficDensity.ts:9`. `walkers/density.ts` only aliases `crowdDensityAt` (line 3) and exports `redRemaining`.
+9. `TRAFFIC_DENSITY_FLOOR` is `trafficLife.densityFloor` (`trafficDensity.ts:6`), not a literal 0.2.
+10. Life line numbers: `PigeonSystem` at `birds.ts:32` (was 30); `FlockSystem` at `birds.ts:182` (was 469 in an older layout); `FLOCK_DEFS` at `birds.ts:173` (was 460); `leaderAt` is in `life/flockMotion.ts:10` (was `:604` in birds.ts); seeded RNGs at `birds.ts:84-85` and `:227-228`.
+11. The scare logic moved out of `birds.ts`. The check and scatter code is in `life/pigeonMotion.ts` (`scare` at :61, `SCARE_RADIUS` use at :99). The "check :222-263" pointer is stale.
+12. `tests/life.test.ts` draw-call and triangle test is at `:226` (was :236).
+13. Monument castShadow is at `scene/useTownPieces.ts:69` (was :66). `buildings.ts:104` not found; treat as unverified.
+14. `pets.ts` reads `ctx.camera` at `:179` (was :180).
+15. Film bird is wired. `scene/FilmRig.tsx:20` imports `createFilmBird` and `birdPoseAt`, and `:71` mounts the bird at run start. `scene/filmLook.ts:109` uses `filmBirdMinDistanceM`. The "no src file imports filmBird yet" and "FilmRig mount pending" lines are stale.
+16. Film bird test is `tests/film/filmBird.test.ts`, not `tests/film/filmBird.test.ts` (the film plan's Verify line is stale).
+17. The film plan's `scene/filmPath.ts` is still not present. The sampler lives in `src/film/autoPath.ts`.
+18. Pedestrian "never stands on asphalt" is not a test name in the repo. The asphalt check is in `tests/blockMergeTraffic.test.ts:191-193`.
+19. The "threshold 1.15" in the six-seed avenue test was not found as a literal in `tests/people.test.ts`. Treat as unverified.
+20. `tests/layers.test.ts` guards only core, store and agentRoom. The feature rule lives in `tests/harness.test.ts:56-81`. CLAUDE.md cites `layers.test.ts` for it; the citation is wrong.
+
+**Stale items removed (from the body above; body text left as is, superseded by this section)**
+- "Vehicle `models.ts` (448 lines, not split)".
+- "`vehicleMeshes.ts` is the next split candidate": already split (`vehicleShader.ts`, `vehicleGlow.ts`, Harness refactor section). Remove from Open items.
+- "no src file imports `filmBird` yet" and "FilmRig mount pending".
+- Conventions hash `499b5c20`.
+
+**Rules: status**
+- 350-line ratchet: valid and enforced (`OVERSIZED` empty; no traffic/life file over 333).
+- No `Math.random` in layout code: valid and enforced for traffic and life.
+- Feature/scene/ui import ban: valid, enforced by `harness.test.ts`, not by `layers.test.ts`.
+- Determinism hashes: valid, enforced by `traffic.determinism.test.ts`.
+- Tuning rule for knobs: enforced only for listed knobs (`tuningParity.test.ts`). No guard checks for knob-like literals in feature code. Candidates that look like designer knobs under CLAUDE.md's definition but stay local: flock counts, altitudes and speeds (`birds.ts:173-180`); walker caps (`walkers/constants.ts` MAX_WALKERS, WALKERS_PER_ROAD, MAX_DOGS, PAIR_CHANCE 0.2 share); `DECIDE_DISTANCE = 40` (`vehicles/constants.ts:30`); `HORN_PED_HOLD_S = 5` (`:53`); `HORN_QUEUE_MAX = 8` (`:69`). The Tuning rule says these stay local, so the rule and the CLAUDE.md definition conflict. Lead to decide.
+
+**Open items**
+- Flock rows in `docs/TUNING.md` cite `birds.ts:460-462` (now `:173-180`). Owner to fix with the index. Not edited here (outside this file).
+- Film bird look is not verified by eye. Needs a connected-Chrome check after FilmRig mount (Scene & QA).
+- Car-roof leaf landing (`vehicleSurfaces`) still unwired.
+- Walker speed ranges (`looks.ts` `speedFor`) and per-person triangle count (~376) not re-measured.
+- Pedestrian timing tests flaky under load: not re-run here.
+
+**Not verified in this review**
+- Hair style count, outfit colours, the 70% patterned-top share (test at `people.test.ts:250` exists), draw-call counts 6-7 and 5-6 for people, the frost disc radius (centre offsets confirmed at `vehicleShader.ts:96-97`), and `VehicleSystem.density` set by `update(dt, { timeOfDay })`.

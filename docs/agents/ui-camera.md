@@ -177,3 +177,43 @@ Split by responsibility, no behaviour change. Same exports and import paths.
 - `scene/CameraRig.tsx`: orbit, presets, street walk. `scene/cameraViewShift.ts`: panel view offset. `scene/cameraMapKeys.ts`: map Up/Down and look keys.
 - `scene/filmPath.ts`: planner. `scene/filmPathConsts.ts`: constants. `scene/filmPathPlan.ts`: descent road and finale search. `scene/filmPathKeys.ts`: keyframes per orbit scale.
 - `ui/panels.css`: entry of `@import`s, in cascade order. Rules in `ui/panels/*.css` (base, sections, swatches, timebar, timebar-fold, help, mobile, sides, view-mixer, block-edit).
+
+## Update 2026-11-08 (ui-camera): Agent Working Room UI review
+- Reviewed agent-room.html against the reference UI (T-0008). Spec and plan: `harness/briefs/T-0008-ui-camera-review.md`. Architect owns src/agentRoom/**; ui-camera writes specs only there.
+- Rules set: plain CSS tokens (no Tailwind), source-aware controls (no fake task controls in Live/Replay), camera presets derived from layout, inset fit, 5 px click tolerance.
+
+## Review 2026-11-08 (UI & Camera)
+Checked against source at HEAD 6b036e4 (branch feat/agent-working-room) with Grep/Read. No code or test changed; tests not run.
+
+### Verified valid
+- Owned files exist: `src/ui/**` (incl. `FilmPicker.tsx`, `filmSession.ts`, `houseRoof.ts`, `sectionState.ts`), `src/store/**`, `scene/CameraRig.tsx`, `cameraInput.ts` (`useCameraInput`, `Tween`, `StreetState`), `cameraDom.ts`, `cameraMath.ts`, `Selection.tsx`, `selectionMath.ts`, `BlockEditor.tsx`, `blockEditMath.ts`, `blockEditAnchors.ts`.
+- Knob values in `src/config/tuning/uiCamera.ts`: maxDistance 600 (l.74), minDistance 4 (l.76), maxPolarAngle PI/2.05 (l.88), blockEditHeightM 200 (l.86), pitchLimit 80 deg (l.100), overviewDirection [0, 2.45, 0.63] (l.116), pivotSeconds 0.8, panelShiftSeconds 1.5, goldenHourTime 18, pickHeightM 150 (l.118), decalHeightM 0.3 (l.120), tapSlopPx 6 (l.122).
+- `MERGE_MAX_BLOCKS = 4` (`city/merge.ts:12`), `mergeSuggestions` (`city/merge.ts:127`), `grownGroup` (`city/merge.ts:157`), `ANCHOR_SLOTS = 5` (`scene/blockEditAnchors.ts:16`), `editModeForHeight` (`scene/cameraMath.ts:38`, only place), `canMerge` (`scene/blockEditMath.ts:80`), `mergeBlockGroup` / `splitMergedBlock` / `swapBlocks` in `store/index.ts` with `store/merges.ts`, same-shape swap check present.
+- Store: no undo/redo in `src/store`. `store/io.ts` `LAYOUT_VERSION = 1` (l.20), `drizzle` -> `cloudy` (l.114), version check (l.208). `exportLayout` / `importLayout` are called nowhere in `src/ui` (no UI control).
+- Traps: `scene/cameraMath.ts` aliases the knobs (l.25-35); aircraft band reads `uiCamera.maxDistance` (`aircraft/schedule.ts:11`); `.mw-select` solid background and `color-scheme: dark` (`ui/panels/sections.css:284-288`); `?mwThrow=render` gated by DEV (`scene/FirstFrame.tsx:14`); Help "Block editing" group (`ui/HelpOverlay.tsx:80`).
+- Boot: `index.html` inline boot styles on `#1c1816`; `ui/boot.ts` `FADE_MS = 450` (l.6) and `bootDone`; `main.tsx` wraps `<App/>` in `ErrorBoundary`; message capped at 400 chars (`ui/ErrorBoundary.tsx:19`); `tests/errorBoundary.test.ts` uses `renderToString`.
+- Tests named in the handbook exist: `ui`, `cameraRig`, `selection`, `store`, `errorBoundary`, `layers`, `mapMove`, `orbitPivot`, `heightLabel`, `streetKeys`, `sectionState`, `slide`, `goldenHour`, `houseRoof`, `tests/film/autoRun.test.ts`, `tests/film/resizeBridge.test.ts`. Test "panel view shift glide" at `tests/cameraRig.test.ts:155`.
+- Helpers named in the 11-06 updates exist: `stepViewShift` (`cameraMath.ts:309`), `applyMapKeys` (`cameraMapKeys.ts:13`), `pivotForSelection`, `stepPivotGlide`, `mapMoveAxis`, `moveCameraAlong`, `mapLookAxes`, `mapMoveSpeedAt` (all `scene/pivotMath.ts` or `CameraRig.tsx`), `leftPanelInset` / `measureLeftInset` (`scene/cameraDom.ts`), `applyGoldenHour` (`ui/goldenHour.ts`), `shownShutter` (`ui/houseRoof.ts:31`), `startAutoFilm` (`ui/filmSession.ts:217`), `startAutoFilmClock` (`film/filmClock.ts`).
+- Every `uiCamera` key has a `tests/tuningParity.test.ts` entry except `overviewDirection` (checked by fragment, l.385).
+
+### Stale (corrected here; fix in the body on next edit)
+- Key files / Traps: `scene/CameraRig.tsx` is **349 lines**, not 263. It is 1 line under the 350 cap: the next addition must go to a new file (`cameraViewShift.ts`, `cameraMapKeys.ts`, `cameraInput.ts` are the pattern).
+- `ui/TimeBar.tsx` is 99 lines. Controls, phone window and icons now live in `TimeBarControls.tsx`, `TimeBarPhone.tsx`, `TimeBarIcons.tsx`.
+- Block edit: `PICK_Y`, `TAP_SLOP_PX`, `DECAL_Y` are knobs now (`uiCamera.pickHeightM`, `tapSlopPx`, `decalHeightM`, `scene/BlockEditor.tsx:19-24`), not literals. Values unchanged.
+- Overview is not always "around the map centre": since 2026-11-06 the orbit pivot follows the selection (see that update).
+- "Session 2026-11-04 (film camera plan): Status: proposed, not started" is out of date. The film is built (`src/film/*`, `ui/FilmPicker.tsx`, `ui/FilmButton.tsx`, `ui/filmSession.ts`, `scene/FilmRig.tsx`, `scene/filmPath*.ts`). Its line numbers and file sizes are historical only.
+- Layering wording: store -> city/weather/scene/ui is guarded by `tests/layers.test.ts` (runtime imports) and `tests/harness.test.ts:63` (type imports included too). `layers.test.ts` alone does not check type imports.
+- `uiCamera.walkSpeed` (`uiCamera.ts:94`) has a parity entry but no row in `docs/TUNING.md`. Add one (walk speed, m/s, owner UI & Camera).
+
+### Ownership gaps (handbook and `docs/agents/README.md` row 6)
+- `docs/REPO_MAP.md:28, 31` assigns to UI & Camera: `src/film/autoPath.ts`, `src/film/filmClock.ts` (clock, path). Camera helpers `scene/pivotMath.ts`, `cameraMapKeys.ts`, `cameraViewShift.ts` are camera code too. None are in `Owns` here or in the README row. Add them to both.
+
+### Rules I believe are invalid or not enforced
+1. "Feature modules never import scene or ui" (CLAUDE.md Rules; `harness/README.md` Guards, Dependency direction): NOT enforced for `src/film`. `tests/harness.test.ts:59` FEATURES list has no `film`. Current violations if `film` is a feature module: `src/film/autoPath.ts:8` (runtime import `../scene/cameraMath`), `src/film/autoRun.ts:8` (type import `../scene/filmPath`). Either add `film` to the guard with a reasoned exception for `autoPath`, or move `wholeMapFraming` out of scene.
+2. `harness/README.md:71` "CSS size is not guarded (`src/ui/panels.css`, 1247 lines)": line count is stale. `src/ui/panels.css` is 12 lines (`@import` list); rules are in `src/ui/panels/*.css` (largest `sections.css` 315) plus `carousel.css` and `film.css`. The gap itself (no CSS guard) still holds.
+3. `docs/agents/README.md` ownership table: row 6 does not name `src/film` or `scene/pivotMath.ts` (see Ownership gaps). The harness check at `tests/harness.test.ts:193` only tests folders, not files, so it passes.
+
+### Unverified
+- Visual and UX claims (carousel, slide timing, panel glide, swatch grid, boot fade on device) are not checked: no Chrome run.
+- Test pass/fail status and the `npm run check` result were not run (per the review instructions).
+- Phone-width (390 px) and "Window size" fix statements are not re-checked.
