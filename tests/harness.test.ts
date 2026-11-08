@@ -82,7 +82,7 @@ describe('dependency direction', () => {
 
 describe('determinism', () => {
   // Layout must be a pure function of settings and layout.seed (architect handbook, performance standards).
-  const LAYOUT_DIRS = ['core', 'store', 'city', 'streets', 'buildings', 'traffic', 'life', 'environment'];
+  const LAYOUT_DIRS = ['core', 'store', 'city', 'streets', 'buildings', 'traffic', 'life', 'environment', 'agentRoom'];
 
   it('no Math.random in layout code', () => {
     const bad = sourceEntries
@@ -94,9 +94,17 @@ describe('determinism', () => {
 });
 
 describe('boundaries', () => {
-  it('no network calls in src (no fetch, XHR or WebSocket)', () => {
+  it('no network calls in src (no fetch, XHR, WebSocket or EventSource)', () => {
+    // Reasoned exception (ADR 0013): the agent room reads its local bridge (127.0.0.1) via one EventSource plus a
+    // replay snapshot GET. Only src/agentRoom/bridgeClient/ may use EventSource and fetch. XHR and WebSocket stay banned there.
+    const BRIDGE_CLIENT = 'src/agentRoom/bridgeClient/';
     const bad = sourceEntries
-      .filter(([, text]) => codeLines(text).some((line) => /\bfetch\s*\(|XMLHttpRequest|new WebSocket/.test(line)))
+      .filter(([file, text]) => {
+        const pattern = file.startsWith(BRIDGE_CLIENT)
+          ? /XMLHttpRequest|new WebSocket/
+          : /\bfetch\s*\(|XMLHttpRequest|new WebSocket|\bEventSource\b/;
+        return codeLines(text).some((line) => pattern.test(line));
+      })
       .map(([file]) => file);
     expect(bad).toEqual([]);
   });

@@ -1,0 +1,21 @@
+﻿# Brief: T-0008-agent-working-room, phase 1, Architect
+
+- **Task id:** T-0008-agent-working-room
+- **Owner:** architect (Technical Architect; human exception 2026-11-08 for agent-room feature code)
+- **Goal:** the agent-room contract exists as types and tuning, and an empty agent-room.html page builds and shows the source badge (Simulation). No engine, no rendering of agents yet.
+- **Files in scope:**
+  - src/agentRoom/model/** (types only: AgentId, RoomEvent union of the 12 kinds, Snapshot, Source)
+  - src/agentRoom/main.tsx (mount, source badge only)
+  - agent-room.html
+  - src/config/tuning/agentRoom.ts (11 knobs from ADR 0013, one doc line each)
+  - `src/config/tuning/index.ts` (re-export only)
+  - `tests/tuningParity.test.ts` (agentRoom entries only)
+  - `docs/TUNING.md` (agentRoom line)
+  - `docs/adr/README.md` (row 0013), `docs/adr/0005-no-network-in-src.md` (status line: "Superseded in part by ADR 0013" once 0013 is accepted)
+  - `docs/agents/architect.md` (handbook update at end)
+- **Files out of scope:** `vite.config.ts`, `tests/layers.test.ts`, `tests/harness.test.ts`, `docs/REPO_MAP.md` (Scene & QA); everything else in src; `package.json`; `.claude/`.
+- **Reviewer:** Scene & QA
+- **Claims:** the globs above, in `harness/state/claims.json` (T-0008, owner architect).
+- **Acceptance commands:** `npm run check`. Human: none this phase.
+- **Depends on:** Scene & QA phase 1 for the vite input (page builds only after both land). Model and tuning files can land first.
+- **Report format:** at most 8 lines: files changed (lines before/after), gate result, not verified.

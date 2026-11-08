@@ -1,0 +1,11 @@
+{"hook_event_name":"SessionStart","session_id":"s-main","cwd":"D:/secret/home","transcript_path":"C:/Users/someone/t.jsonl","source":"startup"}
+{"hook_event_name":"UserPromptSubmit","session_id":"s-main","prompt":"SENTINEL-PROMPT please refactor the audio mixer"}
+{"hook_event_name":"PreToolUse","session_id":"s-main","tool_name":"Agent","tool_input":{"description":"Audio specialist: SENTINEL-DESC fix mixer","prompt":"SENTINEL-AGENT-PROMPT","subagent_type":"general-purpose"}}
+{"hook_event_name":"PreToolUse","session_id":"s-main","agent_id":"sub-audio","agent_type":"general-purpose","tool_name":"Read","tool_input":{"file_path":"src/audio/mixer.ts"}}
+{"hook_event_name":"PostToolUse","session_id":"s-main","agent_id":"sub-audio","tool_name":"Read","tool_input":{"file_path":"src/audio/mixer.ts"},"tool_response":{"content":"SENTINEL-FILE-CONTENT"}}
+{"hook_event_name":"PreToolUse","session_id":"s-main","agent_id":"sub-audio","tool_name":"Edit","tool_input":{"file_path":"src/audio/mixer.ts","old_string":"SENTINEL-OLD","new_string":"SENTINEL-NEW"}}
+{"hook_event_name":"PreToolUse","session_id":"s-main","agent_id":"sub-audio","tool_name":"Bash","tool_input":{"command":"SENTINEL-COMMAND npm test"}}
+{"hook_event_name":"PostToolUse","session_id":"s-main","agent_id":"sub-audio","tool_name":"Bash","tool_response":{"stdout":"SENTINEL-STDOUT","is_error":true}}
+{"hook_event_name":"SubagentStop","session_id":"s-main","agent_id":"sub-audio","agent_type":"general-purpose"}
+{"hook_event_name":"Notification","session_id":"s-main","message":"SENTINEL-NOTIFY needs approval"}
+{"hook_event_name":"Stop","session_id":"s-main"}

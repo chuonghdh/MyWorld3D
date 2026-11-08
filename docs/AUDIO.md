@@ -17,7 +17,7 @@ source (osc / noise) -> Emitter.input (gain) -> distance lowpass -> PannerNode (
 - Limiter: `DynamicsCompressor` (threshold -9 dB, knee 6, ratio 12, attack 3 ms, release 0.25 s), so storm
   peaks compress instead of clipping.
 - Distance lowpass: about 18 kHz at 0 m, falling log-linearly to 1.2 kHz at 300 m, then flat (air absorption).
-- Default master volume 0.8; every group and category defaults to 1.
+- Default master volume 0.4 (`audio.masterVolumeDefault`); groups default to 1; categories start at `audio.categoryDefaults` (unlisted = 1).
 
 ## Files
 
@@ -118,7 +118,7 @@ update loop skips every system except `music`. Music has its own switch (`frame.
 
 ## Mixer (`src/ui/SoundMixer.tsx`)
 
-- Group sliders, whole percent 0..100: Master (default 80), Effects (100), Nature (100), Music (100).
+- Group sliders, whole percent 0..100: Master (default 40), Effects (100), Nature (100), Music (100).
   Layout: Master, then Effects and Nature side by side, then Music.
 - "Each sound" (collapsed `<details>`): one slider per category, 100 by default.
   - Effects: Engines, Horns, Turn signals, Voices, Footsteps, Dogs, Cats, Aircraft.
@@ -173,13 +173,13 @@ from `aircraft.audioSources()` (pooled); it is empty while the simulation is pau
 - The voice (`buildJetVoice`, also works on an `OfflineAudioContext`): brown noise through a 260 Hz lowpass
   (rumble), pink noise through a 1.1 kHz bandpass (whoosh), and two detuned sines (780 and 1010 Hz) whose level
   drifts with an LFO. `jetDoppler` maps radial speed to a 0.85..1.15 ratio applied to `playbackRate`, the whine
-  frequencies and the filter cutoffs. `JET_GAIN` = 0.55.
+  frequencies and the filter cutoffs. `JET_GAIN` = `audio.jetGain` (1).
 - Voices fade in over 3 s and out over 2.5 s; a released voice is kept until silent, then disposed. Nothing
   starts when `frame.dt` is 0.
 
 ## Tests
 
-`tests/audio*.test.ts` (aircraft, animals, bus, math, mixer, music, nature, people, rain, vehicles, weather) and
+`tests/audio*.test.ts` (aircraft, animals, bus, math, mixer, music, nature, offlineRender, people, rain, recordTap, uiCue, vehicles, weather) and
 `tests/helpers/fakeAudio.ts`. The fake AudioContext must implement every node factory the code uses.
 
 UI cue notes (2026-11-06): see `docs/agents/audio.md`.

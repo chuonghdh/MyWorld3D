@@ -150,3 +150,28 @@ P1 listener math + smoother (golden test: manual camera poses outside the band u
 - Nature: `natureCore.ts` (knobs, pure helpers, voice types).
 - People: `peopleCore.ts` (knobs, pose, speakers, helpers), `peopleVoices.ts` (chat, footsteps), `peopleUmbrella.ts` (umbrella rain).
 - Vehicles: `vehiclesCore.ts` (knobs, engine model, helpers), `vehiclesEngine.ts` (engine voice), `vehiclesSignals.ts` (indicator, horns).
+
+## Review 2026-11-08 (Audio)
+Checked against HEAD `6b036e4` with Grep/Read. Most numbers and names in this handbook and in `docs/AUDIO.md` are valid (listener constants, limiter, voice budget, 16 categories, group map, mixer storage keys, voice limits and distances, tuning values, hot-reload trap). Corrections below override the body above.
+
+### Corrections (stale)
+- **Moved paths:** `DOG_MEAN_S`, `BIRD_Y`, `BIRD_MAX_M` are in `animalsPure.ts`, not `animals.ts`. `AIR_BRAKE_LEVEL` is in `vehiclesCore.ts:21`, not `vehicles.ts`. Rustle, whistle, cricket and bell constants are in `natureCore.ts` (`nature.ts` re-exports). Limiter (-9 dB, ratio 12) is in `mixChain.ts`. The aerial gate is `routeFrame` in `route.ts:37`, not `index.ts:115-117`; `quietFrame` lives in `route.ts` and is re-exported from `index.ts`.
+- **Knobs now in config** (`src/config/tuning/audio.ts`): `AERIAL_HEIGHT_M` = `audio.aerialHeightM` (45); `JET_GAIN` = `audio.jetGain` (1, not 0.55); master start 0.4 (`masterVolumeDefault`); per-category starts (`categoryDefaults`); mixer start master 40 (`mixerDefaults`).
+- **Verify line:** "peak < 0.5" is superseded. The film render scales to `film.audioPeakTargetDb` (-3 dB) in `renderFilmAudio`. Keep the peak < 0.5 check only for the live path.
+- **Scope:** last commit touching `src/audio` is `dcb63d5`, not `251fe15`.
+- **Trap, fake context:** `animalsVoices.ts:110` calls `createWaveShaper`, but `tests/helpers/fakeAudio.ts` does not define it. Whether a test reaches that path is unverified.
+- **Film plan (2026-11-04) status:** `listenerOverride.ts` does not exist. The 45 m gate is still a step (`route.ts:37`); only the offline render passes `aerialGate: false`. The ground-node ramp (plan P3) is not built.
+
+### Rules check
+- **Layer and dependency guard** (`tests/harness.test.ts`, FEATURES includes `audio`): audio imports neither `scene` nor `ui`. Valid and enforced.
+- **350-line limit:** every `src/audio/*.ts` is at most 337 lines (`bus.ts`). No audio entry in `OVERSIZED`. Valid; `bus.ts` is close to the limit.
+- **localStorage guard:** `src/ui/SoundMixer.tsx` is on the allow-list. Valid.
+- **Math.random (layout) guard:** `audio` is not in `LAYOUT_DIRS`, so the guard does not cover audio. Not a violation: `aircraft.ts:63` and `musicMood.ts:209` are non-layout, and `offlineRender.ts` seeds Math.random.
+- **No-network ADR 0005:** audio has no `fetch`. Valid. But ADR 0005 says "Persisted data is the JSON settings file ... only", while `SoundMixer.tsx` persists to localStorage (`MIXER_STORAGE_KEY`, `CATEGORY_STORAGE_KEY`). The ADR text is stale. Lead to fix (not an audio file).
+- **Tuning rule (CLAUDE.md, "ONLY in src/config/tuning"):** not enforced for audio and not followed. Knob-type literals remain in feature code: `DOG_MEAN_S`, `AMBIENT_MEAN_S`, `OWL_MEAN_S` (`animalsPure.ts:19-38`); `RUSTLE_INTERVAL_MIN_S/MAX_S` (`natureCore.ts:13-14`); `ENGINE_VOICES`, `ENGINE_MAX_DISTANCE`, `HORN_MAX_DISTANCE` (`vehiclesCore.ts:10-16`); `CHAT_VOICES`, `CHAT_MAX_DISTANCE` (`peopleCore.ts:11-14`); `AIRCRAFT_MAX_VOICES`, `AIRCRAFT_REF_DISTANCE`, `AIRCRAFT_MAX_DISTANCE` (`aircraft.ts:13-16`). These are intervals, counts and distances, which CLAUDE.md defines as knobs. The "Tuning rule" paragraph above overstates the current state. Lead decision: move them or record reasoned exceptions.
+- **Knob doc rule:** every `audio.ts` key I checked appears in `docs/TUNING.md`. Valid.
+
+### Not verified
+- Level, timbre and balance by ear (out of scope here).
+- Did not run `vitest`, `tsc` or `npm run check`.
+- `harness/README.md` Math.random list omits `agentRoom`, which the guard includes (not audio; for the lead).

@@ -11,3 +11,4 @@ export { trafficLife } from './trafficLife';
 export { audio } from './audio';
 export { skyEnvironment } from './skyEnvironment';
 export { film } from './film';
+export { agentRoom } from './agentRoom';

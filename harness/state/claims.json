@@ -68,9 +68,33 @@
       "task": "T-0007-remove-agent-office",
       "owner": "lead",
       "globs": [".github/pull_request_template.md", "CLAUDE.md", "dashboard/agents-dashboard.html", "docs/REPO_MAP.md", "docs/agents/README.md", "docs/agents/architect.md", "docs/agents/scene-qa.md", "docs/feature_video_camera.md", "harness/scripts/board-export.mjs", "harness/scripts/board-set.mjs", "harness/scripts/board.mjs", "harness/scripts/check-claims.mjs", "harness/scripts/drift-check.mjs", "harness/state/README.md", "harness/state/board-export.json", "harness/state/board.json", "harness/workflows/WORKFLOW.md", "src/ui/SettingsCity.tsx", "src/ui/WeatherIcons.tsx", "src/ui/controls.tsx", "src/ui/panels/sections.css", "tests/harness.test.ts", "harness/state/claims.json", "harness/briefs/T-0007-lead.md", "harness/briefs/T-0003-architect.md", "harness/briefs/T-0003-scene-qa.md", "harness/briefs/T-0004-architect.md", "harness/briefs/T-0006-architect.md", "harness/briefs/level4-pre-T0003-architect.md", "harness/tasks/completed/T-0007-remove-agent-office.md"],
-      "status": "active",
+      "status": "released",
       "date": "2026-11-07",
       "brief": "harness/briefs/T-0007-lead.md"
+    },
+    {
+      "task": "T-0008-agent-working-room",
+      "owner": "architect",
+      "globs": ["src/agentRoom/model/**", "src/agentRoom/main.tsx", "agent-room.html", "src/config/tuning/agentRoom.ts", "src/config/tuning/index.ts", "tests/tuningParity.test.ts", "docs/TUNING.md", "docs/adr/README.md", "docs/adr/0005-no-network-in-src.md", "docs/agents/architect.md", "docs/adr/0013-agent-room-module.md", "docs/agents/README.md", "harness/briefs/T-0008-architect-p1.md", "harness/briefs/T-0008-scene-qa-p1.md", "harness/tasks/active/T-0008-agent-working-room.md", "harness/state/claims.json", "tests/agentRoomTuning.test.ts", "CLAUDE.md", "src/agentRoom/engine/**", "src/agentRoom/mapping/**", "tests/agentRoomEngine.test.ts", "tests/agentRoomMapping.test.ts", "harness/briefs/T-0008-architect-p2.md", "src/agentRoom/world/**", "src/agentRoom/ui/**", "src/agentRoom/store.ts", "src/agentRoom/runtime.ts", "tests/agentRoomOwners.test.ts", "tests/agentRoomWorld.test.ts", "harness/briefs/T-0008-architect-p3.md", "tools/agent-bridge/**", "src/agentRoom/replay/**", "src/agentRoom/bridgeClient/**", "tests/agentRoomReplay.test.ts", "harness/briefs/T-0008-architect-p4.md", "harness/briefs/T-0008-architect-p5ui.md", "tests/agentRoomUi.test.ts", "tests/agentRoomCamera.test.ts", "tests/agentRoomLook.test.ts", "tests/agentRoomOffice.test.ts", "tests/agentRoomNav.test.ts", "tests/agentRoomBridge.test.ts", "package.json", "harness/briefs/T-0008-architect-p5.md", "harness/briefs/T-0008-architect-p6.md", "src/agentRoom/engine/**"],
+      "status": "active",
+      "date": "2026-11-08",
+      "brief": "harness/briefs/T-0008-architect-p6.md"
+    },
+    {
+      "task": "T-0008-agent-working-room",
+      "owner": "scene-qa",
+      "globs": ["vite.config.ts", "tests/layers.test.ts", "tests/harness.test.ts", "docs/REPO_MAP.md", "docs/agents/scene-qa.md"],
+      "status": "active",
+      "date": "2026-11-08",
+      "brief": "harness/briefs/T-0008-scene-qa-p1.md"
+    },
+    {
+      "task": "T-0008-agent-working-room",
+      "owner": "ui-camera",
+      "globs": ["harness/briefs/T-0008-ui-camera-review.md", "docs/agents/ui-camera.md"],
+      "status": "active",
+      "date": "2026-11-08",
+      "brief": "harness/briefs/T-0008-ui-camera-review.md"
     }
   ]
 }
