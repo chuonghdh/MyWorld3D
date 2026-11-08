@@ -1,7 +1,7 @@
 # Tuning parameters
 Reviewed 2026-11-06 at dev (292b724). Designer knobs live in `src/config/tuning/`; rows that still point to code are not yet tunable.
 
-Every value a user may want to adjust, in one place. Values that moved live in `src/config/tuning/` (one file per owner section, re-exported by `index.ts`: `audio`, `buildings`, `cityStreets`, `film`, `sceneQa`, `skyEnvironment`, `trafficLife`, `uiCamera`). Rows point there with the config key. Rows that did not move point at the code location. Sliders in the UI write to the store (`src/store/model.ts` defaults); their ranges are listed where the slider is defined.
+Every value a user may want to adjust, in one place. Values that moved live in `src/config/tuning/` (one file per owner section, re-exported by `index.ts`: `audio`, `buildings`, `cityStreets`, `film`, `agentRoom`, `sceneQa`, `skyEnvironment`, `trafficLife`, `uiCamera`). Rows point there with the config key. Rows that did not move point at the code location. Sliders in the UI write to the store (`src/store/model.ts` defaults); their ranges are listed where the slider is defined.
 
 ## How to change a value
 
@@ -415,7 +415,7 @@ Shader-only wear on the road, pavement and paint (`src/streets/streetWear.ts`). 
 | Max polar angle | PI / 2.05 | radians | Lowest orbit angle from straight up (keeps the camera above ground) | src/config/tuning/uiCamera.ts (`uiCamera.maxPolarAngle`) | UI & Camera |
 | Orbit damping | 0.08 | 0..1 | OrbitControls damping factor | src/config/tuning/uiCamera.ts (`uiCamera.dampingFactor`) | UI & Camera |
 | Target height max | 40 | metres | Highest orbit target height | src/config/tuning/uiCamera.ts (`uiCamera.targetHeightMax`) | UI & Camera |
-| Street walk speed | 2.5 | m/s | Walk speed in street view | src/config/tuning/uiCamera.ts (`uiCamera.walkSpeed`) | UI & Camera |
+| Street walk speed | 2.5 | m/s | Walk speed in street view | src/config/tuning/uiCamera.ts (`uiCamera.avatarWalkSpeed`) | UI & Camera |
 | Street run speed | 6 | m/s | Run speed in street view (Shift) | src/config/tuning/uiCamera.ts (`uiCamera.walkRunSpeed`) | UI & Camera |
 | Street mouse look | 0.004 | radians per pixel | Mouse look sensitivity in street view | src/config/tuning/uiCamera.ts (`uiCamera.lookSensitivity`) | UI & Camera |
 | Whole-map fit margin | 1.06 | factor | Whole-map framing margin on the town width | src/config/tuning/uiCamera.ts (`uiCamera.fitMargin`) | UI & Camera |
@@ -423,6 +423,57 @@ Shader-only wear on the road, pavement and paint (`src/streets/streetWear.ts`). 
 | Block decal height | 0.3 | metres | Block-edit decals above the ground | src/config/tuning/uiCamera.ts (`uiCamera.decalHeightM`) | UI & Camera |
 | Tap slop | 6 | pixels | Pointer movement above which a click counts as a drag | src/config/tuning/uiCamera.ts (`uiCamera.tapSlopPx`) | UI & Camera |
 | Courtyard tree radius | 1.5 | metres (times tree scale) | Clearance radius around each courtyard tree | src/config/tuning/cityStreets.ts (`cityStreets.courtyardTreeRadius`); used by src/city/streetscape.ts:41 | City & Streets |
+
+## 15. Agent Working Room (agent-room.html, added 2026-11-08)
+
+Parity: tests/agentRoomTuning.test.ts (split from the parity file, which is over the line limit).
+
+| Parameter | Current value | Unit/range | What it controls | File:line (constant) | Owner |
+|---|---|---|---|---|---|
+| Bridge port | 4317 | port | Local bridge port on 127.0.0.1 | src/config/tuning/agentRoom.ts (`agentRoom.bridgePort`) | Technical Architect |
+| Bridge ring size | 500 | events | Events kept for reconnect replay | src/config/tuning/agentRoom.ts (`agentRoom.bridgeRingSize`) | Technical Architect |
+| UI mirror rate | 10 | per second | zustand mirror updates from the live world buffer | src/config/tuning/agentRoom.ts (`agentRoom.mirrorHz`) | Technical Architect |
+| Wall redraw rate | 4 | per second | Mission-control wall texture redraws | src/config/tuning/agentRoom.ts (`agentRoom.wallRedrawHz`) | Technical Architect |
+| Bubble life | 6 | s | Speech bubble visible time | src/config/tuning/agentRoom.ts (`agentRoom.bubbleLifeSec`) | Technical Architect |
+| Arc life | 2.5 | s | Communication arc visible time | src/config/tuning/agentRoom.ts (`agentRoom.arcLifeSec`) | Technical Architect |
+| Trail length | 32 | points | Path trail points per agent | src/config/tuning/agentRoom.ts (`agentRoom.trailLength`) | Technical Architect |
+| Simulation seed | 8 | integer | Seed of the labelled demo | src/config/tuning/agentRoom.ts (`agentRoom.simSeed`) | Technical Architect |
+| Simulation rate | 30 | events per minute | Demo event rate | src/config/tuning/agentRoom.ts (`agentRoom.simEventsPerMin`) | Technical Architect |
+| Walk speed | 5.6 | m/s | Agent walking and flying speed (doubled from 2.8) |
+| Ease ramp | 1.5 | m | Ease-in and ease-out ramp at each end of an agent move (sim time) | src/config/tuning/agentRoom.ts (`agentRoom.easeRampM`) | Technical Architect |
+| Ease minimum speed | 0.15 | fraction | Speed at the start and end of a move, as a fraction of full speed | src/config/tuning/agentRoom.ts (`agentRoom.easeMinSpeedFrac`) | Technical Architect | src/config/tuning/agentRoom.ts (`agentRoom.avatarWalkSpeed`) | Technical Architect |
+| Board panel opacity | 0.15 | 0 to 1 | Dark tint over the city picture on the board; column text has a thin dark outline instead of a panel | src/config/tuning/agentRoom.ts (`agentRoom.boardPanelOpacity`) | Technical Architect |
+| Board ticker rate | 12 | per second | Redraws of the board status ticker | src/config/tuning/agentRoom.ts (`agentRoom.boardTickerHz`) | Technical Architect |
+| Board ticker speed | 90 | board px per s | Ticker scroll speed (board canvas pixels, sim time) | src/config/tuning/agentRoom.ts (`agentRoom.boardTickerPxPerSec`) | Technical Architect |
+| Lead robot colour | '#ff8a1f' | hex | Lead robot body colour (torso and head) | src/config/tuning/agentRoom.ts (`agentRoom.leadRobotColor`) | Technical Architect |
+| Table light colour | '#ffd84a' | hex | Warm yellow light over the discuss table centre | src/config/tuning/agentRoom.ts (`agentRoom.tableLightColor`) | Technical Architect |
+| Discuss table colour | '#3aa8ff' | hex | Bright blue top of the discuss table | src/config/tuning/agentRoom.ts (`agentRoom.discussTableColor`) | Technical Architect |
+| Guest desk x | -8 | m | Guest desk centre, x (upper-left of the room) | src/config/tuning/agentRoom.ts (`agentRoom.guestDeskX`) | Technical Architect |
+| Guest desk z | -5 | m | Guest desk centre, z | src/config/tuning/agentRoom.ts (`agentRoom.guestDeskZ`) | Technical Architect |
+| Table light intensity | 10 | candela | Intensity of the light over the discuss table centre | src/config/tuning/agentRoom.ts (`agentRoom.tableLightIntensity`) | Technical Architect |
+| Fly lean | 0.28 | rad | Forward pitch of a gliding robot at full speed (zero gravity, no legs) | src/config/tuning/agentRoom.ts (`agentRoom.flyLeanRad`) | Technical Architect |
+| Hover amplitude | 0.05 | m | Hover bob of a floating robot | src/config/tuning/agentRoom.ts (`agentRoom.hoverAmpM`) | Technical Architect |
+| Tall plants | 2 | count | Tall plants in one row against the right window wall (alternates with short) | src/config/tuning/agentRoom.ts (`agentRoom.plantTallCount`) | Technical Architect |
+| Short plants | 1 | count | Short plants in the same row (alternates with tall) | src/config/tuning/agentRoom.ts (`agentRoom.plantShortCount`) | Technical Architect |
+| Tall plant height | 1.7 | m | Height of a tall plant | src/config/tuning/agentRoom.ts (`agentRoom.plantTallHeightM`) | Technical Architect |
+| Short plant height | 0.7 | m | Height of a short plant | src/config/tuning/agentRoom.ts (`agentRoom.plantShortHeightM`) | Technical Architect |
+| Lead desk yaw | 0 | rad | Lead desk faces the member desks head-on; the lead sits on the far side | src/config/tuning/agentRoom.ts (`agentRoom.leadDeskYaw`) | Technical Architect |
+| Idle after | 20 | s | Time without events before an agent shows idle | src/config/tuning/agentRoom.ts (`agentRoom.idleAfterSec`) | Technical Architect |
+| View distance | 18 | m | Camera distance from the room centre | src/config/tuning/agentRoom.ts (`agentRoom.viewDistance`) | Technical Architect |
+| Simulation loop | 400 | events | Demo events per loop before the seed advances | src/config/tuning/agentRoom.ts (`agentRoom.simLoopEvents`) | Technical Architect |
+| Meeting hold | 8 | s | Time a delegated specialist stays at the hub | src/config/tuning/agentRoom.ts (`agentRoom.meetHoldSec`) | Technical Architect |
+| Replay step | 1.5 | s | Time between replayed history events | src/config/tuning/agentRoom.ts (`agentRoom.replayStepSec`) | Technical Architect |
+| Room seed | 21 | integer | Seed of floor noise, skyline and lit windows | src/config/tuning/agentRoom.ts (`agentRoom.roomSeed`) | Technical Architect |
+| Default quality | 'high' | 'high' or 'performance' | Starting render quality (shadows in high) | src/config/tuning/agentRoom.ts (`agentRoom.qualityDefault`) | Technical Architect |
+| Room half width | 12.5 | m | Office half width; the floor plan scales with it | src/config/tuning/agentRoom.ts (`agentRoom.roomHalfWidth`) | Technical Architect |
+| Report hold | 6 | s | Time a finished agent stays at the board to report | src/config/tuning/agentRoom.ts (`agentRoom.reportHoldSec`) | Technical Architect |
+| Celebration | 1.5 | s | Length of the finish burst | src/config/tuning/agentRoom.ts (`agentRoom.celebrateSec`) | Technical Architect |
+| Director dwell | 6 | s | Director camera time per event | src/config/tuning/agentRoom.ts (`agentRoom.directorDwellSec`) | Technical Architect |
+| Follow real clock | true | true or false | Day/night of window sky and lights follows the local clock | src/config/tuning/agentRoom.ts (`agentRoom.followRealClock`) | Technical Architect |
+| Focus distance | 7.5 | m | Camera distance when focusing an agent or desk | src/config/tuning/agentRoom.ts (`agentRoom.camFocusDistance`) | Technical Architect |
+| Camera target damping | 4 | per second | How fast the camera target follows | src/config/tuning/agentRoom.ts (`agentRoom.camDampTarget`) | Technical Architect |
+| Camera distance damping | 2 | per second | How fast the camera distance follows | src/config/tuning/agentRoom.ts (`agentRoom.camDampDistance`) | Technical Architect |
+| Camera fit max | 2.2 | multiplier | Largest distance factor to fit the view between panels | src/config/tuning/agentRoom.ts (`agentRoom.camFitMax`) | Technical Architect |
 
 ## Not yet tunable (hardcoded)
 

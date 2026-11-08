@@ -14,7 +14,7 @@ instead of spawning a fresh agent. That way what it learned (traps, decisions, c
 | 5 | Audio | `src/audio/**`, `src/scene/audioBridge.ts`, `src/ui/SoundMixer.tsx`, `docs/AUDIO.md`, audio tests (`tests/audio*.test.ts`, `tests/helpers/fakeAudio.ts`) | [audio.md](audio.md) |
 | 6 | UI & Camera | `src/ui/**` (except SoundMixer), `src/store/**`, `src/scene/CameraRig.tsx`, `cameraInput.ts`, `cameraDom.ts`, `cameraMath.ts`, `Selection.tsx`, `selectionMath.ts`, block edit (`BlockEditor.tsx`, `blockEditMath.ts`, `blockEditAnchors.ts`) | [ui-camera.md](ui-camera.md) |
 | 7 | Scene & QA | `src/scene/**` (rest), `src/core/**`, `src/App.tsx`, `src/main.tsx`, `src/dev/treeCompare/**`, `tree-compare.html`, `public/models/**`, `tests/helpers/**`, perf budgets, docs | [scene-qa.md](scene-qa.md) |
-| 8 | Technical Architect | Cross-cutting structure, asset pipeline, performance standards, toolchain (no feature code). Reviews `src/shaders/**` | [architect.md](architect.md) |
+| 8 | Technical Architect | Cross-cutting structure, asset pipeline, performance standards, toolchain (no feature code, except Agent Room by human decision 2026-11-08: `src/agentRoom/**`, `src/config/tuning/agentRoom.*`, `tools/agent-bridge/**`, agent-room.html). Reviews `src/shaders/**` | [architect.md](architect.md) |
 
 Shared, no single owner: `src/shaders/**` (cloud shade and wet surface patches). Buildings and Sky & Environment both use it; changes need both owners and an architect review.
 
@@ -22,7 +22,7 @@ Tunable values in one place (owners per row): [docs/TUNING.md](../TUNING.md)
 
 **Tuning rule (all specialists):** every knob a designer may change lives in `src/config/tuning/` in your section.
 Import it, never re-type it. Geometry and shader constants stay local. No duplicate values; lab copies only in
-`src/dev/treeCompare/labTuning.ts`. Add each new knob to `tests/tuningParity.test.ts` and to `docs/TUNING.md`.
+`src/dev/treeCompare/labTuning.ts`. Add each new knob to `tests/tuningParity.test.ts` (or its section parity file) and to `docs/TUNING.md`.
 When a change touches a knob, the owner updates the config, the parity test and the index in the same task.
 
 ## Rules for the lead
@@ -35,7 +35,7 @@ When a change touches a knob, the owner updates the config, the parity test and 
    determinism). The specialist reads its handbook first.
 4. **Handbook upkeep.** At the end of every task the specialist appends what it learned to its handbook:
    new traps, decisions with the reason, and what is left undone. The lead reviews that diff.
-5. **Verification before reporting.** `npx tsc --noEmit`, `npx vitest run`, `npx vite build`. The built-in browser pane
+5. **Verification before reporting.** `npm run check` (tsc, lint, vitest, vite build). The built-in browser pane
    cannot paint frames: check the scene graph, uniforms, shader compile (force a render in a standalone renderer) and
    console errors, and say plainly what was not seen by eye.
 6. **Project rules.** Commits, code comments and docs are in English. Commit only when the user says so. Root-cause
@@ -64,3 +64,8 @@ Owns / Key files / Conventions / Traps (what bit us, why) / Decisions (and the r
 - Quick-check requests: when the user says "no tests", run only `npx tsc --noEmit`; do not run vitest or the browser check.
 - Amounts a designer may change are knobs in `src/config/tuning/`; shader constants stay local (CLAUDE.md).
 - Commit only on the user's request. Commit attribution: Co-Authored-By for the model in use.
+
+## Update 2026-11-08 (lead): handbook and rules review
+- All eight specialists reviewed their handbooks against code (see each handbook's "Review 2026-11-08" section). Stale paths and counts corrected; no rule found invalid in its guard.
+- Rules updated: CLAUDE.md (guarded dirs for determinism, the 350-line scope, knob doc rows), this file (`npm run check` as the gate; section parity files), and harness/README.md (guard table, CI, network and localStorage allow-lists, layout table).
+- Open for the user: (1) knobs in traffic, life and audio outside `src/config/tuning/` (CLAUDE.md says no); move them or record exceptions. (2) `src/film/**` is not in the dependency guard (`src/film/autoPath.ts`, `autoRun.ts` import `src/scene`). (3) `Math.random` in `src/scene/useTownFrame.ts` and `src/ui/HousePanel.tsx` is outside the guard dirs. (4) `src/film/**` owner row.

@@ -69,7 +69,7 @@ Last smoke test: passed on 2026-10-29 (page title MyWorld3D, one canvas, WebGL o
 ## Public buildings pass (branch optimize_02)
 - Monument shadows are OFF: `src/scene/useTownPieces.ts` sets `castShadow = false` on every mesh of a monument group after `buildMonument`. Houses, streets and trees keep their shadows. Reason: shadow headroom was 12.7k against about 5k per monument (see docs/agents/public-buildings-review.md, X1).
 - `tests/budget.test.ts` builds every monument block of the seeded town (seed 1 has one: swimming-pool, about 4.9k shadow triangles) and counts ALL monument bodies as shadow casters, although the real render stops monster shadows in useTownPieces.ts. So the test is conservative for monuments: real shadow pass = test total minus the monuments that do not cast. Its numbers now: main 1,582,611; shadow 592,995; draw calls 132.
-- Config split: `src/config/tuning/` (one file per section, `index.ts` re-exports). `tests/tuningParity.test.ts` reads the folder as one text; its virtual name `source('src/config/tuning.ts')` stands for that folder.
+- Config split: `src/config/tuning/` (one file per section, `index.ts` re-exports). `tests/tuningParity.test.ts` reads the folder as one text; its virtual name for that folder stands for the folder.
 - Pre-existing failures on dev 86f0c15, not from this work: three tests fail on dev too: blockMerge default-town hash, blockMerge invalid group, and the city streetTreeMultiplier superset at `tests/city.test.ts:106`. Do not attribute them to monuments or the config split.
 
 ## Film recorder P1 (branch feature_video_camera, 2026-11-04)
@@ -132,3 +132,44 @@ Last smoke test: passed on 2026-10-29 (page title MyWorld3D, one canvas, WebGL o
 - `src/dev/treeCompare/labNatureTrees.ts` (692 lines) split, code unchanged: `labNatureTypes.ts` (types, slots, items), `labNatureGeometry.ts` (islands, clusters, thinning, foliage, snow caps), `labNatureVariety.ts` (leaf colour shader), `labNatureAsset.ts` (GLB to asset), `labNatureField.ts` (instanced field).
 - `labNatureTrees.ts` is now a re-export barrel, so `labLoader.ts` and `main.ts` imports are unchanged.
 - Lab stays independent of the city. No knob or geometry change.
+
+## Update 2026-11-08 (T-0008 phase 1, agent room guards)
+- `vite.config.ts`: build.rollupOptions.input lists index.html, `tree-compare.html`, agent-room.html (ADR 0013).
+- `tests/layers.test.ts`: new block "agentRoom layers". src/agentRoom imports only itself, src/config and packages (relative specifiers resolved). model/ and engine/ import no react, react-dom, three or @react-three, type and dynamic imports included. Empty glob keeps it green when the folder is absent.
+- `tests/harness.test.ts`: agentRoom in LAYOUT_DIRS; network pattern now bans EventSource; one reasoned exception (ADR 0013) lets src/agentRoom/bridgeClient/ use EventSource and fetch only (XHR, WebSocket still banned there).
+- `docs/REPO_MAP.md`: row for src/agentRoom, owner Technical Architect.
+
+## Review 2026-11-08 (Scene & QA)
+
+Static check only (Grep, Glob, Read, wc, git ls-files). No tests, no `npm run check` run. Runtime claims are marked unverified.
+
+### Corrections to this handbook (stale or wrong)
+- Line 12 "32 files over 350": stale. No file in `src/` is over 350 now (largest: `environment/leaves.ts` 321, `Town.tsx` 295). `OVERSIZED` in `tests/harness.test.ts:128` is `{}`. Tests over 350 exist (e.g. `tests/helpers/geometryAudit.ts` 832, `tests/people.test.ts` 691) but ratchet scope was not verified.
+- Line 15/Key files: `Town.tsx` is 295 lines, not 294.
+- Line 16: `natureItems` is in `src/streets/natureLayout.ts:50`, not `natureTrees.ts`. `TREE_SCALE` 1.35 is `src/config/tuning/cityStreets.ts:40` (re-exported by `src/streets/natureTypes.ts:50`). `FALLBACK_TREE_SCALE` 1.35 in `useNatureTrees.ts:34` is valid.
+- Line 21 "Blocks (main) between 1,100,000 and 1,140,000": wrong. `tests/budget.test.ts:275-276` expects 900,000 to 1,000,000. Line 29 already has the right band.
+- Line 27 and line 71 measured numbers: unverified. They differ from the test comments at `tests/budget.test.ts:258-290` (main 1,539,195; shadow 549,627). Re-measure or mark as dated.
+- Line 43: `labNatureTrees.ts` is now a 14-line re-export barrel (see the 2026-11-06 update). The "clones natureTrees.ts" wording is stale.
+- Line 46 and "Not in the bundle (dev-only)": INVALID. `vite.config.ts:9` sets `build.rollupOptions.input` to `index.html`, `tree-compare.html`, `agent-room.html`. Tree lab is in the production build input.
+- Line 70 "Monument shadows are OFF": partly stale. `src/scene/useTownPieces.ts:66-69` keeps shadows for kinds in `buildings.monumentShadowKinds`, which is `['gothic-cathedral']` (`src/config/tuning/buildings.ts:114`).
+- Line 73 "streetTreeMultiplier superset at tests/city.test.ts:106": location wrong. Line 106 is "plants trees in every setting". No "superset" test exists in `tests/city.test.ts`. The `blockMerge` default-town and invalid-group tests exist (`tests/blockMerge.test.ts:98,166,186`); failure status unverified.
+- Line 58 process list (`tsc`, `vitest`, `vite build`) omits lint. CLAUDE.md QA gate includes `npm run lint` (`package.json:10`). Align with `npm run check`.
+
+### Verified valid
+- `tests/budget.test.ts` limits: main <= 1,900,000 (L272), shadow <= 605,000 (L280), main+shadow <= 2,300,000 (L291), draw calls <= 140 (L296), house-block band (L275-276).
+- Files exist: `src/scene/*` listed (useTownFrame, useTownPieces, useTownGreenery, useTownTraffic, useTownAircraft, useNatureTrees, townBlocks, townShadow, mergeBlock, runtime), `src/core/runtime.ts`, `PostFX.tsx`, `App.tsx`, `environment/leaves.ts`, `environment/{trees,forest,leafVariety,wind}.ts`, `shaders/wetSurface.ts`, `weather/`, film files, `tests/film/*`, `tests/houseThumbs.test.ts`, `tests/appSelection.test.ts`, `tests/clouds.test.ts` (`building-body-v11` at L283), `tests/traffic.determinism.test.ts`, `docs/agents/public-buildings-review.md`, `docs/BRD.md`, `docs/REVIEW-01.md`, `docs/DESIGN-3D.md`.
+- Pedestrian timing test "600 walkers" exists: `tests/people.test.ts:655`.
+- Tree lab bounding-sphere fix present in `add()`: `src/dev/treeCompare/labNatureField.ts:36-37`.
+- Evergreen filter: `src/scene/Town.tsx:77`. `SLOTS` = 4: `src/aircraft/schedule.ts:31`. `uiCamera.overviewDirection` = `[0, 2.45, 0.63]`: `src/config/tuning/uiCamera.ts:116`. `film.videoBitrate1080`: `src/config/tuning/film.ts:20`. `sceneQa.houseThumbs`: `src/config/tuning/sceneQa.ts:34`. `__r3f` snapshot in `onCreated` (DEV): `src/App.tsx:154,168`. `FilmRig` after `CameraRig`: `src/App.tsx:171-172`. `registerFilmRoot`: `src/film/resizeBridge.ts:200`, used by `PostFX.tsx:105`. `registerAutoFilmSource`: `src/ui/filmSession.ts`, used by `FilmRig.tsx:56`. Tuning parity virtual name (the config folder): `tests/tuningParity.test.ts:15,28`.
+- `npm run check` composition (`package.json:10`) matches CLAUDE.md.
+
+### Rules I believe are invalid or stale (for the lead)
+- CLAUDE.md QA line "Edit hook runs tsc": hook content is valid (`.claude/settings.json`, matcher `Edit|Write`, runs `npx tsc --noEmit` on `src|tests` `.ts/.tsx`). But `.claude/` is gitignored (`.gitignore:5`) and `git ls-files .claude` is empty. The hook is local-only and does not reach CI. The harness README "Enforcement" row implies it is shared.
+- `harness/README.md` guard "No network" (no fetch, XHR, WebSocket in `src`): stale. `tests/harness.test.ts:97-105` now allows `fetch` and `EventSource` in `src/agentRoom/bridgeClient/` (ADR 0013).
+- `harness/README.md` CI row: `.github/workflows/ci.yml` now also runs `npm audit` (gating on prod deps) and a separate gitleaks job. The `npm run check` step is still there.
+- `harness/README.md` "CSS": `src/ui/panels.css` is recorded as 1247 lines. It is now 12 lines, and `carousel.css` and `film.css` exist. Re-check the note.
+- CLAUDE.md "Terminal rule: suppress success logs": process rule only, not enforced by any guard. Unverifiable here.
+
+### Unverified
+- Browser checks (`list_connected_browsers`, Chrome smoke test 2026-10-29), frame paint, and the "Last measured" budget numbers. No tests run in this review.
+- Blockmerge and pedestrian flake status on the current tree.
