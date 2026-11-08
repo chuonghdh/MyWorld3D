@@ -1,7 +1,7 @@
 ---
 id: T-0007-remove-agent-office
 title: Remove Agent Office dashboard; add weather icons to Settings
-status: verifying
+status: done
 owner: lead
 branch: dev
 created: 2026-11-07
@@ -21,7 +21,7 @@ created: 2026-11-07
 - [x] `node harness/scripts/check-claims.mjs`: 0 unclaimed.
 - [x] `node harness/scripts/drift-check.mjs`: exit 0.
 - [x] Weather icons checked by the user on dev before the commit.
-- [ ] GitHub CI on the PR: pending at the time of writing.
+- [x] GitHub CI on the PR: merged via PR #8 (merge commit 1b2ce9e on master).
 
 ## Checkpoints
 
@@ -43,5 +43,5 @@ created: 2026-11-07
 
 ## Handoff
 
-- Next step: user merges PR #8 after GitHub CI passes. Then a follow-up commit sets status done, moves this record to harness/tasks/completed/, and releases the T-0007 claim in harness/state/claims.json.
+- Next step: none. Merged in PR #8 (1b2ce9e). Claim released and record moved to completed/ in the follow-up commit.
 - Open questions: none.
