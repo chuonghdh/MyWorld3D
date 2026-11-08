@@ -11,5 +11,8 @@ export default defineConfig({
   test: {
     environment: 'node',
     include: ['tests/**/*.test.ts'],
+    // Vitest 5 enforces the timeout on synchronous tests too (vitest 2 did not). Several geometry
+    // tests are synchronous and take 5-15 s here, so the default 5 s fails them without a real hang.
+    testTimeout: 60_000,
   },
 });
