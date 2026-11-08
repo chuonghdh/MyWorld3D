@@ -14,13 +14,13 @@ Stack: Vite, TS, Three.js, R3F, zustand, vitest.
 - Commit ONLY on user prompt. Append system attribution.
 - Fix root causes. No coplanar geometry. Keep visuals/perf high.
 - Delegate to specialists via message (no respawn).
-- Dependencies: feature modules never import `scene` or `ui`; `core` imports no feature module. Guarded by `tests/layers.test.ts` and `tests/harness.test.ts`.
-- Layout is deterministic: no `Math.random` in layout code (guarded). Seeds only.
-- Files over 350 lines are not allowed to grow. Split by responsibility (ratchet in `tests/harness.test.ts`).
+- Dependencies: feature modules never import `scene` or `ui`; `core` imports no feature module. Guarded by `tests/layers.test.ts` and `tests/harness.test.ts`. `film` is not yet in the guard (see architect review 2026-11-08).
+- Layout is deterministic: no `Math.random` in layout code (guarded for core, store, city, streets, buildings, traffic, life, environment, agentRoom). Seeds only. Visual motion uses sim time, never the wall clock.
+- Files in `src/` over 350 lines fail `tests/harness.test.ts`. `OVERSIZED` must stay empty. Tests are not covered. Split by responsibility.
 - Tunable values live ONLY in `src/config/tuning/` (`index.ts` plus per-section files). Feature code imports them. No new knob literals in feature code.
 - Knob = a value a designer may change (density, share, count, distance, level, time window, threshold). Geometry, shader and algorithm constants stay local.
 - No duplicate values. Lab copies live only in `src/dev/treeCompare/labTuning.ts`.
-- Every new knob: one doc line in config and an entry in `tests/tuningParity.test.ts`. Index: `docs/TUNING.md`.
+- Every new knob: an entry in `tests/tuningParity.test.ts` or a per-section parity file (e.g. `tests/agentRoomTuning.test.ts`; guarded), a row in `docs/TUNING.md` and a doc line in config (both by review, not guarded).
 - Never weaken a guard test to pass. Fix the code, or record a reasoned exception in the guard file.
 
 ## QA & Terminal

@@ -13,9 +13,9 @@ Reviewed 2026-11-01 at 02b0cdc
 - **Procedural first.** Geometry, textures, shader patches and all audio are generated in code from seeds. New binary assets need a reason and a budget line.
 - **Binary assets (exception).** `public/models/` holds 56 GLB files (Quaternius and Kenney, CC0, `LICENSE.txt` in each folder), plus 5 PNG and 1 JPG. They are tracked in git and loaded at runtime by `scene/useNatureTrees.ts` and `streets/natureTrees.ts`; `tests/budget.test.ts` reads them. Do not gitignore them: a clean checkout would lose the city trees and fail the budget.
 - **Geometry.** Repeated parts use instanced meshes (`MeshBuilder`, `placeMatrix`). A new mesh counts against the draw-call budget; prefer merging into an existing mesh of the same material.
-- **Textures and shaders.** Shared canvas textures are created once and cached. Shader patches go through `onBeforeCompile` with a `customProgramCacheKey` that is versioned (e.g. `building-body-v4`, `person-rig-v3`). Chained patches append a suffix to the previous key (e.g. `|wx1` in `shaders/wetSurface.ts`). Shared patches live in `src/shaders/` (`cloudShade.ts`, `wetSurface.ts`). No GLSL identifier `patch` is used.
+- **Textures and shaders.** Shared canvas textures are created once and cached. Shader patches go through `onBeforeCompile` with a `customProgramCacheKey` that is versioned (e.g. `building-body-v11` (was v4; `buildings/materials.ts:94`), `person-rig-v3`). Chained patches append a suffix to the previous key (e.g. `|wx1` in `shaders/wetSurface.ts`). Shared patches live in `src/shaders/` (`cloudShade.ts`, `wetSurface.ts`). No GLSL identifier `patch` is used.
 - **Audio.** Sound routing follows `docs/AUDIO.md`. The Audio specialist owns the bus and emitters.
-- **Fonts, icons, UI assets.** Inline SVG in TSX or small CSS. No fetch, XHR or WebSocket in `src`; `localStorage` is used only in `src/ui/SoundMixer.tsx`.
+- **Fonts, icons, UI assets.** Inline SVG in TSX or small CSS. No fetch, XHR or WebSocket in `src` (stale: since ADR 0013, `fetch` and `EventSource` are allowed in `src/agentRoom/bridgeClient/` only); `localStorage` is used only in `src/ui/SoundMixer.tsx` and `src/ui/sectionState.ts` (stale: second file, see Review 2026-11-08).
 - **Caching.** Anything that depends on layout is keyed by `layoutKey`. `cityLayoutKey` (`src/city/layoutKey.ts`) ignores `trafficMultiplier` and includes `blockMerges`. `createLayoutProvider` is single-entry; `retargetTraffic` changes only spawns. Pieces are cached per block signature (`useTownPieces`).
 - **Save files.** JSON settings are the only persisted state. Every new field needs a default, validation in `io.ts`, and a migration note if old saves change meaning.
 
@@ -23,7 +23,7 @@ Reviewed 2026-11-01 at 02b0cdc
 - **Frame budget.** 60 fps target on a mid-range desktop GPU at the default quality tier; 30 fps floor on phones at the lowest tier. Frame time is measured, not guessed.
 - **Draw calls and triangles.** The guard tests in `tests/budget.test.ts` are the limit (see Scene & QA handbook for current values). Raising a limit needs a measured reason written in the handbook and approval from Scene & QA.
 - **Rebuild cost.** A user action that rebuilds the town has a time budget. Reference: 1x1 to 1x2 merge ~1 s, 1x2 to 2x2 ~2.4 s (accepted for now; speed-up is backlog). A new feature may not make these worse without a note.
-- **Determinism.** Same seed and settings produce the same output. No `Math.random` in layout code (city, streets, buildings, traffic, environment, life, store). Exceptions: `App.tsx` `switchTrees` (user action, species saved with the layout, accepted) and audio (not layout).
+- **Determinism.** Same seed and settings produce the same output. No `Math.random` in layout code (city, streets, buildings, traffic, environment, life, store). Exceptions: `App.tsx` `switchTrees` (user action, species saved with the layout, accepted) and audio (not layout). Incomplete (2026-11-08): `src/scene/useTownFrame.ts:93-94` also calls `Math.random` (leaf drop, user action) and is outside the guard's directory list; see Review 2026-11-08.
 - **No coplanar geometry.** Decals use distinct heights plus polygon offset.
 - **Visual quality is not traded silently.** A cheaper path needs side-by-side evidence and a note.
 - **Measurement.** Use the `__r3f` dev handle (draw calls, triangles) and `performance.now()` around layout builds. The built-in browser cannot paint frames; use the connected Chrome for visual or timing checks and say what was not seen.
@@ -31,7 +31,7 @@ Reviewed 2026-11-01 at 02b0cdc
 ## Traps
 - Vite can serve a stale transform of a module after a multi-file edit. A `ReferenceError` in a module that looks correct means the server is stale: touch the file or restart the dev server, then recheck the served source.
 - An error inside the R3F Canvas unmounts the whole React tree, which looks like a blank page. Boot screen and error boundary exist for this (`src/ui/boot.ts`, `src/ui/ErrorBoundary.tsx`).
-- Node-only APIs (`node:fs`) in tests break `tsc` unless node types are configured. `tests/budget.test.ts` (line 88) builds the module name by string concatenation in a dynamic import; keep that pattern. Or use Vite `?raw` imports.
+- Node-only APIs (`node:fs`) in tests break `tsc` unless node types are configured. `tests/budget.test.ts` (line 82 on 2026-11-08, was 88) builds the module name by string concatenation in a dynamic import; keep that pattern. Or use Vite `?raw` imports.
 - `weatherUniforms` is shared by reference. Swap `.value` only, never replace the uniform object (`streets/index.ts`, `shaders/wetSurface.ts`).
 - Lab clones: the tree-compare page (`src/dev/treeCompare`) reads clones only and is not imported by the city. Shared modules it does not clone are listed in `docs/agents/scene-qa.md` (Tree lab).
 
@@ -47,17 +47,17 @@ Reviewed 2026-11-01 at 02b0cdc
 |---|---|---|
 | 1 | Feature modules importing `scene` | Closed. No `../scene` imports in sky, aircraft, feature folders or store. `sky/SkyDome.tsx:7` uses `core/runtime`; `aircraft/schedule.ts` reads `uiCamera.maxDistance` from `config/tuning` (core/cameraLimits removed) |
 | 2 | Store importing city and weather | Closed. No city or weather imports in `src/store`. `core/blockIds.ts` and `core/weatherKinds.ts` exist |
-| 3 | Draw-call guard, dead 400 limit | Closed. No 400 limit in `tests/budget.test.ts`; cap 140 (line 308). Test comments disagree on the measured figure (130 at line 269, 132 at line 307); not re-measured here |
+| 3 | Draw-call guard, dead 400 limit | Closed. No 400 limit in `tests/budget.test.ts`; cap 140 (line 296 on 2026-11-08, was 308). Test comments disagree on the measured figure (130 at line 261; the 132 figure is gone); not re-measured here. Still closed 2026-11-08 |
 | 4 | Shader ownership split | Closed, committed in `6a89651`. `src/shaders/wetSurface.ts` and `src/shaders/cloudShade.ts` exist; `environment/cloudShade.ts` re-exports; `weather/wet.ts` imports `../shaders/wetSurface` |
-| 5 | Files over 350 lines | Open. 32 files over 350 lines. `traffic/vehicles.ts` 314 (was 1794), `traffic/pedestrians.ts` 281 (was 1511). Largest: `buildings/facade/roof.ts` 1070, `ui/panels.css` 930, `life/birds.ts` 801, `audio/vehicles.ts` 770. Each owner splits its own files, no behaviour change |
-| 6 | `Math.random` for tree species (`App.tsx`, `switchTrees`) | Accepted. Random on purpose; species travel with the exported layout (`exportLayout` / `importLayout` in `store/io.ts`) |
+| 5 | Files over 350 lines | Closed 2026-11-08 for `src/` (no src file over 350; largest `src/scene/CameraRig.tsx` 349). The rest of this row is the 2026-11-01 state, kept as history: open. 32 files over 350 lines. `traffic/vehicles.ts` 314 (was 1794), `traffic/pedestrians.ts` 281 (was 1511). Largest: `buildings/facade/roof.ts` 1070, `ui/panels.css` 930, `life/birds.ts` 801, `audio/vehicles.ts` 770. Each owner splits its own files, no behaviour change |
+| 6 | `Math.random` for tree species (`App.tsx`, `switchTrees`) | Accepted. Random on purpose; species travel with the exported layout (`exportLayout` / `importLayout` in `store/io.ts`). 2026-11-08: incomplete, `src/scene/useTownFrame.ts:93-94` also uses `Math.random` (leaf drop) and is not recorded |
 | 7 | Import version check strict equality (`store/io.ts:208`) | Open, low priority (UI & Camera). No migration path; only user-triggered export and import exist |
-| 8 | Signature `JSON.stringify` per block | Open, unmeasured. `src/scene/useTownPieces.ts:50` stringifies `lots` and house overrides on every memo run. Measure with `performance.now()` before changing |
+| 8 | Signature `JSON.stringify` per block | Open, unmeasured. `src/scene/useTownPieces.ts:51` (2026-11-08) stringifies `lots` and house overrides on every memo run. Measure with `performance.now()` before changing |
 
-New finding (open): `src/core/runtime.ts:4` imports the type `GustEvent` from `environment/wind`. Type-only and erased at build, but `core` should not depend on feature modules. Move `GustEvent` to `core/types.ts`. Owner: Scene & QA.
+New finding (closed 2026-11-08: `src/core/runtime.ts:4` now imports from `./types`): `src/core/runtime.ts:4` imports the type `GustEvent` from `environment/wind`. Type-only and erased at build, but `core` should not depend on feature modules. Move `GustEvent` to `core/types.ts`. Owner: Scene & QA.
 
 ## Open items
-- Findings 5, 7 and 8 above, and the `core/runtime.ts` type import.
+- Findings 7 and 8 above (finding 5 and the `core/runtime.ts` type import are closed 2026-11-08; see Review 2026-11-08).
 - Frame time and rebuild time still need measurement in connected Chrome.
 - First full review of repository structure, asset patterns and budgets is done (this handbook). Re-run the module-graph grep after any cross-owner merge.
 
@@ -183,3 +183,165 @@ Plan only. No source edits, no commits. Feature: camera button next to Photo in 
 - `npm run check` = `tsc --noEmit && vitest run && vite build`. No dependency change.
 - CI: `.github/workflows/ci.yml` on push and PR to `dev` and `master`, Node 20, `npm ci`, `npm run check`. Not yet run on GitHub.
 - Keep the hook command free of backslashes (Windows paths are normalised in JS). Backslashes were lost when Node spawned Git Bash.
+
+## Update 2026-11-08 (architect): Agent Room ownership (T-0008)
+- Human exception to "architect writes no feature code": the architect owns src/agentRoom/**, src/config/tuning/agentRoom.ts (plus its entries in `tests/tuningParity.test.ts` and `docs/TUNING.md`), tools/agent-bridge/** and agent-room.html. No 9th specialist (rejected by the user).
+- Scene & QA keeps `vite.config.ts`, `tests/layers.test.ts`, `tests/harness.test.ts` and `docs/REPO_MAP.md`; it reviews architect phases.
+- Design: `docs/adr/0013-agent-room-module.md` (Proposed). Decisions: hooks only in .claude/settings.local.json; bridge started by hand; redact prompt text and tool inputs, keep tool names and paths; replay 50 commits plus completed tasks; one-way SSE, no command channel; unmatched agents are guests.
+- Notes for agent-room work go in this handbook only.
+
+## Update 2026-11-08 (architect): Agent Room phase 2 (engine, mapping)
+- ADR 0013 accepted; ADR 0005 narrowed (network only in src/agentRoom/bridgeClient/). CLAUDE.md knob rule now allows a per-section parity file.
+- Engine (src/agentRoom/engine/): `apply` is pure, skips events whose seq is not newer (counted as stale), time only from event.t. Simulation uses mulberry32 on `agentRoom.simSeed`.
+- Mapping (src/agentRoom/mapping/): first session id is lead; Agent/Task PreToolUse queues the named specialist, the next unseen agent_id binds to it (or to agent_type when present). No match -> guest. Only tool names and paths leave the mapper (redaction test uses a sentinel string).
+- Trap: the parity reader in `tests/tuningParity.test.ts` matches the first `name:` across all tuning files, so knob names must be unique across sections (walkSpeed clashed; renamed avatarWalkSpeed).
+- Trap: owners.ts copies the ownership table; update it with `docs/agents/README.md`. Keyword matching is heuristic ("life", "city" are broad).
+
+## Update 2026-11-08 (architect): Agent Room phase 3 (room render, simulation)
+- Runtime (src/agentRoom/runtime.ts) owns engine state, the live world buffer and the feed; RoomView's Driver ticks it in useFrame at priority -1 (dt capped 0.1 s) and copies the zustand mirror at `agentRoom.mirrorHz`. Views read the runtime, never write it.
+- Bubbles: DOM layer plus an in-canvas projector writing style transforms directly (no React re-render per frame, no drei Html).
+- Draw budget measured (forced render, renderer.info): 11 calls, about 4.5k triangles, 6 programs, no GL error. Built-in pane frames were not seen by eye.
+- Name matching: exact name or slug, then a full name inside the text, then a key that points at exactly one specialist; several hits -> guest. Broad words (city, life, scene, environment) are not keys.
+- tests/agentRoomOwners.test.ts parses the ownership table and fails on drift either way (bare file names in the UI & Camera row are read as src/scene/).
+- New knobs: viewDistance, simLoopEvents, meetHoldSec. Debug handle: `window.__agentRoom` (gl, scene, camera, rt).
+
+## Update 2026-11-08 (architect): Agent Room phase 4 (replay)
+- `node tools/agent-bridge/replay.mjs [--commits 50] [--out ...]` writes harness/runs/agent-room-replay.json (gitignored by `harness/runs/*.json`). Contents: commit short hash, time, changed paths (no bodies, no diffs); tasks (active and completed) front matter; brief task and owner; claims.
+- The room reads it from the Vite dev server (src/agentRoom/bridgeClient/loadReplay.ts, the only fetch); src/agentRoom/replay/build.ts turns it into events (commit -> lead delegates to the owner of most files; owner names that are not agent ids -> guest). Playback is one event per `agentRoom.replayStepSec`, looping. No replay file, or `?source=simulation` -> labelled simulation.
+- The replay file is not in `vite build` output; a built page falls back to simulation until the phase 5 bridge serves it.
+- Runtime split: createRuntime(source, nextBatch) shared by simulation and replay; seq stays rising across loops.
+
+## Update 2026-11-08 (architect): Agent Room UI pass, steps 1, 2 and camera (plan harness/briefs/T-0008-architect-p5ui.md)
+- Shell: src/agentRoom/ui/theme.css (tokens, imported by main.tsx), AppShell (rail, top bar, side panel, camera bar; measures insets into uiStore), NavRail, TopBar, AgentsTab, PanelTabs, CameraBar, Icons, metrics.ts (pure: metrics, status pills, honesty lines, source control matrix). Overlay.tsx removed.
+- uiStore.ts is separate from the engine mirror (store.ts). 3D reads camera request, follow, toggles, paused/speed from it; never writes the mirror.
+- Runtime gained restart / seek(i) (fold of the first i events, pure) / progress for the replay scrubber.
+- Camera: cameraPresets.ts (pure, from layout.ts; 11 targets), CameraController.tsx (drei OrbitControls + damped fly-to, follow, target clamp, setViewOffset to centre the free area). User drag cancels fly/follow. Keys: 0 overview, 1 hub, 2-9 desks, W wall, Esc, F, Space.
+- Knobs added: roomSeed, qualityDefault, camFocusDistance, camDampTarget, camDampDistance, camFitMax.
+- Trap: the built-in pane runs rAF at about 1-2 fps when hidden, so camera motion cannot be judged there; screenshots at an emulated 1600x900 did render.
+
+## Update 2026-11-08 (architect): Agent Room look steps 3-6 and UI & Camera review fixes
+- Look: Lighting (ACES 1.15, hemisphere, shadow sun in High only, 3 warm points, fog from 38 m), Outside (sky + 220 seeded skyline boxes, 1 draw), WindowWall (solid centre panel, glass 0.1 m behind the face, mullions 0.02 m in front), Decor (radial glass partitions, plants), Desks (rounded slab, panels, chairs, 2 monitors with one scrolling code texture tinted per owner), Hub (console, ring 2 cm above, orb), WallScreen (2x canvas, redraw on signature only), Robots (merged body per role with vertex colours + instanced arms, legs, rings, contact shadows; pure poses in robotPose.ts), Trails (instanced dots, target ring), Arcs (curved additive lines + packets). Agents.tsx and Links.tsx removed.
+- Measured (High, forced render): 62 draw calls, about 61k triangles, 19 programs, no GL error.
+- Review fixes: listbox rows focusable with Enter/Space/arrow keys; live connection pill; target clamp moves the camera by the same delta; refit on inset or size change while resting on a preset; segmented speed control; replay scrubber moved to the top bar; select(id, fromScene) switches tab only for 3D clicks; key help tooltip; asymmetric z clamp documented.
+- Trap: a plane geometry given `onUpdate={(g) => g.translate(...)}` translates again on every update; build translated geometry in useMemo.
+- Trap: mergeParts needs indexed geometries with normals; uv is dropped.
+
+## Update 2026-11-08 (architect): Agent Room steps 8-9 and visual critique round
+- Step 8: ui/pick.ts (pure isClick, 5 px; pickHandlers for meshes; recordDown on the canvas wrapper; onMissed clears selection only on a real click). Robot bodies and desk slabs (instanceId -> owner) are pick targets; no extra hit meshes. 3D pick -> select(id, true) -> Agents tab.
+- Step 9: world/QualityMonitor.tsx (drei PerformanceMonitor, drop High -> Performance once, never auto-raise; nextQuality pure).
+- Measured at 974 px: High 63 draw calls / 63.8k tris (shadows on); Performance 43 / 37.4k (shadows off). No console errors.
+- Critique fixes: lost template literal in CameraController fitKey (PowerShell double-quoted replace ate `${...}`); z clamp symmetric, wall preset target moved 1 m in front of the wall; overview K 0.7 aimed at the desk-arc centroid; ROBOT_SCALE 1.25 and body #c9d1dc; brighter floor, hemisphere ground #3a3226, hub spotlight, stronger desk lights; hub floor halo r 2 and bigger orb; wall screen larger type; skyline 300 boxes over x +-95.
+- Trap: never write TS with `${...}` through a PowerShell double-quoted string; use the Edit tool or single-quoted here-strings.
+
+## Update 2026-11-08 (architect): Agent Room phase 6, living office (brief harness/briefs/T-0008-architect-p6.md)
+- Engine: RoomState gained `called` (last delegation time per agent), `tasks` (kanban cards from task_state) and `shipped` (tool `commit <hash>`). Simulation emits DEMO-n tasks and labelled demo commits.
+- world/office.ts is the pure plan: lead at LEAD_SPOT beside the board; called -> huddle slot (meetHoldSec), done -> report at the board (reportHoldSec), active -> desk, no event for idleAfterSec -> fixed pantry seat (seatOf, one per specialist). Guest: hidden at the door until active, then board, then bench. Tested in tests/agentRoomOffice.test.ts.
+- liveWorld steps toward the plan; screen glow only when working AND arrived. Robots: activityPose (sit with mug sip, talk, type, slump), heading toward plan.look on arrival, seated drop to the seat height.
+- Visuals: Board (kanban canvas, cards ease to their column, ship-it bell + ring on commits, SHIPPED counter), Pantry (one merged furniture mesh, steam, pendant light), DeskProps (merged per-specialist props, status lamps, EQ bars, globe, car), Door (sliding leaf + bench), Bursts (done sparks), daylight.ts (local clock -> sky, skyline windows, fill), director camera (Settings + camera bar; any drag turns it off).
+- Knobs: reportHoldSec, celebrateSec, directorDwellSec, followRealClock (meetHoldSec and idleAfterSec reused).
+- Measured (simulation, 1600x900, High): 88 draw calls, about 71k triangles, no GL error.
+
+## Update 2026-11-08 (architect): Agent Room routing and phase 6 critique round
+- world/nav.ts: furniture footprints from the layout (desks, hub, board, partitions, sofas, counter, tables, bench, plants), 0.2 m grid inflated by ROBOT_R 0.35, A* 8-way without corner cutting and an index tie-break, line-of-sight smoothing. Start/goal inside furniture (seats) use a short end leg from the nearest free cell. liveWorld recomputes a route only when the plan target changes and walks it at walking speed. tests/agentRoomNav.test.ts: work-loop routes for every specialist stay 0.15 m clear of every footprint between end legs; deterministic.
+- Board moved to the left wall (yaw pi/2), lead at its back end, huddle rows in front; guest bench moved past the door.
+- Overview: overviewFit() binary-searches the distance so all office corners project inside the free area with 8% padding (projectNdc pure, tested at 3 sizes); maxDistance 60 and fog from 65 m so a far overview is not fogged.
+- Pantry darker and desaturated, one pendant over the bar, steam only while someone lounges; seated glance (index-seeded); desk screens flash green on done; delegation floor pulse desk -> board (extra instances in Trails); Agents tab shows the location (placeText from the mirrored office activity).
+- Measured 1600x900 simulation: High 89 calls / 71k tris; Performance 62 / 42k. No console errors.
+
+## Update 2026-11-08 (architect): Agent Room floor plan from the human (orange corridors)
+- layout.ts follows the human's plan: BOARD on the back wall centre-left (kanban + mission strip, replaces WallScreen), DISCUSS table in front (Hub.tsx is now the table with strip, orb and floor halo), pantry back-right, desks in two 2x2 blocks (DESK_COLS / DESK_ROWS, roster order fixed), agents stand/sit on the desk front side facing the board, aisle at AISLE_X.
+- corridors.ts is the only walking network: desk stubs, two row corridors per block, central aisle to the discuss ring, top corridor to the pantry entry, far-right corridor; huddle slots and the lead spot are ring nodes. route.ts = Dijkstra on it (+ mid-edge continuation) and grid legs (nav.ts) only into the pantry and onto the guest bench. Tested: every leg off those zones is a corridor edge, axis-aligned, clear of furniture.
+- Agents sit on the desk chair to work (CHAIR_SEAT_Y 0.49, seated typing pose). Door and bench at the front-left on the row-2 corridor.
+- Overview fitted from the front (dir 0, 0.8, 0.6). Camera bar collapses to icons under 640 px.
+- Measured 1600x900 simulation, High: 90 calls / 70k tris, no console errors.
+- Trap: three.js spot light targets need to be in the scene (Lighting adds spot.target).
+
+## Update 2026-11-08 (architect): Agent Room polish round 2 and phase 5 (live)
+- Polish: knob roomHalfWidth (12.5) scales the plan's x positions (SX); side walls are 80%-transparent glass with thin frames; floor split into work slabs (tiles) and a pantry slab (planks), tops all at y = 0, side by side; pantry glass partition on its west side (corridor enters from the south); board 7.5 x 2.7 m with large type and an agent status strip; under 640 px the playback controls sit in an overflow menu and the camera bar collapses to one button.
+- Live: tools/agent-bridge/{lib.mjs (+ lib.d.mts for tests), hook.mjs, server.mjs, fixture.jsonl}. Port and ring size are read from the tuning file text (no duplicated values). hook.mjs redacts (event, ids, tool name, repo-relative file paths, agent ids, specialist words only), POSTs with a 300 ms limit, hard exit 0 at 900 ms. server.mjs: 127.0.0.1, CORS for the Vite origins, ring + SSE with Last-Event-ID, /replay, /health. Room: bridgeClient/live.ts (EventSource, connection pill), createLiveRuntime stamps events with the room clock; source order Live -> Replay -> Simulation, ?source= forces one.
+- Hooks for the 7 events are in .claude/settings.local.json only. Run: npm run bridge, then open agent-room.html.
+- Mapper fix: a generic agent_type (general-purpose, Explore) falls back to the specialist named by the pending delegation.
+- Measured: High 96 / 70k, Performance 67 / 42k (1600x900). Hook round trip about 245 ms per event (node start-up).
+- Trap: the first session id the room sees becomes the lead; a stale ring (fixture or an older session) makes the real main session show as guest until the bridge restarts.
+
+## Review 2026-11-08 (Architect, cross-cutting)
+
+Scope: this handbook's claims, `docs/agents/README.md` rules for the lead, `CLAUDE.md`, `harness/README.md`, `harness/workflows/WORKFLOW.md`, `docs/adr/README.md`. Method: Read and Grep/Glob/wc on the repo, plus a run of the guard files only: `tests/harness.test.ts`, `tests/layers.test.ts`, `tests/tuningParity.test.ts`, `tests/agentRoomTuning.test.ts`, `tests/agentRoomOwners.test.ts` (5 files, 528 tests, all pass). Not run: `npm run check`, `tests/budget.test.ts`, browser checks. No commit. Only this file was edited; stale lines above carry an inline "stale" or "2026-11-08" note and the old text is kept as history.
+
+### Verified (current code, 2026-11-08)
+- 350-line ratchet: `OVERSIZED` in `tests/harness.test.ts` is empty; no `src/` file is over 350 lines (largest `src/scene/CameraRig.tsx` 349). Tests are not covered: 11 files in `tests/` are over 350 (largest `tests/helpers/geometryAudit.ts` 832).
+- Layering: `core/runtime.ts:4` imports `./types`; dependency-direction and layer tests pass. Feature folders import no `scene`/`ui` (guarded list below).
+- Assets: 56 GLB under `public/models/` (quaternius, kenney-nature), 5 PNG + 1 JPG (`quaternius/textures/`), `LICENSE.txt` in both folders. `scene/useNatureTrees.ts` and `streets/natureTrees.ts` exist.
+- Shaders: `shaders/cloudShade.ts` and `shaders/wetSurface.ts` exist; `|wx1` at `wetSurface.ts:114`; `person-rig-v3` at `traffic/people/rigShader.ts:95`; `building-body-v11` at `buildings/materials.ts:94` (corrected above).
+- Budget values in `tests/budget.test.ts`: main <= 1,900,000 (lines 272, 286), shadow <= 605,000 (280), main+shadow <= 2,300,000 (291), draw calls <= 140 (296). Not re-measured.
+- Agent Room: all 18 knob names from the 2026-11-08 updates exist in `src/config/tuning/agentRoom.ts`. Constants exist: `ROBOT_R` (nav.ts), `ROBOT_SCALE` (robotParts.ts), `CHAIR_SEAT_Y` (office.ts), `DESK_COLS`, `AISLE_X` (layout.ts), `LEAD_SPOT` (office.ts). 12 `tests/agentRoom*.test.ts` files exist. `tools/agent-bridge/` has lib.mjs, lib.d.mts, hook.mjs, server.mjs, replay.mjs, fixture.jsonl.
+- Film: `mp4-muxer` pinned `5.2.2` in package.json; loaded by `import('mp4-muxer')` in `src/film/autoEncoder.ts:103`.
+- ADRs 0001 to 0013 all present; `docs/adr/README.md` table matches.
+- Harness: `.claude/settings.json` PostToolUse `Edit|Write` hook present (guarded by `harness.test.ts`, skipped in CI because `.claude/` is gitignored). `harness/config/`, `harness/scripts/`, `harness/templates/brief.md`, `docs/ACCEPTANCE.md`, `harness/state/handoffs/TEMPLATE.md`, `harness/tasks/TEMPLATE.md` exist. `.github/workflows/` has ci.yml, drift.yml, evals.yml, pr-checklist.yml.
+- `npm run check` in package.json = `tsc --noEmit && npm run lint && vitest run && vite build` (matches CLAUDE.md and harness README).
+
+### Stale or wrong (not invalid rules, but out of date)
+- `building-body-v4` is now v11 (corrected above).
+- localStorage allow-list is two files: `src/ui/SoundMixer.tsx`, `src/ui/sectionState.ts`.
+- Network: `fetch` and `EventSource` are allowed only in `src/agentRoom/bridgeClient/` (ADR 0013). XHR and WebSocket are banned everywhere.
+- `budget.test.ts` dynamic import is at line 82, not 88. Cap line is 296, not 308. The 132 figure is gone.
+- `useTownPieces.ts` signature line is 51.
+- Finding 5 (32 files over 350) is closed. Finding "core imports GustEvent" is closed.
+- `src/ui/panels.css` is now a 12-line @import index over `src/ui/panels/*.css`; the harness README "1247 lines" note is stale.
+- `harness/README.md` guard table and CI row miss several guards and workflows (see proposals).
+
+### Rules: enforced vs stated
+Enforced by a guard that passes now: 350-line ratchet (src only); dependency direction feature/core/store -> no scene/ui (`harness.test.ts`); core and store and agentRoom layers (`layers.test.ts`); no `Math.random` in core, store, city, streets, buildings, traffic, life, environment, agentRoom; no fetch/XHR/WebSocket/EventSource except bridgeClient; localStorage allow-list; settings hook present; docs point at real files; ownership table covers every src folder; ADR sections; workflow and claim records; tuning value parity for listed knobs; two duplicate lists (`HOUSE_PRESETS`, `MONUMENT_KINDS`); budget limits (budget.test.ts, not run here).
+
+Stated but NOT enforced, or only partly:
+- "Feature modules never import scene or ui": `film` is not in the guard's FEATURES list. `src/film/autoPath.ts:8` imports `../scene/cameraMath`; `src/film/autoRun.ts:8` imports `../scene/filmPath` (type). The 2026-11-04 plan said film reaches scene only through the driver mount. Gap.
+- "No Math.random in layout code": guard excludes scene, sky, weather, audio, film, ui. `src/scene/useTownFrame.ts:93-94` (leaf drop) and `src/ui/HousePanel.tsx:89` use it. Only App.tsx `switchTrees` is in the handbook's exception list.
+- "Every new knob: one doc line in config" and "row in docs/TUNING.md": not guarded. Parity checks values only for listed knobs.
+- "No duplicate values": only the listed VALUES and DUPLICATE_LISTS, not a general check.
+- "No knob literals in feature code": not guarded.
+- "Lab copies only in labTuning.ts": labTuning values are checked, but no guard blocks other copies.
+- "Visual motion uses sim time": not guarded. `src/film/filmClock.ts:7` takes `performance.now()` as a default argument; check that it drives only UI/file timing, not visuals. Not verified in depth.
+- Edit hook: presence only, not behaviour. Hook command is not run by any test.
+- Lead rule 5 (verification) lists `npx tsc`, `vitest`, `vite build` and omits lint, which `npm run check` includes.
+- Lead rules 1, 3, 4 (reuse, briefs, handbook upkeep) and CLAUDE.md commit/attribution rules are process only.
+
+Enforced but missing from the docs (add to `harness/README.md` guard table): settings hook; Agent Room layers; ownership and ADR records; workflow records and handoff template; claims and briefs; completed-task Review sections; eval cases; PR template, drift check, workflow shape, CODEOWNERS; duplicate lists in tuning parity; localStorage second file; ADR 0013 network exception.
+
+### Open (not changed by this review)
+- Finding 7: `src/store/io.ts:208` still strict version equality (low).
+- Finding 8: `src/scene/useTownPieces.ts:51` `JSON.stringify` per block signature, unmeasured.
+- Codec: `src/film/recorder.ts` still uses `avc1.42E028` (H.264 Baseline level 3.0, about 720x576 frame limit). No level check and no 1080p test found. The 2026-11-04 RISK is still open.
+- `src/ui/HousePanel.tsx` Math.random in HousePanel (ui, unguarded): decide with UI & Camera.
+- `src/film/filmClock.ts:7`: confirm the wall clock is not used for visuals.
+- Budgets not re-run here; 2.3 M and 140 caps unverified by measurement; test comments disagree (130 vs 127).
+- CI has never run on GitHub (2026-11-06 note still true per the harness README).
+- Unverified: `createLayoutProvider` and `retargetTraffic` (city caching), `streets/index.ts` weatherUniforms, the GLSL reserved-word claim, lab clone list in `docs/agents/scene-qa.md`, `.claude/settings.local.json` hook count, `harness/evals/` contents.
+
+### Proposed edits: applied 2026-11-08 by lead to CLAUDE.md, docs/agents/README.md and harness/README.md (list omitted here to keep the file guard-clean)
+
+## Update 2026-11-08 (Agent Room)
+- Lead desk: `LeadDesk.tsx`, one monitor and one keyboard, yawed by `agentRoom.leadDeskYaw` (-0.25 rad, mirrored from +0.25 so the front faces the subagent block to the south-west). Lead works at `LEAD_HOME` when it has a tool event; otherwise stands at the board's right end (`LEAD_NODE`).
+- Subagent desks: 2.2 m long (was 1.6), monitors 1.5x (0.93 x 0.57 m), one keyboard per desk. Shared sizes and chair geometry in `deskParts.ts`.
+- Board: 5.4 m tall (was 2.7). `ROOM.wallH` raised to 6.2 m so the board stays under the back wall top. Side walls and window glass are taller too (a visible change).
+- Board ticker: one canvas, one texture. `ticker.ts` builds short status messages; `drawTicker` scrolls them by sim time (`boardTickerPxPerSec`). Redraw at `boardTickerHz`, separate from the card slide step (MAX_HZ).
+- Discuss table: round (r 1.1 m), white stools on a ring of 9 seats (`SEAT_R` 1.65 m, `seatPos(k)`). Seat 0 faces the room, specialists take seats 0-7, the guest seat 8. Ring chords are the only non-axis corridor edges (test allows them).
+- Seated huddle and report: ring agents sit on stools (relax pose, seat top `RING_SEAT_Y`). Lead huddle stays standing (seatY 0).
+- Walk speed doubled: `avatarWalkSpeed` 2.8 m/s.
+- Measured in the built-in pane, High tier, same method both times: before 65 draw calls / 42,380 triangles; after 76 / 47,406. The brief's 96 / 70k figures do not match this pane; the handbook's 2026-11-08 phase 9 note gives 63 / 63.8k at 974 px. Measure again in connected Chrome before quoting.
+- Traps: Vite serves stale transforms after multi-file edits (`touch` the files or restart). `RING_SEAT_Y` must come after `STOOL_SEAT_Y` (const TDZ). Mesh `matrix` props are fragile in R3F: use positioned groups.
+- Open: the lead's walkway passes about 0.4 m from the desk's front corner. Robot clearance and the ticker's redraw cost (a 2800 x 2016 texture upload at 12 Hz) are not measured. Stool and monitor layout not seen by eye at full size.
+- Pre-existing, not from this work: `tests/harness.test.ts` "docs point at real files" fails on 18 stale path tokens in docs outside this owner's files (see the guard output; paths are listed there).
+- Robots (later pass): no legs (zero gravity). Gliding robots pitch forward by `flyLeanRad` x speed; all floating robots hover by `hoverAmpM`. Leg mesh and leg pose fields removed.
+- Lead: orange body (`leadRobotColor`). Sits at its desk while a tool runs; otherwise relaxes in the pantry on a ninth seat (bar stool at the bar's back, `seatOf('lead')`). Huddles still stand at LEAD_SPOT.
+- Table light: yellow point light above the discuss table centre (`tableLightColor`, `tableLightIntensity`).
+- Measured (same pane, High): 73 draw calls / 41,844 triangles.
+- Lead desk (latest): yaw 0, head-on with the members. Lead sits on the far side (desk-local -z, LEAD_HOME north of the desk), monitor on the member side with the screen turned to the lead. Walkway runs down the desk's west end (LEAD_NODE) and round to the chair. Lead status not idle -> desk; idle -> pantry seat 9.
+- Table light: bright blue (tableLightColor #3aa8ff, intensity 10).
+- Plants: plants.ts (seeded, pure; off walkways, desks, table, board wall, pantry, door) rendered by PlantRows.tsx (2 instanced draw calls). Knobs plantTallCount 4, plantShortCount 6, heights 1.7 and 0.7 m. Trap: plants.ts and Plants.tsx clash on Windows (case-insensitive), so the renderer is PlantRows.tsx.
+- Walking robots: arms hang still while gliding (no gait swing). Measured (High): 75 draw calls / 43,694 triangles.
+- Plants (revised): fixed row beside the far-right corridor, wall side (x = RIGHT_X + 1.0), 1.6 m slots, alternating tall and short; counts plantTallCount 3 and plantShortCount 2. Random scatter removed; plants.ts no longer uses the seed.
+- Lead route: enters from the top corridor (new node at LEAD_NODE.x on the top line), straight down the x = 1.2 spine, no ring chords. Guest desk: GuestDesk.tsx at (guestDeskX, guestDeskZ), walkway west along the guest seat row then north. Guest active -> desk; called -> ring.
+- Table: top is discussTableColor (blue); the light is tableLightColor (yellow). Plants: one row of 3 (2 tall, 1 short) against the right window wall, 2.2 m spacing.
+- Measured (High): 81 draw calls / 43,090 triangles.
+- Hover name: a robot or desk under the pointer (pickHandlers -> hovered) shows its bubble with the agent label even with no speech text (Bubbles.tsx). No new render pass.
+- Flight: avatarWalkSpeed 5.6 (doubled). easeFactor(done, len) in liveWorld.ts eases each route from easeMinSpeedFrac to full speed over easeRampM at each end (smoothstep, sim-time dt). Route length and progress are per route; a re-plan restarts the ease.
