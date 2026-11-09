@@ -273,3 +273,10 @@ Checked against the working tree (branch feat/agent-working-room). No tests run.
 
 **Not verified in this review**
 - Hair style count, outfit colours, the 70% patterned-top share (test at `people.test.ts:250` exists), draw-call counts 6-7 and 5-6 for people, the frost disc radius (centre offsets confirmed at `vehicleShader.ts:96-97`), and `VehicleSystem.density` set by `update(dt, { timeOfDay })`.
+
+## Update 2026-11-09 (traffic-life): perf test at default crowd
+- Request (user): a 600-person crowd is not needed. Perf test flaked when the full suite runs under load (passes solo).
+- `tests/people.test.ts` "simulates ... walkers" test now runs at the scene default density (`uiCamera.defaultTrafficMultiplier` 1.75): capacity 385 walkers (`floor(1.75 * WALKERS_PER_ROAD 22 * 10 roads)`), down from the 480 cap. Test name changed to "simulates the default crowd fast enough".
+- Asserts: capacity > 0 and < `MAX_WALKERS`; 200-step warm-up before timing; per-frame bound still `< 0.5 ms` over 1500 frames.
+- No production change: `MAX_WALKERS` (480), `MAX_DOGS` (120), `WALKERS_PER_ROAD` (22) and all knobs unchanged. No guard test weakened. No new knobs.
+- Test file only: `tests/people.test.ts` (import `uiCamera` added).

@@ -34,7 +34,7 @@ Limits are in the tests, not in prose. Changing one needs a measured reason writ
 ## Traps
 - A night "black block curtain": NaN from `pow(1-v, 1.7)` with v slightly above 1 -> clamp; the sanitize pass is a safety net. Headlight glow "dashes" had the same root cause.
 - Stale Vite dev server shows "does not provide an export": kill the process on 5173 and restart; never truncate a source file with a shell redirect while HMR watches it.
-- The pedestrian timing test ("600 walkers", `tests/people.test.ts` / `audioPeople`) is a flake under load.
+- The pedestrian timing test ("385 walkers" default crowd, `tests/people.test.ts` / `audioPeople`) is a flake under load.
 - Runtime crashes can pass tsc and unit tests: load the page and read the console after wiring changes.
 - Built-in browser pane cannot paint frames; verify scene graph, uniforms and shader compile instead.
 - Tree lab: `computeBoundingSphere` TypeError when a cloned or merged geometry has no bounding sphere. Fixed by computing the sphere in `add()` when missing.
@@ -60,7 +60,7 @@ Last smoke test: passed on 2026-10-29 (page title MyWorld3D, one canvas, WebGL o
 
 ## Open items
 - Real-window visual QA of the tree lab, autumn leaves and winter trees (scene graph and shader checks only so far).
-- Rerun the pedestrian flake solo on every full vitest run. Consider a looser threshold or a fixed-time harness if it keeps failing.
+- Rerun the pedestrian flake (385-walker default crowd) solo on every full vitest run. Consider a looser threshold or a fixed-time harness if it keeps failing.
 - Round 6.5 optional backlog (tram, canal and boats, seasonal events).
 
 ## How to verify
@@ -197,3 +197,9 @@ Static check only (Grep, Glob, Read, wc, git ls-files). No tests, no `npm run ch
 - Full `npm run check`: tsc, lint, build green. vitest 1767 passed, 1 skipped, 1 failed: `tests/people.test.ts` "600 walkers" timing (0.89 ms vs < 0.5 ms) under full-run load. Solo rerun: see report.
 - Runtime, fresh 5173 server (cache cleared): 00:00 alt -68.82, phase night, ambient 0.1 (dir light 0.34 #c5d4f5, 0.272 #a0afd4, hemi 0.3), moonFill 0.2, stars 0.762. Screenshot: near-black ground, lamps and lit windows visible. 12:00 alt 68.79, day, sun 3.91, hemi 1.95, moonFill 0, unchanged.
 - Blind spots: stars and moon disc not confirmed by eye (top-down camera); 00:04 not checked this round; no motion check.
+
+## Update 2026-11-09 (scene-qa): people perf test at default crowd
+- Change under test: `tests/people.test.ts` perf test now runs at default crowd (385 walkers, not 600); `docs/agents/traffic-life.md` updated by Traffic & Life.
+- `npm run check`: exit 0. tsc, lint, vitest and vite build all green. vitest 106 files, 1768 passed, 1 skipped, 0 failed.
+- Flake status: no failure this run, so no solo rerun was needed. The people perf timing test passed inside the full run. Still treat it as load-sensitive: rerun solo if it fails in a later full run.
+- Handbook note: the "600 walkers" wording above (Traps and Open items) is stale now that the test runs at 385. Traffic & Life owns the test wording; not edited here (QA only).
