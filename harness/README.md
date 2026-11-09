@@ -41,6 +41,9 @@ mechanical, and make every failure loud and cheap to see.
 | Performance budgets | `tests/budget.test.ts` | triangle, shadow and draw-call limits on a seeded city |
 | Settings hook | `tests/harness.test.ts` | the Edit/Write hook is present in `.claude/settings.json` (skipped in CI: `.claude/` is gitignored locally) |
 | Agent Room layers | `tests/layers.test.ts` | agentRoom layer direction |
+| Agent registry | `tests/agentRegistry.test.ts` | spawn ids are read from the spawn result; a registered subagent binds to its specialist before the delegation queue; SendMessage to a registered id routes to it |
+
+**Agent registry process (2026-11-09).** Each Agent spawn writes `{agentId, name, subagent_type, description}` to `harness/runs/agent-registry.json` (gitignored) through a PostToolUse hook (`.claude/settings.json`, matcher `Agent`, runs `tools/agent-bridge/registry.mjs`). The bridge serves it at `GET /registry`; the room loads it before the live feed. Backfill from a session transcript: `node tools/agent-bridge/registry.mjs --backfill <session.jsonl>`. Hooks load at session start: after adding the hook, restart Claude Code (or reload hooks) before expecting new records.
 | Ownership and ADRs | `tests/harness.test.ts` | every `src` folder is in the owner table or REPO_MAP; ADR sections present |
 | Workflow records | `tests/harness.test.ts` | task records, handoff template, claims and briefs well-formed |
 | Evals and CI | `tests/harness.test.ts` | eval cases, PR template, drift check, workflow shape, CODEOWNERS |

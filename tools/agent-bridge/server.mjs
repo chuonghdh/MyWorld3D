@@ -3,6 +3,7 @@
 //   POST /hook     redacted hook payload from hook.mjs (redacted again here), stored in a ring buffer
 //   GET  /events   Server-Sent Events; resumes after Last-Event-ID (header or ?lastEventId=)
 //   GET  /replay   harness/runs/agent-room-replay.json (written by replay.mjs), if present
+//   GET  /registry agent id -> specialist records (harness/runs/agent-registry.json, see registry.mjs)
 //   GET  /health   { ok, seq, clients }
 // CORS allows the Vite dev origins only. No dependencies, no commands from the room (decision 5).
 import { createServer } from 'node:http';
@@ -10,6 +11,7 @@ import { existsSync, readFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { Ring, readTuning, redact, sseFrame } from './lib.mjs';
+import { readRegistry } from './registry.mjs';
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..', '..');
 const { port, ring: ringSize } = readTuning(ROOT);
@@ -68,6 +70,9 @@ const server = createServer((req, res) => {
     const file = join(ROOT, 'harness', 'runs', 'agent-room-replay.json');
     if (!existsSync(file)) return void res.writeHead(404).end();
     return void res.writeHead(200, { 'content-type': 'application/json' }).end(readFileSync(file));
+  }
+  if (req.method === 'GET' && url.pathname === '/registry') {
+    return void res.writeHead(200, { 'content-type': 'application/json' }).end(JSON.stringify(readRegistry(ROOT)));
   }
   if (req.method === 'GET' && url.pathname === '/health') {
     return void res.writeHead(200, { 'content-type': 'application/json' }).end(JSON.stringify({ ok: true, seq: ring.seq, clients: clients.size }));

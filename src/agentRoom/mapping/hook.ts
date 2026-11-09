@@ -72,8 +72,26 @@ export interface MapperStats {
  * so an older session in the bridge ring never displaces the current one. Subagents (agent_id) bind once: to the
  * specialist named by agent_type, else to the oldest pending delegation of the same session, else to the lead.
  */
-export function createHookMapper(source: Source, claims: readonly ClaimLike[] = []) {
+/** One record of harness/runs/agent-registry.json (written by tools/agent-bridge/registry.mjs when a subagent is created). */
+export interface RegistryEntry {
+  agentId: string;
+  name?: string | null;
+  subagent_type?: string | null;
+  description?: string | null;
+}
+
+/** Specialist of a registry record: its name first, then its description (the spawn label). Null when none. */
+export function specialistOfEntry(e: RegistryEntry): AgentId | null {
+  return specialistFromText(e.name ?? '') ?? specialistFromText(e.description ?? '');
+}
+
+export function createHookMapper(source: Source, claims: readonly ClaimLike[] = [], registry: readonly RegistryEntry[] = []) {
   const bound = new Map<string, AgentId>();
+  // The registry is the source of truth: it binds before any other rule (delegation queue, file owner, lead).
+  for (const e of registry) {
+    const s = specialistOfEntry(e);
+    if (s) bound.set(e.agentId, s);
+  }
   /** Pending Agent/Task delegations per session, oldest first; null = named no specialist. */
   const pending = new Map<string, (AgentId | null)[]>();
   let seq = 0;

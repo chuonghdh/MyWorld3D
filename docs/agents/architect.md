@@ -366,3 +366,11 @@ Enforced but missing from the docs (add to `harness/README.md` guard table): set
 - Preview constants `PREVIEW_FLOORS` (3) and `PREVIEW_SEED` (1), `src/buildings/preview.ts:22,24`: contract constants, not knobs. Recorded in docs/TUNING.md section 12.
 - Film guard gap (`FEATURES` at tests/harness.test.ts:59 lacks film): open, user decision.
 - docs/TUNING.md: stale file:line refs in audio, traffic, life, city, sky rows re-pointed; config line numbers dropped (keys only); duplicate "Config now" rows removed from "Not yet tunable"; `uiCamera.walkSpeed` key fixed; `agentRoom.avatarWalkSpeed` row repaired.
+
+## Update 2026-11-09 (architect): durable agent registry (binding by spawn record)
+- Source of truth: each Agent spawn writes `{agentId, name, subagent_type, description}` to `harness/runs/agent-registry.json` (gitignored). Written by `tools/agent-bridge/registry.mjs` as a PostToolUse hook, matcher `Agent`, in `.claude/settings.json`.
+- Field: the spawn result text carries `agentId: <hex>`; the hook reads it by searching the serialized `tool_response`, so it works for a string, a text block or an object. Confirmed from the session transcript (tool results); the live hook payload field must be confirmed on the first hook fire (see the live check note below).
+- Backfill: `node tools/agent-bridge/registry.mjs --backfill <session.jsonl>` read 11 spawns of this session (8 specialist handbook reviews, 3 earlier). Ids and specialists are in the guard test `tests/agentRegistry.test.ts`.
+- Bridge: `GET /registry` serves the file; `src/agentRoom/bridgeClient/loadRegistry.ts` loads it before the live feed; `createHookMapper(source, claims, registry)` binds registered ids first, then the delegation queue, then the first owned file, then lead.
+- Process: after adding a hook, restart Claude Code (hooks load at session start). After changing the bridge, restart `npm run bridge` (the ring is lost). Then reload the room.
+- Limit: subagents spawned before this change have no hook record; they are backfilled only from the transcript, and new sessions need the hook.

@@ -6,6 +6,7 @@ import './ui/theme.css';
 import { createLiveRuntime, createReplayRuntime, createSimulationRuntime, type Runtime } from './runtime';
 import { bridgeUp, connectLive } from './bridgeClient/live';
 import { createHookMapper } from './mapping/hook';
+import { loadRegistry } from './bridgeClient/loadRegistry';
 import { loadReplay } from './bridgeClient/loadReplay';
 import { buildReplayEvents } from './replay/build';
 import { RoomView } from './world/RoomView';
@@ -20,7 +21,7 @@ async function chooseRuntime(): Promise<Runtime> {
   if (want === 'simulation') return createSimulationRuntime();
   if (want !== 'replay' && (want === 'live' || (await bridgeUp()))) {
     const rt = createLiveRuntime();
-    const mapper = createHookMapper('live');
+    const mapper = createHookMapper('live', [], await loadRegistry());
     connectLive(
       (m) => rt.feed(mapper.map(m.payload, 0)),
       (c) => useUi.getState().set({ connection: c }),
