@@ -31,7 +31,7 @@ mechanical, and make every failure loud and cheap to see.
 | Guard | File | Rule |
 |---|---|---|
 | Core and store layering | `tests/layers.test.ts` | core imports only core; store does not import city, weather, scene, ui |
-| Tuning parity | `tests/tuningParity.test.ts` | every knob is in `src/config/tuning/`, documented in `docs/TUNING.md`, no duplicates |
+| Tuning parity | `tests/tuningParity.test.ts`, `tests/agentRoomTuning.test.ts` | listed knobs match their parity values; knob names unique across sections; duplicate lists. Not guarded (review only): the `docs/TUNING.md` row and the config doc line for each knob |
 | Dependency direction | `tests/harness.test.ts` | feature modules, core and store never import `scene` or `ui` (type imports included) |
 | Determinism | `tests/harness.test.ts` | no `Math.random` in layout code (core, store, city, streets, buildings, traffic, life, environment, agentRoom) |
 | No network | `tests/harness.test.ts` | no `fetch`, XHR, WebSocket or EventSource in `src`; fetch and EventSource only in `src/agentRoom/bridgeClient/` (ADR 0013) |
@@ -86,7 +86,6 @@ To shrink a file, split it by responsibility (no behaviour change) and lower or 
 |---|---|
 | `harness/README.md` | This file: guards, enforcement, known gaps |
 | `harness/config/policies.json` | Task states, transitions, retry policy, approval gates (data) |
-| `harness/config/quality-gates.json` | Gate commands and acceptance rules by change type (data) |
 | `harness/scripts/check-claims.mjs`, `drift-check.mjs`, `run-evals.mjs` | Claim check, drift check, eval runner |
 | `harness/briefs/`, `harness/state/claims.json` | Specialist briefs and the claim ledger |
 | `harness/config/quality-gates.json` | Gate commands in order, acceptance rules by change type (data) |

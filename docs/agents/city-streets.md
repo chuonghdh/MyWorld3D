@@ -1,12 +1,12 @@
 # City & Streets specialist
 
-Reviewed 2026-11-08 (see "Review 2026-11-08" at the end). Earlier review 2026-11-01 at 02b0cdc.
+Reviewed 2026-11-09 (see "Review 2026-11-09" at the end). Earlier reviews 2026-11-08 and 2026-11-01 at 02b0cdc.
 
 **Owns:** `src/city/**` (generator, layout, streetscape, layout key, block merges) and `src/streets/**` (roads, markings, furniture, decor, fountain water, falling-leaf landing surfaces) with their tests.
 
 ## Key files
 - `city/generate.ts` (`generateCity`, crosswalk filter for merges), `gridLines.ts` (street widths, `splitAround`, `laneOffsetFor`, `STREET_SIDEWALK`, `AVENUE_SIDEWALK`), `monuments.ts` (`chooseMonuments`, `MONUMENT_SHARE`), `trafficPlan.ts`, `spawnPoints.ts`, `layout.ts`, `blocks.ts`, `layoutKey.ts`, `merge.ts` (`resolveBlockMerges`), `junctionArms.ts`, `streetscape.ts` (`COURTYARD_TREE_RADIUS`, `courtyardTreeObstacles`).
-- `streets/surfaceLevels.ts` (height constants, `COLORS`), `surfaces.ts` (surface builder, re-exports), `surfaceRoads.ts`, `surfaceKerbs.ts` (`KERB_RADIUS`, `roundedKerbCorner`), `builder.ts` (geometry helpers), `furniture.ts` (signal heads, bins, bollards), `decor.ts` (barrel) with `decorFountain.ts` (`planFountain`, `fountainReservations`), `decorRoads.ts`, `decorGeometry.ts` (`clearOfKerbCorners`), `natureTrees.ts` (nature field and wiring), `natureLayout.ts` (`natureItems`, pine slots), `natureTypes.ts` (`TREE_SCALE`, `PINE_SNOW_*`), `natureGeometry.ts` (`snowCap`, `thinnedLeaves`, `splitFoliage`), `natureAsset.ts`, `natureLeafMaterial.ts`, `tyreTracks.ts`, `pavementSurfaces.ts`, `streetWear.ts`, `greeneryFootprint.ts`, `water.ts`, `index.ts` (meshes).
+- `streets/surfaceLevels.ts` (height constants, `COLORS`), `surfaces.ts` (surface builder, re-exports), `surfaceRoads.ts`, `surfaceKerbs.ts` (`KERB_RADIUS`, `roundedKerbCorner`), `builder.ts` (geometry helpers), `furniture.ts` (signal heads, bins, bollards), `decor.ts` (barrel) with `decorTypes.ts`, `decorFrames.ts`, `decorSolids.ts`, `decorFountain.ts` (`planFountain`, `fountainReservations`), `decorRoads.ts`, `decorGeometry.ts` (`clearOfKerbCorners`), `natureTrees.ts` (nature field and wiring), `natureLayout.ts` (`natureItems`, pine slots), `natureTypes.ts` (`TREE_SCALE`, `PINE_SNOW_*`), `natureGeometry.ts` (`snowCap`, `thinnedLeaves`, `splitFoliage`), `natureAsset.ts`, `natureLeafMaterial.ts`, `tyreTracks.ts`, `pavementSurfaces.ts`, `streetWear.ts`, `greeneryFootprint.ts`, `water.ts`, `index.ts` (meshes).
 
 ## Conventions
 - Placement is a pure function of the layout and `layout.seed`.
@@ -15,8 +15,9 @@ Reviewed 2026-11-08 (see "Review 2026-11-08" at the end). Earlier review 2026-11
 - Layout is generated once per settings change; traffic or weather sliders must not rebuild blocks (`layoutKey`).
 
 ## Traps
-- Draw-call budget: base streetscape is 8 meshes (see the 2026-11-06 wear update); decor adds 2 (`streets-shelter-glass`, `streets-fountain-water`, in `streets/index.ts`; line numbers drifted, re-check when touched).
-- Budget headroom is tight. `tests/budget.test.ts` asserts main triangles <= 1,900,000 and draw calls <= 140 on the seeded default city. Measured numbers in older notes are not asserted by the test. Re-check after any mesh or tree-count change.
+- Draw-call budget: the whole streetscape (`createStreetscape`, decor included) is 8 meshes (`MESH_NAMES` in `streets/index.ts`): base 6, decor 2 (`streets-shelter-glass`, `streets-fountain-water`). `tests/streetDecor.test.ts` "adds at most 3 draw calls to the 6 of the base streetscape" is correct.
+- Budget headroom is tight. `tests/budget.test.ts` asserts main triangles <= 1,900,000 (line 272), shadow triangles <= 605,000 (line 280), main plus shadow <= 2,300,000 (line 291) and main plus shadow draw calls <= 140 (line 296). Re-check after any mesh or tree-count change.
+- Streetscape per-town baseline is pinned in `tests/streetWear.test.ts` (`BASELINE`: meshes, triangles, vertices for seeds 1 and 7). Any mesh or wear change breaks it on purpose; update the baseline with the change.
 - Fountain plaza must avoid courtyard greenery. `fountainReservations` (`decorFountain.ts:49`) reserves one tree-free disc in the largest courtyard that fits (`r` = 3.4 + 0.3 = 3.7 m). It is appended after the tree obstacles in `greeneryFootprint.ts:18` and in `scene/useTownGreenery.ts:65`, so greenery keeps clear without depending on greenery's output. `planFountain` (`decorFountain.ts:67`) still tests greenery triangles and omits the fountain where no room exists; the test allows omission.
 - Tactile bars at the first crossing stripe reach into the rounded corner: `clearOfKerbCorners` (`decorGeometry.ts:115`) cuts them back to the arc.
 - Sidewalk strips are 3 m (`STREET_SIDEWALK`, `gridLines.ts:8`) and 4.5 m (`AVENUE_SIDEWALK`, `gridLines.ts:10`). The 0.5 m kerb radius (`KERB_RADIUS`, `surfaceKerbs.ts:9`) fits. Vertical strips are cut by the crossing sidewalk footprint (walk cut), horizontal strips by the carriageway only (carriage cut), so only horizontal strips own corners.
@@ -65,18 +66,18 @@ Reviewed 2026-11-08 (see "Review 2026-11-08" at the end). Earlier review 2026-11
 - Shared, not cloned (lab edits there reach the city): `environment/trees.ts`, `environment/forest.ts`, `environment/leafVariety.ts`, `environment/wind.ts`, `shaders/wetSurface.ts`, `weather/*`.
 
 ## Open items
-- Code mismatch: `natureAsset.ts:118` builds `snowLeaves` only for broadleaf (`type.evergreen ? null : snowCap(leaves)`), but `natureTrees.ts:78` pushes it only when `asset.type.evergreen`. Result: no leaf snow cap is drawn for any tree. Broadleaf being bare is intended; the dead geometry and condition need an owner decision (remove or fix). Not changed here.
+- Resolved 2026-11-09: the dead leaf snow cap (`snowLeaves`, `snowLeafMat`) was removed from `natureAsset.ts`, `natureTypes.ts` and `natureTrees.ts`. Leaf crowns get no snow geometry (broadleaf bare in winter; conifer snow from the weather shader).
 - Open corner shows the 4 cm asphalt underlay as a gutter strip (intended, not checked by eye up close).
 - Coplanar audit tolerance (2 cm) flags many pre-existing underlay/ground pairs; not fixed.
 - Car-roof leaf landing is deferred. `traffic/vehicleSurfaces.ts` exists but no consumer calls it.
 - Fountain placement on dense seeds (1 and 1234 at 300 m) and the reserved-disc look: not re-checked by eye.
 - Street-tree winter crowns (full foliage seen in a screenshot): not re-checked after phase 2.
-- `snowLeaves` and snow geometries live in the nature asset cache; not freed on app teardown.
+- `snowBark` geometry lives in the nature asset cache; not freed on app teardown.
 - No test covers `pavementSurfaces` leaf rest (no test file references it).
 - Scene-owned literal: `scene/useNatureTrees.ts:34` `FALLBACK_TREE_SCALE = 1.35` duplicates `cityStreets.treeScale`. Scene & QA to switch to the knob.
 
 ## Verify
-`npx vitest run tests/streets.test.ts tests/streetDecor.test.ts tests/kerbCorners.test.ts tests/budget.test.ts tests/layoutKey.test.ts tests/blockMerge.test.ts`. No test covers `pavementSurfaces` leaf rest yet.
+`npx vitest run tests/streets.test.ts tests/streetDecor.test.ts tests/kerbCorners.test.ts tests/budget.test.ts tests/layoutKey.test.ts tests/blockMerge.test.ts tests/streetWear.test.ts tests/monumentLayout.test.ts`. No test covers `pavementSurfaces` leaf rest yet.
 
 ## Tuning
 - Rule: a City & Streets knob is a value a designer tunes for feel; geometry and algorithm literals stay in their file. Knobs live in `cityStreets` (`src/config/tuning/cityStreets.ts`) and are imported; the lab copy is `src/dev/treeCompare/labTuning.ts` (never imports config). Index: [docs/TUNING.md](../TUNING.md).
@@ -170,3 +171,21 @@ Method: every concrete path, symbol, line, knob, test and guard in this handbook
 - Shadow budget (605,000) and 2.3 M combined figures in older notes are not asserted by `tests/budget.test.ts`.
 
 **Unverified in this review:** draw-call names `streets-shelter-glass` and `streets-fountain-water` (`streets/index.ts`, line numbers drifted); the street-tree per-side accumulator; the shared-not-cloned list under `environment/`; measured triangle counts and the conifer count (15 of 170); the rear-setback fix's effect on interpenetration (buildings owner); signal-head line numbers beyond `furniture.ts:166`.
+
+## Review 2026-11-09 (City & Streets)
+
+Method: Grep/Read of every path, symbol, line, knob, test name and count in this handbook against the tree on 2026-11-09. Read-only on code and tests; only this file edited.
+
+**Corrections made in this file:**
+- Budget trap: the 605,000 shadow ceiling and 2,300,000 main+shadow ceiling are now asserted (`tests/budget.test.ts:280`, `:291`). The 2026-11-08 open item saying they were not asserted is stale and is dropped.
+- Added the streetscape baseline (`tests/streetWear.test.ts` `BASELINE`, meshes/triangles/vertices for seeds 1 and 7) to the traps.
+- Key files: added `decorTypes.ts`, `decorFrames.ts`, `decorSolids.ts` (all exist; were missing).
+- Verify list: added `tests/streetWear.test.ts`, `tests/monumentLayout.test.ts`.
+
+**Still valid (checked):** all `city/` and `streets/` files named in the handbook exist; `cityStreets` knobs named in the text exist in `src/config/tuning/cityStreets.ts`, and the section 13 wear/paving values in `docs/TUNING.md` match them; symbol lines `generateCity`, `splitAround` (`gridLines.ts:82`), `resolveBlockMerges` (`merge.ts:56`), `chooseMonuments` (`monuments.ts:16`), `STANDARD_MONUMENTS` (`monuments.ts:8`), `courtyardTreeObstacles` (`streetscape.ts:44`), `COURTYARD_TREE_RADIUS` (`streetscape.ts:41`), `monumentBaseFor` (`scene/townBlocks.ts:14`), `natureItems` (`natureLayout.ts:50`), `PINE_SHARE`/`BORDER_DEPTH` (`natureLayout.ts:10`, `:12`), `PINE_SNOW_*` (`natureTypes.ts:7-8`), `TREE_SCALE` and `treeScale?` (`natureTypes.ts:50`, `:55`), `snowCap` (`natureGeometry.ts:200`), `thinnedLeaves` (`:112`), `splitFoliage` (`:160`), `pavementSurfaces` (`pavementSurfaces.ts:34`, wired at `scene/Town.tsx:124`), `fountainReservations` (`decorFountain.ts:49`), `planFountain` (`:67`), `clearOfKerbCorners` (`decorGeometry.ts:115`), `roundedKerbCorner` (`surfaceKerbs.ts:51`), `KERB_RADIUS` (`:9`), height constants (`surfaceLevels.ts`), `SIGNAL_LAMP_PITCH` (`furniture.ts:127`), `armCount` skip (`furniture.ts:166`), tyre-track salt (`tyreTracks.ts:54`), `uSummer` (`natureLeafMaterial.ts:96`, set `natureTrees.ts:107`, read `environment/leafVariety.ts:68`), `yardKey` (`greenery.ts:37`, used `:70`), crosswalk filter (`generate.ts:242`), `REAR_FLUSH_SETBACK` (`buildings/facade/rear.ts:20`, used `houseBuild.ts:31`), `natureOverridesFor` (`useNatureTrees.ts:23-31`), `FALLBACK_TREE_SCALE` (`useNatureTrees.ts:34`), `useTownGreenery.ts:22` and `:65`, mesh names (`streets/index.ts`, 8 entries), `decor.ts` (44 lines), `city/blocks.ts` (306 lines, largest), harness guards (`harness.test.ts` layer rule `:61-66`, `Math.random` `:87`, empty `OVERSIZED` `:128`), monument test seeds (1, 7, 1234, 42, 99), and the snow mismatch (`natureAsset.ts:118` vs `natureTrees.ts:78`, still present).
+
+**Changes 2026-11-09 (coordinator request):** dead leaf snow cap removed (see Open items); `cityStreets.ts` doc comments for monumentShare, trafficSpawnSpacing, lightTiming, pine*, treeScale, clusterExtra, borderDepth now name current files; the trap line on draw calls corrected (8 meshes total = base 6 + decor 2; the earlier "base 8" reading was wrong).
+
+**Open items (still true):** no test for `pavementSurfaces`; `useNatureTrees.ts:34` literal duplicates `cityStreets.treeScale` (Scene & QA). Lab copy `src/dev/treeCompare/labNatureAsset.ts` may still carry its own leaf snow code (Scene & QA; not checked).
+
+**Stale text in other owners' files (not edited here):** `docs/TUNING.md` City rows (lines 121, 127, 283, 315-323, 519, 521) and `src/config/tuning/cityStreets.ts` doc comments (lines 5-43) name old paths or line numbers. Listed in the session report for the Architect.

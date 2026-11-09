@@ -6,10 +6,10 @@ import type { VehicleSpec } from './types';
 import { trafficLife } from '../../config/tuning';
 
 export const VEHICLE_SPECS: Record<VehicleClass, VehicleSpec> = {
-  car: { cruiseSpeed: 11, length: 4.5, accel: 2.5, weight: 0.55, gap: 6, speedVar: [0.85, 1.12] },
-  bus: { cruiseSpeed: 8, length: 12, accel: 1.5, weight: 0.1, gap: 7, speedVar: [0.92, 1.05] },
-  truck: { cruiseSpeed: 9, length: 9, accel: 1.8, weight: 0.1, gap: 7, speedVar: [0.9, 1.05] },
-  motorbike: { cruiseSpeed: 13, length: 2.2, accel: 3.5, weight: 0.25, gap: 4, speedVar: [0.85, 1.15] },
+  car: { cruiseSpeed: trafficLife.carCruiseMps, length: 4.5, accel: 2.5, weight: 0.55, gap: 6, speedVar: [0.85, 1.12] },
+  bus: { cruiseSpeed: trafficLife.busCruiseMps, length: 12, accel: 1.5, weight: 0.1, gap: 7, speedVar: [0.92, 1.05] },
+  truck: { cruiseSpeed: trafficLife.truckCruiseMps, length: 9, accel: 1.8, weight: 0.1, gap: 7, speedVar: [0.9, 1.05] },
+  motorbike: { cruiseSpeed: trafficLife.motorbikeCruiseMps, length: 2.2, accel: 3.5, weight: 0.25, gap: 4, speedVar: [0.85, 1.15] },
 };
 
 /**
@@ -27,7 +27,7 @@ export const TURN_LEFT_CHANCE = trafficLife.turnLeftChance;
 export const TURN_RIGHT_CHANCE = trafficLife.turnRightChance;
 
 /** A vehicle picks its manoeuvre this far before the junction centre, metres. */
-export const DECIDE_DISTANCE = 40;
+export const DECIDE_DISTANCE = trafficLife.decideDistanceM;
 
 /**
  * Two vehicles jammed against each other at a junction: after this many seconds the one that entered the
@@ -50,7 +50,7 @@ export const STUCK_PUSH_S = 40;
  * sequence is untouched. A vehicle honks when a pedestrian has held it on a green light for HORN_PED_HOLD_S, when it
  * is jammed (HELD_BACKUP_S, resolveJam), or rarely after a hard brake. Per vehicle cooldown and a global rate limit.
  */
-export const HORN_PED_HOLD_S = 5;
+export const HORN_PED_HOLD_S = trafficLife.hornPedHoldS;
 
 /** A vehicle honks at most once per 45 s, and the whole city at most once per 6 s (horns are meant to be rare). */
 export const HORN_COOLDOWN_S = trafficLife.hornCooldownS;
@@ -61,12 +61,12 @@ export const HORN_GLOBAL_GAP_S = trafficLife.hornGlobalGapS;
 export const HORN_CHANCE = trafficLife.hornChance;
 
 /** Smoothed deceleration (m/s^2) below which a braking vehicle counts as braking hard. */
-export const HORN_HARD_BRAKE = -3;
+export const HORN_HARD_BRAKE = trafficLife.hornHardBrakeMps2;
 
 /** Chance per second of honking while braking hard: about once per 15 min for a vehicle that brakes hard continuously. */
 export const HORN_HARD_BRAKE_RATE = 1 / 900;
 
-export const HORN_QUEUE_MAX = 8;
+export const HORN_QUEUE_MAX = trafficLife.hornQueueMax;
 
 /**
  * Junction right of way: a vehicle may enter a junction only when it holds a grant, and grants go in the order

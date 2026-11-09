@@ -9,40 +9,40 @@ import { audio as audioTuning } from '../config/tuning';
 // Tunable constants
 // ---------------------------------------------------------------------------------------------
 /** Max simultaneous songs started by 'bird-call' events. */
-export const MAX_EVENT_SONGS = 4;
+export const MAX_EVENT_SONGS = audioTuning.maxEventSongs;
 /** Max simultaneous ambient (distant) songs. */
-export const MAX_AMBIENT_SONGS = 3;
+export const MAX_AMBIENT_SONGS = audioTuning.maxAmbientSongs;
 /** Ambient songs spawn this far from the listener (m). */
-export const AMBIENT_MIN_M = 20;
-export const AMBIENT_MAX_M = 90;
+export const AMBIENT_MIN_M = audioTuning.ambientMinM;
+export const AMBIENT_MAX_M = audioTuning.ambientMaxM;
 /** Mean seconds between ambient songs at full activity (dawn in spring). */
-export const AMBIENT_MEAN_S = 9;
+export const AMBIENT_MEAN_S = audioTuning.ambientMeanS;
 /** Mean seconds between ambient owl hoots on a night with full owl chance. */
-export const OWL_MEAN_S = 28;
+export const OWL_MEAN_S = audioTuning.owlMeanS;
 /** Bird emitter height (canopy) and distance model. */
 export const BIRD_Y = 6;
 export const BIRD_REF_M = 8;
-export const BIRD_MAX_M = 160;
+export const BIRD_MAX_M = audioTuning.birdMaxM;
 /** Song loudness before the emitter distance model. */
 export const BIRD_LEVEL = audioTuning.birdLevel;
 /** Wing flutter: birds per scatter, pulse rate (Hz) and duration (s). */
-export const FLAP_BIRDS_MIN = 3;
-export const FLAP_BIRDS_MAX = 6;
+export const FLAP_BIRDS_MIN = audioTuning.flapBirdsMin;
+export const FLAP_BIRDS_MAX = audioTuning.flapBirdsMax;
 export const FLAP_RATE_HZ = 8;
 export const FLAP_DURATION_S = 1.1;
 export const FLAP_LEVEL = audioTuning.flapLevel;
-export const MAX_FLAPS = 3;
+export const MAX_FLAPS = audioTuning.maxFlaps;
 /** Dogs only bark within this distance of the listener (m). */
-export const DOG_RANGE_M = 120;
+export const DOG_RANGE_M = audioTuning.dogRangeM;
 /** Mean seconds between bark bouts per dog. */
-export const DOG_MEAN_S = 900;
-export const MAX_BARKERS = 3;
+export const DOG_MEAN_S = audioTuning.dogMeanS;
+export const MAX_BARKERS = audioTuning.maxBarkers;
 export const DOG_LEVEL = audioTuning.dogLevel;
 /** The formant filters of the bark take most of the energy out of the clipped source: this brings it back up. */
 export const BARK_BOOST = 4;
 /** A vehicle this close (m) moving faster than DOG_VEHICLE_SPEED makes the dog bark twice as often. */
-export const DOG_VEHICLE_M = 12;
-export const DOG_VEHICLE_SPEED = 3;
+export const DOG_VEHICLE_M = audioTuning.dogVehicleM;
+export const DOG_VEHICLE_SPEED = audioTuning.dogVehicleSpeed;
 export const MAX_MEOWS = 3;
 export const MEOW_LEVEL = audioTuning.meowLevel;
 /** Frame dt is clamped to this (s) so a stalled tab does not fire everything at once. */

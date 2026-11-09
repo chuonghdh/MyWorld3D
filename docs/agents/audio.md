@@ -1,14 +1,15 @@
 # Audio specialist
-Reviewed 2026-11-01 at 02b0cdc
+Reviewed 2026-11-09 (Audio specialist; doc claims checked against code, see "Review 2026-11-09")
 
 **Owns:** `src/audio/**`, `src/ui/SoundMixer.tsx`, `src/scene/audioBridge.ts`, `docs/AUDIO.md` and the audio tests (`tests/audio*.test.ts`, `tests/helpers/fakeAudio.ts`).
 
-**Tuning rule:** tunable levels, ranges, intervals, windows and mixer defaults live in the `audio` section of `src/config/tuning/`; modules import them (`audio as audioTuning`) and keep the exported const names. Synthesis and algorithm constants (partials, filter shapes) stay local.
+**Tuning rule:** tunable levels, ranges, intervals, windows and mixer defaults live in the `audio` section of `src/config/tuning/` (`audio.ts`; film audio knobs in `film.ts`); modules import them (`audio as audioTuning`) and keep the exported const names. Synthesis and algorithm constants (partials, filter shapes) stay local. Status: NOT fully followed, see Open items.
 
 ## Architecture (see `docs/AUDIO.md`)
-- `index.ts` facade: `init`, `update(frame)`, `setSoundEnabled`, volumes, `dispose`. Context -> master -> limiter (DynamicsCompressor, threshold -9 dB, ratio 12) -> destination.
-- `bus.ts` `AudioBus`: category buses (engine, horn, indicator, voice, footstep, bird, wing, dog, cat, leaves, wind, rain, thunder, ambience, aircraft, music), groups (effects, nature, music), emitters = panner + distance lowpass.
-- Sound systems (`vehicles`, `people`, `animals`, `nature`, `rain`, `weather`, `aircraft`, `music`) each own their emitters and are listed in `systems.ts`.
+- `index.ts` facade: `init`, `update(frame)`, `setSoundEnabled`, volumes, `uiCue`, `getRecordStream`, `dispose`. Context -> master -> limiter (`mixChain.ts`: DynamicsCompressor, threshold -9 dB, knee 6, ratio 12) -> destination. Panel cues bypass master and limiter (own gain to destination).
+- `bus.ts` `AudioBus`: category buses (16: engine, horn, indicator, voice, footstep, bird, wing, dog, cat, aircraft, leaves, wind, rain, thunder, ambience, music), groups (effects, nature, music), emitters = panner + distance lowpass.
+- Sound systems (`vehicles`, `people`, `animals`, `nature`, `rain`, `music`, `aircraft`) each own their emitters and are listed in `systems.ts`. `weather.ts` (thunder) is not in the registry: `rain.ts` creates and runs it.
+- `route.ts` `routeFrame` is the one place for Sound switch, aerial gate and music switch; the live update and the film render both use it.
 - `frame.ts` `AudioFrame` is built each frame by `scene/audioBridge.ts` (pooled, no allocation). The listener comes from `audio/listener.ts`.
 
 ## Conventions
@@ -23,21 +24,25 @@ Reviewed 2026-11-01 at 02b0cdc
 - Sound and Music are separate: Sound off silences effects and nature, never music; master mute is separate.
 - Aerial mode (camera above `AERIAL_HEIGHT_M = 45` m): only birds, wing flaps, rain, thunder, aircraft and music are heard.
 - Constant leaf noise came from a loop with a floor level. Leaves are one-shot rustle bursts on the nearest trees (`RUSTLE_TREES = 3`), countdown 3 to `RUSTLE_INTERVAL_MAX_S = 12` s, only when wind >= `RUSTLE_MIN_WIND = 1.5` m/s.
-- Fake AudioContext in tests needs every node factory you use (`createWaveShaper`, ...).
+- Fake AudioContext in tests needs every node factory you use. `tests/helpers/fakeAudio.ts` has no `createWaveShaper`; `animalsVoices.ts` (`playBarks` grit, dog bark) needs it. `tests/audioAnimals.test.ts` has its own fake with it (line 62) and covers barks. No test that uses `fakeAudio` reaches the bark path (latent gap).
 
 ## Decisions
-- Rain: only tin-roof "pit-pat" plus puddle plips at 30% (`PUDDLE_LEVEL = 0.3`, `rain.ts`). Thunder x2 loudness, x1.3 length. Bus air brake 0.4 (`AIR_BRAKE_LEVEL`, `vehicles.ts`). Dogs bark about once per 900 s (`DOG_MEAN_S = 900`, `animals.ts`). Horn request rules (cooldowns, gap, chance) are owned by traffic: `src/traffic/vehicles/constants.ts`. Crickets on (`CRICKETS_ENABLED = true`, `nature.ts`), only 22:00-05:00 on the in-app clock (`cricketDensity(hour, season, rain)`; summer full, autumn half), and silent in the aerial view (camera above `AERIAL_HEIGHT_M` = 45 m, `listener.ts`).
+- Rain: mostly tin-roof "pit-pat"; puddle plips are 18% of drops, only when rain > 0.25, at level `PUDDLE_LEVEL = 0.3` (`rain.ts`; level from `audio.puddleLevel`). Thunder x2 loudness, x1.3 length. Bus and truck air brake 0.4 (`AIR_BRAKE_LEVEL`, `vehiclesCore.ts`). Dogs bark about once per 900 s (`DOG_MEAN_S = 900`, `animalsPure.ts`), half that near a fast vehicle. Horn request rules (cooldowns, gap, chance) are owned by traffic: `src/traffic/vehicles/constants.ts`. Crickets on (`CRICKETS_ENABLED = true`, `nature.ts`), only 22:00-05:00 on the in-app clock (`cricketDensity(hour, season, rain)`; summer full, autumn half), and silent in the aerial view (camera above `AERIAL_HEIGHT_M` = 45 m, `listener.ts`).
 - Aircraft (`aircraft.ts`): Doppler clamp 0.85-1.15, at most `AIRCRAFT_MAX_VOICES = 2` voices, reference distance `AIRCRAFT_REF_DISTANCE = 250` m, max distance 2500 m.
 
 ## Open items
 - Balance and sound quality are not verified by ear beyond the user's listening feedback. Balance changes come from user listening.
+- **Knobs outside `src/config/tuning/` (CLAUDE.md gap), status 2026-11-09: still open, unchanged since 2026-11-08.** Not moved. Still local as knob-type constants: `AMBIENT_MEAN_S`, `OWL_MEAN_S`, `DOG_MEAN_S`, `DOG_RANGE_M`, `MAX_BARKERS`, `FLAP_BIRDS_MIN/MAX`, `MAX_FLAPS`, `BIRD_MAX_M` (`animalsPure.ts`); `RUSTLE_INTERVAL_MIN_S/MAX_S`, `RUSTLE_MIN_WIND`, `RUSTLE_TREES`, `RUSTLE_NEAREST`, `WHISTLE_MIN_WIND`, `WHISTLE_FULL_WIND`, `WHISTLE_MAX`, `WHISTLE_MIN_M/MAX_M` (`natureCore.ts`); `ENGINE_VOICES`, `ENGINE_MAX_DISTANCE`, `HORN_MAX_DISTANCE`, `HORN_MAX_CONCURRENT` (`vehiclesCore.ts`); `CHAT_VOICES`, `CHAT_MAX_DISTANCE`, `STEP_MAX_DISTANCE`, `UMBRELLA_MAX_DISTANCE`, `RAIN_ON`/`RAIN_OFF` 0.15/0.1 (`peopleCore.ts`); `AIRCRAFT_MAX_VOICES`, `AIRCRAFT_REF_DISTANCE`, `AIRCRAFT_MAX_DISTANCE`, `FADE_IN_S`, `FADE_OUT_S` (`aircraft.ts`); `RAIN_ON` 0.05, `MIN_RADIUS`, `MAX_RADIUS` (`rain.ts`); `THUNDER_MAX_PLACE_DISTANCE`, `THUNDER_HEIGHT` (`weather.ts`); `MAX_EVENT_SONGS`, `MAX_AMBIENT_SONGS`, `AMBIENT_MIN_M/MAX_M` (`animalsPure.ts`). The film-plan knob `birdRangeM` (moves `BIRD_MAX_M`) is not added. Moved since 2026-11-08: none. Decision needed (lead): move these to `audio.ts` with parity tests, or record reasoned exceptions in the guard file.
+- Film plan (2026-11-04) P3 (ground-node ramp replacing the 45 m step) and P1/P2 (`listenerOverride.ts`, listener smoothing) are not built. Only the offline render uses the gate bypass.
+- The 45 m aerial gate is still a step in live play (`route.ts:37`).
+- Real offline render (peak, no NaN) is not run: needs a dev-page render.
 
 ## Verify
-`npx vitest run tests/audio*.test.ts`; render a system in an `OfflineAudioContext` in the dev page and check the peak (< 0.5) and no NaN.
+`npx vitest run tests/audio*.test.ts`; render a system in an `OfflineAudioContext` in the dev page and check the peak (< 0.5) and no NaN for the live path. The film render is scaled to `film.audioPeakTargetDb` (-3 dB) instead, so the < 0.5 check does not apply there.
 
 ## Scope notes
 - `src/scene/audioBridge.ts`, `tests/audio*.test.ts` and `tests/helpers/fakeAudio.ts` are Audio-owned (lead decision, phase 2). Scope questions go to the lead before editing other areas.
-- Last commit touching `src/audio`: `251fe15` (aircraft sound, cloud shadows).
+- Last commit touching `src/audio`: `dcb63d5` (harness split, see 2026-11-08 review).
 
 ## Session 2026-11-04 (film audio plan)
 Plan only; no source edits. Goal: sound follows a film viewpoint (manual camera or auto bird), mix follows user volumes, recording includes sound.
@@ -175,3 +180,35 @@ Checked against HEAD `6b036e4` with Grep/Read. Most numbers and names in this ha
 - Level, timbre and balance by ear (out of scope here).
 - Did not run `vitest`, `tsc` or `npm run check`.
 - `harness/README.md` Math.random list omits `agentRoom`, which the guard includes (not audio; for the lead).
+
+## Review 2026-11-09 (Audio)
+Checked `docs/AUDIO.md` and this handbook against code (Grep/Read). Own files fixed: `docs/AUDIO.md`, `docs/agents/audio.md`. No code or tests touched. No commit.
+
+### Fixed in own docs
+- `docs/AUDIO.md`: Files list was incomplete (added `mixChain.ts`, `route.ts`, `recordTap.ts`, `uiCue.ts`, `offlineRender.ts`, split helper files). Facade list now includes `uiCue`, `getRecordStream`. Aerial gate path `index.ts` -> `route.ts`. Leaf rustle = 3 of the 5 nearest trees per burst. Night music = D minor pentatonic (was "D Dorian"). Thunder duck = while thunder is in the frame, 3 s recovery. Added sections: panel cues (`uiCue`), recording and film audio (`getRecordStream`, `renderFilmAudio`, peak target).
+- Handbook body: rain puddle share is 18% at level 0.3 (was "30%"). Air brake and dog-bark paths point to `vehiclesCore.ts` and `animalsPure.ts`. `index.ts` facade list and systems list corrected (weather runs under rain). Tuning-rule paragraph marked as not fully followed. Fake-context trap restated with exact location. Verify line: film peak uses -3 dB target, < 0.5 only for the live path.
+
+### Verified correct (no change)
+- Limiter (-9 dB, knee 6, ratio 12, attack 3 ms, release 0.25 s), listener constants (8 m, 2 m, 400 m), zoom attenuation, distance lowpass (18 kHz to 1.2 kHz at 300 m), 16 categories and 3 groups, mixer labels, default 40/100/100/100, storage keys, voice budget hysteresis 0.2, aircraft (2 voices, 250/2500 m, fades 3 s / 2.5 s, 260 Hz / 1.1 kHz / 780 & 1010 Hz), vehicles (8 engine within 120 m, 6 indicator within 60 m, horn 220 m, 4 concurrent), people (4 chat within 30 m, 5 steps within 28 m, speed > 0.3, 4 umbrella within 25 m, rain 0.15), animals (4 event songs, 3 ambient 20-90 m, flaps 3-6, max 3, dog 120 m, 3 barkers, dog mean halved near a fast vehicle, meows 3), rain (10 drops + 4 bed at 45-105 m, RAIN_ON 0.05), thunder (450 m, 60 m height, x2, x1.3), wind whistle (8 m/s, 2 max, 15-70 m), bell 400 m, crickets 22-05 with summer 1 / autumn 0.5, music (72/54/38 bpm, 2 s fade, level 0.8, duck 0.55), horn cooldowns 45 s / 6 s / 50% (`trafficLife.ts`). Test files: 14 `tests/audio*.test.ts` plus `tests/helpers/fakeAudio.ts`, 173 `it(` blocks in total. Largest audio file `bus.ts` 337 lines. Git: last `src/audio` commit `dcb63d5`.
+
+### Open item: knobs outside `src/config/tuning/` (status)
+- Still open. Nothing moved since 2026-11-08. The list of still-local knob-type constants is in "Open items" above. The 2026-11-08 list was incomplete: about 25 more literals are intervals, counts and distances (for example `MAX_BARKERS`, `RUSTLE_TREES`, `CHAT_VOICES`, `AIRCRAFT_MAX_VOICES`, `THUNDER_MAX_PLACE_DISTANCE`).
+- Film-plan knobs (`filmListenerSmoothS`, `filmListenerBlendM`, `aerialBlendM`, `groundFadeS`, `filmFadeS`, `filmZoomFloor`, `birdRangeM`): none added. `listenerOverride.ts` does not exist.
+
+### For the Architect (docs/TUNING.md, not edited here)
+- Stale code locations (constants moved): row "Bird audio cap" `animals.ts:35-40` -> `animalsPure.ts:29-34`. "Dog bark range" `animals.ts:42` -> `animalsPure.ts:36`. "Dog bark mean interval" `animals.ts:44` -> `animalsPure.ts:38`. "Max barkers" `animals.ts:45` -> `animalsPure.ts:39`. "Ambient animal interval" `animals.ts:25` -> `animalsPure.ts:19`. "Owl interval" `animals.ts:27` -> `animalsPure.ts:21`.
+- "Mixer storage keys" `SoundMixer.tsx:17` -> line 18. "Mixer smoothing" `bus.ts:95` -> `bus.ts:98` (`SMOOTH_S`).
+- "Bell pitch and height" `nature.ts:51, 54` -> `natureCore.ts:39, 42` (`BELL_HZ`, `BELL_Y`).
+- "Leaf rustle interval" `nature.ts:25-26` -> `natureCore.ts:13-14`. "Leaf rustle min wind" `nature.ts:27` -> `natureCore.ts:15`. "Whistle wind range" `nature.ts:38-39` -> `natureCore.ts:26-27`.
+- "Rain on threshold" `rain.ts:17` -> `rain.ts:18`. "Rain drop radius" `rain.ts:23-24` -> `rain.ts:24-25`.
+- "Pedestrian rain on/off" `people.ts:37-38` -> `peopleCore.ts:17-18` (`RAIN_ON` 0.15, `RAIN_OFF` 0.1; value is also in `people`, not `rain`).
+- "Thunder range and height" `weather.ts:12, 14` -> `weather.ts:13, 15`.
+- "Music fade" `music.ts:17` -> `musicMood.ts:7` (`FADE_SECONDS`). "Music mood hours" `music.ts:26-33` -> `musicMood.ts` (`MOOD_KEYS` range; verify line).
+- "Vehicle engine voices" `vehicles.ts:27` -> `vehiclesCore.ts:10`. "Vehicle horn distance" `vehicles.ts:33` -> `vehiclesCore.ts:16`. "Horn concurrency" `vehicles.ts:34` -> `vehiclesCore.ts:17`; the row says "Not exported" but `HORN_MAX_CONCURRENT` is exported.
+- "Aircraft fade" `aircraft.ts:17-18` -> `aircraft.ts:18-19`.
+- Wrong content: "Aerial height" row says "crickets and bells are silent". Code silences crickets only (`nature.ts:267-268`). Bells are not gated. Fix the row text.
+- "Cricket window" and "Cricket count and range" rows give `audio.ts` line numbers (261, 269, 271, 265) that are not meaningful; use keys only.
+- Line 221 says category list is `bus.ts:13-30`; actual list is `bus.ts:14-31`.
+
+### Not verified
+- Level, timbre and balance by ear. `vitest`, `tsc` and `npm run check` not run (read-only review).

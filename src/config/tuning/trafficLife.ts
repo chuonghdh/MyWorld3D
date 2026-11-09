@@ -52,4 +52,34 @@ export const trafficLife = {
   childBobK: 1.6,
   /** Child walk: gait-rate wobble as a fraction of speed (0.05 = plus or minus 5 percent), render only (traffic/walkers/resolve.ts). */
   childCadenceWobble: 0.05,
+  /** Metres ahead of the junction centre where a vehicle picks its manoeuvre (traffic/vehicles/constants.ts). */
+  decideDistanceM: 40,
+  /** Seconds a pedestrian must hold a vehicle on green before it honks (traffic/vehicles/constants.ts). */
+  hornPedHoldS: 5,
+  /** Horns queued at once in the city before new ones are dropped (traffic/vehicles/constants.ts). */
+  hornQueueMax: 8,
+  /** Smoothed deceleration, m/s^2, below which a braking vehicle counts as braking hard (traffic/vehicles/constants.ts). */
+  hornHardBrakeMps2: -3,
+  /** Cruise speed of a car, m/s (traffic/vehicles/constants.ts VEHICLE_SPECS). */
+  carCruiseMps: 11,
+  /** Cruise speed of a bus, m/s (traffic/vehicles/constants.ts VEHICLE_SPECS). */
+  busCruiseMps: 8,
+  /** Cruise speed of a truck, m/s (traffic/vehicles/constants.ts VEHICLE_SPECS). */
+  truckCruiseMps: 9,
+  /** Cruise speed of a motorbike, m/s (traffic/vehicles/constants.ts VEHICLE_SPECS). */
+  motorbikeCruiseMps: 13,
+  /** Pigeon scare radius in XZ, metres: vehicles and pedestrians this close scatter pigeons (life/birds.ts). */
+  scareRadiusM: 4,
+  /** Birds per flock loop at quality factor 1 (life/birds.ts FLOCK_DEFS). */
+  flockBirdsPerLoop: 25,
+  /** Altitude of the three flock loops, metres, in flock order (life/birds.ts FLOCK_DEFS). */
+  flockAltM: [26, 35, 44],
+  /** Speed of the three flock loops, m/s, in flock order (life/birds.ts FLOCK_DEFS). */
+  flockSpeedMps: [9, 10.5, 8.5],
+  /** Gulls at high quality (life/birds.ts). */
+  gullsHigh: 2,
+  /** Gulls at low quality (life/birds.ts). */
+  gullsLow: 1,
+  /** Share of the butterfly count that becomes bees, 0-1 (life/pets.ts beeCountFor). */
+  beeShare: 0.2,
 } as const;

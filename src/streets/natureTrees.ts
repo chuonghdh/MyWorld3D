@@ -74,8 +74,6 @@ export function createNatureTreeField(
     if (leaves.instanceColor) leaves.instanceColor.needsUpdate = true;
     leafUsers.push({ mesh: leaves, asset });
     if (asset.snowBark) snowMeshes.push(add(asset.snowBark, asset.snowMat, items, 'nature-snow-bark-' + asset.type.file));
-    // Broadleaf crowns are bare in winter; a snow cap on their full leaf geometry would draw the green leaf map. Conifers keep their crowns.
-    if (asset.snowLeaves && asset.type.evergreen) snowMeshes.push(add(asset.snowLeaves, asset.snowLeafMat, items, 'nature-snow-leaves-' + asset.type.file));
   });
 
   const leafFor = (asset: NatureAsset, sNow: Season): THREE.BufferGeometry | null => {

@@ -70,4 +70,77 @@ export const audio = {
   uiCueDurationS: 0.26,
   /** Single tick (switching house or block) level against one ratchet tick, gain (audio/uiCue.ts singleTickParams). */
   uiCueTickLevel: 0.75,
+  // Animals (animalsPure.ts)
+  maxEventSongs: 4,
+  maxAmbientSongs: 3,
+  ambientMinM: 20,
+  ambientMaxM: 90,
+  ambientMeanS: 9,
+  owlMeanS: 28,
+  birdMaxM: 160,
+  flapBirdsMin: 3,
+  flapBirdsMax: 6,
+  maxFlaps: 3,
+  dogRangeM: 120,
+  dogMeanS: 900,
+  maxBarkers: 3,
+  // Nature (natureCore.ts)
+  rustleIntervalMinS: 8,
+  rustleIntervalMaxS: 12,
+  rustleMinWind: 1.5,
+  rustleTrees: 3,
+  rustleNearest: 5,
+  whistleMinWind: 8,
+  whistleFullWind: 14,
+  whistleMax: 2,
+  whistleMinM: 15,
+  whistleMaxM: 70,
+  // Vehicles (vehiclesCore.ts)
+  engineVoices: 8,
+  engineMaxDistanceM: 120,
+  hornMaxDistanceM: 220,
+  hornMaxConcurrent: 4,
+  // People (peopleCore.ts)
+  chatVoices: 4,
+  chatMaxDistanceM: 30,
+  stepMaxDistanceM: 28,
+  umbrellaMaxDistanceM: 25,
+  pedestrianRainOn: 0.15,
+  pedestrianRainOff: 0.1,
+  // Aircraft (aircraft.ts)
+  aircraftMaxVoices: 2,
+  aircraftRefDistanceM: 250,
+  aircraftMaxDistanceM: 2500,
+  aircraftFadeInS: 3,
+  aircraftFadeOutS: 2.5,
+  // Rain (rain.ts)
+  dropRainOn: 0.05,
+  dropMinRadiusM: 3,
+  dropMaxRadiusM: 60,
+  // Weather (weather.ts)
+  thunderMaxPlaceDistanceM: 450,
+  thunderHeightM: 60,
+  // Animals and dogs (animalsPure.ts)
+  dogVehicleM: 12,
+  dogVehicleSpeed: 3,
+  // Nature (natureCore.ts)
+  rustleDurationMinS: 1.6,
+  rustleDurationMaxS: 3.4,
+  whistleHeightM: 8,
+  bellHeightM: 25,
+  // People (peopleCore.ts)
+  stepVoices: 5,
+  umbrellaVoices: 4,
+  peopleFadeOutS: 0.4,
+  // Vehicles (vehiclesCore.ts)
+  indicatorVoices: 6,
+  indicatorMaxDistanceM: 60,
+  indicatorHz: 1.5,
+  vehiclesFadeOutS: 0.5,
+  // Weather (weather.ts)
+  thunderLengthScale: 1.3,
+  // Rain (rain.ts)
+  maxEventsPerEmitterPerFrame: 8,
+  // Music (musicMood.ts)
+  musicFadeS: 2,
 } as const;

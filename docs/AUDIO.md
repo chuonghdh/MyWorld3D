@@ -1,6 +1,6 @@
 # Audio architecture
 
-Reviewed 2026-11-01 at 02b0cdc
+Reviewed 2026-11-09 (Audio specialist, checked against code)
 
 All sound is synthesised with Web Audio (no audio files). Every sound belongs to a scene object (or is a
 non-positional bed), has its own node chain and, when positional, its own `PannerNode` at the object's
@@ -28,8 +28,14 @@ source (osc / noise) -> Emitter.input (gain) -> distance lowpass -> PannerNode (
 - `synth.ts`: `makeNoiseBuffer`, `startLoopingNoise`, `playNoiseBurst`, `playTone`, `createRandom`, `randRange`.
 - `frame.ts`: `AudioFrame`, `SoundSystem`, `SoundSystemFactory` (the contract).
 - `systems.ts`: registry `SOUND_SYSTEM_FACTORIES` (vehicles, people, animals, nature, rain, music, aircraft).
-- `index.ts`: facade used by the app (`init`, `isReady`, `update`, `setSoundEnabled`, volumes, `dispose`).
+- `index.ts`: facade used by the app (`init`, `isReady`, `update`, `setSoundEnabled`, volumes, `getGroupVolumes`, `uiCue`, `getRecordStream`, `dispose`). Re-exports `quietFrame` and `listenerFromCamera`.
+- `mixChain.ts`: master -> limiter -> destination. Shared by the live context and the offline film render.
+- `route.ts`: `routeFrame` decides which frame each system gets (Sound switch, aerial gate, music switch); `quietFrame` and `birdsOnlyFrame` build the reduced frames.
+- `recordTap.ts`: `createRecordTap`, a MediaStream tap after the limiter (created on first `getRecordStream()`).
+- `uiCue.ts`: panel and house/block interface cues (`uiCueParams`, `playUiCue`).
+- `offlineRender.ts`: `renderFilmAudio`, the film audio render (see below).
 - `weather.ts`: positional thunder (`createThunderSounds`), run by the `rain` system.
+- Split helpers (the system files re-export them): `animalsPure.ts` and `animalsVoices.ts` (animals); `musicMood.ts` and `musicVoices.ts` (music); `natureCore.ts` (nature); `peopleCore.ts`, `peopleVoices.ts` and `peopleUmbrella.ts` (people); `vehiclesCore.ts`, `vehiclesEngine.ts` and `vehiclesSignals.ts` (vehicles).
 
 ## Coordinates and listener
 
@@ -142,7 +148,7 @@ Positional unless noted. Distances in metres. Each system's `name` is its regist
 | Wing flaps | 3-6 birds, at most 3 flaps at once | `animals.ts` | `pigeon-scatter` events | wing |
 | Dog bark | each dog within 120 m, at most 3 barking; about once per 900 s, twice as often near a fast vehicle | `animals.ts` | `pedestrian.dog` | dog |
 | Cat meow | `cat-meow` events, at most 3 | `animals.ts` | `lifeEvents` | cat |
-| Leaf rustle | one-shot bursts every 8-12 s from up to 5 trees within 70 m | `nature.ts` (`nature`) | wind >= 1.5 m/s, scaled by wind, gust and season (no constant hiss) | leaves |
+| Leaf rustle | one-shot bursts every 8-12 s; each burst picks 3 of the 5 nearest trees within 70 m | `nature.ts` (`nature`) | wind >= 1.5 m/s, scaled by wind, gust and season (no constant hiss) | leaves |
 | Wind whistle | up to 2 at a time, 15-70 m | `nature.ts` | wind >= 8 m/s | wind |
 | Church bell | 25 m up at the church, within 400 m | `nature.ts` | hour strikes | ambience |
 | Crickets | 22:00-05:00 on the in-app clock only; up to 4 (within 10-60 m); summer full, autumn half, none otherwise; fade out with rain | `nature.ts` | `frame.timeOfDay`, `season`, `rain`; `CRICKETS_ENABLED = true` | ambience |
@@ -150,15 +156,16 @@ Positional unless noted. Distances in metres. Each system's `name` is its regist
 | Rain bed | 4 pink-noise emitters 45-105 m out | `rain.ts` | `rain` > 0.05 | rain |
 | Thunder | one emitter per clap at listener + direction * min(distance, 450), 60 m up; gain x2, length x1.3 | `weather.ts` via `rain.ts` | `frame.thunder` | thunder |
 | Jet pass | each airliner, nearest 2 | `aircraft.ts` (`aircraft`) | `frame.aircraft`; Doppler from radial speed | aircraft |
-| Generative music | none (non-positional) | `music.ts` (`music`) | `musicEnabled` (2 s fade), time of day; ducked to 0.55 for a few seconds after thunder; level 0.8 | music |
+| Generative music | none (non-positional) | `music.ts` (`music`) | `musicEnabled` (2 s fade), time of day; ducked to 0.55 while thunder is in the frame, back to full over 3 s; level 0.8 | music |
 
-Music moods follow the hour: day (about 72 bpm, C major pentatonic), golden (about 54 bpm, F major), night
-(about 38 bpm, D Dorian). They crossfade.
+Music moods follow the hour: day (about 72 bpm, C major pentatonic), golden (about 54 bpm, F major with the 7th),
+night (about 38 bpm, D minor pentatonic). They crossfade.
 
 ## Aerial mode
 
-`index.ts`: when the camera is above 45 m (`AERIAL_HEIGHT_M`), the ground systems get a quiet frame (no
-vehicles, pedestrians, trees, church, life events, horns, wind or night). Rain, thunder, aircraft and music
+`route.ts` (`routeFrame`, called from `index.ts`): when the camera is above 45 m (`AERIAL_HEIGHT_M`, from
+`audio.aerialHeightM`), the ground systems get a quiet frame (no vehicles, pedestrians, trees, church, life events,
+horns, wind or night). The offline film render passes `aerialGate: false`, so a film keeps its ground sound above 45 m. Rain, thunder, aircraft and music
 keep playing. Crickets stay silent (ground-only). The bird system gets only bird-call and pigeon-scatter events (no dogs, no cats). From the
 overview, ground sound is quieter only through distance and the zoom attenuation.
 
@@ -176,6 +183,22 @@ from `aircraft.audioSources()` (pooled); it is empty while the simulation is pau
   frequencies and the filter cutoffs. `JET_GAIN` = `audio.jetGain` (1).
 - Voices fade in over 3 s and out over 2.5 s; a released voice is kept until silent, then disposed. Nothing
   starts when `frame.dt` is 0.
+
+## Panel cues (`uiCue`)
+
+`uiCue('open' | 'close')` (panel and section) and `uiCue('tick')` (house or block switch) are called from
+`src/ui/panelCue.ts`. A clockwork ratchet (`audio.uiCueTicks`, `audio.uiCueDurationS`) on bandpassed noise; the single
+tick uses `audio.uiCueTickLevel`. The cue has its own gain straight to `ctx.destination`: outside master, limiter and
+the record tap, so it is never filmed. Level = `audio.uiCueLevel` x master x effects slider. No-op with Sound off,
+before `init()`, or within `audio.uiCueMinGapS` of the previous cue. Not listened to by ear yet.
+
+## Recording and film audio
+
+- Manual recording: `getRecordStream()` returns the live mix (`recordTap.ts`, after the limiter). Created on first use.
+- Auto film: `src/film/audioSnapshot.ts` stores per-step copies of `AudioFrame` at 20 Hz film time (`fill()` returns
+  pooled objects, so the copy is required). `renderFilmAudio` (`offlineRender.ts`) replays them through the same
+  systems and mix chain at 48 kHz, with seeded `Math.random` and the film aerial gate off. Its peak is scaled to
+  `film.audioPeakTargetDb` (-3 dB). Throws on a silent mix.
 
 ## Tests
 

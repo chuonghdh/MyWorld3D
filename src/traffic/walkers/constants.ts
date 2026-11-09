@@ -1,6 +1,6 @@
 // Constants of the pedestrian simulation: poses, trait bits, body types, states and tuning.
 
-import { trafficLife } from '../../config/tuning';
+import { trafficLife, trafficWalkers } from '../../config/tuning';
 
 /** Pose ids written to PedestrianRender.pose. */
 export const POSE_WALK = 0;
@@ -61,24 +61,24 @@ export const BODY_TEEN = 3;
 export const HAIR_STYLE_COUNT = 10;
 
 /** Hard caps: walkers plus dogs never exceed 600 rendered instances. */
-export const MAX_WALKERS = 480;
+export const MAX_WALKERS = trafficWalkers.maxWalkers;
 
-export const MAX_DOGS = 120;
+export const MAX_DOGS = trafficWalkers.maxDogs;
 
 /** Walkers per road segment at trafficMultiplier 1 at full density. */
-export const WALKERS_PER_ROAD = 22;
+export const WALKERS_PER_ROAD = trafficWalkers.walkersPerRoad;
 
 export const SIDEWALK_Y = 0.15;
 
 export const WAIT_DIST = 0.45; // metres from the corner node where walkers wait (1 m before the curb on a 3 m sidewalk)
 
-export const CROSS_MARGIN = 2.0; // seconds of red that must remain after a crossing is finished
+export const CROSS_MARGIN = trafficWalkers.crossMarginS; // seconds of red that must remain after a crossing is finished
 
-export const GIVE_UP_WAIT = 150; // seconds after which a waiting walker turns back
+export const GIVE_UP_WAIT = trafficWalkers.giveUpWaitS; // seconds after which a waiting walker turns back
 
 export const DOG_CHANCE = trafficLife.dogShare;
 
-export const PAIR_CHANCE = 0.2;
+export const PAIR_CHANCE = trafficWalkers.pairChance;
 
 export const TURN_RATE = 7; // rad/s
 

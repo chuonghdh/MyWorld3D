@@ -269,7 +269,7 @@ export function butterflyCountFor(quality: LifeQuality): number {
 
 /** Bees among n butterflies (one in five). */
 export function beeCountFor(n: number): number {
-  return Math.floor(n * 0.2);
+  return Math.floor(n * trafficLife.beeShare);
 }
 
 

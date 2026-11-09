@@ -14,7 +14,7 @@ Stack: Vite, TS, Three.js, R3F, zustand, vitest.
 - Commit ONLY on user prompt. Append system attribution.
 - Fix root causes. No coplanar geometry. Keep visuals/perf high.
 - Delegate to specialists via message (no respawn).
-- Dependencies: feature modules never import `scene` or `ui`; `core` imports no feature module. Guarded by `tests/layers.test.ts` and `tests/harness.test.ts`. `film` is not yet in the guard (see architect review 2026-11-08).
+- Dependencies: feature modules never import `scene` or `ui`; `core` imports no feature module. Guarded by `tests/layers.test.ts` and `tests/harness.test.ts:56-81`. `film` is not yet in the guard (see architect review 2026-11-08).
 - Layout is deterministic: no `Math.random` in layout code (guarded for core, store, city, streets, buildings, traffic, life, environment, agentRoom). Seeds only. Visual motion uses sim time, never the wall clock.
 - Files in `src/` over 350 lines fail `tests/harness.test.ts`. `OVERSIZED` must stay empty. Tests are not covered. Split by responsibility.
 - Tunable values live ONLY in `src/config/tuning/` (`index.ts` plus per-section files). Feature code imports them. No new knob literals in feature code.

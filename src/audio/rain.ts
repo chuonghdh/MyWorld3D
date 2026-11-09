@@ -15,14 +15,14 @@ export type RainSurface = 'tin' | 'puddle';
 /** Puddle plips are kept quiet: this share of their original level. */
 export const PUDDLE_LEVEL = audioTuning.puddleLevel;
 
-export const RAIN_ON = 0.05;
+export const RAIN_ON = audioTuning.dropRainOn;
 export const MAX_DROP_EMITTERS = audioTuning.maxDropEmitters;
 export const BED_EMITTERS = audioTuning.bedEmitters;
 /** Events are scheduled this far ahead of the audio clock (s). */
 export const LOOKAHEAD = 0.18;
-const MAX_EVENTS_PER_EMITTER_PER_FRAME = 8;
-const MIN_RADIUS = 3;
-const MAX_RADIUS = 60;
+const MAX_EVENTS_PER_EMITTER_PER_FRAME = audioTuning.maxEventsPerEmitterPerFrame;
+const MIN_RADIUS = audioTuning.dropMinRadiusM;
+const MAX_RADIUS = audioTuning.dropMaxRadiusM;
 
 /** How many drop emitters are active for a rain level: light rain few, storm all ten. 0 below RAIN_ON. */
 export function activeEmitterCount(rain: number): number {

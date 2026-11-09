@@ -1,5 +1,5 @@
 # Specialist agents
-Reviewed 2026-11-01 at 02b0cdc
+Reviewed 2026-11-09 at 6343a99 (architect pass; open items at the end)
 
 MyWorld3D is built by a small, fixed team of specialists (eight, including the architect who reviews structure and standards) coordinated by the lead (the main Claude session).
 Each specialist owns directories, keeps a handbook in this folder, and is **reused** for every new task in its area
@@ -12,7 +12,7 @@ instead of spawning a fresh agent. That way what it learned (traps, decisions, c
 | 3 | Traffic & Life | `src/traffic/**`, `src/life/**` | [traffic-life.md](traffic-life.md) |
 | 4 | Sky & Environment | `src/sky/**`, `src/environment/**`, `src/weather/**`, `src/aircraft/**` | [sky-environment.md](sky-environment.md) |
 | 5 | Audio | `src/audio/**`, `src/scene/audioBridge.ts`, `src/ui/SoundMixer.tsx`, `docs/AUDIO.md`, audio tests (`tests/audio*.test.ts`, `tests/helpers/fakeAudio.ts`) | [audio.md](audio.md) |
-| 6 | UI & Camera | `src/ui/**` (except SoundMixer), `src/store/**`, `src/scene/CameraRig.tsx`, `cameraInput.ts`, `cameraDom.ts`, `cameraMath.ts`, `Selection.tsx`, `selectionMath.ts`, block edit (`BlockEditor.tsx`, `blockEditMath.ts`, `blockEditAnchors.ts`) | [ui-camera.md](ui-camera.md) |
+| 6 | UI & Camera | `src/ui/**` (except SoundMixer), `src/store/**`, `src/film/filmClock.ts`, `src/film/autoPath.ts`, `src/scene/CameraRig.tsx`, `cameraInput.ts`, `cameraDom.ts`, `cameraMath.ts`, `cameraMapKeys.ts`, `cameraViewShift.ts`, `pivotMath.ts`, `Selection.tsx`, `selectionMath.ts`, block edit (`BlockEditor.tsx`, `blockEditMath.ts`, `blockEditAnchors.ts`) | [ui-camera.md](ui-camera.md) |
 | 7 | Scene & QA | `src/scene/**` (rest), `src/core/**`, `src/App.tsx`, `src/main.tsx`, `src/dev/treeCompare/**`, `tree-compare.html`, `public/models/**`, `tests/helpers/**`, perf budgets, docs | [scene-qa.md](scene-qa.md) |
 | 8 | Technical Architect | Cross-cutting structure, asset pipeline, performance standards, toolchain (no feature code, except Agent Room by human decision 2026-11-08: `src/agentRoom/**`, `src/config/tuning/agentRoom.*`, `tools/agent-bridge/**`, agent-room.html). Reviews `src/shaders/**` | [architect.md](architect.md) |
 
@@ -72,3 +72,13 @@ Owns / Key files / Conventions / Traps (what bit us, why) / Decisions (and the r
 
 ## Update 2026-11-08 (architect): dependency sync
 - After any dependency bump, or pulling a merge that changes `package-lock.json`, run `npm install`, delete `node_modules/.vite`, and restart Vite. Guarded by `tests/depsSync.test.ts`.
+
+## Open items (architect, 2026-11-09)
+1. Math.random outside the layout guard dirs (tests/harness.test.ts determinism list): `src/scene/useTownFrame.ts:93-94` (leaf drop on a user action, Scene & QA) and `src/ui/HousePanel.tsx:89` (random house pick, UI & Camera). No tuning knob is involved, so no TUNING row. Decide per owner: seed it, or record an exception with a reason.
+2. `src/film/**` is not in the dependency guard (`FEATURES`, tests/harness.test.ts:59). DECIDED by user 2026-11-09: no guard for film. `src/film/autoPath.ts:8` imports `scene/cameraMath`; the code fix is still pending, the guard stays as is.
+3. Designer knobs in traffic, life and audio still outside `src/config/tuning/` (CLAUDE.md rule). Listed as "stays in code" rows in docs/TUNING.md; each owner decides which move.
+4. Film codec: `src/film/recorder.ts:29` uses `avc1.42E028` (H.264 level 3.0); `src/film/autoEncoder.ts:10` uses `avc1.640028` (level 4.0). Check 1080p MediaRecorder in connected Chrome.
+5. Finding 7 (`src/store/io.ts:208` strict version equality, low) and finding 8 (`src/scene/useTownPieces.ts:51` signature stringify, unmeasured) stay open.
+6. Budgets (main 1.9 M, shadow 605 k, sum 2.3 M, 140 draw calls) not re-run. Frame and rebuild time still need connected Chrome. CI has never run on GitHub.
+7. Agent Room subagent binding: SendMessage to a resumed subagent now uses its bound specialist (2026-11-09). Parallel spawns still bind by first-event order; see architect.md 2026-11-09.
+8. Closed 2026-11-09: film owner split is in docs/REPO_MAP.md; `uiCamera.walkSpeed` row fixed in docs/TUNING.md.

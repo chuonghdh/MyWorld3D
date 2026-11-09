@@ -1,12 +1,12 @@
 # UI & Camera specialist
-Reviewed 2026-11-01 at 02b0cdc
+Reviewed 2026-11-09 at 6343a99 (every path, knob, test name, count and store field checked against code)
 
-**Owns:** `src/ui/**` (except `SoundMixer.tsx`, owned by Audio), `src/store/**`, and in `src/scene/`: `CameraRig.tsx`, `cameraInput.ts`, `cameraMath.ts`, `cameraDom.ts`, `Selection.tsx`, `selectionMath.ts`, and block edit (`BlockEditor.tsx`, `blockEditMath.ts`, `blockEditAnchors.ts`). Tests: `ui`, `cameraRig`, `selection`, `store*`, `errorBoundary`.
+**Owns:** `src/ui/**` (except `SoundMixer.tsx`, owned by Audio), `src/store/**`, and in `src/scene/`: `CameraRig.tsx`, `cameraInput.ts`, `cameraMath.ts`, `cameraDom.ts`, `cameraViewShift.ts`, `cameraMapKeys.ts`, `pivotMath.ts`, `Selection.tsx`, `selectionMath.ts`, and block edit (`BlockEditor.tsx`, `blockEditMath.ts`, `blockEditAnchors.ts`). In `src/film/`: clock and path only (`filmClock.ts`, `autoPath.ts`), per `docs/REPO_MAP.md`. Tests: `ui`, `cameraRig`, `selection`, `store*`, `errorBoundary`, `mapMove`, `orbitPivot`, `heightLabel`, `streetKeys`, `sectionState`, `slide`, `goldenHour`, `houseRoof`, and the film tests in `tests/film/`.
 
 ## Key files
-- `ui/TimeBar.tsx` (pause, auto time, analog + digital clock, view switch, photo), `SettingsCity.tsx`, `controls.tsx`, `panels.css` (themed, collapsible panels, dark drop-downs).
+- `ui/TimeBar.tsx` (99 lines: desktop bar and fold; composes `TimeBarControls.tsx` (pause, auto time, view switch, photo), `TimeBarIcons.tsx` (clock text, icons), `TimeBarPhone.tsx` (phone window)), `SettingsCity.tsx`, `controls.tsx`, `panels.css` (12-line `@import` list; rules in `ui/panels/*.css`, plus `carousel.css` and `film.css`: themed, collapsible panels, dark drop-downs).
 - `store/model.ts` (`WorldSettings`, `DEFAULT_SETTINGS`), `store/index.ts` (zustand store; undo/redo removed), `store/merges.ts` (block merge actions), `store/io.ts` (`exportLayout` / `importLayout`, validates every field).
-- `scene/CameraRig.tsx` (263 lines): OrbitControls, zoom to cursor, `setViewOffset` for panel-aware framing, presets, drag-to-start street walk. `scene/cameraInput.ts` holds `useCameraInput` and the `Tween` / `StreetState` types.
+- `scene/CameraRig.tsx` (349 lines, at the 350 cap): OrbitControls, zoom to cursor, view offset for panel-aware framing, presets, drag-to-start street walk. `scene/cameraInput.ts` holds `useCameraInput` and the `Tween` / `StreetState` types. Helpers: `cameraViewShift.ts` (panel view offset), `cameraMapKeys.ts` (`applyMapKeys`), `pivotMath.ts` (pivot and map-move helpers), `cameraDom.ts` (`measureLeftInset`); `cameraMath.ts` (325 lines) holds `clipPlanes`, `streetKeyAxes`, `clampPitch`, `streetLookStep`, `leftPanelInset`, `viewShiftTarget`, `stepViewShift`.
 
 ## Conventions
 - Tunables (defaults, slider ranges, weather-lift rule, day length) live in `src/config/tuning/`, section `uiCamera`. Import them; do not add literals in `store/model.ts` or `ui/SettingsCity.tsx`.
@@ -16,24 +16,25 @@ Reviewed 2026-11-01 at 02b0cdc
 
 ## Traps
 - Camera: near/far tied to the target distance. Camera knobs (`maxDistance` 600 m, `minDistance`, `maxPolarAngle` PI/2.05, `blockEditHeightM`, walk speeds, look sensitivity) are in `src/config/tuning/` section `uiCamera`; `scene/cameraMath.ts` aliases them. The aircraft altitude band reads `maxDistance`.
-- Overview rotates around the map centre; street view is entered by dragging the view switch onto the map (ray to y=0).
-- Keep every file in `src/scene` <= 350 lines. Largest owned file today: `CameraRig.tsx` 263.
+- Overview pivot is the map centre unless a selection is set (pivot follows the selection since 2026-11-06, see below). Street view is entered by dragging the view switch onto the map (ray to y=0).
+- Keep every file in `src/scene` <= 350 lines. Largest owned file today: `CameraRig.tsx` 349 (no room left; the next addition goes to a new file). `cameraMath.ts` 325, `SettingsCity.tsx` 313.
 - Undo/redo was removed (not needed). Save/load (`io.ts`) stays; no UI control calls it yet.
 
 ## Block edit (phase 2)
-- Edit mode by camera height: `BLOCK_EDIT_HEIGHT_M = 200` and `editModeForHeight` in `scene/cameraMath.ts` (only place). `scene/BlockEditor.tsx` checks `camera.position.y` each frame and writes `store.editMode` only on change. `ui/useBlockEdit.ts` clears a selection that no longer fits the mode (house or tree in block mode, house block in house mode). Mode chip bottom centre (`EditModeChip`).
-- Picking in block mode: one invisible plane at `PICK_Y = 150` m (above every roof, below any block-mode camera), mounted only in block mode and not while Move blocks is on. It stops the event (houses, trees, hover do not react), intersects the ray with y = 0 and picks the block by bounds (`scene/blockEditMath.ts`). Drags with more than `TAP_SLOP_PX = 6` px movement are ignored.
+- Edit mode by camera height: `BLOCK_EDIT_HEIGHT_M` (alias of `uiCamera.blockEditHeightM` = 200) and `editModeForHeight` in `scene/cameraMath.ts` (only place). `scene/BlockEditor.tsx` checks `camera.position.y` each frame and writes `store.editMode` only on change. `ui/useBlockEdit.ts` clears a selection that no longer fits the mode (house or tree in block mode, house block in house mode). Mode chip bottom centre (`EditModeChip`, defined in `ui/BlockEditOverlay.tsx`, mounted in `App.tsx`).
+- Picking in block mode: one invisible plane at `uiCamera.pickHeightM` = 150 m (`PICK_Y` in `scene/BlockEditor.tsx`; above every roof, below any block-mode camera), mounted only in block mode and not while Move blocks is on. It stops the event (houses, trees, hover do not react), intersects the ray with y = 0 and picks the block by bounds (`scene/blockEditMath.ts`). Drags with more than `uiCamera.tapSlopPx` = 6 px movement are ignored.
 - Ids: a house-block selection is `{ type: 'block', id: <slot id> }`; monuments keep their content id (as in house mode). Swapped blocks and blocks overridden to monuments cannot merge (`canMerge`).
 - Suggestions: `mergeSuggestions(layout, id, eligible)` in `city/merge.ts` (owned by City & Streets). Grow the current rectangle by one whole strip W/E/S/N, total area and member count capped by `MERGE_MAX_BLOCKS = 4`, all added blocks free house blocks. `grownGroup` gives the full member list.
 - Store: `mergeBlockGroup(group, idsFor)` / `splitMergedBlock(mergedId, idsFor)` commit `settings.blockMerges` together with a remapped `blockOrder` / `baseBlockOrder` (`store/merges.ts`). `idsFor` comes from the UI (`ui/useBlockEdit.ts` uses `getCityLayout`), so the store never calls the city generator. Both are committed in one store update. `swapBlocks` refuses merged blocks of different cell size.
 - DOM icons: `ui/BlockEditOverlay.tsx` registers elements in fixed anchor slots (`scene/blockEditAnchors.ts`, `ANCHOR_SLOTS = 5`: slot 0 = +/-, 1..4 = suggestion chips). BlockEditor projects them each frame with one preallocated vector and writes `transform` only when moved > 0.5 px. Buttons are 44 px.
-- Decals (selected, hovered, suggestions) use `depthTest: false` at `DECAL_Y = 0.3` so they read over roofs like a map overlay.
+- Decals (selected, hovered, suggestions) use `depthTest: false` at `uiCamera.decalHeightM` = 0.3 m (`DECAL_Y`) so they read over roofs like a map overlay.
 - Help overlay (`ui/HelpOverlay.tsx`) has a "Block editing" group: mode by height, chip, +, -.
 - Phones: a block picked in block mode does not auto-open the full-screen panel (it would hide the map icons); Merge in the panel folds it so the suggestion boxes are visible.
 
 ### Block edit traps
 - Merge cost is the scene rebuild, not the layout (`generateCity` ~10 ms). `useTownPieces` used to drop its whole piece cache on every layout change; the cache now survives layouts with the lots and bounds in the signature (file owned by Scene & QA). Measured earlier in dev, warm: 1x1 -> 1x2 ~0.9-1.0 s, 1x2 -> 2x2 ~2.4 s; houses ~17 ms each, streetscape ~170 ms. The edit runs after one paint so the chip shows "Updating blocks...".
 - Vite HMR on hook-order changes throws "Should have a queue" in App/Town; reload the page, it is not a bug.
+- Ownership: `src/film/autoPath.ts` and `src/film/filmClock.ts` are UI & Camera by `docs/REPO_MAP.md`; the `docs/agents/README.md` row 6 does not list them yet (lead to update). `tests/harness.test.ts:59` FEATURES has no `film`, so `src/film/autoPath.ts:8` (imports `scene/cameraMath`) is not guarded. Open for the lead and architect (see architect review 2026-11-08).
 
 ## Boot spinner and error screen
 - `index.html` holds the boot screen inline (markup + CSS, dark body `#1c1816`) so it paints before JS. An inline script turns it into an error panel on `window` error / `unhandledrejection` (and module script `onerror`) while it is still visible.
@@ -43,29 +44,32 @@ Reviewed 2026-11-01 at 02b0cdc
 - Trap: errors in `useFrame` after the first frame are not render errors: the boundary does not see them and the boot screen is gone, so the scene just stops. In dev React also reports boundary-caught errors to `window`, so before the first frame both panels may show the same message.
 
 ## Layering
-- `core` and `store` sit at the bottom. Store runtime imports stay in `core` and `store`; it must not import `city`, `weather`, `scene` or `ui`. `tests/layers.test.ts` checks this (type-only imports are erased and not checked).
+- `core` and `store` sit at the bottom. Store runtime imports stay in `core` and `store`; it must not import `city`, `weather`, `scene` or `ui`. `tests/layers.test.ts` checks runtime imports; `tests/harness.test.ts` (line ~63) also checks type-only imports.
 - `core/blockIds.ts`: block id scheme (house and merged ids, parsers). `tests/layers.test.ts` checks it agrees with `city/merge.ts`.
 - `core/weatherKinds.ts`: `WEATHER_KINDS`, `WeatherKind`; `weather/weatherState.ts` re-exports them.
 - `ui/index.ts` exports the public UI modules. `WALL_COLORS` / `SHUTTER_COLORS` are not exported from `ui/`; `buildings/palette.ts` still defines them for buildings.
+
+- `scene/CameraRig.tsx` is at 349 lines (cap 350). Its input and map-key logic lives in `cameraInput.ts`, `cameraMapKeys.ts`, `cameraViewShift.ts`.
 
 ## Decisions (with reasons)
 - House panel base = `houseBaseFor(layout, id)` (`scene/townBlocks.ts`), so the panel shows the real block values; `DEFAULT_HOUSE_BASE` only when the house is not in the layout.
 - `as-block` is not offered in the Type choices ("Original" covers it). An override saved with `as-block` still shows the block preset in the Type select (`shownPreset` in `HousePanel.tsx`).
 - "New look" skips the shutter override when the block has no shutters (`hasShutters`, from base).
-- `leafAmount` is a 0-1 fraction (`leaves.ts` clamps 0-1; `SettingsCity` shows `round(v*100)%`). Default 1 = 100%.
+- `leafAmount` is a 0-1 fraction (bounds the live leaf count in `src/environment/leaves.ts`; `SettingsCity` shows `round(v*100)%`). Default 1 = 100%.
 - `CameraRig.tsx` input effects live in `scene/cameraInput.ts` to keep the file under the 350-line rule. Behaviour unchanged.
 
 ## Open items
 - Save / load (`io.ts`) has no UI control yet. Undo/redo was removed on user request (no longer needed).
 - `io.ts` `importLayout` rejects any `version` other than `LAYOUT_VERSION` (1). No migration step yet (architect finding 7, low priority). Add a migrate step before the next version bump.
 - Mobile touch pass was done at 390 px; re-check after adding panels.
+- `uiCamera.walkSpeed` (2.5 m/s, `src/config/tuning/uiCamera.ts`) has a parity entry but no row in `docs/TUNING.md`. Architect to add (owner UI & Camera).
 - UX, not implemented: group Settings into Light and season / Weather and wind / Town and traffic / Trees and quality / Effects; group House panel into Shape and Colour; swatch names on hover; camera reset button (push `'overview'` to `runtime.cameraPresetRequests`).
 
 ## How to verify
-`npx vitest run tests/ui.test.ts tests/cameraRig.test.ts tests/selection.test.ts tests/store*.test.ts tests/errorBoundary.test.ts tests/layers.test.ts`, then `npx tsc --noEmit`. Visual checks in connected Chrome only (the built-in pane cannot paint frames).
+Gate: `npm run check` (tsc, lint, vitest, vite build; README rule 5). Focused run while iterating: `npx vitest run tests/ui.test.ts tests/cameraRig.test.ts tests/selection.test.ts tests/store*.test.ts tests/errorBoundary.test.ts tests/layers.test.ts tests/mapMove.test.ts tests/orbitPivot.test.ts tests/heightLabel.test.ts tests/streetKeys.test.ts tests/sectionState.test.ts tests/slide.test.ts tests/goldenHour.test.ts tests/houseRoof.test.ts the film tests in tests/film/`, then `npx tsc --noEmit`. Knob changes also need `tests/tuningParity.test.ts`. Visual checks in connected Chrome only (the built-in pane cannot paint frames).
 
-## Session 2026-11-04 (film camera plan)
-Plan only, no source edits, no commit. Status: proposed, not started. Owner decisions below are proposals for the lead to confirm.
+## Session 2026-11-04 (film camera plan) - HISTORICAL
+Plan only. Status is out of date: the film is built (see the Update 2026-11-04 sections below). Kept for the reasoning. Line numbers, file sizes and the `film: { mode, recording, filmTime }` state shape are obsolete: the live state is `toggles.filming` (`UiToggles`, `store/model.ts`) and the auto clock in `film/filmClock.ts`.
 
 ### Decisions (proposed)
 - **Camera button** goes in `ui/TimeBar.tsx` next to `PhotoButton` (desktop bar ~304-324, phone window `COUNT` at ~219). `TimeBar.tsx` is 325 lines: put the button and picker in a new `ui/FilmButton.tsx` and `ui/FilmPicker.tsx` so TimeBar stays under 350.
@@ -116,7 +120,7 @@ Knobs only: `filmDurationS`, `filmFps`, quality presets (`{ bitrateBps, fps }` p
 ## Update 2026-11-06 (ui-camera): simpler film picker
 - `FilmPicker.tsx`: mode labels "Follow You" (manual) and "Follow a Bird" (auto); internal mode names unchanged. Headings and description text removed; Auto shows only the toggle. Primary button "Record" (was Start).
 - Disable reasons: one line (`.mw-film-error`, nowrap + ellipsis, full text in `title`), only when the current mode cannot record. The Auto toggle carries its reason as a tooltip when disabled.
-- Known: "Window size" option reads the first `<canvas>` in the DOM and showed 300 x 150 in Chrome (not the 3D canvas). Not fixed here.
+- Known (fixed 2026-11-06, see the fix below): "Window size" option read the first `<canvas>` in the DOM and showed 300 x 150 in Chrome (not the 3D canvas).
 - Auto film verified 2026-11-06: simTime - filmTime constant through the run, frameloop 'never'.
 - 2026-11-06 follow-up: Follow a Bird shows the same Length and Output rows read-only (`film.autoSeconds`, Full HD only, fieldset `.is-fixed` at opacity 0.7), so the picker keeps the same height (measured 257.7 px in both modes).
 - 2026-11-06 fix: "Window size 300 x 150" bug. Root cause: `FilmPicker.windowSize()` and `filmSession.startManualFilm` used `document.querySelector('canvas')`, which can return a non-3D canvas. Both now use `film/resizeBridge.ts` `filmCanvas()` / `filmViewSize()` (the renderer `domElement` registered by PostFX). Tests in `tests/film/resizeBridge.test.ts`. Live Chrome check pending (extension was disconnected).
@@ -192,7 +196,7 @@ Checked against source at HEAD 6b036e4 (branch feat/agent-working-room) with Gre
 - Store: no undo/redo in `src/store`. `store/io.ts` `LAYOUT_VERSION = 1` (l.20), `drizzle` -> `cloudy` (l.114), version check (l.208). `exportLayout` / `importLayout` are called nowhere in `src/ui` (no UI control).
 - Traps: `scene/cameraMath.ts` aliases the knobs (l.25-35); aircraft band reads `uiCamera.maxDistance` (`aircraft/schedule.ts:11`); `.mw-select` solid background and `color-scheme: dark` (`ui/panels/sections.css:284-288`); `?mwThrow=render` gated by DEV (`scene/FirstFrame.tsx:14`); Help "Block editing" group (`ui/HelpOverlay.tsx:80`).
 - Boot: `index.html` inline boot styles on `#1c1816`; `ui/boot.ts` `FADE_MS = 450` (l.6) and `bootDone`; `main.tsx` wraps `<App/>` in `ErrorBoundary`; message capped at 400 chars (`ui/ErrorBoundary.tsx:19`); `tests/errorBoundary.test.ts` uses `renderToString`.
-- Tests named in the handbook exist: `ui`, `cameraRig`, `selection`, `store`, `errorBoundary`, `layers`, `mapMove`, `orbitPivot`, `heightLabel`, `streetKeys`, `sectionState`, `slide`, `goldenHour`, `houseRoof`, `tests/film/autoRun.test.ts`, `tests/film/resizeBridge.test.ts`. Test "panel view shift glide" at `tests/cameraRig.test.ts:155`.
+- Tests named in the handbook exist: `ui`, `cameraRig`, `selection`, `store`, `errorBoundary`, `layers`, `mapMove`, `orbitPivot`, `heightLabel`, `streetKeys`, `sectionState`, `slide`, `goldenHour`, `houseRoof`, and the film tests in the `tests/film/` folder. Test "panel view shift glide" at `tests/cameraRig.test.ts:155`.
 - Helpers named in the 11-06 updates exist: `stepViewShift` (`cameraMath.ts:309`), `applyMapKeys` (`cameraMapKeys.ts:13`), `pivotForSelection`, `stepPivotGlide`, `mapMoveAxis`, `moveCameraAlong`, `mapLookAxes`, `mapMoveSpeedAt` (all `scene/pivotMath.ts` or `CameraRig.tsx`), `leftPanelInset` / `measureLeftInset` (`scene/cameraDom.ts`), `applyGoldenHour` (`ui/goldenHour.ts`), `shownShutter` (`ui/houseRoof.ts:31`), `startAutoFilm` (`ui/filmSession.ts:217`), `startAutoFilmClock` (`film/filmClock.ts`).
 - Every `uiCamera` key has a `tests/tuningParity.test.ts` entry except `overviewDirection` (checked by fragment, l.385).
 
@@ -217,3 +221,10 @@ Checked against source at HEAD 6b036e4 (branch feat/agent-working-room) with Gre
 - Visual and UX claims (carousel, slide timing, panel glide, swatch grid, boot fade on device) are not checked: no Chrome run.
 - Test pass/fail status and the `npm run check` result were not run (per the review instructions).
 - Phone-width (390 px) and "Window size" fix statements are not re-checked.
+
+## Review 2026-11-09 (UI & Camera): claims vs code at 6343a99
+- Fixed in the body: CameraRig.tsx 349 lines (was 263); TimeBar.tsx split (99 lines + three helpers); PICK_Y, TAP_SLOP_PX, DECAL_Y are `uiCamera` knobs; BLOCK_EDIT_HEIGHT_M is an alias of `uiCamera.blockEditHeightM`; EditModeChip lives in `ui/BlockEditOverlay.tsx`; `leftPanelInset` is in `scene/cameraMath.ts` (not cameraDom); layering wording (harness.test.ts checks type imports); overview pivot wording; film plan marked historical; Owns and Tests lists extended; `npm run check` named as gate; "Window size" marked fixed.
+- Verified, no change: files and helpers in the 11-06 and 11-08 updates; store fields (`selected`, `setSelected`, `editMode`, `DEFAULT_TOGGLES`, `LAYOUT_VERSION = 1`, drizzle -> cloudy); no undo/redo in `src/store`; `MERGE_MAX_BLOCKS = 4`, `ANCHOR_SLOTS = 5`; `.mw-select` solid bg and `color-scheme: dark` (`ui/panels/sections.css`); `?mwThrow=render` DEV gate; FADE_MS 450; 400-char cap; `aircraft/schedule.ts:11`; every `uiCamera` key has a tuning parity reference in `tests/`; all named test files exist.
+- Not verified: visual and UX claims; test pass status; the leaves clamp detail; `startAutoFilm` line 217 (exists, async).
+- Open (not in this file): see report to lead (README row 6 ownership, harness FEATURES `film`, `HousePanel.tsx:89` Math.random, TUNING rows).
+- 2026-11-09 fix: `ui/HousePanel.tsx` New look used `Math.random` and wrote the pick into the stored house override. Now seeded: `hashSeed(houseId, 'newLook', clicks)` with `makeRng` (`buildings/facade/rng.ts`), click count per house in a ref (not saved). Open item above removed.

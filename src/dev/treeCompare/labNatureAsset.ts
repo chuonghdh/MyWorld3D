@@ -104,21 +104,7 @@ export function natureAssetFromGltf(
     metalness: 0,
     flatShading: true,
   });
-  const snowLeafMat = new THREE.MeshStandardMaterial({
-    name: type.file + '-snow-leaves',
-    color: SNOW,
-    alphaTest: 0.5,
-    side: THREE.DoubleSide,
-    roughness: 0.9,
-    metalness: 0,
-    flatShading: true,
-  });
-  if (uniforms) {
-    applyWindSway(snowMat, uniforms);
-    applyWindSway(snowLeafMat, uniforms);
-  }
+  if (uniforms) applyWindSway(snowMat, uniforms);
   const snowBark = snowCap(bark);
-  // Conifers: no snow geometry. Snow comes from the weather shader on the leaf material (upward faces).
-  const snowLeaves = type.evergreen ? null : snowCap(leaves);
-  return { type, bark, leaves, islands, barkMat, leafMat, snowBark, snowLeaves, snowMat, snowLeafMat };
+  return { type, bark, leaves, islands, barkMat, leafMat, snowBark, snowMat };
 }

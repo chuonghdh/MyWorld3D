@@ -4,6 +4,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import * as THREE from 'three';
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
+import { cityStreets } from '../config/tuning';
 import type { CityLayout } from '../city/layout';
 import type { Season } from '../core/types';
 import { createTreeField, type TreeField } from '../environment/forest';
@@ -30,8 +31,8 @@ export function natureOverridesFor(treeOverrides: Record<string, TreeOverride>):
   return { types };
 }
 
-/** Scale of the procedural fallback trees, as the scene used before the Quaternius trees. */
-const FALLBACK_TREE_SCALE = 1.35;
+/** Scale of the procedural fallback trees: the designer knob shared with the city trees. */
+const FALLBACK_TREE_SCALE = cityStreets.treeScale;
 
 const assetCache = new WeakMap<WindUniforms, Promise<NatureAsset[]>>();
 

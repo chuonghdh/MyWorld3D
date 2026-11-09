@@ -20,6 +20,34 @@ describe('hook mapping', () => {
     expect(sub[1]).toMatchObject({ kind: 'file_touch', path: 'src/audio/x.ts', owner: 'audio' });
   });
 
+  it('SendMessage to a resumed subagent id routes to the specialist that subagent is bound to', () => {
+    const m = createHookMapper('live');
+    m.map({ hook_event_name: 'PreToolUse', session_id: 'main', tool_name: 'Agent', tool_input: { description: 'Traffic & life pass', prompt: SECRET } }, 1);
+    m.map({ hook_event_name: 'PreToolUse', session_id: 'main', agent_id: 'sub-t', tool_name: 'Read', tool_input: { file_path: 'src/traffic/x.ts' } }, 2);
+    const sm = m.map({ hook_event_name: 'PreToolUse', session_id: 'main', tool_name: 'SendMessage', tool_input: { to: 'sub-t', message: SECRET } }, 3);
+    expect(sm.find((e) => e.kind === 'delegate')).toMatchObject({ to: 'traffic-life', via: 'SendMessage' });
+    expect(JSON.stringify(sm)).not.toContain(SECRET);
+  });
+
+  it('a spawn result that names the agent id binds it by the call name, not by queue order', () => {
+    const m = createHookMapper('live');
+    const agentCall = (name: string, t: number) =>
+      m.map({ hook_event_name: 'PreToolUse', session_id: 'main', tool_name: 'Agent', tool_input: { name, description: name, prompt: SECRET } }, t);
+    agentCall('audio', 1);
+    agentCall('traffic-life', 2);
+    m.map({ hook_event_name: 'PostToolUse', session_id: 'main', tool_name: 'Agent', tool_input: { name: 'traffic-life' }, tool_response: { agentId: 'sub-t' } }, 3);
+    expect(m.map({ hook_event_name: 'PreToolUse', session_id: 'main', agent_id: 'sub-t', tool_name: 'Read' }, 4)[0]!.agent).toBe('traffic-life');
+    // the traffic-life pending entry was consumed, so the next unknown subagent takes the oldest left: audio
+    expect(m.map({ hook_event_name: 'PreToolUse', session_id: 'main', agent_id: 'sub-u', tool_name: 'Read' }, 5)[0]!.agent).toBe('audio');
+  });
+
+  it('a subagent with no delegation is lead until a file under a specialist owner names it', () => {
+    const m = createHookMapper('live');
+    expect(m.map({ hook_event_name: 'PreToolUse', session_id: 'main', agent_id: 'sub-f', tool_name: 'Bash', tool_input: {} }, 1)[0]!.agent).toBe('lead');
+    expect(m.map({ hook_event_name: 'PreToolUse', session_id: 'main', agent_id: 'sub-f', tool_name: 'Read', tool_input: { file_path: 'src/audio/x.ts' } }, 2)[0]!.agent).toBe('audio');
+    expect(m.map({ hook_event_name: 'PreToolUse', session_id: 'main', agent_id: 'sub-f', tool_name: 'Bash', tool_input: {} }, 3)[0]!.agent).toBe('audio');
+  });
+
   it('unmatched subagents attribute to the lead and are counted; any main session is the lead', () => {
     const m = createHookMapper('live');
     m.map({ hook_event_name: 'SessionStart', session_id: 'main' }, 1);

@@ -16,7 +16,7 @@ import type { SpotSet } from './spots';
 import { claim, pigeonUpdate } from './pigeonMotion';
 import { flockUpdate, leaderAt } from './flockMotion';
 
-export const SCARE_RADIUS = 4;
+export const SCARE_RADIUS = trafficLife.scareRadiusM;
 const PIGEON_SCALE = 1.6;
 
 export const PERCH = 0;
@@ -171,9 +171,9 @@ interface FlockDef {
 }
 
 export const FLOCK_DEFS: FlockDef[] = [
-  { kind: 0, count: 25, alt: 26, speed: 9 },
-  { kind: 1, count: 25, alt: 35, speed: 10.5 },
-  { kind: 2, count: 25, alt: 44, speed: 8.5 },
+  { kind: 0, count: trafficLife.flockBirdsPerLoop, alt: trafficLife.flockAltM[0], speed: trafficLife.flockSpeedMps[0] },
+  { kind: 1, count: trafficLife.flockBirdsPerLoop, alt: trafficLife.flockAltM[1], speed: trafficLife.flockSpeedMps[1] },
+  { kind: 2, count: trafficLife.flockBirdsPerLoop, alt: trafficLife.flockAltM[2], speed: trafficLife.flockSpeedMps[2] },
 ];
 export const FLYER_SCALE = 2.6;
 export const GULL_SCALE = 4.2;
@@ -239,7 +239,7 @@ export class FlockSystem {
       this.flockN.push(c);
       total += c;
     }
-    const gulls = quality === 'low' ? 1 : 2;
+    const gulls = quality === 'low' ? trafficLife.gullsLow : trafficLife.gullsHigh;
     this.flockStart.push(total);
     this.flockN.push(gulls);
     total += gulls;

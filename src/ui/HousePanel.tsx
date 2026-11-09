@@ -1,4 +1,5 @@
-import { useEffect } from 'react';
+import { useEffect, useRef } from 'react';
+import { hashSeed, makeRng } from '../buildings/facade/rng';
 import { HOUSE_SHUTTER_OPTIONS, HOUSE_WALL_OPTIONS, MIN_FLOORS, maxFloorsFor } from '../buildings';
 import { useWorldStore } from '../store';
 import { HOUSE_PRESETS, HOUSE_STYLES, ROOF_TYPES, type HouseOverride, type RoofType } from '../store/model';
@@ -70,6 +71,8 @@ export function HousePanel({ houseId, base, onAction }: HousePanelProps) {
   const clearOverride = useWorldStore((st) => st.clearOverride);
   const thumbs = useHouseThumbs((st) => st.thumbs);
   const requestThumbs = useHouseThumbs((st) => st.request);
+  // New look click count per house (not saved): keeps each seeded pick different.
+  const lookClicks = useRef<Record<string, number>>({});
   // Thumbnails are rendered once on demand (scene/houseThumbs.ts); placeholders show until each arrives.
   useEffect(() => {
     requestThumbs();
@@ -86,7 +89,10 @@ export function HousePanel({ houseId, base, onAction }: HousePanelProps) {
   const patch = (p: HouseOverride) => setOverride(target, p);
 
   const newLook = () => {
-    const pick = <T,>(list: readonly T[]) => list[Math.floor(Math.random() * list.length)];
+    // Seeded per house and click count: the pick is stored in the layout override, so it must be reproducible.
+    const clicks = (lookClicks.current[houseId] = (lookClicks.current[houseId] ?? 0) + 1);
+    const rng = makeRng(hashSeed(houseId, 'newLook', clicks));
+    const pick = <T,>(list: readonly T[]) => list[Math.floor(rng() * list.length)];
     const look: HouseOverride = { wallColor: pick(HOUSE_WALL_OPTIONS), roof: pick(ROOF_TYPES) };
     // A shutter colour only when the type can carry shutters.
     if (shutter.show) look.shutterColor = pick(HOUSE_SHUTTER_OPTIONS);

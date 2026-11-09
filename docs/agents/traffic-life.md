@@ -1,12 +1,12 @@
 # Traffic & Life specialist
 
-Reviewed 2026-11-01 at 02b0cdc
+Reviewed 2026-11-01 at 02b0cdc. Paths, line refs and hashes corrected 2026-11-09 (see Review 2026-11-08 and Update 2026-11-09).
 
 **Owns:** `src/traffic/**` (vehicles, lights, pedestrians, parking, collision, car snow and headlights) and `src/life/**` (pigeons, flocks, cats, squirrels, butterflies, birds) with their tests.
 
 ## Key files
-- `traffic/vehicles.ts`: the `VehicleSystem` class (public API, step, horns, turn-decision hook; 314 lines). `traffic/lights.ts` (signals, all-red gap), `traffic/pedestrians.ts` (the `Pedestrians` class), `collision.ts` (OBB sweep), `parking.ts`.
-- `traffic/vehicleMeshes.ts`: car shader patch (`vehicle-shader-v2`), headlights, snow (`setSnow`).
+- `traffic/vehicles.ts`: the `VehicleSystem` class (public API, step, horns, turn-decision hook; 320 lines). `traffic/lights.ts` (signals, all-red gap), `traffic/pedestrians.ts` (the `Pedestrians` class), `collision.ts` (OBB sweep), `parking.ts`.
+- `traffic/vehicleMeshes.ts`: vehicle mesh layer, headlight level, snow (`setSnow`). Shader patch (`vehicle-shader-v2`) in `traffic/vehicleShader.ts`; headlight glow pools in `traffic/vehicleGlow.ts`.
 - `traffic/vehicleSurfaces.ts`: car-roof boxes, exported but not wired (see Open items).
 
 ## Module map (split for size, no behaviour change)
@@ -15,7 +15,7 @@ Hashes and tests are unchanged by the split. The class files keep their public A
 Vehicles (`src/traffic/vehicles/`):
 - `types.ts`: render, path, vehicle and stop-line types.
 - `constants.ts`: tuning constants, `VEHICLE_SPECS`, class footprints, `TURN_LEFT_CHANCE` / `TURN_RIGHT_CHANCE` (0.2 each), `HORN_*`.
-- `geometry.ts`: pure lane geometry (fillets, path extension, arc length, poses, arm bits, path openness).
+- `geometry.ts`: pure lane geometry (fillets, path extension, arc length, poses, arm bits, path openness: `pathOpenness`).
 - `build.ts`: `setupSystem` (lane paths, stop lines, turn connectors, junction arms via `buildArms`).
 - `junctions.ts`: junction grants, movement conflicts, `gateOpen`.
 - `turns.ts`: `decideTurn` (the manoeuvre roll over the moves that exist).
@@ -24,22 +24,22 @@ Vehicles (`src/traffic/vehicles/`):
 - `spawn.ts`: `create`, `release`, `trySpawns`, `isFree`, class and variant picks.
 - `render.ts`: `getVehicles` (render records for the mesh layer).
 - `horns.ts`: `tryHorn` and `takeHorns` (cooldown, city-wide gap, queue). `VehicleSystem` methods delegate here.
-- Existing: `builder.ts`, `models.ts` (448 lines, not split: model geometry), `variants.ts`.
+- Models: `models.ts` (cars, van, scooter; 302 lines), `modelsHeavy.ts` (bus, truck; 160 lines). Also `builder.ts`, `variants.ts`.
 
 Pedestrians (`src/traffic/walkers/`):
 - `types.ts`, `constants.ts`, `density.ts` (`DENSITY_CURVE`, `crowdDensityAt`, `redRemaining`), `graph.ts` (`buildGraph`), `setup.ts`, `looks.ts` (`createPeople`, speed by age and sex, hair), `movement.ts`, `behaviour.ts` (benches, looking, chatting, doors), `resolve.ts` (per-step state resolution), `output.ts` (`getPedestrians`).
-- Sizes: all new files are at most 283 lines (`walkers/movement.ts`); `vehicles.ts` is 314 lines; `pedestrians.ts` is 281 lines.
+- Sizes: all new files are at most 283 lines (`walkers/movement.ts`); `vehicles.ts` is 320 lines; `pedestrians.ts` is 281 lines.
 
 ## Conventions
 - Determinism: the main simulation hash must not change when optional systems change. Horns use a separate RNG (`hornRng`); read-or-not of horns must not alter vehicles (tested).
 - Per-frame code allocates nothing; render structs are pooled.
-- Hashes: `EXPECTED_VEHICLES` = `b0d22ec1` and `EXPECTED_PEDESTRIANS` = `499b5c20` (`tests/traffic.determinism.test.ts`). Re-capture only for intentional changes, and say why.
+- Hashes: `EXPECTED_VEHICLES` = `b0d22ec1` and `EXPECTED_PEDESTRIANS` = `63333cfb` (`tests/traffic.determinism.test.ts`). Re-capture only for intentional changes, and say why.
 
 ## Traps
 - Vehicles spawn at the map border with a long edge extension (default 28 m); tests that need the old numbers pass `edgeExtension: 0`.
 - Junction: first come first served with a movement-conflict matrix; a jam is broken by backing up, then a "ghost" pass (overlap accepted as a last resort).
 - Lanes sit close to the road centre line to avoid overlap with parked cars.
-- Pedestrian timing tests (`tests/people.test.ts`, `tests/audioPeople.test.ts`) are flaky under load: rerun alone.
+- Pedestrian timing tests (`tests/people.test.ts` timing blocks, `tests/audioPeople.test.ts`) are flaky under load: rerun alone. The 600-walker perf test was reduced to the default crowd on 2026-11-09.
 - Crowd and traffic density: see "Time-of-day density" below (replaces the old 8:30/17:30 rush-hour curve).
 - Snow in three r170 `color_vertex` runs before `beginnormal_vertex`. Snow code that reads the final normal or `color` must sit in the normal chunk (`NORMAL_SPIN`), after the normal is set. Placing it earlier reads stale values or fails compile ("objectNormal undeclared", the cause of the phase 2 car-invisible bug).
 - Any change to the vehicle shader interface needs a `vehicle-shader-v2` cache key bump (new `uSnow` uniform and varyings).
@@ -49,7 +49,7 @@ Pedestrians (`src/traffic/walkers/`):
 - Turns: 60% straight, 20% left, 20% right. Yellow: a vehicle past the stop line continues; behind it stops (queues behind a leader). Green needs a clear crosswalk.
 - Horns (`vehicles/constants.ts`, `horns.ts`): 45 s per-vehicle cooldown, 6 s city-wide gap, 50% coin flip, honk on pedestrians holding a green or hard braking.
 - People morph: male and female shapes must emit identical vertex counts and order (RigBuilder skips degenerate triangles, so any zero-size part breaks it; `buildPerson` throws). Only x/z may change: a depth change on the stooped elder torso turns into a height change (y), so torso depth is shared.
-- Dog trail: candidate spots are tried until one is off the asphalt (test "never stands on asphalt").
+- Dog trail: candidate spots are tried until one is off the asphalt (test "never stands on asphalt outside a crosswalk" in `tests/people.test.ts`; asphalt check also `tests/blockMergeTraffic.test.ts:191-193`).
 - Child pairs: the adult (leader) walks at the child's own base pace; the child's rendered speed wobbles +-25 percent (render only). Pair ids are consecutive (follower id = leader id + 1), and a child is always a follower. The pace test relies on this.
 - People (2026 overhaul): four age groups (adult, teen, child, elder), one mesh each, sexes by morph. Draw calls: main 6 to 7, shadow 5 to 6.
 - Hair: 10 styles. Women (teens and up): 90% long, 10% short. Elders mostly grey or white.
@@ -59,9 +59,9 @@ Pedestrians (`src/traffic/walkers/`):
 - No dresses and no ao dai: removed at the user's final decision.
 - Patterned tops: 70% of walkers, six patterns, drawn in the fragment shader from the model position (no textures, no draw calls). Coats and bare sleeves stay plain.
 - The avenue-versus-street density test averages six seeds; the threshold is 1.15.
-- Headlights: per-car. `headlightThreshold(id)` (`vehicleMeshes.ts:49`) is a seeded hash of the id in [0,1); a car is lit when the headlight level exceeds it. Glow pool count adds only for lit cars; brake pools unaffected.
+- Headlights: per-car. `headlightThreshold(id)` (`vehicleMeshes.ts:51`) is a seeded hash of the id in [0,1); a car is lit when the headlight level exceeds it. Glow pool count adds only for lit cars; brake pools unaffected.
 - Windscreen frost clears a fixed disc (radius 1.0 at x = +-0.45, y = 1.45, object space); not tied to wiper state.
-- Snow on cars: `setSnow(level)` on `VehicleMeshes` and `TrafficMeshes` (`traffic/meshes.ts`), called from `scene/useTownFrame.ts:107` with `wx.snow`. The module owns `uniforms.snow`; it does not import `shaders/wetSurface`.
+- Snow on cars: `setSnow(level)` on `VehicleMeshes` and `TrafficMeshes` (`traffic/meshes.ts`), called from `scene/useTownFrame.ts:111` with `wx.snow`. The module owns `uniforms.snow`; it does not import `shaders/wetSurface`.
 - Horn logic lives in `vehicles/horns.ts`. `VehicleSystem` methods delegate, so the API is unchanged.
 - Snow caps on cars: the snow code moved into `NORMAL_SPIN` (replaces `#include <beginnormal_vertex>`), with uniform `mat3 snowInst` and varyings `vSnowUp`, `vFrontGlass`.
 
@@ -78,7 +78,6 @@ Pedestrians (`src/traffic/walkers/`):
 - Car-roof leaf landing (`vehicleSurfaces`) is not wired; wire only when the user asks. Keep the boxes in `SurfaceBox` shape so leaf code does not change. Verify shader compile in a standalone renderer, not by eye (the built-in pane cannot paint frames).
 - Wiper disc is static; parked wipers still clear the glass. Acceptable approximation, not verified by eye.
 - Verified only by eye at street level in one close-up (faces, hair cap). Coat tails, hair variety and the morph were not checked by eye after the latest changes.
-- `vehicleMeshes.ts` is the next split candidate: shader patch and glow mesh could move to `vehicles/` modules.
 - Per-person triangles could be cut by moving hair and garments into their own instanced meshes (more draw calls). Not done.
 
 ## Verify
@@ -98,7 +97,7 @@ Pedestrians (`src/traffic/walkers/`):
 - Curve [hour, value]: 0-5 flat 0.20; 6 0.35; 7 0.55; 8 0.75; 9 0.90; 10 0.97; 11 1.00 (peak); 12 0.90; 13 0.80; 15 0.70 (dip); 16 0.78; 17 0.88; 18 0.95; 19 1.00 (peak); 20 0.90; 21 0.70; 22 0.45; 23 0.20; 24 = 0.20.
 - Vehicles: `VehicleSystem.density` set by `update(dt, { timeOfDay })`. Spawn timer divides by `max(0.25, multiplier) * density`. Spawn is refused while `total >= capacity * density`, so cars leave and are not replaced at night (no popping). `capacity` itself is unchanged.
 - Vehicles without a clock (`timeOfDay` option or `update` env omitted) keep density 1. Vehicle determinism hash `b0d22ec1` is unchanged.
-- Walkers: `crowdDensityAt` in `walkers/density.ts` is an alias of `trafficDensityAt`. Density gates the walker rank threshold, so the visible crowd follows the curve.
+- Walkers: `crowdDensityAt` in `walkers/density.ts` is a re-export of `trafficDensityAt`. Density gates the walker rank threshold, so the visible crowd follows the curve.
 - Decision: one curve for both systems, in `src/traffic` (not the store). Floor 0.2, not 0, so night still has some traffic and people.
 - Decision: density is a clock input, not a stored value. `useTownFrame` passes `settings.timeOfDay` each frame.
 - Determinism: pedestrian hash `EXPECTED_PEDESTRIANS` re-captured to `a8684131` (intentional: the curve changed).
@@ -107,22 +106,22 @@ Pedestrians (`src/traffic/walkers/`):
 
 ## Tuning rule (step 6)
 - Rule: traffic and life knobs live in `src/config/tuning/` (`trafficLife`). Feature files import them; geometry and algorithm constants stay local. Moved: density floor, vehicles per path, spawn min/max, turn odds and turn speeds, horn cooldown/global gap/chance, dog share, pigeon/cat/squirrel/butterfly counts. Each moved value has a parity entry in `tests/tuningParity.test.ts`.
-- Open: cruise speeds (`VEHICLE_SPECS`) and walker caps stay local. `docs/TUNING.md` location cells still point at the old files.
+- Update 2026-11-09: cruise speeds, walker caps, horn queue and distances, flock and gull counts moved to config (see the 2026-11-09 config update below). `docs/TUNING.md` location cells still point at the old files.
 
 ## Session 2026-11-04 (film bird plan)
 Plan only, no source edits. Auto film mode: a carrier bird flies high over the town, circles the town and the cathedral, descends along a street, tilts to the sun or moon, returns and perches opposite the cathedral front.
 
 **Existing birds (`src/life/birds.ts`)**
-- `PigeonSystem` (line 30): 80 pigeons (`trafficLife.pigeonCount`), states PERCH/PECK/WALK/SCARED/CLIMB/CIRCLE/LAND (20-28). Ground spots from sidewalks and open space, roof spots from `roofSpots` (`spots.ts:99`, height `roofHeight` :28). Scared by any vehicle or pedestrian within 4 m in XZ (`SCARE_RADIUS` :17, check :222-263, every 5th frame).
-- `FlockSystem` (line 469): three closed loops (`FLOCK_DEFS` :460, 25 birds each at alt 26/35/44 m) plus gulls (1 or 2, :529). Loops in `leaderAt` (:604). No disturbance input.
-- Determinism: seeded RNGs (:82-83, :515) and dt-integrated state (dt clamped to 0.1, :205). Pigeon RNG is drawn per frame (:215). So birds are a function of seed and frame/dt history, not of `simTime`. `life.test.ts:41-56` checks same seed plus same dt sequence only.
-- Draw calls: 5 instanced meshes (`life/index.ts` stats). Pigeon 150-250 tris (`life.test.ts:236`), all life under the 40k cap (flyer tri count not measured yet). Life meshes never set `castShadow` (only monuments do, `useTownPieces.ts:66`, `buildings.ts:104`). `budget.test.ts:7-9` excludes birds from the static estimate.
-- Ctx: `LifeContext.camera` is passed (`useTownFrame.ts:157`) but birds ignore it (only `pets.ts:180` reads it).
+- `PigeonSystem` (line 32): 80 pigeons (`trafficLife.pigeonCount`), states PERCH/PECK/WALK/SCARED/CLIMB/CIRCLE/LAND (20-28). Ground spots from sidewalks and open space, roof spots from `roofSpots` (`spots.ts:99`, height `roofHeight` :28). Scared by any vehicle or pedestrian within 4 m in XZ (`SCARE_RADIUS` in `birds.ts:19`; scare logic in `life/pigeonMotion.ts`, `scare` :61, check around :99, every 5th frame).
+- `FlockSystem` (line 182): three closed loops (`FLOCK_DEFS` :173, 25 birds each at alt 26/35/44 m) plus gulls (1 or 2, :529). Loops in `leaderAt` (`life/flockMotion.ts:10`). No disturbance input.
+- Determinism: seeded RNGs (`birds.ts:84-85`, `:227-228`) and dt-integrated state (dt clamped to 0.1, :205). Pigeon RNG is drawn per frame (:215). So birds are a function of seed and frame/dt history, not of `simTime`. `life.test.ts:41-56` checks same seed plus same dt sequence only.
+- Draw calls: 5 instanced meshes (`life/index.ts` stats). Pigeon 150-250 tris (`life.test.ts:226`), all life under the 40k cap (flyer tri count not measured yet). Life meshes never set `castShadow` (only monuments do, `useTownPieces.ts:69`; `buildings.ts:104` not found, unverified). `budget.test.ts:7-9` excludes birds from the static estimate.
+- Ctx: `LifeContext.camera` is passed (`useTownFrame.ts`, life update call) but birds ignore it (only `pets.ts:180` reads it).
 
 **Recommendation: dedicated film carrier, reuse only the visuals**
 - Do not reuse `PigeonSystem` or `FlockSystem`: they are stateful, consume RNG per frame, scare-test against vehicle and pedestrian lists, and have closed loops, not a film path.
 - Add `src/life/filmBird.ts` (or src/scene/filmCarrier.ts (planned)): pure `poseAt(filmT) -> {position, heading, pitch, roll}` from a piecewise path (Catmull-Rom or analytic arcs) built once from the layout. No RNG, no `dt` integration.
-- Visual: `buildFlyerGeometry` + `createAnimalMaterial('flyer')` + `attachAnim` + `setPose` (`common.ts`) into one `InstancedMesh(count 1)` that lives outside `life.group`. This keeps the life test (`<= 6` meshes, `life.test.ts:236`) intact. Perch: `buildPigeonGeometry` at a larger scale. Carrier casts no shadow (`fitSunShadow` reads the camera, `useTownFrame.ts:116`, so camera jumps already move the shadow frustum).
+- Visual: `buildFlyerGeometry` + `createAnimalMaterial('flyer')` + `attachAnim` + `setPose` (`common.ts`) into one `InstancedMesh(count 1)` that lives outside `life.group`. This keeps the life test (`<= 6` meshes, `life.test.ts:236`) intact. Perch: `buildPigeonGeometry` at a larger scale. Carrier casts no shadow (`fitSunShadow` reads the camera, `useTownFrame.ts:120`, so camera jumps already move the shadow frustum).
 - Trade-off: a separate rig costs 1 draw call in film mode only, is replayable from the film clock, and touches no existing RNG. Reusing the bird would tie film timing to frame dt and to the life RNG.
 
 **Traffic and pedestrians**
@@ -153,10 +152,10 @@ Plan only, no source edits. Auto film mode: a carrier bird flies high over the t
 1. Path clips roofs or street furniture in narrow streets: per-segment clearance test with a margin, altitude fallback to a higher route.
 2. Carrier looks like it hits flocks (23-44 m) or pigeons: route the descent below the flock band, or time the crossing away from flock loops.
 3. Determinism drift if film code uses life or sim RNG: separate module, no shared RNG, hash tests in CI.
-4. Sun or moon tilt fights the shadow frustum (`fitSunShadow`, `useTownFrame.ts:116`) and causes shimmer: clamp the tilt, keep the carrier out of the shadow pass.
+4. Sun or moon tilt fights the shadow frustum (`fitSunShadow`, `useTownFrame.ts:120`) and causes shimmer: clamp the tilt, keep the carrier out of the shadow pass.
 5. Cathedral perch points wrong when the lot is small (fit scale): compute from the fitted bounding box, test on a small and a large lot.
-6. Flock counts are local literals (`birds.ts:460-464`, `:529`), against the tuning rule: move them to `trafficLife` if the film work touches them, with parity entries.
-7. Doc drift: Conventions still says `EXPECTED_PEDESTRIANS` = `499b5c20`. The test (`traffic.determinism.test.ts:132`) says `a8684131`. Fix Conventions when the next traffic doc edit happens.
+6. Flock counts are local literals (`birds.ts:173-180`, `:529`), against the tuning rule: move them to `trafficLife` if the film work touches them, with parity entries.
+7. Doc drift: resolved 2026-11-09 (Conventions now `63333cfb`, the value in `traffic.determinism.test.ts:135`).
 
 **Open questions**
 - Is the carrier visible in shot, or only a camera rig? Visible means the mesh and close-range look matter.
@@ -164,7 +163,7 @@ Plan only, no source edits. Auto film mode: a carrier bird flies high over the t
 - Night: moon path only when lights are on, or always?
 - Perch on a roof edge (visible from the front) or on the far sidewalk?
 
-**Verify (when built)**: `npx vitest run tests/filmBird.test.ts tests/life.test.ts tests/traffic.determinism.test.ts`, then full suite, `npx tsc --noEmit`, `npx vite build`.
+**Verify (when built)**: `npx vitest run tests/film/filmBird.test.ts tests/life.test.ts tests/traffic.determinism.test.ts`, then full suite, `npx tsc --noEmit`, `npx vite build`.
 
 ## Update 2026-11-04 (lead): film bird carrier (P5, not wired yet)
 
@@ -179,9 +178,9 @@ Plan only, no source edits. Auto film mode: a carrier bird flies high over the t
 - **Contract check (`birdPoseAt` / `FilmRig`):** bird distance from camera is `max(filmBirdDistanceM, filmBirdMinDistanceM)` = 7 m, exact on every sampled path. Lead decision: bird centred on the look direction at the preferred distance (side offset and sway removed). Knob values unchanged.
 - **Draw calls:** `createFilmBird()` group holds exactly one `InstancedMesh` (count 1, no shadow). `tests/budget.test.ts` excludes moving actors by design, so no budget change.
 - **Dispose:** `buildFlyerGeometry()` and `createAnimalMaterial()` build new objects per call (no cache), so dispose frees only the bird's own resources. Added test: dispose twice does not throw, group left empty.
-- **Isolation:** no `src` file imports `filmBird` yet (FilmRig not wired). Test guards against traffic, pedestrian, pigeon, flock, audio imports and RNG/clock use.
+- **Isolation:** `scene/FilmRig.tsx` imports `filmBird` (wired; see Review 2026-11-08 item 15). Test guards against traffic, pedestrian, pigeon, flock, audio imports and RNG/clock use.
 - **Knobs:** unchanged (7, 3, 2.6). Parity and TUNING.md rows already present.
-- **Open:** FilmRig mount pending (Scene & QA). Bird look unchanged, awaiting lead OK.
+- **Open:** bird look unchanged, awaiting lead OK. FilmRig mount is done (stale note; see Review 2026-11-08 item 15).
 
 ## Update 2026-11-06 (lead): auto film speed
 - Cars and pedestrians looked ~5x fast in the auto film. Not a traffic bug: the R3F loop fell back to 'always' and the town ran on wall time. Fixed in `src/film/loopHold.ts` (2f99377). Sim per step stays exact (vehicles and walkers move speed x dt).
@@ -207,6 +206,8 @@ Plan only, no source edits. Auto film mode: a carrier bird flies high over the t
 - Counts, bee share and child gait knob stay in the files the parity test names (`birds.ts`, `pets.ts`, `personGeometry.ts`).
 
 ## Review 2026-11-08 (Traffic & Life)
+
+Applied 2026-11-09: corrections 1-15 and 17 are applied in the body above; 18 and 19 corrected as noted.
 
 Checked against the working tree (branch feat/agent-working-room). No tests run. Line numbers below are current; where the body above gives an older number, the number here wins.
 
@@ -245,17 +246,17 @@ Checked against the working tree (branch feat/agent-working-room). No tests run.
 13. Monument castShadow is at `scene/useTownPieces.ts:69` (was :66). `buildings.ts:104` not found; treat as unverified.
 14. `pets.ts` reads `ctx.camera` at `:179` (was :180).
 15. Film bird is wired. `scene/FilmRig.tsx:20` imports `createFilmBird` and `birdPoseAt`, and `:71` mounts the bird at run start. `scene/filmLook.ts:109` uses `filmBirdMinDistanceM`. The "no src file imports filmBird yet" and "FilmRig mount pending" lines are stale.
-16. Film bird test is `tests/film/filmBird.test.ts`, not `tests/film/filmBird.test.ts` (the film plan's Verify line is stale).
+16. Film bird test lives in the film test folder (tests/film/).
 17. The film plan's `scene/filmPath.ts` is still not present. The sampler lives in `src/film/autoPath.ts`.
-18. Pedestrian "never stands on asphalt" is not a test name in the repo. The asphalt check is in `tests/blockMergeTraffic.test.ts:191-193`.
-19. The "threshold 1.15" in the six-seed avenue test was not found as a literal in `tests/people.test.ts`. Treat as unverified.
+18. Pedestrian "never stands on asphalt" test exists: `tests/people.test.ts` (signal-aware crossing block). The asphalt check is also in `tests/blockMergeTraffic.test.ts:191-193`. (Reviewer note was wrong; corrected 2026-11-09.)
+19. The "1.15" ratio is in `tests/people.test.ts:407` (`perMetreAvenue > perMetreStreet * 1.15`). (Reviewer note was wrong; corrected 2026-11-09.)
 20. `tests/layers.test.ts` guards only core, store and agentRoom. The feature rule lives in `tests/harness.test.ts:56-81`. CLAUDE.md cites `layers.test.ts` for it; the citation is wrong.
 
 **Stale items removed (from the body above; body text left as is, superseded by this section)**
 - "Vehicle `models.ts` (448 lines, not split)".
 - "`vehicleMeshes.ts` is the next split candidate": already split (`vehicleShader.ts`, `vehicleGlow.ts`, Harness refactor section). Remove from Open items.
 - "no src file imports `filmBird` yet" and "FilmRig mount pending".
-- Conventions hash `499b5c20`.
+- Conventions hash `499b5c20` (superseded: `63333cfb`).
 
 **Rules: status**
 - 350-line ratchet: valid and enforced (`OVERSIZED` empty; no traffic/life file over 333).
@@ -280,3 +281,10 @@ Checked against the working tree (branch feat/agent-working-room). No tests run.
 - Asserts: capacity > 0 and < `MAX_WALKERS`; 200-step warm-up before timing; per-frame bound still `< 0.5 ms` over 1500 frames.
 - No production change: `MAX_WALKERS` (480), `MAX_DOGS` (120), `WALKERS_PER_ROAD` (22) and all knobs unchanged. No guard test weakened. No new knobs.
 - Test file only: `tests/people.test.ts` (import `uiCamera` added).
+
+## Update 2026-11-09 (traffic-life): walker, horn, vehicle, life knobs to config
+- New section `src/config/tuning/trafficWalkers.ts` (`trafficWalkers`): `maxWalkers` 480, `maxDogs` 120, `walkersPerRoad` 22, `pairChance` 0.2, `crossMarginS` 2.0, `giveUpWaitS` 150. Feature constants in `walkers/constants.ts` alias them (no duplicate literals).
+- `trafficLife` additions: `decideDistanceM` 40, `hornPedHoldS` 5, `hornQueueMax` 8, `hornHardBrakeMps2` -3, `carCruiseMps` 11, `busCruiseMps` 8, `truckCruiseMps` 9, `motorbikeCruiseMps` 13, `scareRadiusM` 4, `flockBirdsPerLoop` 25, `flockAltM` [26, 35, 44], `flockSpeedMps` [9, 10.5, 8.5], `gullsHigh` 2, `gullsLow` 1, `beeShare` 0.2.
+- Feature code: `vehicles/constants.ts`, `life/birds.ts` (`FLOCK_DEFS`, `SCARE_RADIUS`, gulls), `life/pets.ts` (`beeCountFor`) read config. Values unchanged, so determinism hashes are unchanged.
+- Parity: `tests/tuningParity.test.ts` entries switched to the config properties; use-checks updated for the moved fragments.
+- Stays local (algorithm or geometry, not designer knobs): `GHOST_S`, `STUCK_PUSH_S`, `HELD_BACKUP_S`, `REQUEST_RANGE`, `GRANT_EXPIRY_STEPS`, `JUNCTION_SPEED`, `ONCOMING_REACH`, `CROSSWALK_REACH`, `WAIT_DIST`, `TURN_RATE`, `HORN_HARD_BRAKE_RATE`, walker speed ranges (`looks.ts speedFor`), quality tier factors (`life/common.ts`), vehicle footprints and accel/gap.

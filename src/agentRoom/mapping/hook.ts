@@ -85,16 +85,39 @@ export function createHookMapper(source: Source, claims: readonly ClaimLike[] = 
     return 'lead';
   }
 
-  function agentOf(p: HookPayload): AgentId {
+  /** Subagents bound to lead without evidence. A file under a specialist owner settles them. */
+  const tentative = new Set<string>();
+
+  function agentOf(p: HookPayload, path: string): AgentId {
     if (!p.agent_id) return 'lead';
     const known = bound.get(p.agent_id);
-    if (known) return known;
+    if (known && !tentative.has(p.agent_id)) return known;
+    if (known) {
+      const owner = path ? ownerOf(path, claims) : null;
+      if (owner && owner !== 'lead') {
+        bound.set(p.agent_id, owner);
+        tentative.delete(p.agent_id);
+        return owner;
+      }
+      return known;
+    }
     // agent_type names a specialist only for custom agents; generic types (general-purpose, Explore) fall back to
     // the specialist named by the session's pending delegation.
     const typed = p.agent_type ? specialistFromText(p.agent_type) : null;
-    const id = orLead(typed ?? pending.get(p.session_id ?? '')?.shift() ?? null);
-    bound.set(p.agent_id, id);
-    return id;
+    const queued = typed ?? pending.get(p.session_id ?? '')?.shift() ?? null;
+    if (queued) {
+      bound.set(p.agent_id, queued);
+      return queued;
+    }
+    // No delegation to match (resumed or pre-fix subagent): its first file under a specialist owner names it.
+    const owner = path ? ownerOf(path, claims) : null;
+    if (owner && owner !== 'lead') {
+      bound.set(p.agent_id, owner);
+      return owner;
+    }
+    bound.set(p.agent_id, orLead(null));
+    tentative.add(p.agent_id);
+    return 'lead';
   }
 
   /** Target of an Agent/Task/SendMessage call: the `name` or `to` field first (Agent tool name = specialist slug). */
@@ -109,11 +132,12 @@ export function createHookMapper(source: Source, claims: readonly ClaimLike[] = 
   }
 
   function map(p: HookPayload, t: number): RoomEvent[] {
-    const agent = agentOf(p);
-    const base = { t, source, agent };
-    const next = () => ++seq;
     const tool = str(p.tool_name);
     const input = p.tool_input ?? {};
+    const path = str(input.file_path) || str(input.notebook_path) || str(input.path);
+    const agent = agentOf(p, path);
+    const base = { t, source, agent };
+    const next = () => ++seq;
     switch (p.hook_event_name) {
       case 'SessionStart':
         return [{ ...base, seq: next(), kind: 'session_start', sessionId: str(p.session_id) }];
@@ -129,7 +153,9 @@ export function createHookMapper(source: Source, claims: readonly ClaimLike[] = 
       case 'PreToolUse': {
         const out: RoomEvent[] = [{ ...base, seq: next(), kind: 'tool_start', tool }];
         if (tool === 'Agent' || tool === 'Task' || tool === 'SendMessage') {
-          const named = targetOf(input);
+          // SendMessage to a resumed subagent carries its agent id in `to`, not a name: use the binding it already has.
+          const byId = tool === 'SendMessage' ? bound.get(str(input.to)) : undefined;
+          const named = byId ?? targetOf(input);
           if (tool !== 'SendMessage') {
             const sid = p.session_id ?? '';
             pending.set(sid, [...(pending.get(sid) ?? []), named]);
@@ -137,12 +163,20 @@ export function createHookMapper(source: Source, claims: readonly ClaimLike[] = 
           const to = orLead(named);
           out.push({ ...base, seq: next(), kind: 'delegate', to, via: tool === 'SendMessage' ? 'SendMessage' : 'Agent' });
         }
-        const path = str(input.file_path) || str(input.notebook_path) || str(input.path);
         if (path) out.push({ ...base, seq: next(), kind: 'file_touch', path, owner: ownerOf(path, claims) ?? 'lead' });
         return out;
       }
       case 'PostToolUse': {
-        const r = p.tool_response as { is_error?: unknown } | undefined;
+        const r = p.tool_response as { is_error?: unknown; agentId?: unknown } | undefined;
+        if (tool === 'Agent' && typeof r?.agentId === 'string' && r.agentId) {
+          // The spawn's own result names the new agent id: bind it now, by the name read from the call (not by queue order).
+          const named = targetOf(input);
+          const sid = p.session_id ?? '';
+          const queue = pending.get(sid) ?? [];
+          const at = queue.indexOf(named);
+          if (at >= 0) pending.set(sid, [...queue.slice(0, at), ...queue.slice(at + 1)]);
+          if (named && !bound.has(r.agentId)) bound.set(r.agentId, named);
+        }
         return [{ ...base, seq: next(), kind: 'tool_end', tool, ok: r?.is_error !== true }];
       }
       default:

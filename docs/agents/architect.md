@@ -356,3 +356,13 @@ Enforced but missing from the docs (add to `harness/README.md` guard table): set
 - Mapping (src/agentRoom/mapping/hook.ts): any event without `agent_id` is the lead (fixes the trap above: a stale session first in the ring made the live lead a guest). Agent/Task delegations queue per session; a subagent binds to agent_type, else its session's oldest pending delegation, else the lead. Agent `name` / SendMessage `to` match exactly first. Unmatched -> lead, counted in `stats.unmatched`. `specialistFromText` returns null for no match.
 - Replay: unknown owners -> lead. Traps: parallel Agent spawns bind in first-event order (a guess if two start together). Checked against the live bridge ring: this session's subagents map to sky-environment and architect, the lead to lead, no guest.
 - ADR 0013 "Decision change 2026-11-08" records this.
+
+## Update 2026-11-09 (architect): Agent Room binding and doc review
+- Ring check (`/events`, 331 events, seq 303): six Agent spawns in one second, each with a description only (`general-purpose`). Subagent events carry `agent_id` and `agent_type` only, never a name. Resumes use SendMessage `to` = the agent id.
+- Fix (`src/agentRoom/mapping/hook.ts`): SendMessage `to` that is a known agent id now routes to that agent's bound specialist. Before, every id-addressed resume went to lead. Test: tests/agentRoomMapping.test.ts "SendMessage to a resumed subagent id".
+- Limit, not fixed: a subagent whose first event finds no pending delegation binds to lead for the whole session. Parallel spawns bind in first-event order, so a wrong bind can happen. The durable fix is for the lead to pass `name` on Agent calls and for the mapper to read it at bind time; subagent events do not carry it today.
+- Math.random outside the guard dirs: `src/scene/useTownFrame.ts:93-94` (leaf drop, Scene & QA), `src/ui/HousePanel.tsx:89` (random house pick, UI & Camera). Recorded in docs/agents/README.md open items.
+- Codec: `src/film/recorder.ts:29` `avc1.42E028` (level 3.0) vs `src/film/autoEncoder.ts:10` `avc1.640028` (level 4.0). Open.
+- Preview constants `PREVIEW_FLOORS` (3) and `PREVIEW_SEED` (1), `src/buildings/preview.ts:22,24`: contract constants, not knobs. Recorded in docs/TUNING.md section 12.
+- Film guard gap (`FEATURES` at tests/harness.test.ts:59 lacks film): open, user decision.
+- docs/TUNING.md: stale file:line refs in audio, traffic, life, city, sky rows re-pointed; config line numbers dropped (keys only); duplicate "Config now" rows removed from "Not yet tunable"; `uiCamera.walkSpeed` key fixed; `agentRoom.avatarWalkSpeed` row repaired.

@@ -1,10 +1,11 @@
+import { audio as audioTuning } from '../config/tuning';
 // Generative music: mood by clock, fades, chord and melody scheduling (pure, no Web Audio). Split from music.ts.
 
 
 export type Mood = 'day' | 'golden' | 'night';
 export const MOODS: readonly Mood[] = ['day', 'golden', 'night'];
 
-export const FADE_SECONDS = 2;
+export const FADE_SECONDS = audioTuning.musicFadeS;
 export const SCHEDULE_AHEAD = 1.2;
 export const MOOD_ACTIVE_WEIGHT = 0.02;
 

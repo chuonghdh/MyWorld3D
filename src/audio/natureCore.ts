@@ -10,25 +10,25 @@ import { randRange } from './synth';
 // Tunable constants
 // ---------------------------------------------------------------------------------------------
 /** A rustle is one short burst, not a loop: about every 8-12 s, on 3 of the 5 nearest trees, only in a breeze. */
-export const RUSTLE_INTERVAL_MIN_S = 8;
-export const RUSTLE_INTERVAL_MAX_S = 12;
-export const RUSTLE_MIN_WIND = 1.5;
-export const RUSTLE_TREES = 3;
-export const RUSTLE_NEAREST = 5;
-export const RUSTLE_DURATION_MIN_S = 1.6;
-export const RUSTLE_DURATION_MAX_S = 3.4;
+export const RUSTLE_INTERVAL_MIN_S = audioTuning.rustleIntervalMinS;
+export const RUSTLE_INTERVAL_MAX_S = audioTuning.rustleIntervalMaxS;
+export const RUSTLE_MIN_WIND = audioTuning.rustleMinWind;
+export const RUSTLE_TREES = audioTuning.rustleTrees;
+export const RUSTLE_NEAREST = audioTuning.rustleNearest;
+export const RUSTLE_DURATION_MIN_S = audioTuning.rustleDurationMinS;
+export const RUSTLE_DURATION_MAX_S = audioTuning.rustleDurationMaxS;
 /** How far away (m) a tree can still rustle. */
 export const RUSTLE_RANGE_M = audioTuning.rustleRangeM;
 /** Output scale of one rustle voice before the emitter distance model. */
 export const RUSTLE_GAIN = audioTuning.rustleGain;
 /** Seconds of the one-pole smoothing that follows the wind level. */
 /** Wind whistles: wind speed (m/s) where they start and reach full probability; ring 15-70 m around the listener. */
-export const WHISTLE_MIN_WIND = 8;
-export const WHISTLE_FULL_WIND = 14;
-export const WHISTLE_MAX = 2;
-export const WHISTLE_MIN_M = 15;
-export const WHISTLE_MAX_M = 70;
-export const WHISTLE_Y = 8;
+export const WHISTLE_MIN_WIND = audioTuning.whistleMinWind;
+export const WHISTLE_FULL_WIND = audioTuning.whistleFullWind;
+export const WHISTLE_MAX = audioTuning.whistleMax;
+export const WHISTLE_MIN_M = audioTuning.whistleMinM;
+export const WHISTLE_MAX_M = audioTuning.whistleMaxM;
+export const WHISTLE_Y = audioTuning.whistleHeightM;
 /** Crickets: max voices, ring around the listener (m), chirp carrier range (Hz), per-voice level. */
 export const CRICKET_MAX = audioTuning.cricketMax;
 export const CRICKET_MIN_M = audioTuning.cricketMinM;
@@ -39,7 +39,7 @@ export const CRICKET_LEVEL = audioTuning.cricketLevel;
 export const BELL_HZ = 230;
 export const BELL_SPACING_S = audioTuning.bellSpacingS;
 export const BELL_RANGE_M = audioTuning.bellRangeM;
-export const BELL_Y = 25;
+export const BELL_Y = audioTuning.bellHeightM;
 export const BELL_LEVEL = audioTuning.bellLevel;
 export const BELL_MAX_STEP_H = 0.1;
 export const BELL_MAX_RATE_H_PER_S = 0.5;

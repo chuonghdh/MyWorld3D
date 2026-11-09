@@ -2,11 +2,11 @@
 export const cityStreets = {
   /** Floors per street class, inclusive [min, max] (city/blocks.ts). */
   floorRange: { avenue: [5, 7], street: [3, 6] },
-  /** Share of buildable blocks that are public buildings (monuments), 0-1. Exact per seed: round(blocks x share), min 2 (city/generate.ts). */
+  /** Share of buildable blocks that are public buildings (monuments), 0-1. Exact per seed: round(blocks x share), min 2 (city/monuments.ts). */
   monumentShare: 0.2,
-  /** Metres of path per traffic spawn point at trafficMultiplier 1 (city/generate.ts). */
+  /** Metres of path per traffic spawn point at trafficMultiplier 1 (city/spawnPoints.ts). */
   trafficSpawnSpacing: 60,
-  /** Traffic light cycle: seconds per phase and total cycle (city/generate.ts). */
+  /** Traffic light cycle: seconds per phase and total cycle (city/trafficPlan.ts). */
   lightTiming: { cycleSeconds: 40, nsGreenSeconds: 16, ewGreenSeconds: 16, yellowSeconds: 2, allRedSeconds: 2 },
   /** Distance between street lamps along one sidewalk, metres (city/streetscape.ts). */
   streetLampSpacing: 18,
@@ -30,17 +30,17 @@ export const cityStreets = {
   signalOnGain: 2.2,
   /** Traffic light lamp gain when unlit (streets/index.ts). */
   signalOffGain: 0.1,
-  /** Share of conifer spots that get a pine, 0-1 (streets/natureTrees.ts). */
+  /** Share of conifer spots that get a pine, 0-1 (streets/natureLayout.ts). */
   pineShare: 0.6,
-  /** Pine snow cover ramp start and full, as upward normal y (streets/natureTrees.ts). */
+  /** Pine snow cover ramp start and full, as upward normal y (streets/natureTypes.ts, used by streets/natureAsset.ts). */
   pineSnowUp: [0.85, 0.97],
-  /** Maximum snow on pines, 0-1 (streets/natureTrees.ts). */
+  /** Maximum snow on pines, 0-1 (streets/natureTypes.ts, used by streets/natureAsset.ts). */
   pineSnowCover: 0.35,
-  /** City tree scale on top of the layout scale, multiplier (streets/natureTrees.ts). */
+  /** City tree scale on top of the layout scale, multiplier (streets/natureTypes.ts). */
   treeScale: 1.35,
-  /** Extra leaf clusters per broadleaf tree, fraction (streets/natureTrees.ts). */
+  /** Extra leaf clusters per broadleaf tree, fraction (streets/natureGeometry.ts). */
   clusterExtra: 0.5,
-  /** Width of the tree border belt from the town edge, metres (streets/natureTrees.ts). */
+  /** Width of the tree border belt from the town edge, metres (streets/natureLayout.ts). */
   borderDepth: 6,
   /** Brightness spread of asphalt per 24 m block, 0-1 (streets/streetWear.ts). */
   roadBlockTone: 0.04,

@@ -7,21 +7,21 @@ import { audio as audioTuning } from '../config/tuning';
 // ---------------------------------------------------------------------------------------------------------
 // Tunables
 
-export const ENGINE_VOICES = 8;
-export const ENGINE_MAX_DISTANCE = 120;
-export const INDICATOR_VOICES = 6;
-export const INDICATOR_MAX_DISTANCE = 60;
+export const ENGINE_VOICES = audioTuning.engineVoices;
+export const ENGINE_MAX_DISTANCE = audioTuning.engineMaxDistanceM;
+export const INDICATOR_VOICES = audioTuning.indicatorVoices;
+export const INDICATOR_MAX_DISTANCE = audioTuning.indicatorMaxDistanceM;
 /** Relay rate of the indicator (tick + tock pairs per second). */
-export const INDICATOR_HZ = 1.5;
-export const HORN_MAX_DISTANCE = 220;
-export const HORN_MAX_CONCURRENT = 4;
+export const INDICATOR_HZ = audioTuning.indicatorHz;
+export const HORN_MAX_DISTANCE = audioTuning.hornMaxDistanceM;
+export const HORN_MAX_CONCURRENT = audioTuning.hornMaxConcurrent;
 export const EMITTER_HEIGHT = 1;
 export const FADE_TC = 0.07;
 /** Level of the air-brake hiss relative to the first version (turned down to 70 %). */
 export const AIR_BRAKE_LEVEL = audioTuning.airBrakeLevel;
 
 /** Seconds a released voice keeps running (while fading to silence) before its nodes are torn down. */
-export const FADE_OUT_S = 0.5;
+export const FADE_OUT_S = audioTuning.vehiclesFadeOutS;
 
 // ---------------------------------------------------------------------------------------------------------
 // Engine model (pure, unit tested)

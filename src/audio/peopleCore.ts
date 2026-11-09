@@ -1,3 +1,4 @@
+import { audio as audioTuning } from '../config/tuning';
 // People sounds: constants, pose mapping, speakers and shared helpers. Split from people.ts.
 
 import { createRandom } from './synth';
@@ -8,17 +9,17 @@ export const POSE_STAND = 1;
 export const POSE_CHAT = 2;
 export const POSE_SIT = 3;
 
-export const CHAT_VOICES = 4;
-export const STEP_VOICES = 5;
-export const UMBRELLA_VOICES = 4;
-export const CHAT_MAX_DISTANCE = 30;
-export const STEP_MAX_DISTANCE = 28;
-export const UMBRELLA_MAX_DISTANCE = 25;
-export const RAIN_ON = 0.15;
-export const RAIN_OFF = 0.1;
+export const CHAT_VOICES = audioTuning.chatVoices;
+export const STEP_VOICES = audioTuning.stepVoices;
+export const UMBRELLA_VOICES = audioTuning.umbrellaVoices;
+export const CHAT_MAX_DISTANCE = audioTuning.chatMaxDistanceM;
+export const STEP_MAX_DISTANCE = audioTuning.stepMaxDistanceM;
+export const UMBRELLA_MAX_DISTANCE = audioTuning.umbrellaMaxDistanceM;
+export const RAIN_ON = audioTuning.pedestrianRainOn;
+export const RAIN_OFF = audioTuning.pedestrianRainOff;
 export const WET_STEP_RAIN = 0.1;
 export const FADE_TC = 0.06;
-export const FADE_OUT_S = 0.4;
+export const FADE_OUT_S = audioTuning.peopleFadeOutS;
 /** Ear / mouth height used for emitters (m). */
 export const MOUTH_Y = 1.6;
 

@@ -36,12 +36,9 @@ export interface NatureAsset {
   islands: number[][];
   barkMat: THREE.Material;
   leafMat: THREE.Material;
-  /** Snow caps on upward-facing bark and leaf crowns (all types), winter only. Null when none. */
+  /** Snow cap on upward-facing bark, winter only. Null when none. Leaf crowns get no snow geometry. */
   snowBark: THREE.BufferGeometry | null;
-  snowLeaves: THREE.BufferGeometry | null;
   snowMat: THREE.Material;
-  /** White, alpha-tested with the leaf texture so snow follows leaf shapes and gaps. */
-  snowLeafMat: THREE.Material;
 }
 
 /** City tree scale on top of the layout scale. Same value as useTownGreenery.ts TREE_SCALE. */

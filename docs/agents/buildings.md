@@ -1,13 +1,15 @@
 # Buildings specialist
 
-Reviewed 2026-11-01 at 02b0cdc
+Reviewed 2026-11-01 at 02b0cdc; re-checked 2026-11-09 (see "Review 2026-11-09" at the end)
 
 **Owns:** `src/buildings/**` (facade, shaders, signs, monuments, materials, palette) and its tests.
 
 ## Key files
 - `house.ts`, `facade/*` (ground, upper, roof, rear, parts, layers, mesh, polish, presets): the lot-fitted house builder.
 - `geometry.ts` (`ColorBatch`), `materials.ts` (shared body, glass and sign materials, night uniforms), `palette.ts` (`BRICK_PALETTE`, `BRICK_LIKE_WALLS`), `shaders/*` (surface, glass, wind). The shared cloud-shade and wet-surface patches live in `src/shaders/` (neutral, used by buildings, weather, streets and environment).
-- `monuments/*` with `kit.ts` and `monument.ts` (fit and lift): twelve monument kinds.
+- `monuments/*` with `kit.ts` (barrel over `kitCore.ts`: `Kit` and `withWind`; `kitStructures.ts`: `waterBasin`, `bayOpenings`; `kitSite.ts`) and `monument.ts` (fit and lift): twelve monument kinds. Kind files: `civic*` (hospital, services), `leisure*` (sport, fair, pool, circus), `culture*` (cathedral, theatre, prehistoric), `education.ts` (school), `municipal.ts` (city hall), `romanKit.ts` (round-headed openings, corbels, crenellations used by `municipal.ts`; geometry only, not a kind).
+- `signs/*` (`atlas.ts`, `layout.ts`, `index.ts`): shop sign atlas and layout (`signNightEmissive` knob).
+- `surface.ts` (`SURFACE` ids, per-vertex `aSurface`), `shaders/surface.ts` (GLSL pattern string constants spliced by `materials.ts`), `shaders/surfaceGlslCore.ts` and `surfaceGlslRoof.ts` (GLSL bodies), `preview.ts` (`buildHousePreview`, thumbnails).
 - `facade/polish.ts`: pure helpers shared with GLSL (`windowOnAt`, `windAmplitude`, night clock).
 - Merged-block house parameters: `houseParamsFor` and `styleKeyFor` in `src/scene/townBlocks.ts` (Scene & QA owns the file).
 
@@ -58,7 +60,7 @@ Reviewed 2026-11-01 at 02b0cdc
 - Decision: monument bodies do NOT cast shadows, except the kinds in `buildings.monumentShadowKinds` (now `['gothic-cathedral']`, `src/config/tuning/buildings.ts`). Applied in `src/scene/useTownPieces.ts:66-69` (Scene & QA file). Reason: shadow headroom was 12.7k against about 5k per monument. Houses, streets and trees keep their shadows.
 - Decision: dinosaur pond is raised on a stone base, not sunk, because the lawn sits at 0.08 m and a sunk pond would cut the lawn. Deviation from the review plan.
 - RNG stream shift: cathedral, open-air theatre, dinosaur park and pool changed their builder call order (new features draw from the same kit RNG), so their random colours, lit windows and crowds differ from before. Do not expect old screenshots to match.
-- Knobs: 30 monument entries in `buildings` (civic, leisure, culture odds and crowds, City Hall, School, cathedral stone and roof, `monumentShadowKinds`). Each has a parity entry in `tests/tuningParity.test.ts` and a row in `docs/TUNING.md`.
+- Knobs: 30 monument entries in `buildings` plus the `monumentKinds` list (civic, leisure, culture odds and crowds, City Hall, School, cathedral stone and roof, `monumentShadowKinds`). Each has a parity entry in `tests/tuningParity.test.ts` and a row in `docs/TUNING.md`.
 - Open: circus body sag not done; no close, medium or night look was checked by eye for the new kinds.
 
 - 2026-11-06 (buildings): `src/buildings/preview.ts` (exported from `index.ts`): `buildHousePreview(preset, floors = 3)` builds one free-standing house via `buildHouse` + `defaultHouseParams(preset, 'classic')` (preset roof, wall, shutter, lot width/depth, ground floor use), facades on all four sides, seed 1, base y = 0, front +Z. `housePreviewBounds` = `Box3.setFromObject`. `disposeHousePreview` disposes geometries only; meshes use the shared body/glass/glassLit/sign materials, whose patches read module-level uniforms, so they render outside the town. Glass tower previews at 3 floors (town forces >= 7 unless floors are overridden). `PREVIEW_FLOORS`/`PREVIEW_SEED` are local contract constants, not in `src/config/tuning/` yet. Tests: `tests/housePreview.test.ts`.
@@ -83,9 +85,32 @@ Reviewed 2026-11-01 at 02b0cdc
 - `shaders/surface`: GLSL in surfaceGlslCore.ts and surfaceGlslRoof.ts, spliced in the original order (string equality checked).
 - Open: ground, parts and roof sibling modules import each other (function-level cycles).
 
+## Review 2026-11-09 (Buildings, handbook check)
+
+**Confirmed:** `building-body-v11` (`materials.ts:94`); `BRICK_LIKE_WALLS` (`palette.ts:27`) and check at `houseBuild.ts:41`; `lift` in `monument.ts:83`; `Kit.withWind` (`monuments/kitCore.ts:103`); `waterBasin` (`kitStructures.ts:273`); `ColorBatch` uv rule (`geometry.ts:111-134`); `monumentShadowKinds` (`config/tuning/buildings.ts:114`, used at `useTownPieces.ts:66-69`); `chooseMonuments` (`city/monuments.ts:16`, `STANDARD_MONUMENTS` = cathedral + city hall, `MONUMENT_SHARE` 0.2); `houseParamsFor` / `styleKeyFor` / `MERGED_STYLE_RUN` 5 (`townBlocks.ts`); `crosswalks` filter (`city/generate.ts:242`); `maxFloorsFor` (`facade/layout.ts:13`); `PREVIEW_FLOORS` 3 / `PREVIEW_SEED` 1 (still local in `preview.ts:22,24`); `windowOnAt` / `windowOffAt` schedule (`facade/polish.ts:66-80`) matches the Decision; `windAmplitude` in `facade/polish.ts` and `shaders/wind.ts`; `presetHasShutters` / `presetDefaultShutter` / `NO_SHUTTER_KINDS` (`houseParams.ts`); `fillShutter` (`presetSpecs.ts`); town `SHUTTERS` built from `SHUTTER_COLORS` (`scene/cityStyle.ts:39`); `sharedCourtyard` (`houseParams.ts`, `houseBuild.ts`, `partsCore.ts`, `rear.ts`, `scene/townBlocks.ts`); `MonumentKind` union = 12 kinds (`core/types.ts:22`) and `buildings.monumentKinds` = same 12; shader files `shaders/cloudShade.ts`, `shaders/wetSurface.ts`; `signs/` and `monuments/` file set; `OVERSIZED` empty (`tests/harness.test.ts:128`); `LAYOUT_DIRS` includes `buildings` (`harness.test.ts:85`); dependency guard at `harness.test.ts:55-66`; tests present: `geometry`, `buildings`, `buildingsPolish`, `materials`, `monuments`, `monumentsKit`, `monumentLayout`, `housePreview`, `houseShutters`, `houseRoof`, `houseThumbs`, `floorClamp`, `roofFlat`, `roofMoss`, `wallWeather`, `trimAge`, `brickScale`, `budget`, `tuningParity`; Phase 2 hashes `720941d`, `ccce5cf`, `c14349b`, `8f96b8e`, `02b0cdc` exist in git log; `docs/agents/public-buildings-review.md` exists.
+
+**Every buildings knob** (`src/config/tuning/buildings.ts`) has an entry in `tests/tuningParity.test.ts` and a row in `docs/TUNING.md`. Row defaults in TUNING.md match code for the rows checked (trim, wall, roof moss, glass tower, shadow kinds, floors, night emissive).
+
+**Corrections made in this file:**
+- Key files: added `signs/`, the full `monuments/` kind-file list (incl. `education.ts`, `municipal.ts`, `romanKit.ts`), `surface.ts`, `shaders/surface.ts`, `preview.ts`.
+- Review 2026-11-08 "Still valid" line: `Kit.withWind` lives in `monuments/kitCore.ts`, not `kitStructures.ts`.
+- Monument knobs: "30" excludes the `monumentKinds` list (31 keys in the monument section).
+- Public buildings pass branch `optimize_02`: still absent from this clone (see Open items).
+
+**Stale / not verifiable:**
+- `docs/agents/buildings.md` 11-06 entry says `roofMossAmount` default 0.45; superseded by 0.9 later in the same section (code = 0.9).
+- Budget numbers (main 1,428,818, shadow 576,406, calls 127): `tests/budget.test.ts` holds only the "127" comment (line 295); the other two literals are not in tests. Not re-measured.
+- Five-file buildings suite 283/283 and geometry audits: not re-run in this pass.
+- `docs/agents/scene-qa.md` shows as modified in git status at check time. Not mine; not touched.
+
+**Not my files (for other owners / Architect):**
+- `src/config/tuning/buildings.ts` doc comments point to old paths: `litWindowShare` -> `facade/partsCore.ts` (not `parts.ts`); `litWindowShareMonument` -> `monuments/kitStructures.ts` (not `kit.ts`); `litWindowShareGround` and `litWindowShareGroundAlt` -> `facade/groundShopfront.ts` / `groundResidential.ts` (not `ground.ts`); `litWindowShareRoof` -> `facade/roofGable.ts` (not `roof.ts`); `monuments/civic.ts`, `leisure.ts`, `culture.ts` are barrels; name the real kit file. Config owner to fix.
+- `docs/TUNING.md` line 492 (`Window lit share (default)`, "Config now") looks like a migration-table row duplicating line 140. Architect to check.
+- `PREVIEW_FLOORS` (3) and `PREVIEW_SEED` (1): still not in tuning. Architect decides if they are knobs (CLAUDE.md).
+
 ## Review 2026-11-08 (Buildings)
 
-**Still valid:** `src/buildings` file set (barrels and siblings above); `houseParamsFor`, `styleKeyFor` (5-lot runs, `MERGED_STYLE_RUN`), `sharedCourtyard`, `rngDetail`/`rngRear`/`roofTone` streams; `ColorBatch.add` uv rule (`geometry.ts`); `Kit.withWind` and `waterBasin` (`monuments/kitStructures.ts`, re-exported by `kit.ts`); `lift` in `monument.ts`; `monumentBaseFor`; `BRICK_LIKE_WALLS` with the three extra hexes; `SHUTTER_COLORS` (14 entries); `PREVIEW_FLOORS = 3` / `PREVIEW_SEED = 1` (still local, not in tuning); `glassTowerMaxFloors` 12 and `maxFloorsFor`; `windowOnAt`/`windowOffAt` light schedule; `windAmplitude` mirror in `shaders/wind.ts`; `patch` not used as a GLSL name; `tests/geometry.test.ts`, `buildingsPolish.test.ts` and the other suite files exist; `src/shaders/` holds `cloudShade.ts` and `wetSurface.ts`; `docs/agents/public-buildings-review.md` exists; Phase 2 commit hashes exist; `MONUMENT_SHARE` = 0.2 (`cityStreets.monumentShare`); `fillShutter` on presets; brick scale 0.48375 x 0.14625 m.
+**Still valid:** `src/buildings` file set (barrels and siblings above); `houseParamsFor`, `styleKeyFor` (5-lot runs, `MERGED_STYLE_RUN`), `sharedCourtyard`, `rngDetail`/`rngRear`/`roofTone` streams; `ColorBatch.add` uv rule (`geometry.ts`); `Kit.withWind` (`monuments/kitCore.ts`) and `waterBasin` (`monuments/kitStructures.ts`, re-exported by `kit.ts`); `lift` in `monument.ts`; `monumentBaseFor`; `BRICK_LIKE_WALLS` with the three extra hexes; `SHUTTER_COLORS` (14 entries); `PREVIEW_FLOORS = 3` / `PREVIEW_SEED = 1` (still local, not in tuning); `glassTowerMaxFloors` 12 and `maxFloorsFor`; `windowOnAt`/`windowOffAt` light schedule; `windAmplitude` mirror in `shaders/wind.ts`; `patch` not used as a GLSL name; `tests/geometry.test.ts`, `buildingsPolish.test.ts` and the other suite files exist; `src/shaders/` holds `cloudShade.ts` and `wetSurface.ts`; `docs/agents/public-buildings-review.md` exists; Phase 2 commit hashes exist; `MONUMENT_SHARE` = 0.2 (`cityStreets.monumentShare`); `fillShutter` on presets; brick scale 0.48375 x 0.14625 m.
 
 **Corrections made (in place above):**
 - `building-body-v4` -> `building-body-v11` (`materials.ts:94`).
@@ -112,7 +137,7 @@ Reviewed 2026-11-01 at 02b0cdc
 - H-4 golden-hour glass flatness and H-5 shop goods/door mats/bikes: unverified (no test, needs eye check).
 - Merged-block crosswalk on `merged-2-0-3-1`: still needs a visual check.
 - Circus body sag, and night/close look of new monument kinds: still open.
-- Branch `optimize_02` (named in the Public buildings pass section) does not exist locally (`git branch --list`). Check the branch name.
+- Branch `optimize_02` (named in the Public buildings pass section) does not exist as a local branch (local: `dev`, `feature_video_camera`, `harness_transform`, `master`; remote not checked). Lead to confirm whether it was merged or renamed.
 - `PREVIEW_FLOORS` (3) is count-like. CLAUDE.md "knob" definition may cover it. Decide: move to `src/config/tuning/` or keep as contract constant.
 - Doc drift outside this file (not edited): `src/config/tuning/buildings.ts` says `litWindowShare` default is in `facade/parts.ts`; code is in `facade/partsCore.ts`. `CLAUDE.md` points to `tests/layers.test.ts` for the feature-module rule; that rule is in `tests/harness.test.ts`.
 - Eol warning on `facade/presets.ts` and `index.ts`: normalisation only.

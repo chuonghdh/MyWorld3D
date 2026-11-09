@@ -45,6 +45,9 @@ export function redact(payload, cwd = process.cwd()) {
     out.tool_input = ti;
   }
   if (p.tool_response && typeof p.tool_response === 'object' && p.tool_response.is_error === true) out.tool_response = { is_error: true };
+  // An Agent spawn's result names the new agent id; keep only that id (the binding source), nothing else of the response.
+  const agentId = p.tool_response && typeof p.tool_response === 'object' ? p.tool_response.agentId : undefined;
+  if (typeof agentId === 'string') out.tool_response = { ...(out.tool_response ?? {}), agentId: agentId.slice(0, 120) };
   return out;
 }
 

@@ -4,27 +4,27 @@ Reviewed 2026-11-01 at 02b0cdc
 **Owns:** `src/scene/**` (everything not owned by UI & Camera or Audio), `src/core/**`, `src/App.tsx`, `src/main.tsx`, `src/dev/treeCompare/**` (tree lab, dev only), `tree-compare.html`, `public/models/**` (Quaternius and Kenney GLB, CC0), `tests/helpers/**`, budget and determinism tests, build health and project docs (`docs/BRD.md`, `REVIEW-01.md`, `DESIGN-3D.md`).
 
 ## Key files
-- `scene/Town.tsx` (294 lines): mounts everything. The per-frame work lives in `useTownFrame.ts`; other hooks: `useTownPieces`, `useTownGreenery`, `useTownTraffic`, `useTownAircraft`, `useNatureTrees`; helpers `townBlocks.ts`, `townShadow.ts`, `mergeBlock.ts`. `runtime.ts` is a re-export of `core/runtime.ts`.
+- `scene/Town.tsx` (295 lines): mounts everything. The per-frame work lives in `useTownFrame.ts`; other hooks: `useTownPieces`, `useTownGreenery`, `useTownTraffic`, `useTownAircraft`, `useNatureTrees`; helpers `townBlocks.ts`, `townShadow.ts`, `mergeBlock.ts`. `runtime.ts` is a re-export of `core/runtime.ts`.
 - `scene/PostFX.tsx` composer: MSAA, bloom, sanitize pass, shadow fit.
 - `src/App.tsx`: panel wiring, `switchTrees` action (random tree species, a user action).
 
 ## Conventions
-- Every file in `src/scene` <= 350 lines (largest is `Town.tsx` at 294). Repo-wide, 32 files are over 350 (architect finding 5).
+- Every file in `src/scene` <= 350 lines (largest is `Town.tsx` at 295). Repo-wide: no file in `src/` is over 350 (`OVERSIZED` in `tests/harness.test.ts:128` is `{}`; checked 2026-11-09).
 - Order of work inside `useTownFrame.ts` matters: clock, gusts, wind uniforms, `setBuildingWind`, weather (`weather.update`), `setSnow`, lights and shadow fit, clouds, aircraft, smoke, leaves, traffic, walkers, signals, life, `audio.update`, then `clearLifeEvents()`. Do not reorder without reading the file.
 - No per-frame allocation. Memo dependency arrays are exact; every created object is disposed.
 - Leaves: `Town.tsx` emits falling leaves from broadleaf trees only (`NATURE_TYPES[].evergreen` filter). Memo deps `[layout, settings.seed]`, effect deps `[leaves, broadleaf]`.
-- Tree field: `natureItems(layout, seed, overrides?)` in `src/streets/natureTrees.ts` scales every tree by the layout scale times `TREE_SCALE` (1.35) unless `treeScale` is overridden. Species overrides (`treeOverrides`) reach the city through `useNatureTrees` (`natureOverridesFor`). If the GLB load fails, `useNatureTrees` falls back to procedural `createTreeField` (scale 1.35, species applied) and logs the error.
+- Tree field: `natureItems(layout, seed, overrides?)` is defined in `src/streets/natureLayout.ts:50` and imported by `Town.tsx` from `src/streets/natureTrees.ts`. It scales every tree by the layout scale times `TREE_SCALE` (1.35, `src/config/tuning/cityStreets.ts:40`, re-exported by `src/streets/natureTypes.ts:50`) unless `treeScale` is overridden. Species overrides (`treeOverrides`) reach the city through `useNatureTrees` (`natureOverridesFor`). If the GLB load fails, `useNatureTrees` falls back to procedural `createTreeField` (scale 1.35, species applied) and logs the error.
 - Quality tiers Low / Med / High.
 
 ## Budgets (`tests/budget.test.ts`)
 Limits are in the tests, not in prose. Changing one needs a measured reason written here and Scene & QA approval.
-- Main-pass triangles <= 1,900,000. Blocks (main) between 1,100,000 and 1,140,000.
+- Main-pass triangles <= 1,900,000. Blocks (main) between 900,000 and 1,000,000 (`tests/budget.test.ts:275-276`).
 - Shadow-pass triangles <= 605,000.
 - Main + shadow triangles <= 2,300,000.
 - Draw calls (main meshes + shadow meshes) <= 140. Do not raise this to pass a test.
 - Detail meshes: at most one per seeded house block.
 - Counting rule: shadow-only meshes (layer not 0) count in the shadow total only. Broadleaf leaves no longer use shadow copies, so this case is currently empty.
-- Last measured (seed 1, default settings, dev commit with street trees at rate 0.44): main 1,581,859, shadow 592,339, main + shadow 2,174,198, draw calls 132 (100 main + 32 shadow).
+- UNVERIFIED (stale per Review 2026-11-08; the test comments at `tests/budget.test.ts:258-262` quote different numbers; re-measure before use). Last measured (seed 1, default settings, dev commit with street trees at rate 0.44): main 1,581,859, shadow 592,339, main + shadow 2,174,198, draw calls 132 (100 main + 32 shadow).
 - Measured with the 1-in-5 monument rule (default settings, no merges; 16 blocks, 3 monuments each, cathedral and City Hall present):
   - seed 1: main 1,416,737 (limit 1,900,000); shadow 575,513 (605,000); main + shadow 1,992,250 (2,300,000); draw calls 127 (95 + 32) (140); house-block main 955,231 (band 900,000-1,000,000).
   - seed 7: main 1,423,544; shadow 577,972; draw calls 128.
@@ -34,16 +34,16 @@ Limits are in the tests, not in prose. Changing one needs a measured reason writ
 ## Traps
 - A night "black block curtain": NaN from `pow(1-v, 1.7)` with v slightly above 1 -> clamp; the sanitize pass is a safety net. Headlight glow "dashes" had the same root cause.
 - Stale Vite dev server shows "does not provide an export": kill the process on 5173 and restart; never truncate a source file with a shell redirect while HMR watches it.
-- The pedestrian timing test ("385 walkers" default crowd, `tests/people.test.ts` / `audioPeople`) is a flake under load.
+- The pedestrian timing test (`tests/people.test.ts:655`, "simulates the default crowd fast enough", 385 walkers) is a flake under load. `tests/audioPeople.test.ts:233` ("steps faster") also flaked once solo (2026-11-09 review).
 - Runtime crashes can pass tsc and unit tests: load the page and read the console after wiring changes.
 - Built-in browser pane cannot paint frames; verify scene graph, uniforms and shader compile instead.
 - Tree lab: `computeBoundingSphere` TypeError when a cloned or merged geometry has no bounding sphere. Fixed by computing the sphere in `add()` when missing.
 
 ## Tree lab (`src/dev/treeCompare`, isolated clone)
-- `labNatureTrees.ts` clones `src/streets/natureTrees.ts`. `labLoader.ts` clones `loadNatureAssets` from `useNatureTrees` without the React hook. `labLeaves.ts` wraps the city `LeafSystem` (`environment/leaves.ts`), so the lab runs the same leaf code.
+- `labNatureTrees.ts` is a 14-line re-export barrel over `labNature*.ts` (split 2026-11-06). The lab code clones city tree code in those files. `labLoader.ts` clones `loadNatureAssets` from `useNatureTrees` without the React hook. `labLeaves.ts` wraps the city `LeafSystem` (`environment/leaves.ts`), so the lab runs the same leaf code.
 - Shared modules the lab does not clone (`environment/trees.ts`, `environment/forest.ts`, `environment/leafVariety.ts`, `environment/wind.ts`, `shaders/wetSurface.ts`, `weather/*`) are imported. Edits there reach the city too.
 - Decision: the lab stays a clone, not an import of city tree code, so city edits cannot break the lab page silently. Lab clones stay separate from the city until the user approves a merge.
-- Not in the bundle (dev-only). `tree-compare.html` is a dev-server entry only; `vite.config.ts` has no multi-page input.
+- Not dev-only: `vite.config.ts:8` lists `index.html`, `tree-compare.html` and `agent-room.html` as build inputs, so the tree lab is in the production build.
 
 ## Browser verification (run before any new work)
 1. `list_connected_browsers` (Claude in Chrome). It must show one connected, local browser. If it is empty, stop and ask the user to connect Chrome. Do not fall back silently.
@@ -55,22 +55,24 @@ Limits are in the tests, not in prose. Changing one needs a measured reason writ
 Last smoke test: passed on 2026-10-29 (page title MyWorld3D, one canvas, WebGL on, no console errors, Settings panel and town visible). The built-in pane in the app cannot paint frames: do not use it for visual checks.
 
 ## Process knowledge
-- Run in this order before reporting: `npx tsc --noEmit`, `npx vitest run`, `npx vite build`. Print only failures and summaries.
+- Run `npm run check` before reporting (`package.json:10`: tsc, lint, vitest, vite build). Print only failures and summaries.
 - Commits only on the user's word, in English, with the attribution line from the current system reminder.
 
 ## Open items
 - Real-window visual QA of the tree lab, autumn leaves and winter trees (scene graph and shader checks only so far).
 - Rerun the pedestrian flake (385-walker default crowd) solo on every full vitest run. Consider a looser threshold or a fixed-time harness if it keeps failing.
 - Round 6.5 optional backlog (tram, canal and boats, seasonal events).
+- Decision (2026-11-09): `Math.random` at `src/scene/useTownFrame.ts:93-94` picks the spawn point of a leaf devil (user-triggered transient leaf burst). Visual only: not layout, not stored, not saved state, not in the guard dirs. Kept as is. Caveat: a film run can differ in where a devil spawns; if film reproducibility matters, switch to a seeded rng from a request counter.
+- Lab mirror (2026-11-09): removed conifer and broadleaf leaf-snow geometry (`snowLeaves`, `snowLeafMat`) from `src/dev/treeCompare/labNatureAsset.ts`, `labNatureField.ts`, `labNatureTypes.ts`, matching the city change (City & Streets). Conifer snow comes from the weather shader on the leaf material; bark snow stays.
 
 ## How to verify
 `npx tsc --noEmit`, `npx vitest run` (rerun the pedestrian flake solo), `npx vite build`. Budget numbers: `tests/budget.test.ts`. Visual claims: connected Chrome only, and say what was not seen by eye.
 
 ## Public buildings pass (branch optimize_02)
-- Monument shadows are OFF: `src/scene/useTownPieces.ts` sets `castShadow = false` on every mesh of a monument group after `buildMonument`. Houses, streets and trees keep their shadows. Reason: shadow headroom was 12.7k against about 5k per monument (see docs/agents/public-buildings-review.md, X1).
+- Monument shadows are OFF except kinds in `buildings.monumentShadowKinds` (currently `['gothic-cathedral']`, `src/config/tuning/buildings.ts:114`): `src/scene/useTownPieces.ts:66-69` sets `castShadow = false` for the other monument kinds. Houses, streets and trees keep their shadows. Reason: shadow headroom was 12.7k against about 5k per monument (see docs/agents/public-buildings-review.md, X1).
 - `tests/budget.test.ts` builds every monument block of the seeded town (seed 1 has one: swimming-pool, about 4.9k shadow triangles) and counts ALL monument bodies as shadow casters, although the real render stops monster shadows in useTownPieces.ts. So the test is conservative for monuments: real shadow pass = test total minus the monuments that do not cast. Its numbers now: main 1,582,611; shadow 592,995; draw calls 132.
 - Config split: `src/config/tuning/` (one file per section, `index.ts` re-exports). `tests/tuningParity.test.ts` reads the folder as one text; its virtual name for that folder stands for the folder.
-- Pre-existing failures on dev 86f0c15, not from this work: three tests fail on dev too: blockMerge default-town hash, blockMerge invalid group, and the city streetTreeMultiplier superset at `tests/city.test.ts:106`. Do not attribute them to monuments or the config split.
+- Pre-existing failures on dev 86f0c15, not from this work: three tests fail on dev too: blockMerge default-town hash, blockMerge invalid group, and a city streetTree test (name unverified; `tests/city.test.ts:106` is now "plants trees in every setting"). Blockmerge tests are at `tests/blockMerge.test.ts:98,166,186`. None fail on the 2026-11-09 full check. Do not attribute them to monuments or the config split.
 
 ## Film recorder P1 (branch feature_video_camera, 2026-11-04)
 - `src/film/recorder.ts`: `startRecording` (canvas.captureStream + MediaRecorder, optional audio tracks), `downloadBlob`, `isRecordingSupported`. Pure helpers `mimeCandidates`, `pickMimeType`, `filmExtension`, `filmFileName` are unit-tested in `tests/film/recorder.test.ts`.
@@ -202,4 +204,4 @@ Static check only (Grep, Glob, Read, wc, git ls-files). No tests, no `npm run ch
 - Change under test: `tests/people.test.ts` perf test now runs at default crowd (385 walkers, not 600); `docs/agents/traffic-life.md` updated by Traffic & Life.
 - `npm run check`: exit 0. tsc, lint, vitest and vite build all green. vitest 106 files, 1768 passed, 1 skipped, 0 failed.
 - Flake status: no failure this run, so no solo rerun was needed. The people perf timing test passed inside the full run. Still treat it as load-sensitive: rerun solo if it fails in a later full run.
-- Handbook note: the "600 walkers" wording above (Traps and Open items) is stale now that the test runs at 385. Traffic & Life owns the test wording; not edited here (QA only).
+- Handbook wording updated: Traps and Open items now say 385 walkers (was "600 walkers"). Test names in the 2026-11-06 entry above are historical.

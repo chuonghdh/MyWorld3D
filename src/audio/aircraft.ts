@@ -10,13 +10,13 @@ import { makeNoiseBuffer } from './synth';
 import { audio as audioTuning } from '../config/tuning';
 
 /** Simultaneous voiced aircraft. */
-export const AIRCRAFT_MAX_VOICES = 2;
+export const AIRCRAFT_MAX_VOICES = audioTuning.aircraftMaxVoices;
 /** Emitter distance model: flat gain out to REF, then inverse falloff to MAX (metres). */
-export const AIRCRAFT_REF_DISTANCE = 250;
-export const AIRCRAFT_MAX_DISTANCE = 2500;
+export const AIRCRAFT_REF_DISTANCE = audioTuning.aircraftRefDistanceM;
+export const AIRCRAFT_MAX_DISTANCE = audioTuning.aircraftMaxDistanceM;
 /** Fade times (s) when a voice starts and ends. */
-export const FADE_IN_S = 3;
-export const FADE_OUT_S = 2.5;
+export const FADE_IN_S = audioTuning.aircraftFadeInS;
+export const FADE_OUT_S = audioTuning.aircraftFadeOutS;
 /** Overall voice level before the distance model: low, this is a high-altitude airliner. */
 export const JET_GAIN = audioTuning.jetGain;
 
