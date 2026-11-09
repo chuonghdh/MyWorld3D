@@ -143,6 +143,10 @@ Base counts are scaled by the graphics tier: factor low 0.4, medium 0.7, high 1 
 | Night emissive (house walls) | 1.15 | multiplier | Glow of lit windows at night | src/config/tuning/buildings.ts (`buildings.nightEmissive`) | Buildings |
 | Lit window colour | #ffcf7a | hex | Colour of lit windows | src/config/tuning/buildings.ts (`buildings.litWindowColor`) | Buildings |
 | Sign night emissive | 1.0 | multiplier | Shop sign glow at night | src/config/tuning/buildings.ts (`buildings.signNightEmissive`) | Buildings |
+| Deep night ambient | 0.1 (was 0.3, then 0.16) | intensity | Ambient light below -18 deg sun altitude (night streets and buildings) | src/config/tuning/skyEnvironment.ts (`skyEnvironment.night.ambientIntensity`) | Sky & Environment |
+| Night moon fill | 0.2 (was 0.55, then 0.35) | factor | Moon fill light per unit of night | src/config/tuning/skyEnvironment.ts (`skyEnvironment.night.moonFillFactor`) | Sky & Environment |
+| Deep night sky horizon | #060709 (was #121a3a, then #0d0f16) | colour | Sky and fog colour below -18 deg sun altitude | src/config/tuning/skyEnvironment.ts (`skyEnvironment.night.skyHorizon`) | Sky & Environment |
+| Deep night zenith | #030304 (was #070c22, then #050608) | colour | Zenith colour below -18 deg sun altitude | src/config/tuning/skyEnvironment.ts (`skyEnvironment.night.skyZenith`) | Sky & Environment |
 | House lamps ramp | on below +4 deg, full at -2 deg sun altitude | degrees | Dusk ramp of house lamps and lit windows | src/config/tuning/skyEnvironment.ts (`skyEnvironment.lights.houseLampsOnDeg`), 330 (`houseLampsFullDeg`) | Sky & Environment |
 | Shop lights ramp | on below +2 deg, full at -4 deg | degrees | Shop lights after dusk | src/config/tuning/skyEnvironment.ts (`skyEnvironment.lights.shopLightsOnDeg`), 334 (`shopLightsFullDeg`) | Sky & Environment |
 | Lights on rule | sun altitude below 0 deg | degrees | Global "lights on" flag (house and street lights) | src/config/tuning/skyEnvironment.ts (`skyEnvironment.lights.lightsOnBelowDeg`) | Sky & Environment |
@@ -448,8 +452,6 @@ Parity: tests/agentRoomTuning.test.ts (split from the parity file, which is over
 | Lead robot colour | '#ff8a1f' | hex | Lead robot body colour (torso and head) | src/config/tuning/agentRoom.ts (`agentRoom.leadRobotColor`) | Technical Architect |
 | Table light colour | '#ffd84a' | hex | Warm yellow light over the discuss table centre | src/config/tuning/agentRoom.ts (`agentRoom.tableLightColor`) | Technical Architect |
 | Discuss table colour | '#3aa8ff' | hex | Bright blue top of the discuss table | src/config/tuning/agentRoom.ts (`agentRoom.discussTableColor`) | Technical Architect |
-| Guest desk x | -8 | m | Guest desk centre, x (upper-left of the room) | src/config/tuning/agentRoom.ts (`agentRoom.guestDeskX`) | Technical Architect |
-| Guest desk z | -5 | m | Guest desk centre, z | src/config/tuning/agentRoom.ts (`agentRoom.guestDeskZ`) | Technical Architect |
 | Table light intensity | 10 | candela | Intensity of the light over the discuss table centre | src/config/tuning/agentRoom.ts (`agentRoom.tableLightIntensity`) | Technical Architect |
 | Fly lean | 0.28 | rad | Forward pitch of a gliding robot at full speed (zero gravity, no legs) | src/config/tuning/agentRoom.ts (`agentRoom.flyLeanRad`) | Technical Architect |
 | Hover amplitude | 0.05 | m | Hover bob of a floating robot | src/config/tuning/agentRoom.ts (`agentRoom.hoverAmpM`) | Technical Architect |

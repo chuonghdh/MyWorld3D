@@ -25,12 +25,12 @@ root.add(limb);
 const flat = new THREE.Object3D();
 const col = new THREE.Color();
 const hand = new THREE.Vector3();
-/** Scale used to hide an instance (the guest before it ever appears, mugs when standing). */
+/** Scale used to hide an instance (mugs when standing). */
 const HIDDEN = 0.0001;
 
-/** Idle facing: towards the desk for specialists, towards the camera side for lead and guest. */
+/** Idle facing: towards the desk for specialists, towards the camera side for the lead. */
 function restHeading(id: AgentId): number {
-  if (id === 'lead' || id === 'guest') return 0;
+  if (id === 'lead') return 0;
   const d = deskPose(id).pos;
   const h = homeSpot(id);
   return Math.atan2(d.x - h.x, d.z - h.z);

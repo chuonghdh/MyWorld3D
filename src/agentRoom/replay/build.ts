@@ -22,7 +22,7 @@ export function isReplayDoc(x: unknown): x is ReplayDoc {
 }
 
 function agentOf(name: string): AgentId {
-  return asAgentId(name.trim().toLowerCase()) ?? 'guest';
+  return asAgentId(name.trim().toLowerCase()) ?? 'lead';
 }
 
 const dayMs = (d: string) => {
@@ -65,7 +65,7 @@ export function buildReplayEvents(doc: ReplayDoc): RoomEvent[] {
     const owner = commitOwner(c.files, doc.claims);
     if (owner !== 'lead') add({ t: c.t, agent: 'lead', kind: 'delegate', to: owner, via: 'Agent' });
     add({ t: c.t, agent: owner, kind: 'tool_start', tool: `commit ${c.hash}` });
-    for (const f of c.files.slice(0, FILES_PER_COMMIT)) add({ t: c.t, agent: owner, kind: 'file_touch', path: f, owner: ownerOf(f, doc.claims) ?? 'guest' });
+    for (const f of c.files.slice(0, FILES_PER_COMMIT)) add({ t: c.t, agent: owner, kind: 'file_touch', path: f, owner: ownerOf(f, doc.claims) ?? 'lead' });
     add({ t: c.t, agent: owner, kind: 'tool_end', tool: `commit ${c.hash}`, ok: true });
     if (owner !== 'lead') add({ t: c.t, agent: owner, kind: 'subagent_done' });
   }

@@ -134,7 +134,7 @@ export function drawBoard(
   g.font = `800 34px ${FONT}`;
   g.fillText(`SHIPPED ${shipped.count}`, 18, h - 20);
   // Mission control strip: one chip per specialist with its live status.
-  agents.filter((a) => a.id !== 'lead' && a.id !== 'guest').forEach((a, i) => {
+  agents.filter((a) => a.id !== 'lead').forEach((a, i) => {
     const x = 18 + i * ((w - 36) / 8);
     g.fillStyle = AGENT_COLOR[a.id];
     g.beginPath();

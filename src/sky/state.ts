@@ -86,7 +86,7 @@ const hex = (h: string): Rgb => ({
 
 // Zenith colour by sun altitude (degrees); the horizon colour comes from the sun module's sky colour.
 const ZENITH: ZenithKey[] = [
-  { alt: -18, color: hex('#070c22') },
+  { alt: -18, color: hex(skyEnvironment.night.skyZenith) },
   { alt: -6, color: hex('#161f55') },
   { alt: 0, color: hex('#3b4f94') },
   { alt: 6, color: hex('#5a86c8') },

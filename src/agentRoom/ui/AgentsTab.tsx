@@ -37,7 +37,7 @@ export function AgentRow({ a }: { a: AgentSnapshot }) {
       <div className="grow">
         <div>{AGENT_LABEL[a.id]}</div>
         <div className="line">
-          {placeText(a.id, place)} · {lastLine(a.id)}
+          {placeText(place)} · {lastLine(a.id)}
         </div>
       </div>
       <span className="pill" data-tone={pill.tone}>
@@ -83,7 +83,7 @@ function Details({ id }: { id: AgentId }) {
 export function AgentsTab() {
   const agents = useRoomMirror((s) => s.agents);
   const selected = useUi((s) => s.selected);
-  const shown = agents.filter((a) => a.id !== 'guest' || a.status !== 'idle');
+  const shown = agents;
   return (
     <div role="listbox" aria-label="Agents">
       {selected && <Details id={selected} />}

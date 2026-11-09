@@ -2,8 +2,8 @@
 // where each agent should be and what it is doing, from engine state and time only. Deterministic, tested.
 import type { AgentId, AgentStatus } from '../model/types';
 import type { RoomState } from '../engine/state';
-import { DISCUSS, GUEST_DESK, LEAD_DESK, ROOM, SPECIALISTS, SX, deskPose, homeSpot, seatPos, type Vec2 } from './layout';
-import { DOOR_NODE, GUEST_HOME, GUEST_SEAT, LEAD_HOME, LEAD_NODE, SEATS } from './corridors';
+import { DISCUSS, LEAD_DESK, ROOM, SPECIALISTS, SX, deskPose, homeSpot, seatPos, type Vec2 } from './layout';
+import { LEAD_HOME, LEAD_NODE, SEATS } from './corridors';
 
 export type Activity = 'stand' | 'work' | 'wait' | 'huddle' | 'report' | 'relax' | 'hidden';
 
@@ -28,9 +28,8 @@ export { BOARD } from './layout';
 export const LEAD_SPOT: Vec2 = LEAD_NODE;
 const TABLE_CENTER: Vec2 = { x: DISCUSS.x, z: DISCUSS.z };
 
-/** Huddle seat on the discuss-table ring: specialist i sits on seat i, the guest on the last seat. */
+/** Huddle seat on the discuss-table ring: specialist i sits on seat i. */
 export function huddleSlot(id: AgentId): Vec2 {
-  if (id === 'guest') return GUEST_SEAT;
   const i = Math.max(0, SPECIALISTS.indexOf(id));
   return SEATS[i] ?? seatPos(i);
 }
@@ -63,10 +62,6 @@ export function seatOf(id: AgentId): number {
   return Math.max(0, SPECIALISTS.indexOf(id)) % (PANTRY_SEATS.length - 1);
 }
 
-/** Guest door on the left wall at the front row corridor; bench just behind it. */
-export const DOOR = { z: DOOR_NODE.z, w: 1.2, h: 2.3 } as const;
-export const GUEST_BENCH: Vec2 = { x: -ROOM.halfW + 0.55, z: DOOR_NODE.z - 1.6 };
-const GUEST_HIDDEN: Vec2 = DOOR_NODE;
 const ACTIVE: readonly AgentStatus[] = ['thinking', 'tool', 'delegating', 'waiting', 'error'];
 
 export function planFor(state: RoomState, id: AgentId, now: number, k: Timing): Plan {
@@ -87,13 +82,6 @@ export function planFor(state: RoomState, id: AgentId, now: number, k: Timing): 
     if (a.status !== 'idle') return { target: LEAD_HOME, look: { x: LEAD_DESK.x, z: LEAD_DESK.z }, activity: 'work', seatY: CHAIR_SEAT_Y };
     const seat = PANTRY_SEATS[seatOf('lead')]!;
     return { target: seat.pos, look: seat.look, activity: 'relax', seatY: seat.y };
-  }
-  if (id === 'guest') {
-    if (calledNow) return { target: huddleSlot(id), look: TABLE_CENTER, activity: 'huddle', seatY: RING_SEAT_Y };
-    // Active: works at its own desk (upper-left), not on the ring.
-    if (fresh && ACTIVE.includes(a.status)) return { target: GUEST_HOME, look: { x: GUEST_DESK.x, z: GUEST_DESK.z }, activity: a.status === 'waiting' || a.status === 'error' ? 'wait' : 'work', seatY: CHAIR_SEAT_Y };
-    if (a.status !== 'idle' || called !== undefined) return { target: GUEST_BENCH, look: { x: 0, z: GUEST_BENCH.z }, activity: 'relax', seatY: SOFA_SEAT_Y };
-    return { target: GUEST_HIDDEN, look: { x: 0, z: DOOR.z }, activity: 'hidden', seatY: 0 };
   }
   if (calledNow) return { target: huddleSlot(id), look: TABLE_CENTER, activity: 'huddle', seatY: RING_SEAT_Y };
   if (reporting) return { target: huddleSlot(id), look: TABLE_CENTER, activity: 'report', seatY: RING_SEAT_Y };

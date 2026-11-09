@@ -1,8 +1,8 @@
 // Walking routes (pure, deterministic): footprints of furniture from the layout, a coarse occupancy grid inflated by
 // the robot radius, A* (8-way, no corner cutting, fixed tie-break) and line-of-sight smoothing.
 // Start or goal inside furniture (a sofa seat, a stool) is reached by a short final leg from the nearest free cell.
-import { BOARD, DESK, DISCUSS, GUEST_DESK, LEAD_DESK, ROOM, SPECIALISTS, deskPose, type Vec2 } from './layout';
-import { BAR_TABLE, COFFEE_TABLE, GUEST_BENCH, PANTRY } from './office';
+import { BOARD, DESK, DISCUSS, LEAD_DESK, ROOM, SPECIALISTS, deskPose, type Vec2 } from './layout';
+import { BAR_TABLE, COFFEE_TABLE, PANTRY } from './office';
 import { PLANT_SPOTS, partitions } from './Decor';
 import { plantSpots } from './plants';
 
@@ -22,7 +22,6 @@ export function footprints(): Footprint[] {
   }
   f.push({ kind: 'circle', x: DISCUSS.x, z: DISCUSS.z, r: DISCUSS.w / 2 });
   f.push({ kind: 'rect', x: LEAD_DESK.x, z: LEAD_DESK.z, hw: LEAD_DESK.w / 2, hd: LEAD_DESK.d / 2, yaw: LEAD_DESK.yaw });
-  f.push({ kind: 'rect', x: GUEST_DESK.x, z: GUEST_DESK.z, hw: DESK.w / 2, hd: DESK.d / 2, yaw: GUEST_DESK.yaw });
   f.push({ kind: 'rect', x: BOARD.x, z: BOARD.z, hw: BOARD.w / 2 + 0.06, hd: 0.08, yaw: 0 });
   for (const p of partitions()) f.push({ kind: 'rect', x: p.x, z: p.z, hw: 0.7, hd: 0.03, yaw: p.yaw });
   f.push({ kind: 'rect', x: ROOM.halfW - 0.4, z: -5.5, hw: 0.4, hd: 1.55, yaw: 0 }); // sofa A (right wall)
@@ -30,7 +29,6 @@ export function footprints(): Footprint[] {
   f.push({ kind: 'rect', x: ROOM.halfW - 0.45, z: -2.6, hw: 0.35, hd: 0.8, yaw: 0 }); // counter
   f.push({ kind: 'rect', x: COFFEE_TABLE.x, z: COFFEE_TABLE.z, hw: 0.55, hd: 0.35, yaw: 0 });
   f.push({ kind: 'circle', x: BAR_TABLE.x, z: BAR_TABLE.z, r: 0.45 });
-  f.push({ kind: 'rect', x: GUEST_BENCH.x, z: GUEST_BENCH.z, hw: 0.25, hd: 0.6, yaw: 0 });
   f.push({ kind: 'rect', x: PANTRY.x0, z: (-ROOM.halfD + PANTRY.z1) / 2, hw: 0.02, hd: (PANTRY.z1 + ROOM.halfD) / 2, yaw: 0 }); // pantry glass
   for (const [x, z] of PLANT_SPOTS) f.push({ kind: 'circle', x, z, r: 0.3 });
   for (const p of plantSpots()) f.push({ kind: 'circle', x: p.x, z: p.z, r: 0.3 });

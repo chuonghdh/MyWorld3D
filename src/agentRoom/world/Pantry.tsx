@@ -73,7 +73,7 @@ export function Pantry({ world }: { world: LiveWorld }) {
     const m = steam.current;
     if (!m) return;
     // Steam only while someone is relaxing in the lounge.
-    m.visible = Object.values(world.agents).some((a) => a.id !== 'guest' && a.activity === 'relax' && a.arrived);
+    m.visible = Object.values(world.agents).some((a) => a.activity === 'relax' && a.arrived);
     if (!m.visible) return;
     for (let i = 0; i < STEAM; i++) {
       const life = (t.current * 0.5 + i / STEAM) % 1;

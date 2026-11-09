@@ -43,8 +43,6 @@ const AGENT_ROOM_KNOBS: [string, string][] = [
   ['leadRobotColor', "'#ff8a1f'"],
   ['tableLightColor', "'#ffd84a'"],
   ['discussTableColor', "'#3aa8ff'"],
-  ['guestDeskX', '-8'],
-  ['guestDeskZ', '-5'],
   ['tableLightIntensity', '10'],
   ['flyLeanRad', '0.28'],
   ['hoverAmpM', '0.05'],

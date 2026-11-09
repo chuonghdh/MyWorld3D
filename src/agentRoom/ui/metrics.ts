@@ -9,9 +9,8 @@ export interface Metrics {
   errors: number;
 }
 
-/** Guests count only when they have done something. */
 export function metricsOf(agents: readonly AgentSnapshot[]): Metrics {
-  const shown = agents.filter((a) => a.id !== 'guest' || a.status !== 'idle');
+  const shown = agents;
   const is = (...s: AgentStatus[]) => shown.filter((a) => s.includes(a.status)).length;
   return { agents: shown.length, active: is('thinking', 'tool', 'delegating'), waiting: is('waiting'), done: is('done'), errors: is('error') };
 }
@@ -67,10 +66,10 @@ const PLACE: Record<string, string> = {
   hidden: 'Not in the room',
 };
 
-/** Location label for the Agents tab (presentation of the office plan; guests rest on the bench, not the pantry). */
-export function placeText(id: string, place: { activity: string; arrived: boolean } | undefined): string {
+/** Location label for the Agents tab (presentation of the office plan). */
+export function placeText(place: { activity: string; arrived: boolean } | undefined): string {
   if (!place) return '';
-  const where = id === 'guest' && place.activity === 'relax' ? 'Guest bench' : (PLACE[place.activity] ?? place.activity);
+  const where = PLACE[place.activity] ?? place.activity;
   return place.arrived || place.activity === 'hidden' ? where : `Walking to ${where.replace(/ \(.*\)$/, '').replace(/^At /, '').toLowerCase()}`;
 }
 

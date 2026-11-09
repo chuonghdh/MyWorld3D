@@ -11,7 +11,6 @@ export const AGENT_COLOR: Record<AgentId, string> = {
   'ui-camera': '#ff6fa8',
   'scene-qa': '#4fd6d0',
   architect: '#ffd35c',
-  guest: '#8a8f99',
 };
 
 export const AGENT_LABEL: Record<AgentId, string> = {
@@ -24,5 +23,4 @@ export const AGENT_LABEL: Record<AgentId, string> = {
   'ui-camera': 'UI & Camera',
   'scene-qa': 'Scene & QA',
   architect: 'Architect',
-  guest: 'Guest',
 };

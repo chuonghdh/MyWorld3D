@@ -32,6 +32,17 @@ export const skyEnvironment = {
     /** Vehicle headlights reach full strength at this sun altitude, degrees (sun.ts). */
     headlightFullDeg: -8,
   },
+  /** Night light level (environment/sun.ts). */
+  night: {
+    /** Ambient light at deep night, below -18 deg sun altitude (was 0.3). Lower = darker streets and buildings. */
+    ambientIntensity: 0.1,
+    /** Moon fill light per unit of nightness (was 0.55, then 0.35). Lower = less moon light on the town. */
+    moonFillFactor: 0.2,
+    /** Sky and fog colour at deep night, below -18 deg sun altitude (was #121a3a, then #0d0f16). Near-black, minimal blue. */
+    skyHorizon: '#060709',
+    /** Zenith colour at deep night, below -18 deg sun altitude (was #070c22, then #050608). Near-black. */
+    skyZenith: '#030304',
+  },
   /** Weather caps and limits (weather/*.ts). */
   weather: {
     /** Rain amount at intensity 1 for the rain kind (weatherState.ts RAIN_CAP). */

@@ -45,7 +45,6 @@ describe('office plan', () => {
     expect(p.target).toEqual(PANTRY_SEATS[seatOf('audio')]!.pos);
     expect(planFor(s, 'lead', 0, T)).toMatchObject({ activity: 'relax', target: PANTRY_SEATS[seatOf('lead')]!.pos });
     expect(seatOf('lead')).not.toBe(seatOf('audio'));
-    expect(planFor(s, 'guest', 0, T).activity).toBe('hidden');
   });
   it('work loop: called -> huddle at board, then desk work, then report, then pantry', () => {
     seq = 0;
@@ -68,11 +67,8 @@ describe('office plan', () => {
     seq = 0;
     expect(planFor(run({ t: 0, agent: 'audio', kind: 'notify' }), 'audio', 10, T).activity).toBe('wait');
   });
-  it('an active guest works at its own desk; afterwards it sits on the bench', () => {
-    seq = 0;
-    const s = run({ t: 0, agent: 'guest', kind: 'tool_start', tool: 'Grep' });
-    expect(planFor(s, 'guest', 10, T).activity).toBe('work');
-    expect(planFor(s, 'guest', 30_000, T).activity).toBe('relax');
+  it('there is no guest: the roster is the lead plus the eight specialists', () => {
+    expect(Object.keys(initialState('live').agents).sort()).toEqual(['lead', ...SPECIALISTS].sort());
   });
 });
 

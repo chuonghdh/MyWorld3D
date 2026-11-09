@@ -52,3 +52,9 @@
 - Verified: no `src` file is over 350 lines (`OVERSIZED` is empty, so the ratchet is satisfied).
 - Found stale (not edited, outside this handbook): TUNING.md leaf line references and the parity test path (see Traps and Open items).
 - Not verified: whether the `tests/tuningParity.test.ts` entries for the config folder pass; test results were not run (no `npx vitest run` in this review).
+
+## Update 2026-11-08
+- Trap: stale `node_modules` after a dependency bump flips units silently. suncalc 1.9 returns radians with azimuth from south; 2.x returns degrees with azimuth from north. `sun.ts` assumes v2. With a stale 1.9 install, midnight altitude -1.21 rad is read as -1.21 deg, so night looks like dusk. Typecheck and lockfile do not catch it.
+- Guard: `tests/sunUnits.test.ts` (Hanoi, equinox): 0h altitude < -45 and phase `night`; 12h altitude > 45; 6h azimuth ~90, 18h ~270. Failure message: "suncalc returned v1 units - run npm install".
+- Verify: `npm ls suncalc` matches `package.json`; run `npx vitest run tests/sunUnits.test.ts`. After `npm install`, clear `node_modules/.vite` and restart dev server.
+- Moon: `tests/moonUnits.test.ts` guards `getMoonDirection` (degree range, |alt| > 2*PI at some hour, unit vector, moonrise has x > 0 = east), `getNightMoonDirection(0)` (opposite the sun, alt > 45) and `getMoonPhase` (in [0,1), ~0.02 on 2026-03-20). `src/sky/state.ts` only uses sun altitude (degrees) and the unit-free phase, so no other v1 assumption.

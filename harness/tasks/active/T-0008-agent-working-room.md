@@ -30,7 +30,7 @@ Design: `docs/adr/0013-agent-room-module.md` (Accepted 2026-11-08). Future paths
 3. Redaction: keep tool names and file paths; drop prompt text and tool input contents.
 4. Replay: last 50 commits; include completed tasks.
 5. No room-to-bridge command channel in v1.
-6. Agents that match no specialist are shown as "guest" avatars.
+6. Agents that match no specialist are shown as "guest" avatars. (Changed 2026-11-08: attributed to the lead and counted; no guest. ADR 0013.)
 7. No 9th specialist. The Architect owns this feature (see Ownership).
 
 ### Ownership
@@ -51,7 +51,7 @@ Reviewer: Scene & QA reviews Architect phases; Architect reviews Scene & QA phas
 
 - [ ] `npm run check` green after every phase.
 - [ ] Engine: same seed + same events give identical state (vitest).
-- [ ] Mapping: fixture hook payloads map to expected agents; unknown payloads counted, unmatched agents become guests.
+- [ ] Mapping: fixture hook payloads map to expected agents; unknown payloads counted, unmatched agents attribute to the lead (guest removed 2026-11-08).
 - [ ] Layers: agentRoom imports nothing from scene, ui or city features; engine/model import no react/three.
 - [ ] Network only in src/agentRoom/bridgeClient (guard).
 - [ ] Perf: under 150 draw calls, under 120k triangles (renderer.info in dev).
@@ -73,6 +73,7 @@ Reviewer: Scene & QA reviews Architect phases; Architect reviews Scene & QA phas
 - 2026-11-08: re-layout to the human's floor plan: back-wall board, discuss table, back-right pantry, 2x2 desk blocks, corridor-graph routing; camera bar icons under 640 px. High 90 / 70k. Uncommitted, working tree.
 - 2026-11-08: polish: wider room (roomHalfWidth 12.5), glass side walls, pantry plank floor + glass partition, larger board (7.5 x 2.7 m, bigger type), narrow-width overflow menu and collapsed camera bar. High 96 / 70k, Performance 67 / 42k. Uncommitted, working tree.
 - 2026-11-08: phase 5 live: bridge (server, hook, lib), bridgeClient live feed, npm script bridge, hooks in .claude/settings.local.json. End to end: fixture piped through hook.mjs (11/11 exit 0) and this session's real hooks shown in the room as Live, Bridge connected. Uncommitted, working tree.
+- 2026-11-08: guest role removed (ADR 0013 decision change). Lead = any main session (no agent_id), per-session delegation queue, Agent `name` binds exact. Guest desk, door, bench, ring seat and knobs guestDeskX/Z deleted. tsc and agentRoom + harness + tuningParity tests pass. Bridge restart not required; reload agent-room.html. Not checked in a browser. Uncommitted.
 
 ## Handoff
 

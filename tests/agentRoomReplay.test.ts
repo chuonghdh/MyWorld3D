@@ -41,9 +41,9 @@ describe('replay build', () => {
     expect(ev.some((e) => e.kind === 'delegate' && e.to === 'buildings')).toBe(true);
     expect(ev.filter((e) => e.kind === 'file_touch' && e.path === 'src/ui/c.tsx')[0]).toMatchObject({ agent: 'buildings', owner: 'ui-camera' });
   });
-  it('unknown owners become guests and unknown task states fall back to proposed', () => {
+  it('unknown owners attribute to the lead and unknown task states fall back to proposed', () => {
     const t = buildReplayEvents(DOC).find((e) => e.kind === 'task_state' && e.task === 'T-0008-y');
-    expect(t).toMatchObject({ agent: 'guest', state: 'proposed' });
+    expect(t).toMatchObject({ agent: 'lead', state: 'proposed' });
   });
   it('playback spacing keeps order and seq', () => {
     const s = spaceForPlayback(buildReplayEvents(DOC), 1500);

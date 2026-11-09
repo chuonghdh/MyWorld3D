@@ -10,14 +10,12 @@ import { initialState } from '../src/agentRoom/engine/state';
 import { apply } from '../src/agentRoom/engine/reduce';
 
 describe('metrics', () => {
-  it('counts active, waiting, done; idle guests are hidden', () => {
+  it('counts active, waiting, done; every roster agent counts', () => {
     let s = initialState('live');
     s = apply(s, { seq: 1, t: 0, source: 'live', agent: 'audio', kind: 'tool_start', tool: 'Edit' });
     s = apply(s, { seq: 2, t: 0, source: 'live', agent: 'lead', kind: 'notify' });
     s = apply(s, { seq: 3, t: 0, source: 'live', agent: 'buildings', kind: 'subagent_done' });
     expect(metricsOf(Object.values(s.agents))).toEqual({ agents: 9, active: 1, waiting: 1, done: 1, errors: 0 });
-    s = apply(s, { seq: 4, t: 0, source: 'live', agent: 'guest', kind: 'prompt' });
-    expect(metricsOf(Object.values(s.agents)).agents).toBe(10);
   });
   it('clock text', () => {
     expect(clockText(0)).toBe('00:00');
@@ -56,10 +54,9 @@ describe('keys', () => {
 
 describe('place labels', () => {
   it('derive location text from the office activity', () => {
-    expect(placeText('audio', { activity: 'relax', arrived: true })).toBe('Pantry (idle)');
-    expect(placeText('audio', { activity: 'huddle', arrived: false })).toBe('Walking to board');
-    expect(placeText('guest', { activity: 'relax', arrived: true })).toBe('Guest bench');
-    expect(placeText('guest', { activity: 'hidden', arrived: true })).toBe('Not in the room');
+    expect(placeText({ activity: 'relax', arrived: true })).toBe('Pantry (idle)');
+    expect(placeText({ activity: 'huddle', arrived: false })).toBe('Walking to board');
+    expect(placeText({ activity: 'hidden', arrived: true })).toBe('Not in the room');
   });
 });
 

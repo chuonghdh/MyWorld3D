@@ -173,3 +173,27 @@ Static check only (Grep, Glob, Read, wc, git ls-files). No tests, no `npm run ch
 ### Unverified
 - Browser checks (`list_connected_browsers`, Chrome smoke test 2026-10-29), frame paint, and the "Last measured" budget numbers. No tests run in this review.
 - Blockmerge and pedestrian flake status on the current tree.
+
+## QA 2026-11-08 (night-sky fix + agent room guest removal)
+- `npm run check`: tsc, lint, build green; vitest 106 files, 1764 passed, 1 skipped. No timing flake this run.
+- Runtime via connected Claude in Chrome, real screenshots looked at. Time set with `useWorldStore.getState().setTimeOfDay(h)` from a dynamic import of `/src/store/index.ts`; sun read from `/src/environment/sun.ts`; lights from `window.__r3f.scene`.
+- Fresh dev server (5174, new `.vite` prebundle `suncalc.js?v=a0b38ad3`): 00:00 alt -68.82 deg, phase night, directional lights 0.935 #c5d4f5 + 0.272 #a0afd4 (dark blue sky, lamps lit). 12:00 alt 68.79, phase day, sun 3.91 #fffdfb. No console errors.
+- Stale server: a vite process started before `npm install` still held 5173 (`suncalc.js?v=461bd168`). There 00:00 gave alt -1.21 (radians read as degrees), phase dusk: the user's bug. Restart of that server is required; code is correct.
+- agent-room.html: 1 canvas, roster "Agents 9" (Lead + 8 specialists), no "guest" in DOM text or HTML, 8 desks, no console errors. `__r3f` not exposed on that page, so the Three scene graph was not inspected; guest absence in the 3D scene is by screenshot only.
+- Blind spots: console capture began after load on the main page; night look judged on one top-down view only; animation and frame-to-frame motion not checked.
+
+## QA 2026-11-09 (night sky: skyHorizon/skyZenith, night darkening)
+- Full `npm run check` on current code: tsc, lint, build green. vitest 106 files, 1767 passed, 1 skipped, 1 failed: `tests/people.test.ts` "600 walkers" timing (0.52 ms vs < 0.5 ms) under full-run load. Solo rerun passes (known load flake, not a code defect).
+- `tests/audioPeople.test.ts` "steps faster" failed once solo (expected 3 > 3) and passed on two solo reruns: timing flake.
+- Runtime on fresh 5173 server (cache cleared), connected Chrome, real screenshots taken and looked at:
+  - 00:00: alt -68.82, phase night, stars uStars 0.762, moonFill 0.35, ambient 0.08 (raw 0.16), dir lights 0.595 #c5d4f5 + 0.272 #a0afd4. Dark, bluish-grey ground and sky. Lamps and lit windows visible as orange dots along streets; top-down view shows no visible stars.
+  - 12:00: alt 68.79, phase day, sun 3.91 #fffdfb, hemi 1.95, stars 0, moonFill 0. Bright day, same as before the night change.
+  - 18:30 (shown as 06:30 PM): alt -5.58, phase dusk, moonFill 0.157, stars 0.007. Lamps on, sky blue-grey.
+- Served code contains skyHorizon #0d0f16 and skyZenith #050608; sun.ts reads night.skyHorizon, night.ambientIntensity, night.moonFillFactor.
+- Stale server: not the issue this run. Vite cache cleared and server restarted before checks.
+- Not verified: 00:04 was set via setTimeOfDay(4/60) (store accepts fractional hours; slider step not used). Moon disc and star visibility not confirmed by eye at night (top-down camera). No frame-to-frame or animation check.
+
+## QA 2026-11-09 (deep night re-darkened: skyHorizon #060709, skyZenith #030304, ambient 0.1, moonFillFactor 0.2)
+- Full `npm run check`: tsc, lint, build green. vitest 1767 passed, 1 skipped, 1 failed: `tests/people.test.ts` "600 walkers" timing (0.89 ms vs < 0.5 ms) under full-run load. Solo rerun: see report.
+- Runtime, fresh 5173 server (cache cleared): 00:00 alt -68.82, phase night, ambient 0.1 (dir light 0.34 #c5d4f5, 0.272 #a0afd4, hemi 0.3), moonFill 0.2, stars 0.762. Screenshot: near-black ground, lamps and lit windows visible. 12:00 alt 68.79, day, sun 3.91, hemi 1.95, moonFill 0, unchanged.
+- Blind spots: stars and moon disc not confirmed by eye (top-down camera); 00:04 not checked this round; no motion check.

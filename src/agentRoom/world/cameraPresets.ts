@@ -49,7 +49,7 @@ export function presetPose(id: PresetId, viewDistance: number, focusDistance: nu
   if (id === 'hub') return { target: [DISCUSS.x, 0.9, DISCUSS.z], pos: [DISCUSS.x + 1.5, 6.0, DISCUSS.z + 7.0] };
   // Target stays inside the clamp (1 m in front of the wall); the view still centres on the screen.
   if (id === 'wall') return { target: [WALL_SCREEN.x, WALL_SCREEN.y, LIMITS.z[0]], pos: [WALL_SCREEN.x, 3.0, 0.5] };
-  if (id === 'lead' || id === 'guest') return presetPose('hub', viewDistance, focusDistance);
+  if (id === 'lead') return presetPose('hub', viewDistance, focusDistance);
   const { pos } = deskPose(id as AgentId);
   const t: V3 = [pos.x, 0.9, pos.z];
   // From the front (where the agent works), looking back over its shoulder at the desk.

@@ -139,7 +139,7 @@ const hex = (h: string): Rgb => ({
 
 // Keyframes ordered by sun altitude (degrees).
 const KEYFRAMES: Keyframe[] = [
-  { alt: -18, sky: hex('#121a3a'), sunColor: hex('#5a6ea8'), sunIntensity: 0.08, ambientIntensity: 0.3 },
+  { alt: -18, sky: hex(skyEnvironment.night.skyHorizon), sunColor: hex('#5a6ea8'), sunIntensity: 0.08, ambientIntensity: skyEnvironment.night.ambientIntensity },
   { alt: -6, sky: hex('#26306a'), sunColor: hex('#8a6a9a'), sunIntensity: 0.14, ambientIntensity: 0.3 },
   { alt: 0, sky: hex('#e0734a'), sunColor: hex('#ff9a55'), sunIntensity: 0.6, ambientIntensity: 0.35 },
   { alt: 6, sky: hex('#f2b272'), sunColor: hex('#ffc27a'), sunIntensity: 0.9, ambientIntensity: 0.45 },
@@ -219,7 +219,7 @@ export function getSkyState(altitudeDeg: number): SkyState {
     lightsOn: altitudeDeg < skyEnvironment.lights.lightsOnBelowDeg,
     headlights: Math.min(1, Math.max(0, -altitudeDeg / -skyEnvironment.lights.headlightFullDeg)),
     nightness: nightnessFor(altitudeDeg),
-    moonFill: nightnessFor(altitudeDeg) * 0.55,
+    moonFill: nightnessFor(altitudeDeg) * skyEnvironment.night.moonFillFactor,
     moonColor: hex('#8fa8e8'),
   };
 }

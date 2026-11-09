@@ -17,7 +17,7 @@ const MAX_TASKS = 4;
 
 export function tickerMessages(agents: readonly AgentSnapshot[], tasks: Readonly<Record<string, TaskCard>>, shipped: Shipped): string[] {
   const out: string[] = [];
-  for (const a of agents) if (a.id !== 'guest') out.push(`${AGENT_LABEL[a.id]}: ${STATUS_TEXT[a.status]}`);
+  for (const a of agents) out.push(`${AGENT_LABEL[a.id]}: ${STATUS_TEXT[a.status]}`);
   out.push(`Shipped ${shipped.count}`);
   Object.entries(tasks)
     .filter(([, c]) => columnOf(c.state) === 'Active' || columnOf(c.state) === 'Review')

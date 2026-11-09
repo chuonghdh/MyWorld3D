@@ -64,7 +64,7 @@ export function Trails({ rt }: { rt: Runtime }) {
     for (let i = rt.state.links.length - 1; i >= 0 && shown < PULSE_LINKS; i--) {
       const l = rt.state.links[i]!;
       const age = world.now - l.t;
-      if (age < 0 || age > PULSE_MS || l.to === 'lead' || l.to === 'guest') continue;
+      if (age < 0 || age > PULSE_MS || l.to === 'lead') continue;
       shown++;
       const a = homeSpot(l.to);
       const b = huddleSlot(l.to);

@@ -60,10 +60,6 @@ export const agentRoom = {
   tableLightColor: '#ffd84a',
   /** Colour of the discuss table top (bright blue). */
   discussTableColor: '#3aa8ff',
-  /** Guest desk centre x, metres (upper-left of the room, an empty area). */
-  guestDeskX: -8,
-  /** Guest desk centre z, metres. */
-  guestDeskZ: -5,
   /** Intensity of the light over the discuss table centre, candela. */
   tableLightIntensity: 10,
   /** Forward pitch of a flying (gliding) robot at full speed, radians. Zero gravity: no legs. */

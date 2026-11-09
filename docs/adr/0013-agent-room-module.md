@@ -43,7 +43,7 @@ session_start, session_end, prompt, tool_start, tool_end, delegate (lead -> spec
 ### Hook mapping
 - Main session id -> lead.
 - PreToolUse Agent/SendMessage: target name or description matched against the 8 specialist names and handbook file names -> delegate; the spawned subagent session id is bound to that specialist.
-- Subagent tool events -> that specialist. Unmatched subagent -> "guest" avatar at hub.
+- Subagent tool events -> that specialist. Unmatched subagent -> the lead (superseded 2026-11-08, see below; was a "guest" avatar).
 - Edit/Write/Read paths -> file_touch, owner from the ownership table (docs/agents/README.md, parsed by replay.mjs into a static table) then claim globs.
 - Notification -> notify (bubble "needs you"). Stop -> lead idle. SubagentStop -> subagent_done.
 
@@ -62,11 +62,17 @@ bridgePort, bridgeRingSize, mirrorHz, wallRedrawHz, bubbleLifeSec, arcLifeSec, t
 3. Redaction: the bridge keeps tool names and file paths; it drops prompt text and tool input contents.
 4. Replay covers the last 50 commits and includes completed tasks.
 5. No room-to-bridge command channel in v1 (one-way SSE).
-6. Unmatched agents are shown as "guest" avatars at the hub.
+6. Unmatched agents are shown as "guest" avatars at the hub. (Superseded 2026-11-08: no guest; see "Decision change 2026-11-08".)
 7. Ownership: no new specialist. The Technical Architect owns src/agentRoom/**, src/config/tuning/agentRoom.ts (with its parity and TUNING entries), tools/agent-bridge/** and agent-room.html, as an explicit human exception to "architect writes no feature code". Scene & QA keeps `vite.config.ts`, `tests/layers.test.ts`, `tests/harness.test.ts` and `docs/REPO_MAP.md`.
 
 ## Consequences
 - One new page and one new src folder; ownership table and REPO_MAP must list src/agentRoom (guard: every src folder appears in the ownership table).
 - .claude/settings.local.json gains hook entries (approval gate; local to each machine). If the bridge is down, hooks are a no-op.
 - ADR 0005 is narrowed, not dropped. A later client->bridge command channel needs another ADR.
-- Mapping by name is heuristic; unmatched agents are shown as guests rather than guessed.
+- Mapping by name is heuristic; unmatched agents are attributed to the lead and counted (`stats.unmatched`), not guessed.
+
+## Decision change 2026-11-08: no guest role
+- Human request: work shows only on the real lead and specialists. The guest avatar, desk, door, bench and ring seat are removed; `AgentId` has no `guest`; knobs `agentRoom.guestDeskX/Z` are deleted. The ring has 8 seats.
+- Unmatched work (subagent with no named delegation, a delegation that names no specialist, a file with no owner) is attributed to the lead. The mapper counts it in `stats.unmatched` instead of drawing an avatar.
+- Root cause of the "only Guest works" report: the mapper took the first session id in the bridge ring as the lead. The ring held an older session, so the live main session and its subagents mapped to guest. Now every event without `agent_id` is the lead's, and pending Agent/Task delegations are queued per session, so an older session never displaces or leaks into the live one.
+- Agent tool `name` (and SendMessage `to`) binds by exact name or slug before the free-text fallback.

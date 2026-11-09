@@ -1,9 +1,9 @@
 // Route = corridor graph (orange lines) + short grid legs only where the floor plan has no corridor: inside the
-// pantry (from its entry to a seat) and onto the guest bench. Pure and deterministic.
+// pantry (from its entry to a seat). Pure and deterministic.
 import type { Vec2 } from './layout';
 import { PANTRY_ENTRY, TOP_Z, buildCorridors, graphPath, nearestNode, nodeAt, type Graph } from './corridors';
 import { buildGrid, findPath, type NavGrid } from './nav';
-import { GUEST_BENCH, PANTRY } from './office';
+import { PANTRY } from './office';
 
 let graph: Graph | null = null;
 let grid: NavGrid | null = null;
@@ -19,7 +19,6 @@ function navGrid(): NavGrid {
 export function inPantry(p: Vec2): boolean {
   return p.x >= PANTRY.x0 && p.x <= PANTRY.x1 + 0.3 && p.z >= PANTRY.z0 - 0.3 && p.z <= TOP_Z + 0.25; // down to its entry corridor
 }
-const onBench = (p: Vec2) => Math.hypot(p.x - GUEST_BENCH.x, p.z - GUEST_BENCH.z) < 1e-6;
 
 /** Graph node to enter from `p`, plus the off-graph leg (p -> node) if p is not a node. */
 function attach(g: Graph, p: Vec2): { node: number; leg: Vec2[] } {
@@ -30,7 +29,7 @@ function attach(g: Graph, p: Vec2): { node: number; leg: Vec2[] } {
     return { node, leg: findPath(navGrid(), p, PANTRY_ENTRY).slice(0, -1) };
   }
   const node = nearestNode(g, p);
-  return { node, leg: onBench(p) ? findPath(navGrid(), p, g.nodes[node]!).slice(0, -1) : [p] };
+  return { node, leg: [p] };
 }
 
 /** Edge (i, j) that contains p (an agent re-planned mid-corridor), or null. */

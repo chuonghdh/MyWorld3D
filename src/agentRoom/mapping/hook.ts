@@ -49,11 +49,11 @@ function unique(text: string, table: [AgentId, string[]][]): AgentId | null {
   return hits.size === 1 ? [...hits][0]! : null;
 }
 
-/** Specialist named in free text: exact name or slug, then a name inside the text, then an unambiguous key; else guest. */
-export function specialistFromText(text: string): AgentId {
+/** Specialist named in free text: exact name or slug, then a name inside the text, then an unambiguous key; else null. */
+export function specialistFromText(text: string): AgentId | null {
   const t = words(text);
   for (const [id, phrases] of NAMES) if (phrases.some((p) => t === ` ${p} `)) return id;
-  return unique(t, NAMES) ?? unique(t, KEYS) ?? 'guest';
+  return unique(t, NAMES) ?? unique(t, KEYS);
 }
 
 function str(v: unknown): string {
@@ -61,31 +61,51 @@ function str(v: unknown): string {
 }
 
 export interface MapperStats {
+  /** Hook events of a kind the mapper does not read. */
   unknown: number;
+  /** Events or delegations that named no specialist; they are attributed to the lead (no guest, ADR 0013 2026-11-08). */
+  unmatched: number;
 }
 
-/** Stateful mapper: binds the main session to lead and subagent ids to specialists. */
+/**
+ * Stateful mapper. Events without agent_id come from a main session and are the lead's: whichever session is live,
+ * so an older session in the bridge ring never displaces the current one. Subagents (agent_id) bind once: to the
+ * specialist named by agent_type, else to the oldest pending delegation of the same session, else to the lead.
+ */
 export function createHookMapper(source: Source, claims: readonly ClaimLike[] = []) {
   const bound = new Map<string, AgentId>();
-  const pending: AgentId[] = [];
-  let leadSession: string | null = null;
+  /** Pending Agent/Task delegations per session, oldest first; null = named no specialist. */
+  const pending = new Map<string, (AgentId | null)[]>();
   let seq = 0;
-  const stats: MapperStats = { unknown: 0 };
+  const stats: MapperStats = { unknown: 0, unmatched: 0 };
+
+  function orLead(id: AgentId | null): AgentId {
+    if (id) return id;
+    stats.unmatched++;
+    return 'lead';
+  }
 
   function agentOf(p: HookPayload): AgentId {
-    if (p.agent_id) {
-      const known = bound.get(p.agent_id);
-      if (known) return known;
-      // agent_type names a specialist only for custom agents; generic types (general-purpose, Explore) fall back to
-      // the specialist named by the pending delegation.
-      const typed = p.agent_type ? specialistFromText(p.agent_type) : 'guest';
-      const id = typed !== 'guest' ? typed : (pending.shift() ?? 'guest');
-      bound.set(p.agent_id, id);
-      return id;
+    if (!p.agent_id) return 'lead';
+    const known = bound.get(p.agent_id);
+    if (known) return known;
+    // agent_type names a specialist only for custom agents; generic types (general-purpose, Explore) fall back to
+    // the specialist named by the session's pending delegation.
+    const typed = p.agent_type ? specialistFromText(p.agent_type) : null;
+    const id = orLead(typed ?? pending.get(p.session_id ?? '')?.shift() ?? null);
+    bound.set(p.agent_id, id);
+    return id;
+  }
+
+  /** Target of an Agent/Task/SendMessage call: the `name` or `to` field first (Agent tool name = specialist slug). */
+  function targetOf(input: Record<string, unknown>): AgentId | null {
+    for (const k of ['name', 'to', 'subagent_type']) {
+      const v = str(input[k]);
+      if (!v) continue;
+      const t = words(v);
+      for (const [id, phrases] of NAMES) if (phrases.some((ph) => t === ` ${ph} `)) return id;
     }
-    const sid = p.session_id ?? '';
-    if (leadSession === null) leadSession = sid;
-    return sid === leadSession ? 'lead' : (bound.get(sid) ?? 'guest');
+    return specialistFromText([input.subagent_type, input.name, input.description, input.to].map(str).join(' '));
   }
 
   function map(p: HookPayload, t: number): RoomEvent[] {
@@ -109,13 +129,16 @@ export function createHookMapper(source: Source, claims: readonly ClaimLike[] = 
       case 'PreToolUse': {
         const out: RoomEvent[] = [{ ...base, seq: next(), kind: 'tool_start', tool }];
         if (tool === 'Agent' || tool === 'Task' || tool === 'SendMessage') {
-          const text = [input.subagent_type, input.name, input.description, input.to].map(str).join(' ');
-          const to = specialistFromText(text);
-          if (tool !== 'SendMessage') pending.push(to);
+          const named = targetOf(input);
+          if (tool !== 'SendMessage') {
+            const sid = p.session_id ?? '';
+            pending.set(sid, [...(pending.get(sid) ?? []), named]);
+          }
+          const to = orLead(named);
           out.push({ ...base, seq: next(), kind: 'delegate', to, via: tool === 'SendMessage' ? 'SendMessage' : 'Agent' });
         }
         const path = str(input.file_path) || str(input.notebook_path) || str(input.path);
-        if (path) out.push({ ...base, seq: next(), kind: 'file_touch', path, owner: ownerOf(path, claims) ?? 'guest' });
+        if (path) out.push({ ...base, seq: next(), kind: 'file_touch', path, owner: ownerOf(path, claims) ?? 'lead' });
         return out;
       }
       case 'PostToolUse': {

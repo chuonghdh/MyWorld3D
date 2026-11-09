@@ -34,7 +34,6 @@ function freeSpot(c: Vec2, segs: [Vec2, Vec2][], desks: Vec2[], parts: Vec2[]): 
   if (Math.hypot(c.x - DISCUSS.x, c.z - DISCUSS.z) < TABLE_CLEAR) return false;
   if (c.z < BOARD.z + 1.4 && Math.abs(c.x - BOARD.x) < BOARD.w / 2 + 1) return false; // board wall
   if (c.x > PANTRY.x0 - 0.9 && c.z < PANTRY.z1 + 0.5) return false; // pantry lounge
-  if (c.x < -ROOM.halfW + 2.2 && c.z > ROW_Z[1] - 2) return false; // guest door and bench
   if (parts.some((p) => Math.abs(c.x - p.x) < 0.9 && Math.abs(c.z - p.z) < 1.0)) return false; // glass dividers
   return true;
 }

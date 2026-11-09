@@ -24,8 +24,8 @@ export const BOARD = { x: -1.6 * SX, z: -ROOM.halfD + 0.12, yaw: 0, w: 7.5, h: 5
 export const DISCUSS = { x: -1.6 * SX, z: -3.6, r: 1.1, w: 2.2, d: 2.2, h: 0.75 } as const;
 /** Huddle seat ring radius, metres (table radius plus stool and robot clearance). */
 export const SEAT_R = 1.65;
-/** Seats on the ring: one per specialist plus one for the guest. */
-export const SEAT_COUNT = 9;
+/** Seats on the ring: one per specialist. */
+export const SEAT_COUNT = 8;
 /** Seat k on the ring; seat 0 faces the room (+z), seats run clockwise from above. */
 export function seatPos(k: number): Vec2 {
   const t = (2 * Math.PI * k) / SEAT_COUNT;
@@ -72,12 +72,6 @@ export function leadHome(): Vec2 {
   return { x: LEAD_DESK.x - f * Math.sin(LEAD_DESK.yaw), z: LEAD_DESK.z - f * Math.cos(LEAD_DESK.yaw) };
 }
 
-/** Guest desk: unmatched agents work here, in the empty upper-left of the room (same design as a member desk). */
-export const GUEST_DESK = { x: agentRoom.guestDeskX, z: agentRoom.guestDeskZ, yaw: 0 } as const;
-/** Where the guest works: on the member side of its desk (+z), like a specialist. */
-export function guestHome(): Vec2 {
-  return { x: GUEST_DESK.x, z: GUEST_DESK.z + STAND };
-}
 
 /** Board panel on the back wall (used by the window wall to leave a solid panel behind it). */
 export const WALL_SCREEN = { x: BOARD.x, w: BOARD.w, h: BOARD.h, y: BOARD.bottom + BOARD.h / 2, z: BOARD.z } as const;

@@ -45,6 +45,7 @@ mechanical, and make every failure loud and cheap to see.
 | Workflow records | `tests/harness.test.ts` | task records, handoff template, claims and briefs well-formed |
 | Evals and CI | `tests/harness.test.ts` | eval cases, PR template, drift check, workflow shape, CODEOWNERS |
 | Duplicate lists | `tests/tuningParity.test.ts` | `HOUSE_PRESETS` and `MONUMENT_KINDS` lists have no duplicates |
+| Dependency sync | `tests/depsSync.test.ts` | installed direct dependencies match `package-lock.json`. After any dependency bump, or pulling a merge that changes `package-lock.json`, run `npm install`, delete `node_modules/.vite`, and restart Vite. |
 
 ## File size ratchet
 

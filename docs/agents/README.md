@@ -69,3 +69,6 @@ Owns / Key files / Conventions / Traps (what bit us, why) / Decisions (and the r
 - All eight specialists reviewed their handbooks against code (see each handbook's "Review 2026-11-08" section). Stale paths and counts corrected; no rule found invalid in its guard.
 - Rules updated: CLAUDE.md (guarded dirs for determinism, the 350-line scope, knob doc rows), this file (`npm run check` as the gate; section parity files), and harness/README.md (guard table, CI, network and localStorage allow-lists, layout table).
 - Open for the user: (1) knobs in traffic, life and audio outside `src/config/tuning/` (CLAUDE.md says no); move them or record exceptions. (2) `src/film/**` is not in the dependency guard (`src/film/autoPath.ts`, `autoRun.ts` import `src/scene`). (3) `Math.random` in `src/scene/useTownFrame.ts` and `src/ui/HousePanel.tsx` is outside the guard dirs. (4) `src/film/**` owner row.
+
+## Update 2026-11-08 (architect): dependency sync
+- After any dependency bump, or pulling a merge that changes `package-lock.json`, run `npm install`, delete `node_modules/.vite`, and restart Vite. Guarded by `tests/depsSync.test.ts`.

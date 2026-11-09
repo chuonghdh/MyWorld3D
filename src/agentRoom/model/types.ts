@@ -1,6 +1,6 @@
 // Agent Working Room contract (ADR 0013). Types only: no runtime code, no imports.
 
-/** The lead hub plus the eight specialists, and a guest for subagents that match no specialist. */
+/** The lead hub plus the eight specialists. Work that matches no specialist is the lead's (ADR 0013, 2026-11-08). */
 export type AgentId =
   | 'lead'
   | 'buildings'
@@ -10,8 +10,7 @@ export type AgentId =
   | 'audio'
   | 'ui-camera'
   | 'scene-qa'
-  | 'architect'
-  | 'guest';
+  | 'architect';
 
 /** Where the shown data comes from. Always visible as a badge. */
 export type Source = 'live' | 'replay' | 'simulation';

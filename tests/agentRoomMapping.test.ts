@@ -1,4 +1,4 @@
-// Agent room mapping (ADR 0013): hook payloads -> redacted events, agent binding, guests, path owners.
+// Agent room mapping (ADR 0013): hook payloads -> redacted events, agent binding (no guest: unmatched -> lead), path owners.
 import { describe, expect, it } from 'vitest';
 import { createHookMapper, specialistFromText } from '../src/agentRoom/mapping/hook';
 import { globMatch, normalizePath, ownerOf } from '../src/agentRoom/mapping/owners';
@@ -20,13 +20,29 @@ describe('hook mapping', () => {
     expect(sub[1]).toMatchObject({ kind: 'file_touch', path: 'src/audio/x.ts', owner: 'audio' });
   });
 
-  it('unmatched subagents and unknown sessions become guests', () => {
+  it('unmatched subagents attribute to the lead and are counted; any main session is the lead', () => {
     const m = createHookMapper('live');
     m.map({ hook_event_name: 'SessionStart', session_id: 'main' }, 1);
     m.map({ hook_event_name: 'PreToolUse', session_id: 'main', tool_name: 'Agent', tool_input: { description: 'Explore repo' } }, 2);
-    expect(m.map({ hook_event_name: 'PreToolUse', session_id: 'main', agent_id: 'x', tool_name: 'Grep' }, 3)[0]!.agent).toBe('guest');
-    expect(m.map({ hook_event_name: 'UserPromptSubmit', session_id: 'other' }, 4)[0]!.agent).toBe('guest');
-    expect(m.map({ hook_event_name: 'SubagentStop', session_id: 'main', agent_id: 'y', agent_type: 'general-purpose' }, 5)[0]!.agent).toBe('guest');
+    expect(m.map({ hook_event_name: 'PreToolUse', session_id: 'main', agent_id: 'x', tool_name: 'Grep' }, 3)[0]!.agent).toBe('lead');
+    expect(m.map({ hook_event_name: 'UserPromptSubmit', session_id: 'other' }, 4)[0]!.agent).toBe('lead');
+    expect(m.map({ hook_event_name: 'SubagentStop', session_id: 'main', agent_id: 'y', agent_type: 'general-purpose' }, 5)[0]!.agent).toBe('lead');
+    expect(m.stats.unmatched).toBe(3); // the delegation, subagent x, subagent y
+  });
+
+  it('a stale older session in the ring does not displace the live lead; Agent name binds the specialist', () => {
+    const m = createHookMapper('live');
+    m.map({ hook_event_name: 'PreToolUse', session_id: 'old', tool_name: 'Agent', tool_input: { name: 'audio' } }, 1);
+    m.map({ hook_event_name: 'SessionStart', session_id: 'new' }, 2);
+    expect(m.map({ hook_event_name: 'UserPromptSubmit', session_id: 'new' }, 3)[0]!.agent).toBe('lead');
+    const d = m.map({ hook_event_name: 'PreToolUse', session_id: 'new', tool_name: 'Agent', tool_input: { name: 'sky-environment', description: 'sky' } }, 4);
+    expect(d[1]).toMatchObject({ kind: 'delegate', to: 'sky-environment' });
+    m.map({ hook_event_name: 'PreToolUse', session_id: 'new', tool_name: 'Agent', tool_input: { name: 'architect', description: 'architect' } }, 5);
+    // Pending delegations are per session: the old session's queued audio does not leak into the new session.
+    const ids = ['s1', 's2'].map((a, i) => m.map({ hook_event_name: 'PreToolUse', session_id: 'new', agent_id: a, agent_type: 'general-purpose', tool_name: 'Read' }, 6 + i)[0]!.agent);
+    expect(ids).toEqual(['sky-environment', 'architect']);
+    expect(m.map({ hook_event_name: 'PreToolUse', session_id: 'new', tool_name: 'SendMessage', tool_input: { to: 'architect' } }, 9)[1]).toMatchObject({ to: 'architect' });
+    expect(m.stats.unmatched).toBe(0);
   });
 
   it('redacts prompt text and tool input contents', () => {
@@ -67,7 +83,7 @@ describe('specialist names and path owners', () => {
     ['City & Streets', 'city-streets'],
     ['Buildings', 'buildings'],
     ['Audio', 'audio'],
-    ['general-purpose', 'guest'],
+    ['general-purpose', null],
   ])('%s -> %s', (text, id) => {
     expect(specialistFromText(text)).toBe(id);
   });
@@ -75,11 +91,11 @@ describe('specialist names and path owners', () => {
     ['scene-qa', 'scene-qa'],
     ['Brief for the Audio specialist', 'audio'],
     ['fix street lamps', 'city-streets'],
-    ['city life overview', 'guest'],
-    ['test environment check', 'guest'],
-    ['camera and sound sync', 'guest'],
-    ['Audio and Buildings joint review', 'guest'],
-    ['lifecycle refactor', 'guest'],
+    ['city life overview', null],
+    ['test environment check', null],
+    ['camera and sound sync', null],
+    ['Audio and Buildings joint review', null],
+    ['lifecycle refactor', null],
   ])('tight matching: %s -> %s', (text, id) => {
     expect(specialistFromText(text)).toBe(id);
   });

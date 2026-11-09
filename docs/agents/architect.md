@@ -345,3 +345,14 @@ Enforced but missing from the docs (add to `harness/README.md` guard table): set
 - Measured (High): 81 draw calls / 43,090 triangles.
 - Hover name: a robot or desk under the pointer (pickHandlers -> hovered) shows its bubble with the agent label even with no speech text (Bubbles.tsx). No new render pass.
 - Flight: avatarWalkSpeed 5.6 (doubled). easeFactor(done, len) in liveWorld.ts eases each route from easeMinSpeedFrac to full speed over easeRampM at each end (smoothstep, sim-time dt). Route length and progress are per route; a re-plan restarts the ease.
+
+## Update 2026-11-08 (architect): node_modules drift guard
+- Incident: dusk sky at 00:00. After the suncalc 2.1.1 bump (PR #15, d8f50de) local `node_modules` still had suncalc 1.9.0 (radians); code assumes v2 degrees. Fixed by `npm install` and deleting `node_modules/.vite`.
+- Guard: `tests/depsSync.test.ts` compares each direct dependency's installed `node_modules/<pkg>/package.json` version with `package-lock.json`. Fails with "node_modules out of sync with lockfile: run npm install". Reads files via `fs` (not `require`; exports maps hide package.json). Optional deps may be absent.
+- Rule: After any dependency bump, or pulling a merge that changes `package-lock.json`, run `npm install`, delete `node_modules/.vite`, and restart Vite.
+
+## Update 2026-11-08 (architect): guest role removed
+- Human request: only the lead and the specialists show work. `AgentId` has no `guest`. Deleted: `GuestDesk.tsx`, `Door.tsx` (guest door and bench), guest ring seat (SEAT_COUNT 9 -> 8), guest corridors, knobs `agentRoom.guestDeskX/Z` (parity rows and TUNING rows removed).
+- Mapping (src/agentRoom/mapping/hook.ts): any event without `agent_id` is the lead (fixes the trap above: a stale session first in the ring made the live lead a guest). Agent/Task delegations queue per session; a subagent binds to agent_type, else its session's oldest pending delegation, else the lead. Agent `name` / SendMessage `to` match exactly first. Unmatched -> lead, counted in `stats.unmatched`. `specialistFromText` returns null for no match.
+- Replay: unknown owners -> lead. Traps: parallel Agent spawns bind in first-event order (a guess if two start together). Checked against the live bridge ring: this session's subagents map to sky-environment and architect, the lead to lead, no guest.
+- ADR 0013 "Decision change 2026-11-08" records this.

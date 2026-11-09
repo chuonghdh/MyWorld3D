@@ -1,17 +1,16 @@
 // Walking routes follow the floor plan's corridors (orange lines): every leg between graph nodes lies on a corridor
-// edge (axis-aligned); only the last step into the pantry or onto the guest bench leaves the network. No route
+// edge (axis-aligned); only the last step into the pantry leaves the network. No route
 // crosses furniture, and routes are deterministic.
 import { describe, expect, it } from 'vitest';
 import { buildCorridors, nodeAt, PANTRY_ENTRY, SEATS } from '../src/agentRoom/world/corridors';
 import { footprints, hits, type Footprint } from '../src/agentRoom/world/nav';
 import { inPantry, route } from '../src/agentRoom/world/route';
-import { DOOR, GUEST_BENCH, LEAD_SPOT, PANTRY_SEATS, huddleSlot, seatOf } from '../src/agentRoom/world/office';
-import { ROOM, SPECIALISTS, homeSpot, type Vec2 } from '../src/agentRoom/world/layout';
+import { LEAD_SPOT, PANTRY_SEATS, huddleSlot, seatOf } from '../src/agentRoom/world/office';
+import { SPECIALISTS, homeSpot, type Vec2 } from '../src/agentRoom/world/layout';
 
 const g = buildCorridors();
 const fps = footprints();
 const PAD = 0.15;
-const DOOR_SPOT: Vec2 = { x: -ROOM.halfW + 0.4, z: DOOR.z };
 
 function crosses(a: Vec2, b: Vec2, list: Footprint[]): boolean {
   const n = Math.ceil(Math.hypot(b.x - a.x, b.z - a.z) / 0.05);
@@ -29,9 +28,9 @@ const isEdge = (a: Vec2, b: Vec2) => {
 // The discuss table is round: edges between two ring seats are chords (the only non-axis corridor, by design).
 const onRing = (p: Vec2) => SEATS.some((s) => Math.hypot(s.x - p.x, s.z - p.z) < 1e-6);
 const axisOrRing = (a: Vec2, b: Vec2) => Math.abs(a.x - b.x) < 1e-9 || Math.abs(a.z - b.z) < 1e-9 || (onRing(a) && onRing(b));
-const offNet = (p: Vec2) => inPantry(p) || Math.hypot(p.x - GUEST_BENCH.x, p.z - GUEST_BENCH.z) < 1.2;
+const offNet = (p: Vec2) => inPantry(p);
 
-/** Check a route: legs are corridor edges, except legs touching an off-network point (pantry, bench). */
+/** Check a route: legs are corridor edges, except legs touching an off-network point (pantry). */
 function check(path: Vec2[]): void {
   for (let i = 1; i < path.length; i++) {
     const a = path[i - 1]!;
@@ -45,8 +44,8 @@ function check(path: Vec2[]): void {
 }
 
 describe('corridor network', () => {
-  it('all working spots are graph nodes: desk stands, huddle slots, lead, door, pantry entry', () => {
-    for (const p of [LEAD_SPOT, DOOR_SPOT, PANTRY_ENTRY, ...SPECIALISTS.map(homeSpot), ...SPECIALISTS.map((id) => huddleSlot(id)), huddleSlot('guest')]) {
+  it('all working spots are graph nodes: desk stands, huddle slots, lead, pantry entry', () => {
+    for (const p of [LEAD_SPOT, PANTRY_ENTRY, ...SPECIALISTS.map(homeSpot), ...SPECIALISTS.map((id) => huddleSlot(id))]) {
       expect(nodeAt(g, p), `${p.x},${p.z}`).toBeGreaterThanOrEqual(0);
     }
   });
@@ -71,9 +70,7 @@ describe('corridor network', () => {
       }
     }
   });
-  it('guest: door -> board -> bench; lead reaches its spot', () => {
-    check(route(DOOR_SPOT, huddleSlot('guest')));
-    check(route(huddleSlot('guest'), GUEST_BENCH));
+  it('lead reaches its spot', () => {
     check(route(huddleSlot('audio'), LEAD_SPOT));
   });
   it('re-planning mid-corridor continues along the corridor', () => {

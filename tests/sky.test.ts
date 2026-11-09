@@ -6,6 +6,7 @@ import { lightDirection } from '../src/scene/townShadow';
 import { ASPHALT_TOP, SIDEWALK_TOP } from '../src/streets';
 import { GROUND_Y } from '../src/streets/surfaces';
 import { getLightingForTime, getNightSchedule, getSkyState } from '../src/environment/sun';
+import { skyEnvironment } from '../src/config/tuning';
 import { createClouds } from '../src/environment/clouds';
 import { CLOUD_MAX_DARKNESS, cloudShadowAlpha } from '../src/environment/cloudSprites';
 
@@ -55,9 +56,10 @@ describe('night light', () => {
   it('has a moon fill and a lifted ambient floor at night, none by day', () => {
     const night = getSkyState(-30);
     const day = getSkyState(40);
-    expect(night.moonFill).toBeGreaterThan(0.4);
+    // Tight floors: at -30 deg nightness is 1, so these equal the config knobs exactly.
+    expect(night.moonFill).toBeCloseTo(skyEnvironment.night.moonFillFactor, 6);
     expect(day.moonFill).toBe(0);
-    expect(night.ambientIntensity).toBeGreaterThanOrEqual(0.3);
+    expect(night.ambientIntensity).toBeCloseTo(skyEnvironment.night.ambientIntensity, 6);
   });
 
   it('switches things on in order: lamps, shops, then most windows', () => {

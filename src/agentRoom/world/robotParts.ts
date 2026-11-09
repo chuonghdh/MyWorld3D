@@ -23,7 +23,7 @@ export const RIG = {
 
 /** Whole-robot scale (readability from the overview) and per-role factors. */
 export const ROBOT_SCALE = 1.25;
-export const ROLE_SCALE: Partial<Record<AgentId, number>> = { lead: 1.12, guest: 0.92 };
+export const ROLE_SCALE: Partial<Record<AgentId, number>> = { lead: 1.12 };
 
 const box = (w: number, h: number, d: number, x: number, y: number, z: number) => new THREE.BoxGeometry(w, h, d).translate(x, y, z);
 

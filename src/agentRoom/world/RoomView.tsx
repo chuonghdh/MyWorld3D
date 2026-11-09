@@ -13,14 +13,12 @@ import { Hub } from './Hub';
 import { Stools } from './Stools';
 import { PlantRows } from './PlantRows';
 import { LeadDesk } from './LeadDesk';
-import { GuestDesk } from './GuestDesk';
 import { Robots } from './Robots';
 import { Trails } from './Trails';
 import { Arcs } from './Arcs';
 import { Board } from './Board';
 import { Pantry } from './Pantry';
 import { DeskProps } from './DeskProps';
-import { Door } from './Door';
 import { Bursts } from './Bursts';
 import { BubbleProjector, type BubbleRefs } from '../ui/Bubbles';
 import { useUi } from '../ui/uiStore';
@@ -74,10 +72,8 @@ export function RoomView({ rt, bubbles }: { rt: Runtime; bubbles: React.MutableR
       <Stools />
       <Board rt={rt} />
       <LeadDesk rt={rt} />
-      <GuestDesk rt={rt} />
       <Pantry world={rt.world} />
       <DeskProps rt={rt} />
-      <Door world={rt.world} />
       <Bursts rt={rt} />
       <Robots rt={rt} />
       <Trails rt={rt} />
