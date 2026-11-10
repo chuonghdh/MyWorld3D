@@ -15,33 +15,45 @@ export const skyEnvironment = {
   },
   /** Dusk ramps (environment/sun.ts): sun altitude in degrees, start and full. */
   lights: {
-    /** House lamps start to come on below this sun altitude, degrees (sun.ts). */
-    houseLampsOnDeg: 4,
-    /** House lamps are full at this sun altitude, degrees (sun.ts). */
-    houseLampsFullDeg: -2,
-    /** Shop lights start to come on below this sun altitude, degrees (sun.ts). */
-    shopLightsOnDeg: 2,
-    /** Shop lights are full at this sun altitude, degrees (sun.ts). */
-    shopLightsFullDeg: -4,
-    /** Windows start to light below this sun altitude, degrees (sun.ts). */
-    windowsOnDeg: 8,
-    /** Windows are full at this sun altitude, degrees (sun.ts). */
-    windowsFullDeg: -2,
-    /** Global lights-on flag: on when the sun altitude is below this, degrees (sun.ts). */
-    lightsOnBelowDeg: 0,
-    /** Vehicle headlights reach full strength at this sun altitude, degrees (sun.ts). */
-    headlightFullDeg: -8,
+    // Evening order for the default date (2026-03-20, Hanoi): street lamps 18:30, then house and shop lights
+    // and lit windows 18:40, then car headlights 18:50 to 19:00. Clock to altitude: 18:30 = -5.6, 18:40 = -7.9,
+    // 18:50 = -10.2, 19:00 = -12.6 deg. Altitude falls about 2.3 deg per 10 min here.
+    /** Street lamps (streetscape lamps schedule) start to come on below this sun altitude, degrees: 18:30 (sun.ts). */
+    houseLampsOnDeg: -5.5,
+    /** Street lamps are full at this sun altitude, degrees: 18:40 (sun.ts). */
+    houseLampsFullDeg: -7.9,
+    /** Shop lights start to come on below this sun altitude, degrees: 18:40 (sun.ts). Not consumed by the town yet. */
+    shopLightsOnDeg: -7.9,
+    /** Shop lights are full at this sun altitude, degrees: 18:50 (sun.ts). Not consumed by the town yet. */
+    shopLightsFullDeg: -10.2,
+    /** Windows start to light below this sun altitude, degrees: 18:40 (sun.ts). Agent Room only; town windows follow lightsOnBelowDeg. */
+    windowsOnDeg: -7.9,
+    /** Windows are full at this sun altitude, degrees: 18:50 (sun.ts). Agent Room only. */
+    windowsFullDeg: -10.2,
+    /** Global lights-on flag (town windows, shop signs, night ambience): on when the sun altitude is below this, degrees: 18:40 (sun.ts). */
+    lightsOnBelowDeg: -7.9,
+    /** Vehicle headlights start to come on below this sun altitude, degrees: 18:50 (sun.ts). */
+    headlightOnDeg: -10.2,
+    /** Vehicle headlights reach full strength at this sun altitude, degrees: 19:00 (sun.ts). */
+    headlightFullDeg: -12.6,
   },
   /** Night light level (environment/sun.ts). */
   night: {
-    /** Ambient light at deep night, below -18 deg sun altitude (was 0.3). Lower = darker streets and buildings. */
+    /** Sun altitude at which darkness is full, degrees: 22:00 on the default date. Darkness rises slowly from 0 deg (sun.ts nightnessFor). */
+    fullDarkDeg: -52.6,
+    /** Ambient light at full dark (fullDarkDeg), was 0.3. Lower = darker streets and buildings. */
     ambientIntensity: 0.1,
     /** Moon fill light per unit of nightness (was 0.55, then 0.35). Lower = less moon light on the town. */
     moonFillFactor: 0.2,
-    /** Sky and fog colour at deep night, below -18 deg sun altitude (was #121a3a, then #0d0f16). Near-black, minimal blue. */
+    /** Sky and fog colour at full dark (fullDarkDeg), was #121a3a, then #0d0f16. Near-black, minimal blue. */
     skyHorizon: '#060709',
-    /** Zenith colour at deep night, below -18 deg sun altitude (was #070c22, then #050608). Near-black. */
+    /** Zenith colour at full dark (fullDarkDeg), was #070c22, then #050608. Near-black. */
     skyZenith: '#030304',
+  },
+  /** Golden hour light on the city (environment/sun.ts getSkyState). */
+  golden: {
+    /** How far the direct sun colour moves toward warm gold while the sun is low: 0 = off, 1 = full (default 1.0). Full weight at alt about 6 deg, fading out by 18 deg (sun.ts getSkyState). */
+    warmth: 1.0,
   },
   /** Weather caps and limits (weather/*.ts). */
   weather: {

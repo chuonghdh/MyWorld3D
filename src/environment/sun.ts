@@ -137,9 +137,13 @@ const hex = (h: string): Rgb => ({
   b: parseInt(h.slice(5, 7), 16) / 255,
 });
 
+/** Warm gold the direct sun is pulled toward in golden hour (sRGB, look constant, stays local). */
+const GOLDEN_WARM: Rgb = hex('#ff7a2e');
+
 // Keyframes ordered by sun altitude (degrees).
 const KEYFRAMES: Keyframe[] = [
-  { alt: -18, sky: hex(skyEnvironment.night.skyHorizon), sunColor: hex('#5a6ea8'), sunIntensity: 0.08, ambientIntensity: skyEnvironment.night.ambientIntensity },
+  { alt: skyEnvironment.night.fullDarkDeg, sky: hex(skyEnvironment.night.skyHorizon), sunColor: hex('#5a6ea8'), sunIntensity: 0.08, ambientIntensity: skyEnvironment.night.ambientIntensity },
+  { alt: -18, sky: hex('#141a3a'), sunColor: hex('#5a6ea8'), sunIntensity: 0.12, ambientIntensity: 0.2 },
   { alt: -6, sky: hex('#26306a'), sunColor: hex('#8a6a9a'), sunIntensity: 0.14, ambientIntensity: 0.3 },
   { alt: 0, sky: hex('#e0734a'), sunColor: hex('#ff9a55'), sunIntensity: 0.6, ambientIntensity: 0.35 },
   { alt: 6, sky: hex('#f2b272'), sunColor: hex('#ffc27a'), sunIntensity: 0.9, ambientIntensity: 0.45 },
@@ -167,9 +171,9 @@ function smoothstep(e0: number, e1: number, x: number): number {
   return t * t * (3 - 2 * t);
 }
 
-/** 0 by day .. 1 at night for a sun altitude in degrees (full below -12). */
+/** 0 by day .. 1 at full dark for a sun altitude in degrees (full at skyEnvironment.night.fullDarkDeg, 22:00 on the default date). */
 export function nightnessFor(altitudeDeg: number): number {
-  return smoothstep(0, -12, altitudeDeg);
+  return smoothstep(0, skyEnvironment.night.fullDarkDeg, altitudeDeg);
 }
 
 /**
@@ -189,8 +193,11 @@ export function getNightSchedule(timeOfDay: number, altitudeDeg: number): { lamp
   return { lamps, shops, windows };
 }
 
-/** Sky, light colour and intensity for a given sun altitude in degrees. */
-export function getSkyState(altitudeDeg: number): SkyState {
+/**
+ * Sky, light colour and intensity for a given sun altitude in degrees.
+ * `warmth` (0-1) is the golden hour warm-gold strength; the caller passes a runtime override, otherwise the config default is used.
+ */
+export function getSkyState(altitudeDeg: number, warmth: number = skyEnvironment.golden.warmth): SkyState {
   const first = KEYFRAMES[0];
   const last = KEYFRAMES[KEYFRAMES.length - 1];
   let lo = first;
@@ -210,14 +217,17 @@ export function getSkyState(altitudeDeg: number): SkyState {
   }
   const span = hi.alt - lo.alt;
   const t = span === 0 ? 0 : (altitudeDeg - lo.alt) / span;
+  // Golden hour warmth: the direct light (town lights, clouds, ground) moves toward gold while the
+  // sun is low. Weight is 0 at night and by day; lamp and window timing is not affected (it uses altitude only).
+  const warm = warmth * smoothstep(18, 6, altitudeDeg) * smoothstep(-1, 1, altitudeDeg);
   return {
     phase: phaseFor(altitudeDeg),
     sky: lerpRgb(lo.sky, hi.sky, t),
-    sunColor: lerpRgb(lo.sunColor, hi.sunColor, t),
+    sunColor: lerpRgb(lerpRgb(lo.sunColor, hi.sunColor, t), GOLDEN_WARM, warm),
     sunIntensity: lerp(lo.sunIntensity, hi.sunIntensity, t),
     ambientIntensity: lerp(lo.ambientIntensity, hi.ambientIntensity, t),
     lightsOn: altitudeDeg < skyEnvironment.lights.lightsOnBelowDeg,
-    headlights: Math.min(1, Math.max(0, -altitudeDeg / -skyEnvironment.lights.headlightFullDeg)),
+    headlights: Math.min(1, Math.max(0, (skyEnvironment.lights.headlightOnDeg - altitudeDeg) / (skyEnvironment.lights.headlightOnDeg - skyEnvironment.lights.headlightFullDeg))),
     nightness: nightnessFor(altitudeDeg),
     moonFill: nightnessFor(altitudeDeg) * skyEnvironment.night.moonFillFactor,
     moonColor: hex('#8fa8e8'),
@@ -231,8 +241,9 @@ export function getSkyState(altitudeDeg: number): SkyState {
 export function getLightingForTime(
   timeOfDay: number,
   query: SunQuery = {},
+  warmth?: number,
 ): { sun: SunDirection; moon: SunDirection; sky: SkyState } {
   const sun = getSunDirection(timeOfDay, query);
   const moon = getNightMoonDirection(timeOfDay, query);
-  return { sun, moon, sky: getSkyState(sun.altitudeDeg) };
+  return { sun, moon, sky: getSkyState(sun.altitudeDeg, warmth) };
 }

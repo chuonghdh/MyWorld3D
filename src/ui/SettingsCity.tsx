@@ -6,6 +6,7 @@ import { ActionButton, CheckToggle, Panel, Section, Segmented, SettingsGlyph, Sl
 import { SoundMixer } from './SoundMixer';
 import { WeatherGlyph } from './WeatherIcons';
 import { applyGoldenHour } from './goldenHour';
+import { GoldenWarmthDev } from './GoldenWarmthDev';
 import { uiCamera } from '../config/tuning';
 
 /** Actions that the scene handles. Store-backed toggles are also written to the store. */
@@ -132,6 +133,7 @@ export function SettingsCity({ onAction }: SettingsCityProps) {
           onChange={(v) => setSetting('timeOfDay', v)}
           background={LIGHT_TRACK}
         />
+        <GoldenWarmthDev />
 
         <Segmented<Season>
           label="Season"

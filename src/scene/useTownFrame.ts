@@ -1,6 +1,6 @@
 // The town's single per-frame update: clock, wind, weather, lights, simulations and sound.
 // The call order inside the frame matters (wind before weather, audio update before clearing life events).
-import type { MutableRefObject } from 'react';
+import { useRef, type MutableRefObject } from 'react';
 import { useFrame } from '@react-three/fiber';
 import * as THREE from 'three';
 import type { Rect } from '../city';
@@ -13,7 +13,7 @@ import {
   windVector,
   type createClouds,
   type createSmoke,
-  type getLightingForTime,
+  getLightingForTime,
   type LeafSystem,
   type WindUniforms,
 } from '../environment';
@@ -62,12 +62,34 @@ export interface TownFrameInputs {
 const _camDir = new THREE.Vector3();
 
 export function useTownFrame(f: TownFrameInputs): void {
-  const { ground, townSize, lighting, lightsOn, shadowMapSize, uniforms, leaves, clouds, smoke, weather, aircraft } = f;
+  const { ground, townSize, lightsOn, shadowMapSize, uniforms, leaves, clouds, smoke, weather, aircraft } = f;
   const { traffic, walkers, trafficMeshes, streetscape, life, audioBridge, audioTrees, churchRef, overlay } = f;
   const { sunLight, sunDirRef, hemiLight, ambLight } = f;
+  // Live golden-hour warmth: recomputed in the frame only when the override or the time of day changes.
+  const liveSky = useRef<{ warmth: number | null; tod: number; lighting: ReturnType<typeof getLightingForTime> | null }>({
+    warmth: null,
+    tod: NaN,
+    lighting: null,
+  });
 
   useFrame((state, frameDt) => {
     const { paused, autoTime } = useWorldStore.getState().toggles;
+    const tod = useWorldStore.getState().settings.timeOfDay;
+    const warmth = runtime.goldenWarmthOverride;
+    // The sun colour prop in Town is memoised and does not see the slider, so the live colour is written here.
+    let colourLive = warmth !== null;
+    if (warmth !== null && (liveSky.current.warmth !== warmth || liveSky.current.tod !== tod)) {
+      liveSky.current = { warmth, tod, lighting: getLightingForTime(tod, {}, warmth) };
+    } else if (warmth === null && liveSky.current.warmth !== null) {
+      // Override just cleared: restore the config colour once, then the Town prop applies again.
+      liveSky.current = { warmth: null, tod: NaN, lighting: null };
+      colourLive = true;
+    }
+    const lighting = warmth === null ? f.lighting : (liveSky.current.lighting ?? f.lighting);
+    if (colourLive && sunLight.current) {
+      const c = lighting.sky.sunColor;
+      sunLight.current.color.setRGB(c.r, c.g, c.b);
+    }
     // Paused: every simulation sees dt = 0 and a frozen clock; only the camera keeps working.
     // Auto film: only fixed steps (frameloop 'never') may move the world; a real-time frame then is wall time, so 0.
     const wallFrameInFilm = filmLoopHeld() && state.frameloop !== 'never';

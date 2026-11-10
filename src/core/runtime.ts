@@ -31,6 +31,8 @@ export const runtime = {
   pendingHours: 0,
   /** Block id picked first in Move blocks mode; the second click swaps with it. */
   pendingBlockId: null as string | null,
+  /** Live golden-hour warmth override (0 to 1) from the UI; null means use the config value. Transient, not saved. */
+  goldenWarmthOverride: null as number | null,
 };
 
 /** Returns a stable number in [0, 1) derived from a string id. */

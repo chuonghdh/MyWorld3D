@@ -392,6 +392,8 @@ const FRAGMENTS: Has[] = [
   { id: 'lights on rule', file: 'src/environment/sun.ts', fragment: 'skyEnvironment.lights.lightsOnBelowDeg' },
   { id: 'vehicle headlight level (-altitude / 8)', file: 'src/environment/sun.ts', fragment: 'skyEnvironment.lights.headlightFullDeg' },
   { id: 'deep night ambient reads config', file: 'src/environment/sun.ts', fragment: 'skyEnvironment.night.ambientIntensity' },
+  { id: 'golden hour warmth default reads config', file: 'src/environment/sun.ts', fragment: 'warmth: number = skyEnvironment.golden.warmth' },
+  { id: 'golden hour warmth blend (override-aware)', file: 'src/environment/sun.ts', fragment: 'const warm = warmth * smoothstep(18, 6, altitudeDeg)' },
   { id: 'night moon fill reads config', file: 'src/environment/sun.ts', fragment: 'skyEnvironment.night.moonFillFactor' },
   { id: 'deep night sky horizon reads config', file: 'src/environment/sun.ts', fragment: 'skyEnvironment.night.skyHorizon' },
   { id: 'deep night zenith reads config', file: 'src/sky/state.ts', fragment: 'skyEnvironment.night.skyZenith' },
@@ -459,14 +461,16 @@ const SKY_CONFIG: Entry[] = [
   { id: 'leaves rest', file: CONFIG_FILE, name: 'restS', value: '10' },
   { id: 'leaves near fade', file: CONFIG_FILE, name: 'nearFadeM', value: '10' },
   { id: 'leaf scale', file: CONFIG_FILE, name: 'leafScale', value: '1.3 * 0.7' },
-  { id: 'house lamps on', file: CONFIG_FILE, name: 'houseLampsOnDeg', value: '4' },
-  { id: 'house lamps full', file: CONFIG_FILE, name: 'houseLampsFullDeg', value: '-2' },
-  { id: 'shop lights on', file: CONFIG_FILE, name: 'shopLightsOnDeg', value: '2' },
-  { id: 'shop lights full', file: CONFIG_FILE, name: 'shopLightsFullDeg', value: '-4' },
-  { id: 'windows on', file: CONFIG_FILE, name: 'windowsOnDeg', value: '8' },
-  { id: 'windows full', file: CONFIG_FILE, name: 'windowsFullDeg', value: '-2' },
-  { id: 'lights on below', file: CONFIG_FILE, name: 'lightsOnBelowDeg', value: '0' },
-  { id: 'headlight full', file: CONFIG_FILE, name: 'headlightFullDeg', value: '-8' },
+  { id: 'house lamps on', file: CONFIG_FILE, name: 'houseLampsOnDeg', value: '-5.5' },
+  { id: 'house lamps full', file: CONFIG_FILE, name: 'houseLampsFullDeg', value: '-7.9' },
+  { id: 'shop lights on', file: CONFIG_FILE, name: 'shopLightsOnDeg', value: '-7.9' },
+  { id: 'shop lights full', file: CONFIG_FILE, name: 'shopLightsFullDeg', value: '-10.2' },
+  { id: 'windows on', file: CONFIG_FILE, name: 'windowsOnDeg', value: '-7.9' },
+  { id: 'windows full', file: CONFIG_FILE, name: 'windowsFullDeg', value: '-10.2' },
+  { id: 'lights on below', file: CONFIG_FILE, name: 'lightsOnBelowDeg', value: '-7.9' },
+  { id: 'night full dark (22:00)', file: CONFIG_FILE, name: 'fullDarkDeg', value: '-52.6' },
+  { id: 'headlight on', file: CONFIG_FILE, name: 'headlightOnDeg', value: '-10.2' },
+  { id: 'headlight full', file: CONFIG_FILE, name: 'headlightFullDeg', value: '-12.6' },
   { id: 'rain cap rain', file: CONFIG_FILE, name: 'rainCapRain', value: '0.75' },
   { id: 'rain cap storm', file: CONFIG_FILE, name: 'rainCapStorm', value: '1' },
   { id: 'rain streaks cap', file: CONFIG_FILE, name: 'maxRainStreaks', value: '14000' },
@@ -512,7 +516,7 @@ describe('sky and environment knobs in config (step 8)', () => {
     const s = source('src/environment/sun.ts');
     expect(s).toContain('smoothstep(skyEnvironment.lights.houseLampsOnDeg, skyEnvironment.lights.houseLampsFullDeg, altitudeDeg)');
     expect(s).toContain('altitudeDeg < skyEnvironment.lights.lightsOnBelowDeg');
-    expect(s).toContain('-altitudeDeg / -skyEnvironment.lights.headlightFullDeg');
+    expect(s).toContain('(skyEnvironment.lights.headlightOnDeg - altitudeDeg) / (skyEnvironment.lights.headlightOnDeg - skyEnvironment.lights.headlightFullDeg)');
   });
 });
 

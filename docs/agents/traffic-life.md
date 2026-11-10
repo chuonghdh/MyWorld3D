@@ -288,3 +288,8 @@ Checked against the working tree (branch feat/agent-working-room). No tests run.
 - Feature code: `vehicles/constants.ts`, `life/birds.ts` (`FLOCK_DEFS`, `SCARE_RADIUS`, gulls), `life/pets.ts` (`beeCountFor`) read config. Values unchanged, so determinism hashes are unchanged.
 - Parity: `tests/tuningParity.test.ts` entries switched to the config properties; use-checks updated for the moved fragments.
 - Stays local (algorithm or geometry, not designer knobs): `GHOST_S`, `STUCK_PUSH_S`, `HELD_BACKUP_S`, `REQUEST_RANGE`, `GRANT_EXPIRY_STEPS`, `JUNCTION_SPEED`, `ONCOMING_REACH`, `CROSSWALK_REACH`, `WAIT_DIST`, `TURN_RATE`, `HORN_HARD_BRAKE_RATE`, walker speed ranges (`looks.ts speedFor`), quality tier factors (`life/common.ts`), vehicle footprints and accel/gap.
+
+## Update 2026-11-09 (traffic-life): people perf test measurement
+- Before: one warm-up of 200 steps, then a single timed loop of 1500 frames, mean per frame, bound 0.5 ms. Under full-suite load it read 0.65 to 0.71 ms and failed; solo it passed.
+- After: fixed warm-up of 300 steps, then nine timed batches of 200 frames. The assertion is on the median of the nine per-frame means, bound unchanged at 0.5 ms. Median ignores batches hit by load or GC pauses.
+- Same walker count (385 at the default multiplier) and same guard meaning. No production change.

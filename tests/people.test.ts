@@ -657,15 +657,22 @@ describe('Pedestrians pooling and determinism', () => {
     const sim = makeSim(51, uiCamera.defaultTrafficMultiplier);
     expect(sim.peds.capacity).toBeGreaterThan(0);
     expect(sim.peds.capacity).toBeLessThan(MAX_WALKERS);
-    for (let i = 0; i < 200; i++) step(sim, 0.016); // warm up JIT and caches before timing
-    const t0 = performance.now();
-    const frames = 1500;
-    for (let i = 0; i < frames; i++) {
-      step(sim, 0.016);
-      sim.peds.getPedestrians();
+    for (let i = 0; i < 300; i++) step(sim, 0.016); // fixed warm-up: JIT and caches settle before timing
+    // Nine timed batches; the median per-frame cost ignores batches hit by load or GC pauses.
+    const batches = 9;
+    const framesPerBatch = 200;
+    const perFrame: number[] = [];
+    for (let b = 0; b < batches; b++) {
+      const t0 = performance.now();
+      for (let i = 0; i < framesPerBatch; i++) {
+        step(sim, 0.016);
+        sim.peds.getPedestrians();
+      }
+      perFrame.push((performance.now() - t0) / framesPerBatch);
     }
-    const per = (performance.now() - t0) / frames;
-    expect(per).toBeLessThan(0.5);
+    perFrame.sort((x, y) => x - y);
+    const median = perFrame[Math.floor(batches / 2)] ?? Infinity;
+    expect(median).toBeLessThan(0.5);
   });
 
   it('works on a layout without crosswalks (plain sidewalk lines)', () => {

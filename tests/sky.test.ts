@@ -5,7 +5,7 @@ import { OLD_MOON_RADIUS, OLD_SUN_RADIUS, OLD_SUN_HORIZON_GROWTH, SUN_HORIZON_RA
 import { lightDirection } from '../src/scene/townShadow';
 import { ASPHALT_TOP, SIDEWALK_TOP } from '../src/streets';
 import { GROUND_Y } from '../src/streets/surfaces';
-import { getLightingForTime, getNightSchedule, getSkyState } from '../src/environment/sun';
+import { getLightingForTime, getNightSchedule, getSkyState, getSunDirection } from '../src/environment/sun';
 import { skyEnvironment } from '../src/config/tuning';
 import { createClouds } from '../src/environment/clouds';
 import { CLOUD_MAX_DARKNESS, cloudShadowAlpha } from '../src/environment/cloudSprites';
@@ -54,7 +54,7 @@ describe('sky state', () => {
 
 describe('night light', () => {
   it('has a moon fill and a lifted ambient floor at night, none by day', () => {
-    const night = getSkyState(-30);
+    const night = getSkyState(-55);
     const day = getSkyState(40);
     // Tight floors: at -30 deg nightness is 1, so these equal the config knobs exactly.
     expect(night.moonFill).toBeCloseTo(skyEnvironment.night.moonFillFactor, 6);
@@ -63,8 +63,8 @@ describe('night light', () => {
   });
 
   it('switches things on in order: lamps, shops, then most windows', () => {
-    const dusk = getNightSchedule(18.5, 1);
-    const dark = getNightSchedule(21, -25);
+    const dusk = getNightSchedule(18.58, getSunDirection(18.58).altitudeDeg);
+    const dark = getNightSchedule(22, -55);
     const late = getNightSchedule(2, -50);
     expect(dusk.lamps).toBeGreaterThan(dusk.windows);
     expect(dark.lamps).toBe(1);

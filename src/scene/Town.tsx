@@ -81,6 +81,7 @@ export function Town({ onSelect, selected }: { onSelect: (target: OverrideTarget
     leaves.setTreePoints(broadleaf.map((t) => ({ x: t.position.x, z: t.position.z })));
   }, [leaves, broadleaf]);
 
+  // Config warmth only. The live slider override is applied per frame in useTownFrame, so this memo stays the base.
   const lighting = useMemo(() => getLightingForTime(settings.timeOfDay), [settings.timeOfDay]);
   const lightsOn = lighting.sky.lightsOn;
 

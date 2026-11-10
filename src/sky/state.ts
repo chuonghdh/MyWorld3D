@@ -39,6 +39,8 @@ export interface SkyInput {
   /** Horizon/fog colour. Defaults to the time-of-day sky colour. Pass the colour of the scene fog. */
   fogColor?: Rgb;
   query?: SunQuery;
+  /** Golden hour warm-gold strength 0-1. Undefined uses the config default (skyEnvironment.golden.warmth). */
+  warmth?: number;
 }
 
 export interface SkyUniformValues {
@@ -86,7 +88,8 @@ const hex = (h: string): Rgb => ({
 
 // Zenith colour by sun altitude (degrees); the horizon colour comes from the sun module's sky colour.
 const ZENITH: ZenithKey[] = [
-  { alt: -18, color: hex(skyEnvironment.night.skyZenith) },
+  { alt: skyEnvironment.night.fullDarkDeg, color: hex(skyEnvironment.night.skyZenith) },
+  { alt: -18, color: hex('#0a0e26') },
   { alt: -6, color: hex('#161f55') },
   { alt: 0, color: hex('#3b4f94') },
   { alt: 6, color: hex('#5a86c8') },
@@ -164,7 +167,7 @@ export function hexToLinear(h: string): Vec3 {
 
 /** All shader inputs for one moment. Sky colours are passed raw, exactly as Town.tsx feeds the fog. */
 export function computeSkyState(input: SkyInput): SkyUniformValues {
-  const { sun, moon, sky } = getLightingForTime(input.timeOfDay, input.query);
+  const { sun, moon, sky } = getLightingForTime(input.timeOfDay, input.query, input.warmth);
   const cloudiness = clamp01(input.cloudiness ?? 0.25);
   const flash = clamp01(input.flash ?? 0);
   const season: Season = input.season ?? 'summer';
