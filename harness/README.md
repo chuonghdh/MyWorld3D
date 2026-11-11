@@ -109,7 +109,7 @@ Each actionable gap is a backlog record (`node harness/scripts/next-task.mjs`); 
 | `harness/config/quality-gates.json` | Gate commands in order, acceptance rules by change type (data) |
 | `harness/workflows/` | WORKFLOW.md (lifecycle), delivery (request to merged pull request, improve loop), feature-development, bug-fix, release |
 | `harness/tasks/` | Task records: backlog (with priority and type), active, completed; TEMPLATE.md |
-| `.claude/agents/`, `.claude/skills/` | Agent definitions (eight specialists and the reviewer) and the deliver and improve skills |
+| `.claude/agents/`, `.claude/skills/` | Agent definitions (nine specialists and the reviewer) and the deliver and improve skills |
 | `harness/state/` | Handoffs (`handoffs/`) and what state means (`README.md`) |
 | `harness/scripts/` | verify.mjs (gates, failures only), collect-evidence.mjs, validate-task.mjs |
 | `harness/runs/` | Result file per verify run (not committed) |

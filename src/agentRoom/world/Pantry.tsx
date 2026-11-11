@@ -4,7 +4,7 @@ import { useMemo, useRef } from 'react';
 import { useFrame } from '@react-three/fiber';
 import * as THREE from 'three';
 import { mergeParts, type Part } from './geometry';
-import { BAR_TABLE, COFFEE_TABLE, PANTRY, SOFA_SEAT_Y, STOOL_SEAT_Y } from './office';
+import { BAR_TABLE, COFFEE_TABLE, COUNTER_STOOL, PANTRY, SOFA_SEAT_Y, STOOL_SEAT_Y } from './office';
 import { ROOM } from './layout';
 import type { LiveWorld } from './liveWorld';
 
@@ -44,7 +44,7 @@ function furniture(): THREE.BufferGeometry {
   // Bar table and stools.
   p.push(cyl(0.45, 0.04, BAR_TABLE.x, 1.02, BAR_TABLE.z, WOOD, 28));
   p.push(cyl(0.05, 1.0, BAR_TABLE.x, 0.5, BAR_TABLE.z, METAL));
-  for (const [x, z] of [[BAR_TABLE.x - 0.8, BAR_TABLE.z], [BAR_TABLE.x, BAR_TABLE.z + 0.85], [BAR_TABLE.x + 0.8, BAR_TABLE.z], [BAR_TABLE.x, BAR_TABLE.z - 0.85]] as const) {
+  for (const [x, z] of [[BAR_TABLE.x - 0.8, BAR_TABLE.z], [BAR_TABLE.x, BAR_TABLE.z + 0.85], [BAR_TABLE.x + 0.8, BAR_TABLE.z], [BAR_TABLE.x, BAR_TABLE.z - 0.85], [COUNTER_STOOL.x, COUNTER_STOOL.z]] as const) {
     p.push(cyl(0.2, 0.05, x, STOOL_SEAT_Y - 0.025, z, CUSHION, 20));
     p.push(cyl(0.03, STOOL_SEAT_Y - 0.05, x, (STOOL_SEAT_Y - 0.05) / 2, z, METAL, 8));
   }

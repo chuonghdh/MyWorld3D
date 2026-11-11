@@ -20,6 +20,10 @@ describe('redaction', () => {
     expect(r[5]!.tool_input).toEqual({ file_path: 'src/audio/mixer.ts' });
     expect(r[7]!.tool_response).toEqual({ is_error: true });
   });
+  it('keeps the Graphics & Character specialist words of a description and drops the rest', () => {
+    const r = redact({ hook_event_name: 'PreToolUse', session_id: 's', tool_name: 'Agent', tool_input: { description: 'Graphics & Character: secret gait plan' } }, CWD);
+    expect(r.tool_input!.description).toBe('graphics & character');
+  });
   it('absolute paths become repo-relative, outside paths only their base name', () => {
     expect(safePath('D:/work/myworld3d/src/a.ts', CWD)).toBe('src/a.ts');
     expect(safePath('C:/Users/x/notes/secret.txt', CWD)).toBe('secret.txt');

@@ -111,6 +111,9 @@ describe('specialist names and path owners', () => {
     ['City & Streets', 'city-streets'],
     ['Buildings', 'buildings'],
     ['Audio', 'audio'],
+    ['Graphics & Character', 'graphics-character'],
+    ['graphics-character', 'graphics-character'],
+    ['Graphics and Character specialist: rig pass', 'graphics-character'],
     ['general-purpose', null],
   ])('%s -> %s', (text, id) => {
     expect(specialistFromText(text)).toBe(id);
@@ -119,6 +122,8 @@ describe('specialist names and path owners', () => {
     ['scene-qa', 'scene-qa'],
     ['Brief for the Audio specialist', 'audio'],
     ['fix street lamps', 'city-streets'],
+    ['fix the person rig', 'graphics-character'],
+    ['pedestrian crossing wait', 'traffic-life'],
     ['city life overview', null],
     ['test environment check', null],
     ['camera and sound sync', null],
@@ -133,6 +138,21 @@ describe('specialist names and path owners', () => {
     expect(ownerOf('src/scene/Other.tsx')).toBe('scene-qa');
     expect(ownerOf('D:\\x\\myworld3d\\src\\buildings\\a.ts')).toBe('buildings');
     expect(ownerOf('README.md')).toBeNull();
+  });
+  it('people rendering files belong to graphics-character, walker files to traffic-life', () => {
+    expect(ownerOf('src/traffic/people/rigShader.ts')).toBe('graphics-character');
+    expect(ownerOf('src/traffic/walkers/resolve.ts')).toBe('traffic-life');
+  });
+  it('graphics-character subagent: spawn by name, resume by id, people file edit attributed', () => {
+    const m = createHookMapper('live');
+    const d = m.map({ hook_event_name: 'PreToolUse', session_id: 'main', tool_name: 'Agent', tool_input: { subagent_type: 'graphics-character', name: 'graphics-character', description: 'gait pass' } }, 1);
+    expect(d[1]).toMatchObject({ kind: 'delegate', to: 'graphics-character', via: 'Agent' });
+    const first = m.map({ hook_event_name: 'PreToolUse', session_id: 'main', agent_id: 'gc1', agent_type: 'graphics-character', tool_name: 'Read', tool_input: { file_path: 'docs/agents/graphics-character.md' } }, 2);
+    expect(first[0]!.agent).toBe('graphics-character');
+    const sm = m.map({ hook_event_name: 'PreToolUse', session_id: 'main', tool_name: 'SendMessage', tool_input: { to: 'gc1' } }, 3);
+    expect(sm.find((e) => e.kind === 'delegate')).toMatchObject({ to: 'graphics-character', via: 'SendMessage' });
+    const edit = m.map({ hook_event_name: 'PreToolUse', session_id: 'main', agent_id: 'gc1', agent_type: 'graphics-character', tool_name: 'Edit', tool_input: { file_path: 'src/traffic/people/rigShaderGlsl.ts' } }, 4);
+    expect(edit.find((e) => e.kind === 'file_touch')).toMatchObject({ agent: 'graphics-character', owner: 'graphics-character', path: 'src/traffic/people/rigShaderGlsl.ts' });
   });
   it('falls back to active claim globs', () => {
     const claims = [

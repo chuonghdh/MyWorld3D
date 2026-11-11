@@ -17,6 +17,7 @@ const BACKFILLED: RegistryEntry[] = [
   { agentId: 'ac8c928382f2e860b', name: 'sky-environment', description: 'Sky owner: suncalc guard + handbook' },
   { agentId: 'a264e4e27f481db4f', name: 'architect', description: 'Architect: dependency drift guard + docs' },
   { agentId: 'a531cbbfcf80ae49a', name: 'scene-qa', description: 'Scene & QA: verify fixes' },
+  { agentId: 'a7c0de11aa22bb33c', name: 'graphics-character', description: 'Graphics & Character: gait phase' },
 ];
 
 const EXPECTED: Record<string, string> = {
@@ -31,6 +32,7 @@ const EXPECTED: Record<string, string> = {
   ac8c928382f2e860b: 'sky-environment',
   a264e4e27f481db4f: 'architect',
   a531cbbfcf80ae49a: 'scene-qa',
+  a7c0de11aa22bb33c: 'graphics-character',
 };
 
 describe('agent registry: id capture', () => {
@@ -78,6 +80,14 @@ describe('agent registry: binding', () => {
     const m = createHookMapper('live', [], BACKFILLED);
     const sm = m.map({ hook_event_name: 'PreToolUse', session_id: 'main', tool_name: 'SendMessage', tool_input: { to: 'a47bc33c9a4f561a6', message: 'x' } }, 3);
     expect(sm.find((e) => e.kind === 'delegate')).toMatchObject({ to: 'scene-qa', via: 'SendMessage' });
+  });
+
+  it('a registered Graphics & Character subagent binds by name and keeps people files', () => {
+    const m = createHookMapper('live', [], BACKFILLED);
+    const ev = m.map({ hook_event_name: 'PreToolUse', session_id: 'main', agent_id: 'a7c0de11aa22bb33c', tool_name: 'Edit', tool_input: { file_path: 'src/traffic/people/rigShader.ts' } }, 5);
+    expect(ev[0]!.agent).toBe('graphics-character');
+    const sm = m.map({ hook_event_name: 'PreToolUse', session_id: 'main', tool_name: 'SendMessage', tool_input: { to: 'a7c0de11aa22bb33c' } }, 6);
+    expect(sm.find((e) => e.kind === 'delegate')).toMatchObject({ to: 'graphics-character', via: 'SendMessage' });
   });
 
   it('an id not in the registry still falls back to the queue, then lead', () => {

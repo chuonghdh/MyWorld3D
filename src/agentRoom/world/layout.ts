@@ -1,6 +1,6 @@
 // Room layout (ADR 0013), from the human's floor plan (2026-11-08): command board on the back wall (centre-left),
 // lead desk beside it on a slight diagonal, round discuss table in front of the board with a ring of white stools,
-// pantry in the back-right corner, eight desks in two 2x2 blocks in the front half split by a central aisle.
+// pantry in the back-right corner, nine desks (two 2x2 blocks plus one beside the right block) in the front half, split by a central aisle.
 // Agents work on the front side of their desk, facing the board. Fixed, deterministic positions; geometry constants.
 import type { AgentId } from '../model/types';
 import { agentRoom } from '../../config/tuning';
@@ -25,7 +25,7 @@ export const DISCUSS = { x: -1.6 * SX, z: -3.6, r: 1.1, w: 2.2, d: 2.2, h: 0.75 
 /** Huddle seat ring radius, metres (table radius plus stool and robot clearance). */
 export const SEAT_R = 1.65;
 /** Seats on the ring: one per specialist. */
-export const SEAT_COUNT = 8;
+export const SEAT_COUNT = 9;
 /** Seat k on the ring; seat 0 faces the room (+z), seats run clockwise from above. */
 export function seatPos(k: number): Vec2 {
   const t = (2 * Math.PI * k) / SEAT_COUNT;
@@ -37,8 +37,8 @@ export const HUB = { r: 0.55, h: DISCUSS.h } as const;
 /** Lead desk: beside the board's right end, larger than a subagent desk, yawed off the walls. */
 export const LEAD_DESK = { x: 3.0, z: -5.2, yaw: agentRoom.leadDeskYaw, w: 2.4, d: 1.1 } as const;
 
-/** Desk column (x) of the left and right blocks, and the two desk rows (z). Central aisle at AISLE_X. */
-export const DESK_COLS = [-7.8 * SX, -4.4 * SX, 0.6 * SX, 4.2 * SX] as const;
+/** Desk column (x) of the left and right blocks (cols 0-3), a ninth desk column right of them (col 4), and the two desk rows (z). Central aisle at AISLE_X. */
+export const DESK_COLS = [-7.8 * SX, -4.4 * SX, 0.6 * SX, 4.2 * SX, 7.1 * SX] as const;
 export const DESK_ROWS = [0.6, 4.4] as const;
 export const AISLE_X = -2.0 * SX;
 /** Distance from desk centre to where the agent stands (front side, facing the desk). */
@@ -46,10 +46,11 @@ export const STAND = DESK.d / 2 + 0.5;
 
 /** Roster order -> desk: left block (cols 0-1) then right block (cols 2-3), top row first. Stable. */
 export const SPECIALISTS: readonly AgentId[] = [
-  'buildings', 'city-streets', 'traffic-life', 'sky-environment', 'audio', 'ui-camera', 'scene-qa', 'architect',
+  'buildings', 'city-streets', 'traffic-life', 'sky-environment', 'audio', 'ui-camera', 'scene-qa', 'architect', 'graphics-character',
 ];
-const DESK_SLOTS: readonly [number, number][] = [
-  [0, 0], [1, 0], [0, 1], [1, 1], [2, 0], [3, 0], [2, 1], [3, 1],
+/** Roster index -> [column, row]. The ninth desk (Graphics & Character) stands alone in column 4, row 0. */
+export const DESK_SLOTS: readonly (readonly [number, number])[] = [
+  [0, 0], [1, 0], [0, 1], [1, 1], [2, 0], [3, 0], [2, 1], [3, 1], [4, 0],
 ];
 
 /** Desk centre and yaw. Yaw 0: desk-local +z points to the front (where the agent stands); monitors face +z. */

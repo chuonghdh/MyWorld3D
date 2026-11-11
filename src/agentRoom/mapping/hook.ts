@@ -25,6 +25,7 @@ const NAMES: [AgentId, string[]][] = [
   ['ui-camera', ['ui & camera', 'ui-camera', 'ui and camera']],
   ['scene-qa', ['scene & qa', 'scene-qa', 'scene and qa']],
   ['architect', ['technical architect', 'architect']],
+  ['graphics-character', ['graphics & character', 'graphics-character', 'graphics and character']],
 ];
 
 /** Fallback keys, each pointing at exactly one specialist. Broad words (city, life, scene, environment) are left out. */
@@ -36,6 +37,7 @@ const KEYS: [AgentId, string[]][] = [
   ['audio', ['sound', 'mixer']],
   ['ui-camera', ['camera']],
   ['scene-qa', ['qa']],
+  ['graphics-character', ['rig', 'character', 'characters']],
 ];
 
 function words(t: string): string {

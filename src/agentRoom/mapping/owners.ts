@@ -21,6 +21,7 @@ export const OWNERSHIP: readonly [string, AgentId][] = [
   ['src/buildings/', 'buildings'],
   ['src/city/', 'city-streets'],
   ['src/streets/', 'city-streets'],
+  ['src/traffic/people/', 'graphics-character'], // narrower prefix first: people rendering split from Traffic & Life (T-0031)
   ['src/traffic/', 'traffic-life'],
   ['src/life/', 'traffic-life'],
   ['src/sky/', 'sky-environment'],
@@ -55,7 +56,7 @@ export interface ClaimLike {
 }
 
 const AGENT_IDS: readonly AgentId[] = [
-  'lead', 'buildings', 'city-streets', 'traffic-life', 'sky-environment', 'audio', 'ui-camera', 'scene-qa', 'architect',
+  'lead', 'buildings', 'city-streets', 'traffic-life', 'sky-environment', 'audio', 'ui-camera', 'scene-qa', 'architect', 'graphics-character',
 ];
 
 export function asAgentId(name: string): AgentId | null {

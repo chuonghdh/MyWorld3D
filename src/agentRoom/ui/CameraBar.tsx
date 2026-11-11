@@ -8,7 +8,7 @@ import { controlsFor } from './metrics';
 import { useUi, type PresetId } from './uiStore';
 import { Icon } from './Icons';
 
-/** Key -> action (pure, tested). 1 = hub, 2..9 = the 8 desks in roster order. */
+/** Key -> action (pure, tested). 1 = hub, 2..9 = the first 8 desks in roster order (the ninth has no key). */
 export function keyAction(key: string): { preset?: PresetId; cmd?: 'clear' | 'follow' | 'pause' } | null {
   if (key === '0') return { preset: 'overview' };
   if (key === '1') return { preset: 'hub' };

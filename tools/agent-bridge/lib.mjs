@@ -3,7 +3,7 @@ import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 
 /** Words that may survive from an Agent description: specialist names only (used to pick the desk). */
-const NAME_WORDS = new Set(['buildings', 'building', 'city', 'streets', 'street', 'traffic', 'life', 'sky', 'environment', 'audio', 'ui', 'camera', 'scene', 'qa', 'technical', 'architect', '&', 'and']);
+const NAME_WORDS = new Set(['buildings', 'building', 'city', 'streets', 'street', 'traffic', 'life', 'sky', 'environment', 'audio', 'ui', 'camera', 'scene', 'qa', 'technical', 'architect', 'graphics', 'character', '&', 'and']);
 const PATH_KEYS = ['file_path', 'notebook_path', 'path'];
 const ID_KEYS = ['subagent_type', 'name', 'to'];
 

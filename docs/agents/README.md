@@ -1,7 +1,7 @@
 # Specialist agents
 Reviewed 2026-11-09 at 6343a99 (architect pass; open items at the end)
 
-MyWorld3D is built by a small, fixed team of specialists (eight, including the architect who reviews structure and standards) coordinated by the lead (the main Claude session).
+MyWorld3D is built by a small, fixed team of specialists (nine, including the architect who reviews structure and standards) coordinated by the lead (the main Claude session).
 Each specialist owns directories, keeps a handbook in this folder, and is **reused** for every new task in its area
 instead of spawning a fresh agent. That way what it learned (traps, decisions, conventions) carries over.
 
@@ -9,12 +9,13 @@ instead of spawning a fresh agent. That way what it learned (traps, decisions, c
 |---|---|---|---|
 | 1 | Buildings | `src/buildings/**` | [buildings.md](buildings.md) |
 | 2 | City & Streets | `src/city/**`, `src/streets/**` | [city-streets.md](city-streets.md) |
-| 3 | Traffic & Life | `src/traffic/**`, `src/life/**` | [traffic-life.md](traffic-life.md) |
+| 3 | Traffic & Life | `src/traffic/**` (people rendering excepted, row 9), `src/life/**` | [traffic-life.md](traffic-life.md) |
 | 4 | Sky & Environment | `src/sky/**`, `src/environment/**`, `src/weather/**`, `src/aircraft/**` | [sky-environment.md](sky-environment.md) |
 | 5 | Audio | `src/audio/**`, `src/scene/audioBridge.ts`, `src/ui/SoundMixer.tsx`, `docs/AUDIO.md`, audio tests (`tests/audio*.test.ts`, `tests/helpers/fakeAudio.ts`) | [audio.md](audio.md) |
 | 6 | UI & Camera | `src/ui/**` (except SoundMixer), `src/store/**`, `src/film/filmClock.ts`, `src/film/autoPath.ts`, `src/scene/CameraRig.tsx`, `cameraInput.ts`, `cameraDom.ts`, `cameraMath.ts`, `cameraMapKeys.ts`, `cameraViewShift.ts`, `pivotMath.ts`, `Selection.tsx`, `selectionMath.ts`, block edit (`BlockEditor.tsx`, `blockEditMath.ts`, `blockEditAnchors.ts`) | [ui-camera.md](ui-camera.md) |
 | 7 | Scene & QA | `src/scene/**` (rest), `src/core/**`, `src/App.tsx`, `src/main.tsx`, `src/dev/treeCompare/**`, `tree-compare.html`, `public/models/**`, `tests/helpers/**`, perf budgets, docs | [scene-qa.md](scene-qa.md) |
 | 8 | Technical Architect | Cross-cutting structure, asset pipeline, performance standards, toolchain (no feature code, except Agent Room by human decision 2026-11-08: `src/agentRoom/**`, `src/config/tuning/agentRoom.*`, `tools/agent-bridge/**`, agent-room.html). Reviews `src/shaders/**` | [architect.md](architect.md) |
+| 9 | Graphics & Character | `src/traffic/people/**` (rendering of people: geometry, rig, shaders, LOD, instancing; walker behaviour stays with Traffic & Life) | [graphics-character.md](graphics-character.md) |
 
 Shared, no single owner: `src/shaders/**` (cloud shade and wet surface patches). Buildings and Sky & Environment both use it; changes need both owners and an architect review.
 
@@ -86,3 +87,6 @@ Owns / Key files / Conventions / Traps (what bit us, why) / Decisions (and the r
 7. Agent Room subagent binding: SendMessage to a resumed subagent now uses its bound specialist (2026-11-09). Parallel spawns still bind by first-event order; see architect.md 2026-11-09.
 8. Closed 2026-11-09: film owner split is in docs/REPO_MAP.md; `uiCamera.walkSpeed` row fixed in docs/TUNING.md.
 9. 2026-11-11: items 1 to 5 are now backlog records T-0011 to T-0017 in `harness/tasks/backlog/` (list: `node harness/scripts/next-task.mjs`). Closed in item 1: `src/ui/HousePanel.tsx` no longer calls Math.random. New open items go to the backlog through the Improve section of `harness/workflows/delivery.md`.
+
+## Update 2026-11-11 (architect): ninth specialist (T-0031)
+- Graphics & Character owns `src/traffic/people/**`; Traffic & Life keeps behaviour and simulation. The narrower prefix comes first in `src/agentRoom/mapping/owners.ts` (first match wins). ADR 0013 keeps "8 specialists" as its decision-time text.
