@@ -99,7 +99,7 @@ bool applyRig(inout vec3 p, inout vec3 n) {
   float kneeK = aGait2.y;
   float armK = aGait2.z;
   float bobK = aGait2.w;
-  float a = uTime * aGait.x + aGait.y;
+  float a = aGait.x + aGait.y;
   float bob = walk * amp * 0.026 * bobK * abs(sin(a));
   bool isLeft = (part == 1 || part == 3 || part == 5 || part == 7);
   float side = isLeft ? 0.0 : 3.14159265;

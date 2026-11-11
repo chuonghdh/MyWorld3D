@@ -14,13 +14,14 @@
 // the whole-map view; at street level the boost is zero. The camera is read in onBeforeRender, no wiring needed.
 
 import * as THREE from 'three';
-import { BODY_ADULT, BODY_CHILD, BODY_ELDER, BODY_TEEN, POSE_WALK, type PedestrianRender } from '../pedestrians';
+import { BODY_ADULT, BODY_CHILD, BODY_ELDER, BODY_TEEN, MAX_WALKERS, POSE_WALK, type PedestrianRender } from '../pedestrians';
 import { finish, writeInstance, type VisualContext } from '../meshKit';
 import { RigBuilder } from './rigBuilder';
 import { buildPerson, gaitOf, triangleCount, type BodyKind, type PersonModel } from './personGeometry';
 import { buildDog, type DogModel } from './dogGeometry';
 import { PALETTE_SIZES, type SeasonName } from './palettes';
 import { FLAG, outfitFlags } from './outfit';
+import { GaitPhase } from './gaitPhase';
 import { applySeasonPalette, createDogMaterials, createPeopleUniforms, createPersonMaterials, type PeopleUniforms } from './rigShader';
 
 export interface PeopleMeshes {
@@ -139,6 +140,7 @@ export function createPeopleMeshes(pedestrianCapacity = 512, dogCapacity = 256):
   };
   for (const m of [...bodies, dogs]) m.onBeforeRender = readCamera;
 
+  const gaitPhase = new GaitPhase(Math.max(pedestrianCapacity, MAX_WALKERS) + 1);
   const counts = new Int32Array(KINDS.length);
   let lastSeason: SeasonName | '' = '';
   const emissive = [materials.map((m) => m.material), [dogMats.material]].flat();
@@ -202,6 +204,7 @@ export function createPeopleMeshes(pedestrianCapacity = 512, dogCapacity = 256):
     setNight,
     update(list, ctx) {
       uniforms.uTime.value = ctx.time;
+      gaitPhase.begin(ctx.time);
       if (ctx.season !== lastSeason) {
         lastSeason = ctx.season;
         applySeasonPalette(uniforms, ctx.season);
@@ -237,7 +240,8 @@ export function createPeopleMeshes(pedestrianCapacity = 512, dogCapacity = 256):
         const g = gait[bi];
         const o4 = idx * 4;
         const walking = ped.pose === POSE_WALK && ped.speed > 0.02;
-        g[o4] = walking ? (TWO_PI * ped.speed) / spec.cycle : 0;
+        // aGait.x is the accumulated walk-cycle angle (radians), not omega; the shader adds the phase offset.
+        g[o4] = gaitPhase.step(ped.id, walking ? (TWO_PI * ped.speed) / spec.cycle : 0);
         g[o4 + 1] = ped.phase;
         g[o4 + 2] = walking ? 0 : ped.pose === POSE_WALK ? 1 : ped.pose;
         g[o4 + 3] = spec.amp;
