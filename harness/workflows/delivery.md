@@ -2,7 +2,7 @@
 
 Request in, merged pull request to `dev` out. Run by the lead through the deliver and improve skills (.claude/skills/), on demand only. Decision: `docs/adr/0014-delegated-delivery.md`. What the agent may do alone and what stays with the human is data in `harness/config/policies.json` (`autonomy`). Task states, checkpoints, retry and recovery: `harness/workflows/WORKFLOW.md`.
 
-Until T-0010 (headless smoke) lands, visual, audio and perf checks are listed as not verified in the pull request. They do not block a merge to `dev`. They block the release to `master` (`harness/workflows/release.md`).
+The headless smoke (`npm run smoke`, CI job `smoke`) covers console errors, a non-blank canvas by day and night, and renderer counts. The remaining human checks are audio, taste and frame time on real hardware. Listed as not verified in the pull request, they do not block a merge to `dev`; they block the release to `master` (`harness/workflows/release.md`).
 
 ## Intake
 

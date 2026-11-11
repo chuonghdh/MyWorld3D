@@ -261,6 +261,37 @@
       "status": "released",
       "date": "2026-11-11",
       "brief": "harness/briefs/T-0009-scene-qa.md"
+    },
+    {
+      "task": "T-0010-headless-smoke",
+      "owner": "architect",
+      "globs": [
+        "package.json",
+        "package-lock.json",
+        ".github/workflows/ci.yml",
+        "harness/config/quality-gates.json",
+        "docs/ACCEPTANCE.md",
+        "harness/workflows/delivery.md",
+        "harness/workflows/release.md",
+        "harness/README.md",
+        "docs/agents/architect.md",
+        "harness/briefs/T-0010-architect.md"
+      ],
+      "status": "released",
+      "date": "2026-11-11",
+      "brief": "harness/briefs/T-0010-architect.md"
+    },
+    {
+      "task": "T-0010-headless-smoke",
+      "owner": "scene-qa",
+      "globs": [
+        "tests/smoke/**",
+        "docs/agents/scene-qa.md",
+        "harness/briefs/T-0010-scene-qa.md"
+      ],
+      "status": "released",
+      "date": "2026-11-11",
+      "brief": "harness/briefs/T-0010-scene-qa.md"
     }
   ]
 }
