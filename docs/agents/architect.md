@@ -401,3 +401,9 @@ Enforced but missing from the docs (add to `harness/README.md` guard table): set
 - CI job `smoke` sits next to `check` and `secrets` (build, then smoke). Not a verify gate: it needs a browser. Making it a required check is a human action in the repository rules.
 - Human checks dropped from quality-gates.json: console errors, blank canvas, draw calls and triangles. Kept: audio, visual taste, real-hardware frame time.
 - Open: required-check rule for `smoke`; first CI run of the job unverified.
+
+## Update 2026-11-11 (T-0031)
+- Ninth specialist Graphics & Character (id graphics-character) owns src/traffic/people/**; the narrower prefix sits before src/traffic/ in owners.ts (first match wins). ADR 0013 keeps its "8 specialists" wording. Hook text keys are rig, character, characters only: shader would clash with buildings and sky.
+- Room: ninth desk alone in column 4, row 0 (DESK_SLOTS now exported; stubs come from it), far-right corridor moved to 9.0 * SX to clear it, SEAT_COUNT 9, one extra pantry seat (counter stool). The ninth desk has no digit key (2-9 map to the first eight).
+- Bridge: NAME_WORDS in tools/agent-bridge/lib.mjs gained graphics and character; without them a description redacts to "&". Ids in ID_KEYS pass through unchanged.
+- Not seen by eye: desk, prop, stool and corridor placement in the built-in pane (no frame painting). Open: the camera overview was not re-fitted by hand; the fit test passes.

@@ -22,8 +22,16 @@ function samplePath(p: string): string {
 }
 
 describe('owners.ts matches the ownership table', () => {
-  it('table parses into 8 specialists', () => {
-    expect(ROWS.map(([s]) => s)).toEqual(['buildings', 'city-streets', 'traffic-life', 'sky-environment', 'audio', 'ui-camera', 'scene-qa', 'architect']);
+  it('table parses into 9 specialists', () => {
+    expect(ROWS.map(([s]) => s)).toEqual(['buildings', 'city-streets', 'traffic-life', 'sky-environment', 'audio', 'ui-camera', 'scene-qa', 'architect', 'graphics-character']);
+  });
+  it('people rendering is Graphics & Character; walkers and the rest of traffic stay Traffic & Life', () => {
+    expect(ownerOf('src/traffic/people/x.ts')).toBe('graphics-character');
+    expect(ownerOf('src/traffic/people/rigShaderGlsl.ts')).toBe('graphics-character');
+    expect(ownerOf('src/traffic/walkers/x.ts')).toBe('traffic-life');
+    expect(ownerOf('src/traffic/pedestrians.ts')).toBe('traffic-life');
+    expect(ownerOf('src/traffic/vehicles/x.ts')).toBe('traffic-life');
+    expect(ownerOf('src/life/birds.ts')).toBe('traffic-life');
   });
   it('every path in the table maps to its row owner', () => {
     const drift: string[] = [];

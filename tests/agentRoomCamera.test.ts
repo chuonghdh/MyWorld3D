@@ -9,8 +9,8 @@ const VD = agentRoom.viewDistance;
 const FD = agentRoom.camFocusDistance;
 
 describe('camera presets', () => {
-  it('11 targets: overview, hub, wall and 8 desks', () => {
-    expect(PRESET_ORDER).toHaveLength(11);
+  it('12 targets: overview, hub, wall and 9 desks', () => {
+    expect(PRESET_ORDER).toHaveLength(12);
   });
   it('every preset target is inside the clamp and its distance inside the limits', () => {
     for (const id of PRESET_ORDER) {

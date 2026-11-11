@@ -2,7 +2,7 @@
 import type { AgentId, AgentSnapshot, Source, TaskState } from '../model/types';
 
 export const ALL_AGENTS: readonly AgentId[] = [
-  'lead', 'buildings', 'city-streets', 'traffic-life', 'sky-environment', 'audio', 'ui-camera', 'scene-qa', 'architect',
+  'lead', 'buildings', 'city-streets', 'traffic-life', 'sky-environment', 'audio', 'ui-camera', 'scene-qa', 'architect', 'graphics-character',
 ];
 
 export interface Link {

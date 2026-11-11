@@ -292,6 +292,28 @@
       "status": "released",
       "date": "2026-11-11",
       "brief": "harness/briefs/T-0010-scene-qa.md"
+    },
+    {
+      "task": "T-0031-graphics-character-specialist",
+      "owner": "architect",
+      "globs": [
+        ".claude/agents/graphics-character.md",
+        "docs/agents/**",
+        "docs/REPO_MAP.md",
+        "docs/TUNING.md",
+        "harness/README.md",
+        "harness/briefs/T-0031-architect.md",
+        "harness/tasks/backlog/T-00*.md",
+        "src/agentRoom/**",
+        "src/config/tuning/agentRoom*",
+        "tests/agentRoom*.test.ts",
+        "tests/agentRegistry.test.ts",
+        "tests/tuningParity.test.ts",
+        "tools/agent-bridge/**"
+      ],
+      "status": "released",
+      "date": "2026-11-11",
+      "brief": "harness/briefs/T-0031-architect.md"
     }
   ]
 }

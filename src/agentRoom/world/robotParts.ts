@@ -66,6 +66,12 @@ function prop(id: AgentId, c: string): Part[] {
         { geo: box(0.3, 0.035, 0.3, 0, top + 0.017, 0), color: DARK },
         { geo: new THREE.TorusGeometry(0.05, 0.012, 8, 20).translate(-0.07, RIG.headY + 0.01, 0.162), color: c },
       ];
+    case 'graphics-character':
+      // Pen-tablet stylus: a slim tilted bar beside the head with a coloured tip.
+      return [
+        { geo: new THREE.CylinderGeometry(0.014, 0.014, 0.26, 8).rotateZ(-0.5).translate(-0.12, top + 0.1, 0), color: DARK },
+        { geo: new THREE.ConeGeometry(0.02, 0.05, 8).rotateZ(-0.5 + Math.PI).translate(-0.19, top - 0.02, 0), color: c },
+      ];
     default:
       return [];
   }

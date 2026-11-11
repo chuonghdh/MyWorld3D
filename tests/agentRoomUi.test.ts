@@ -15,7 +15,7 @@ describe('metrics', () => {
     s = apply(s, { seq: 1, t: 0, source: 'live', agent: 'audio', kind: 'tool_start', tool: 'Edit' });
     s = apply(s, { seq: 2, t: 0, source: 'live', agent: 'lead', kind: 'notify' });
     s = apply(s, { seq: 3, t: 0, source: 'live', agent: 'buildings', kind: 'subagent_done' });
-    expect(metricsOf(Object.values(s.agents))).toEqual({ agents: 9, active: 1, waiting: 1, done: 1, errors: 0 });
+    expect(metricsOf(Object.values(s.agents))).toEqual({ agents: 10, active: 1, waiting: 1, done: 1, errors: 0 });
   });
   it('clock text', () => {
     expect(clockText(0)).toBe('00:00');
@@ -42,6 +42,7 @@ describe('keys', () => {
     ['1', { preset: 'hub' }],
     ['2', { preset: 'buildings' }],
     ['9', { preset: 'architect' }],
+    ['10', null],
     ['w', { preset: 'wall' }],
     ['Escape', { cmd: 'clear' }],
     ['F', { cmd: 'follow' }],

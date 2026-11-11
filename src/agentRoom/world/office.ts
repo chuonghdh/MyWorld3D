@@ -34,7 +34,7 @@ export function huddleSlot(id: AgentId): Vec2 {
   return SEATS[i] ?? seatPos(i);
 }
 
-/** Pantry lounge in the back-right corner: 3 sofa seats on the right wall, 2 on the back sofa, 3 bar stools. */
+/** Pantry lounge in the back-right corner: 3 sofa seats on the right wall, 2 on the back sofa, 3 bar stools, 1 counter stool, and the lead's bar stool. */
 export const PANTRY = { x0: 3.6 * SX, x1: ROOM.halfW - 0.3, z0: -ROOM.halfD + 0.3, z1: -1.5 } as const;
 export const SOFA_SEAT_Y = 0.42;
 export const STOOL_SEAT_Y = 0.72;
@@ -44,6 +44,8 @@ export const RING_SEAT_Y = STOOL_SEAT_Y;
 export const CHAIR_SEAT_Y = 0.49;
 export const BAR_TABLE: Vec2 = { x: PANTRY.x0 + 1.6, z: -3.6 };
 export const COFFEE_TABLE: Vec2 = { x: ROOM.halfW - 2.3, z: -5.5 };
+/** Stool in front of the counter (west side): the ninth specialist's pantry seat. */
+export const COUNTER_STOOL: Vec2 = { x: ROOM.halfW - 1.3, z: -2.6 };
 export const PANTRY_SEATS: readonly { pos: Vec2; look: Vec2; y: number }[] = [
   { pos: { x: ROOM.halfW - 0.6, z: -6.4 }, look: COFFEE_TABLE, y: SOFA_SEAT_Y },
   { pos: { x: ROOM.halfW - 0.6, z: -5.5 }, look: COFFEE_TABLE, y: SOFA_SEAT_Y },
@@ -53,7 +55,8 @@ export const PANTRY_SEATS: readonly { pos: Vec2; look: Vec2; y: number }[] = [
   { pos: { x: BAR_TABLE.x - 0.8, z: -3.6 }, look: BAR_TABLE, y: STOOL_SEAT_Y },
   { pos: { x: BAR_TABLE.x, z: -2.75 }, look: BAR_TABLE, y: STOOL_SEAT_Y },
   { pos: { x: BAR_TABLE.x + 0.8, z: -3.6 }, look: BAR_TABLE, y: STOOL_SEAT_Y },
-  { pos: { x: BAR_TABLE.x, z: BAR_TABLE.z - 0.85 }, look: BAR_TABLE, y: STOOL_SEAT_Y }, // the lead's seat
+  { pos: COUNTER_STOOL, look: { x: ROOM.halfW - 0.45, z: -2.6 }, y: STOOL_SEAT_Y },
+  { pos: { x: BAR_TABLE.x, z: BAR_TABLE.z - 0.85 }, look: BAR_TABLE, y: STOOL_SEAT_Y }, // the lead's seat (always last)
 ];
 
 /** Fixed seat per specialist (roster order): no two agents ever share a seat. */

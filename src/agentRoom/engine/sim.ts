@@ -2,7 +2,7 @@
 import type { AgentId, RoomEvent } from '../model/types';
 
 const SPECIALISTS: readonly AgentId[] = [
-  'buildings', 'city-streets', 'traffic-life', 'sky-environment', 'audio', 'ui-camera', 'scene-qa', 'architect',
+  'buildings', 'city-streets', 'traffic-life', 'sky-environment', 'audio', 'ui-camera', 'scene-qa', 'architect', 'graphics-character',
 ];
 const TOOLS = ['Read', 'Edit', 'Grep', 'Bash', 'Write'] as const;
 const DEMO_PATHS: Partial<Record<AgentId, string>> = {
@@ -14,6 +14,7 @@ const DEMO_PATHS: Partial<Record<AgentId, string>> = {
   'ui-camera': 'src/ui/demo.tsx',
   'scene-qa': 'src/scene/demo.tsx',
   architect: 'src/agentRoom/demo.ts',
+  'graphics-character': 'src/traffic/people/demo.ts',
 };
 
 /** mulberry32: small deterministic PRNG. */

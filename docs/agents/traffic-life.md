@@ -2,7 +2,7 @@
 
 Reviewed 2026-11-01 at 02b0cdc. Paths, line refs and hashes corrected 2026-11-09 (see Review 2026-11-08 and Update 2026-11-09).
 
-**Owns:** `src/traffic/**` (vehicles, lights, pedestrians, parking, collision, car snow and headlights) and `src/life/**` (pigeons, flocks, cats, squirrels, butterflies, birds) with their tests.
+**Owns:** `src/traffic/**` except `src/traffic/people/**` (vehicles, lights, pedestrian behaviour, parking, collision, car snow and headlights; people rendering moved to Graphics & Character 2026-11-11) and `src/life/**` (pigeons, flocks, cats, squirrels, butterflies, birds) with their tests.
 
 ## Key files
 - `traffic/vehicles.ts`: the `VehicleSystem` class (public API, step, horns, turn-decision hook; 320 lines). `traffic/lights.ts` (signals, all-red gap), `traffic/pedestrians.ts` (the `Pedestrians` class), `collision.ts` (OBB sweep), `parking.ts`.
@@ -293,3 +293,8 @@ Checked against the working tree (branch feat/agent-working-room). No tests run.
 - Before: one warm-up of 200 steps, then a single timed loop of 1500 frames, mean per frame, bound 0.5 ms. Under full-suite load it read 0.65 to 0.71 ms and failed; solo it passed.
 - After: fixed warm-up of 300 steps, then nine timed batches of 200 frames. The assertion is on the median of the nine per-frame means, bound unchanged at 0.5 ms. Median ignores batches hit by load or GC pauses.
 - Same walker count (385 at the default multiplier) and same guard meaning. No production change.
+
+## Update 2026-11-11 (architect): ownership split (T-0031)
+- `src/traffic/people/**` (geometry, rig, shaders, materials, instancing, LOD of people and dogs) now belongs to Graphics & Character: see docs/agents/graphics-character.md. The people items in this handbook (child gait rendering, `aGait2`, `rigShader.ts`, `peopleMeshes.ts`, the people draw-call counts) are history; new work on them goes to that specialist.
+- Still here: walker behaviour and simulation (`src/traffic/walkers/**`, `src/traffic/pedestrians.ts`), vehicles, `src/life/**`, and the gait knobs in `trafficLife.ts` (config stays in this section).
+- Border: per-instance gait data (speed, phase, pose, amplitude) is written by the walkers and read by the rig. A change on either side of it is agreed through the lead.

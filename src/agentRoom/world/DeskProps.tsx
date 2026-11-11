@@ -81,6 +81,13 @@ function propParts(id: AgentId): Part[] {
         { geo: B(0.3, 0.004, 0.02, 0, 0.0, 0).rotateX(-0.25).translate(0, 0.05, 0.05), color: '#eef2f7' },
         { geo: B(0.02, 0.04, 0.2, -0.14, 0, 0), color: '#30343c' },
       ];
+    case 'graphics-character':
+      // Drawing tablet with a stylus lying on it.
+      return [
+        { geo: B(0.3, 0.01, 0.2, 0, 0, 0), color: '#1a1f27' },
+        { geo: B(0.24, 0.004, 0.14, 0, 0.01, 0), color: c },
+        { geo: B(0.12, 0.012, 0.012, 0.04, 0.014, 0.03).rotateY(0.4), color: '#d9dde3' },
+      ];
     default:
       return [];
   }

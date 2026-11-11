@@ -1,6 +1,7 @@
 // Agent room view logic (ADR 0013): layout, world stepping and runtime are deterministic and headless.
 import { describe, expect, it } from 'vitest';
-import { AISLE_X, BOARD, DESK, DISCUSS, ROOM, SPECIALISTS, deskPose } from '../src/agentRoom/world/layout';
+import { AISLE_X, BOARD, DESK, DISCUSS, LEAD_DESK, ROOM, SEAT_COUNT, SPECIALISTS, deskPose } from '../src/agentRoom/world/layout';
+import { huddleSlot } from '../src/agentRoom/world/office';
 import { createLiveWorld, stepWorld } from '../src/agentRoom/world/liveWorld';
 import { initialState } from '../src/agentRoom/engine/state';
 import { apply } from '../src/agentRoom/engine/reduce';
@@ -8,7 +9,21 @@ import { createSimulationRuntime } from '../src/agentRoom/runtime';
 import { bubbleText } from '../src/agentRoom/ui/bubbleText';
 
 describe('room layout', () => {
-  it('desks sit in two 2x2 blocks in the front half, inside the room, apart from each other', () => {
+  it('nine desks, pairwise distinct, clear of the lead desk, the board, the discuss table and the aisle', () => {
+    expect(SPECIALISTS).toHaveLength(9);
+    expect(SPECIALISTS).toContain('graphics-character');
+    const ps = SPECIALISTS.map((id) => deskPose(id).pos);
+    expect(new Set(ps.map((p) => `${p.x},${p.z}`)).size).toBe(9);
+    const hit = (p: { x: number; z: number }, cx: number, cz: number, hw: number, hd: number, pad: number) => Math.abs(p.x - cx) < hw + DESK.w / 2 + pad && Math.abs(p.z - cz) < hd + DESK.d / 2 + pad;
+    for (const p of ps) {
+      expect(hit(p, LEAD_DESK.x, LEAD_DESK.z, LEAD_DESK.w / 2, LEAD_DESK.d / 2, 0.5)).toBe(false);
+      expect(hit(p, BOARD.x, BOARD.z, BOARD.w / 2, 0.08, 0.5)).toBe(false);
+      expect(Math.hypot(p.x - DISCUSS.x, p.z - DISCUSS.z)).toBeGreaterThan(DISCUSS.r + DESK.w / 2 + 1);
+    }
+    expect(SEAT_COUNT).toBeGreaterThanOrEqual(SPECIALISTS.length);
+    expect(new Set(SPECIALISTS.map((id) => huddleSlot(id)).map((s) => `${s.x},${s.z}`)).size).toBe(9);
+  });
+  it('desks sit in the front half, inside the room, apart from each other', () => {
     const ps = SPECIALISTS.map((id) => deskPose(id).pos);
     for (const p of ps) {
       expect(Math.abs(p.x) + DESK.w / 2).toBeLessThan(ROOM.halfW);
