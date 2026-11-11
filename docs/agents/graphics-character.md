@@ -88,3 +88,12 @@ All four person meshes have the same triangle count (376), so the handbook range
 - Trap: consumers of `bodies` now see only the far set. Anything that must count or follow all people sums `bodies` and `nearBodies`. `tests/smoke/closeup.mjs` follows the near mesh when it has instances.
 - Knobs (trafficLife.ts, parity entries, TUNING.md rows): `nearRadiusM` 30, `nearMaxInstances` 64, `nearHysteresisM` 4.
 - Draw calls: up to +4 (near meshes with count 0 still issue a call in three only if rendered; measure with smoke).
+
+## Update 2026-11-12 (T-0023 near body model)
+- Decision: `buildPerson(kind, detail)` with `detail` `'far'` (unchanged, 376 triangles, checksum-tested in `tests/peopleNear.test.ts`) or `'near'` (`personShapeNear.ts`, 1312 triangles for every age group). Both read `personDims.ts` (joint heights, widths, stoop), so hip, shoulder, neck, seatDrop and headTop are identical and one material per age group (built from the far model) serves both sets. The near set owns its geometry (T-0022's shared-buffer trick is gone: the near geometry differs).
+- New primitive `RigBuilder.loft(cx, rings, sides, topCap, bottomCap)`: elliptical rings with smooth normals from neighbouring ring points. Used for limbs (8 sides), pelvis and torso (10), coat (12), neck, hair, hat, scarf, beard. Head is a 12x8 ellipsoid, ears small ellipsoids, hands palm plus fingers plus thumb boxes, shoes sole plus heel plus upper loft plus toe-cap ellipsoid.
+- Seams: each limb ring ends inside the next part (torso starts inside the pelvis, shin top ring inside the thigh, neck inside head and torso, hand top inside the sleeve). No equal planes.
+- Trap: face quads were placed at a fixed z for the 6x4 head. On the 12x8 head they would be buried, so near face quads take z from the ellipsoid surface at each vertex (`zAt`) plus a few millimetres. T-0024 replaces them with a shader face; remove `zAt` then.
+- Trap: far shape numbers moved into `personDims.ts`; the far checksum test guards that nothing shifted.
+- Cost: near minus far is 936 triangles per person. Worst case with every near mesh full (64 per group, 4 groups) is 239,616 extra triangles in the main pass and the same again in the shadow pass, about 479,000 in total on top of the T-0020 baseline of 2,377,993.
+- Not seen by eye on real hardware.

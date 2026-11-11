@@ -7,6 +7,15 @@ import * as THREE from 'three';
 
 type V3 = [number, number, number];
 
+/** One elliptical cross-section of a loft: height, centre z, radii along x and z (centre x is shared). */
+export interface Ring {
+  y: number;
+  rx: number;
+  rz: number;
+  cz?: number;
+}
+
+
 export class RigBuilder {
   private readonly pos: number[] = [];
   private readonly nor: number[] = [];
@@ -141,6 +150,71 @@ export class RigBuilder {
       this.quad(b1, b0, t0, t1);
       if (topCap) this.tri([cx, y1, cz], t1, t0);
       if (bottomCap) this.tri([cx, y0, cz], b0, b1);
+    }
+    return this;
+  }
+
+
+  /**
+   * Smooth-shaded lofted limb: n-sided elliptical rings stacked along Y, centred on cx. Normals are averaged from the
+   * neighbouring ring points, so the surface reads round with few sides. Winding matches frustum(). Caps are flat.
+   */
+  loft(cx: number, rings: Ring[], sides: number, topCap = false, bottomCap = false): this {
+    const R = rings.length;
+    const pt = (i: number, k: number): V3 => {
+      const r = rings[i];
+      const a = (((k % sides) + sides) % sides / sides) * Math.PI * 2;
+      return [cx + Math.cos(a) * r.rx, r.y, (r.cz ?? 0) + Math.sin(a) * r.rz];
+    };
+    const nrm = (i: number, k: number): V3 => {
+      const i0 = Math.max(0, i - 1);
+      const i1 = Math.min(R - 1, i + 1);
+      const p0 = pt(i, k - 1);
+      const p1 = pt(i, k + 1);
+      const q0 = pt(i0, k);
+      const q1 = pt(i1, k);
+      const ux = p1[0] - p0[0];
+      const uy = p1[1] - p0[1];
+      const uz = p1[2] - p0[2];
+      const vx = q1[0] - q0[0];
+      const vy = q1[1] - q0[1];
+      const vz = q1[2] - q0[2];
+      // v (up) x u (around) points outward for the counter-clockwise ring order used here.
+      let nx = vy * uz - vz * uy;
+      let ny = vz * ux - vx * uz;
+      let nz = vx * uy - vy * ux;
+      const a = (k / sides) * Math.PI * 2;
+      if (nx * Math.cos(a) + nz * Math.sin(a) < 0) {
+        nx = -nx;
+        ny = -ny;
+        nz = -nz;
+      }
+      const l = Math.hypot(nx, ny, nz) || 1;
+      return [nx / l, ny / l, nz / l];
+    };
+    for (let i = 0; i < R - 1; i++) {
+      for (let k = 0; k < sides; k++) {
+        const b0 = pt(i, k);
+        const b1 = pt(i, k + 1);
+        const t0 = pt(i + 1, k);
+        const t1 = pt(i + 1, k + 1);
+        const nb0 = nrm(i, k);
+        const nb1 = nrm(i, k + 1);
+        const nt0 = nrm(i + 1, k);
+        const nt1 = nrm(i + 1, k + 1);
+        this.tri(b1, b0, t0, nb1, nb0, nt0);
+        this.tri(b1, t0, t1, nb1, nt0, nt1);
+      }
+    }
+    for (let k = 0; k < sides; k++) {
+      if (topCap) {
+        const r = rings[R - 1];
+        this.tri([cx, r.y, r.cz ?? 0], pt(R - 1, k + 1), pt(R - 1, k));
+      }
+      if (bottomCap) {
+        const r = rings[0];
+        this.tri([cx, r.y, r.cz ?? 0], pt(0, k), pt(0, k + 1));
+      }
     }
     return this;
   }

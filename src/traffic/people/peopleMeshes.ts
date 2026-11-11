@@ -3,7 +3,7 @@
 //     including the hidden hair, garments and face; see personGeometry.ts). Each mesh serves both sexes through
 //     the morph attributes and holds every hair style, garment and face,
 //   - one InstancedMesh for dogs (about 130 triangles), one for leashes, one for umbrellas.
-// Each age group has a near and a far mesh (distance LOD, lod.ts, peopleSets.ts), so at most 11 draw calls for all people. The walk cycle, poses, outfits and sex are resolved in the vertex
+// Each age group has a near and a far mesh (distance LOD, lod.ts, peopleSets.ts; the near one has the smooth model of personShapeNear.ts), so at most 11 draw calls for all people. The walk cycle, poses, outfits and sex are resolved in the vertex
 // shader from per-instance attributes (see rigShader.ts and outfit.ts), so update() only writes matrices and a
 // few floats per instance and allocates nothing.
 //
@@ -39,7 +39,7 @@ export interface PeopleMeshes {
   leashes: THREE.InstancedMesh;
   umbrellas: THREE.InstancedMesh;
   /** Geometry facts for tests and tooling. */
-  models: { person: PersonModel[]; dog: DogModel; umbrellaTriangles: number };
+  models: { person: PersonModel[]; personNear: PersonModel[]; dog: DogModel; umbrellaTriangles: number };
   setNight(on: boolean): void;
   update(pedestrians: readonly PedestrianRender[], ctx: VisualContext): void;
   dispose(): void;
@@ -77,10 +77,12 @@ export function createPeopleMeshes(pedestrianCapacity = 512, dogCapacity = 256):
 
   // --- People ---
   const models: PersonModel[] = KINDS.map((k) => buildPerson(k));
+  // Near models have the same pivots as the far ones (personDims.ts), so one material per age group serves both sets.
+  const modelsNear: PersonModel[] = KINDS.map((k) => buildPerson(k, 'near'));
   const materials = models.map((m) => createPersonMaterials(m, uniforms));
   const nearCap = Math.min(pedestrianCapacity, trafficLife.nearMaxInstances);
-  const farSet: PersonSet = createPersonSet(models, materials, KINDS, 'pedestrians-', pedestrianCapacity, false);
-  const nearSet: PersonSet = createPersonSet(models, materials, KINDS, 'pedestrians-near-', nearCap, true);
+  const farSet: PersonSet = createPersonSet(models.map((m) => m.geometry), materials, KINDS, 'pedestrians-', pedestrianCapacity);
+  const nearSet: PersonSet = createPersonSet(modelsNear.map((m) => m.geometry), materials, KINDS, 'pedestrians-near-', nearCap);
   const bodies = farSet.meshes;
   const nearBodies = nearSet.meshes;
   for (const m of [...bodies, ...nearBodies]) group.add(m);
@@ -202,7 +204,7 @@ export function createPeopleMeshes(pedestrianCapacity = 512, dogCapacity = 256):
     dogs,
     leashes,
     umbrellas,
-    models: { person: models, dog: dogModel, umbrellaTriangles: triangleCount(umbrellaGeo) },
+    models: { person: models, personNear: modelsNear, dog: dogModel, umbrellaTriangles: triangleCount(umbrellaGeo) },
     setNight,
     update(list, ctx) {
       uniforms.uTime.value = ctx.time;

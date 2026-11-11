@@ -359,6 +359,21 @@
       "status": "released",
       "date": "2026-11-12",
       "brief": "harness/briefs/T-0022-graphics-character.md"
+    },
+    {
+      "task": "T-0023-ped-near-model-detail",
+      "owner": "graphics-character",
+      "globs": [
+        "src/traffic/people/**",
+        "tests/people*.test.ts",
+        "tests/smoke/closeup.mjs",
+        "tests/smoke/closeupHook.mjs",
+        "docs/agents/graphics-character.md",
+        "harness/briefs/T-0023-graphics-character.md"
+      ],
+      "status": "released",
+      "date": "2026-11-12",
+      "brief": "harness/briefs/T-0023-graphics-character.md"
     }
   ]
 }

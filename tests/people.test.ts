@@ -52,7 +52,7 @@ function step(sim: { lights: TrafficLightController; peds: Pedestrians }, dt: nu
 describe('people models', () => {
   const KINDS = ['adult', 'teen', 'child', 'elder'] as const;
 
-  it('builds four age groups with 350-480 triangles each (all parts) without WebGL', () => {
+  it('builds four age groups with 350-480 triangles each at far detail (all parts; near detail is in peopleNear.test.ts) without WebGL', () => {
     for (const kind of KINDS) {
       const m = buildPerson(kind);
       const tris = triangleCount(m.geometry);
