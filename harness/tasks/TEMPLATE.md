@@ -5,6 +5,9 @@ status: proposed # proposed | assigned | in_progress | verifying | done | blocke
 owner: specialist or lead name
 branch: dev
 created: YYYY-MM-DD
+priority: P2 # P1 | P2 | P3. Required in backlog/
+type: feature # feature | bug | refactor | docs | config_toolchain. Required in backlog/
+source: request # request | open item | known gap | drift | issue-N for a GitHub issue (harness/workflows/delivery.md, Improve)
 ---
 
 # T-NNNN: Short task name

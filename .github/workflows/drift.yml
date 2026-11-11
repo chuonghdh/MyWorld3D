@@ -7,6 +7,7 @@ on:
 
 permissions:
   contents: read
+  issues: write
 
 jobs:
   drift:
@@ -17,6 +18,20 @@ jobs:
         with:
           node-version: 20
       - run: node harness/scripts/drift-check.mjs
+      - name: Open a harness issue on failure
+        if: failure()
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          TITLE: "Drift check failed"
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: |
+          gh label create harness --color B60205 --description "Harness failure feedback" 2>/dev/null || true
+          if gh issue list --label harness --state open --limit 200 --json title --jq '.[].title' | grep -Fxq "$TITLE"; then
+            echo "Open issue exists: $TITLE"
+          else
+            gh issue create --title "$TITLE" --label harness --body "Failing run: $RUN_URL. Picked up by the Improve section of harness/workflows/delivery.md."
+          fi
       - uses: actions/upload-artifact@v7
         if: always()
         with:

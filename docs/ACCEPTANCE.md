@@ -13,4 +13,4 @@ Human checks (visual, audio, browser) cannot be automated here. When one is not 
 | Docs only | `npx vitest run tests/harness.test.ts`, `node harness/scripts/validate-task.mjs` | None |
 | Config and toolchain | `npm run check`; `npm run dev` starts | App loads at the dev URL with no console errors |
 
-Rules: tuned values need their `docs/TUNING.md` row and a parity entry; a file over 350 lines fails the guard; rule changes need an ADR in `docs/adr/`; commit and push only on the user's request (`docs/adr/0008-commit-and-branch-workflow.md`).
+Rules: tuned values need their `docs/TUNING.md` row and a parity entry; a file over 350 lines fails the guard; rule changes need an ADR in `docs/adr/`; commits, pushes and merges follow `docs/adr/0014-delegated-delivery.md` (steps in `harness/workflows/delivery.md`).

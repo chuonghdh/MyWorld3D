@@ -11,11 +11,12 @@ Each ADR records one decision: Context, Decision, Consequences. Status is Accept
 | [0005](0005-no-network-in-src.md) | No network calls in src | Accepted |
 | [0006](0006-localstorage-ui-only.md) | localStorage only for per-viewer UI state | Accepted |
 | [0007](0007-file-size-ratchet.md) | 350-line file limit enforced as a ratchet | Accepted |
-| [0008](0008-commit-and-branch-workflow.md) | Commit only on user request; dev branch, PR to master when stable | Accepted |
+| [0008](0008-commit-and-branch-workflow.md) | Commit only on user request; dev branch, PR to master when stable | Accepted; commit rule superseded by 0014 |
 | [0009](0009-harness-enforcement.md) | Rules are enforced by guards, hooks and CI | Accepted |
 | [0010](0010-layering.md) | Dependency layers | Accepted |
 | [0011](0011-feedback-loop-hook-check-ci.md) | Feedback loop is a hook, npm run check, and CI | Accepted |
 | [0012](0012-lint-eslint.md) | ESLint; only passing rules are errors | Accepted |
 | [0013](0013-agent-room-module.md) | Agent Working Room module, local event bridge, scoped network exception | Accepted |
+| [0014](0014-delegated-delivery.md) | Delegated delivery: agents land work on dev through a pull request; master stays human-only | Accepted |
 
 See also: `docs/ARCHITECTURE.md`, `docs/CODING_STANDARDS.md`, `harness/README.md`.

@@ -27,8 +27,10 @@ When a change touches a knob, the owner updates the config, the parity test and 
 
 ## Rules for the lead
 
-1. **Reuse, do not respawn.** Send follow-up work to the specialist that owns the area with `SendMessage`. Spawn a new
-   agent only when the specialist is gone from the session, and then paste its handbook into the brief.
+1. **Spawn by agent definition, then reuse.** Each specialist (and the read-only reviewer) has a definition in
+   `.claude/agents/`: spawn with subagent_type = its slug and `name` = its slug. The definition makes it read its
+   handbook, so do not paste the handbook into the brief. Send follow-up work to the same agent with `SendMessage`;
+   do not respawn.
 2. **Disjoint files.** Two specialists never edit the same file at once. A cross-cutting feature gets one lead specialist
    who may touch a few files outside its area (name them in the brief and report them back).
 3. **Briefs are complete.** Name the files, the acceptance checks and what must not change (visual quality, draw calls,
@@ -38,8 +40,9 @@ When a change touches a knob, the owner updates the config, the parity test and 
 5. **Verification before reporting.** `npm run check` (tsc, lint, vitest, vite build). The built-in browser pane
    cannot paint frames: check the scene graph, uniforms, shader compile (force a render in a standalone renderer) and
    console errors, and say plainly what was not seen by eye.
-6. **Project rules.** Commits, code comments and docs are in English. Commit only when the user says so. Root-cause
-   fixes, no coplanar geometry, no loss of visual quality or performance.
+6. **Project rules.** Commits, code comments and docs are in English. Specialists never commit or push; the lead
+   lands the work by pull request to `dev` (`harness/workflows/delivery.md`). Root-cause fixes, no coplanar geometry, no loss of
+   visual quality or performance.
 
 ## Handbook template
 
@@ -63,7 +66,7 @@ Owns / Key files / Conventions / Traps (what bit us, why) / Decisions (and the r
 - Assignment: one brief per owner (table above). Never hand an owner's file to another agent to save a hand-off.
 - Quick-check requests: when the user says "no tests", run only `npx tsc --noEmit`; do not run vitest or the browser check.
 - Amounts a designer may change are knobs in `src/config/tuning/`; shader constants stay local (CLAUDE.md).
-- Commit only on the user's request. Commit attribution: Co-Authored-By for the model in use.
+- Commit only on the user's request. Commit attribution: Co-Authored-By for the model in use. (Superseded 2026-11-11 by ADR 0014: see rule 6 above. The attribution rule stands.)
 
 ## Update 2026-11-08 (lead): handbook and rules review
 - All eight specialists reviewed their handbooks against code (see each handbook's "Review 2026-11-08" section). Stale paths and counts corrected; no rule found invalid in its guard.
@@ -82,3 +85,4 @@ Owns / Key files / Conventions / Traps (what bit us, why) / Decisions (and the r
 6. Budgets (main 1.9 M, shadow 605 k, sum 2.3 M, 140 draw calls) not re-run. Frame and rebuild time still need connected Chrome. CI has never run on GitHub.
 7. Agent Room subagent binding: SendMessage to a resumed subagent now uses its bound specialist (2026-11-09). Parallel spawns still bind by first-event order; see architect.md 2026-11-09.
 8. Closed 2026-11-09: film owner split is in docs/REPO_MAP.md; `uiCamera.walkSpeed` row fixed in docs/TUNING.md.
+9. 2026-11-11: items 1 to 5 are now backlog records T-0011 to T-0017 in `harness/tasks/backlog/` (list: `node harness/scripts/next-task.mjs`). Closed in item 1: `src/ui/HousePanel.tsx` no longer calls Math.random. New open items go to the backlog through the Improve section of `harness/workflows/delivery.md`.

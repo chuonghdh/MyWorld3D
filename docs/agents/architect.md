@@ -374,3 +374,24 @@ Enforced but missing from the docs (add to `harness/README.md` guard table): set
 - Bridge: `GET /registry` serves the file; `src/agentRoom/bridgeClient/loadRegistry.ts` loads it before the live feed; `createHookMapper(source, claims, registry)` binds registered ids first, then the delegation queue, then the first owned file, then lead.
 - Process: after adding a hook, restart Claude Code (hooks load at session start). After changing the bridge, restart `npm run bridge` (the ring is lost). Then reload the room.
 - Limit: subagents spawned before this change have no hook record; they are backfilled only from the transcript, and new sessions need the hook.
+
+## Update 2026-11-11 (architect): delegated delivery (T-0009)
+- Decision: `docs/adr/0014-delegated-delivery.md` supersedes the commit rule of ADR 0008. Agents land work on `dev` by task branch and pull request; `master` and eight other items are human-only. The lists are data in `harness/config/policies.json` (`autonomy`, version 2); other docs point there.
+- Pipeline: `harness/workflows/delivery.md` (Intake, Plan, Delegate, Verify, Review, Land, Escalate, Improve), run through the deliver and improve skills (.claude/skills/). Durable specialists: .claude/agents/ (eight specialists plus a read-only reviewer); each definition points at its handbook and copies nothing from it.
+- Backlog: records in `harness/tasks/backlog/` need `priority` (P1 to P3) and `type` (`harness/scripts/validate-task.mjs`). `node harness/scripts/next-task.mjs` lists them by priority then id; `--next-id` gives the next free id. Seeded T-0010 to T-0019 from the open items and known gaps; `src/ui/HousePanel.tsx` Math.random was already gone, so no record.
+- Failure feedback: `drift.yml` and `evals.yml` open one GitHub issue labelled harness per failing title (`issues: write`). Not run on GitHub yet.
+- Tracking: `.gitignore` ignores `.claude/*` and re-includes agents/, skills/ and settings.json. A plain `.claude/` ignore cannot be re-included (git does not descend into an ignored directory).
+- Trap: the session permission classifier refused the agent edit of .claude/settings.json (self-modification), even with the human approval in the brief. The `permissions` block has to be applied by the human or the lead session.
+- Trap: a Git Bash heredoc with many quotes and backticks failed to parse on Windows; write one-off scripts with the Write tool and run them with node.
+- Trap: the docs guard reads a bare backticked name ending in .md, .json or .html as a root or docs/ file. Write the full path, or no backticks.
+- Limit: permission rules match command prefixes, so `gh pr merge` cannot be limited to pull requests to `dev`. The git guard hook holds that rule once applied (next section); until then policy and workflow do. No GitHub branch protection is set from this repo.
+- Open: first end-to-end deliver run; T-0010 (headless smoke) so visual and perf checks stop being human-only.
+
+## Update 2026-11-11 (architect): T-0009 review fixes
+- Git guard: `harness/scripts/guard-git.mjs` (PreToolUse hook on Bash; pure `decideGit(command, ctx)`, types in `harness/scripts/guard-git.d.mts`). Second pass after Scene & QA review: git or gh anywhere in a command counts (env, time, paths, substitutions); redirections and heredoc bodies are dropped; checkout tracks the branch; an unknown or detached branch blocks commit, merge, rebase and a pull without --ff-only; gh api writes on branch, protection, ref and merge paths are blocked. It holds what the permission prefixes cannot: commit on dev or master, push that is not `origin task/...`, pull request without `--base dev`, merge of a pull request whose base is not dev. It tracks `git switch` inside one command line and honours quotes. Not parsed: `bash -c`, eval, scripts. Fails open on a bad payload.
+- The hook entry and the permission lists are in a proposed settings file handed to the human; an agent session cannot write .claude/settings.json.
+- Hook command: a `node -e` one-liner that imports the guard by file URL from CLAUDE_PROJECT_DIR (else the git top level, else the working directory) and calls its exported `main()`. A relative `node harness/scripts/...` command exits 1 after a `cd`, which does not block. A load failure exits 2 (fail closed).
+- Land order is fixed: stage, `check-claims --staged` with claims active, then release claims and move the record, then commit. Done lives on the task branch until the merge; a branch that cannot go green is corrected back to blocked.
+- Backlog records from issues carry `source: issue-N`. No " #" in a front matter value: the readers strip text after " #" as a comment.
+- Skills carry `disable-model-invocation: true` (on demand only).
+- Open: GitHub branch protection for master and dev (human action); scheduled drift and eval runs only see master.

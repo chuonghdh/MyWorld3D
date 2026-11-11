@@ -14,7 +14,7 @@ Every value a user may want to adjust, in one place. Values that moved live in `
 1. Tell the lead which parameter (name from this file) and the new value.
 2. The lead sends it to the Owner listed in that row.
 3. The owner edits the file, runs `npx tsc --noEmit`, `npx vitest run` and `npx vite build`, and reports back.
-4. No commit unless the user asks.
+4. Do not commit: the lead lands the work (`harness/workflows/delivery.md`).
 
 Owner names follow `docs/agents/README.md`. For shared files, the Owner column names the lead owner and the reviewer (`lead / reviewer`).
 

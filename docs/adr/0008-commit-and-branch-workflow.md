@@ -1,6 +1,6 @@
 # ADR 0008: Commit only on user request; dev branch, PR to master when stable
 
-Status: Accepted (2026-11-01)
+Status: Accepted (2026-11-01). Superseded in part by ADR 0014 (2026-11-11): the commit rule.
 
 ## Context
 Agents committing on their own create noise and unreviewed history. The user reviews what lands.

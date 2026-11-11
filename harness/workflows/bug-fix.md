@@ -11,4 +11,4 @@ Source: `harness/workflows/WORKFLOW.md`. Gates: `harness/config/quality-gates.js
 6. Broken working tree: read `git status` and `git diff`, fix forward, or ask. Never reset, checkout or stash.
 7. Checkpoint, then done only when the gate is green at the recorded commit.
 
-Approval points: commit, push, merge, branch delete, `.claude/` changes, dependency changes, ADRs, config defaults, files outside the owner's files.
+Landing (commit, push, pull request to `dev`, merge) and the human-only list: `harness/workflows/delivery.md` (Land, Escalate).

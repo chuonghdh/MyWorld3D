@@ -1,0 +1,110 @@
+{
+  "env": {
+    "CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS": "1"
+  },
+  "hooks": {
+    "PreToolUse": [
+      {
+        "matcher": "Bash",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node -e 'const e=process.env.CLAUDE_PROJECT_DIR,g=require(`child_process`).spawnSync(`git`,[`rev-parse`,`--show-toplevel`],{encoding:`utf8`}),d=e||(g.status===0&&g.stdout.trim())||process.cwd(),f=`harness/scripts/guard-git.mjs`;import(require(`url`).pathToFileURL(require(`path`).join(d,f)).href).then(m=>m.main(d)).catch(x=>{process.stderr.write(`guard-git: blocked. Cannot load `+f+`: `+String(x&&x.code||x)+String.fromCharCode(10));process.exit(2)})'"
+          }
+        ]
+      }
+    ],
+    "PostToolUse": [
+      {
+        "matcher": "Edit|Write",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node -e 'let d=``;process.stdin.on(`data`,c=>d+=c).on(`end`,()=>{let p=``;try{p=JSON.parse(d).tool_input.file_path||``}catch(e){}p=p.split(String.fromCharCode(92)).join(`/`);if(!(p.endsWith(`.ts`)||p.endsWith(`.tsx`))||!new RegExp(`(^|/)(src|tests)/`).test(p))return;const r=require(`child_process`).spawnSync(`npx tsc --noEmit`,{shell:true,encoding:`utf8`,cwd:process.env.CLAUDE_PROJECT_DIR||process.cwd()});if(r.status!==0){process.stderr.write((r.stdout||``)+(r.stderr||``));process.exitCode=2}})'"
+          }
+        ]
+      },
+      {
+        "matcher": "Agent",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node tools/agent-bridge/registry.mjs"
+          }
+        ]
+      }
+    ]
+  },
+  "permissions": {
+    "allow": [
+      "Bash(npm run check)",
+      "Bash(npm run lint)",
+      "Bash(npm run test)",
+      "Bash(npm run typecheck)",
+      "Bash(npx tsc *)",
+      "Bash(npx vitest *)",
+      "Bash(npx vite build)",
+      "Bash(node harness/scripts/*)",
+      "Bash(node tools/agent-bridge/*)",
+      "Bash(git status)",
+      "Bash(git status *)",
+      "Bash(git diff)",
+      "Bash(git diff *)",
+      "Bash(git log)",
+      "Bash(git log *)",
+      "Bash(git show *)",
+      "Bash(git rev-parse *)",
+      "Bash(git ls-files *)",
+      "Bash(git branch --show-current)",
+      "Bash(git branch --list *)",
+      "Bash(git fetch origin *)",
+      "Bash(git switch dev)",
+      "Bash(git switch task/*)",
+      "Bash(git switch -c task/*)",
+      "Bash(git add *)",
+      "Bash(git commit *)",
+      "Bash(git pull --ff-only)",
+      "Bash(git pull --ff-only origin dev)",
+      "Bash(git push origin task/*)",
+      "Bash(git push -u origin task/*)",
+      "Bash(gh pr create --base dev *)",
+      "Bash(gh pr view)",
+      "Bash(gh pr view *)",
+      "Bash(gh pr checks)",
+      "Bash(gh pr checks *)",
+      "Bash(gh pr merge *)",
+      "Bash(gh pr list *)",
+      "Bash(gh run list *)",
+      "Bash(gh run view *)",
+      "Bash(gh issue list *)",
+      "Bash(gh issue view *)",
+      "Bash(gh issue create *)",
+      "Bash(gh issue close *)",
+      "Bash(gh issue comment *)"
+    ],
+    "deny": [
+      "Bash(git push --force*)",
+      "Bash(git push -f*)",
+      "Bash(git push * --force*)",
+      "Bash(git push * -f)",
+      "Bash(git push * -f *)",
+      "Bash(git push origin master*)",
+      "Bash(git push * master*)",
+      "Bash(git push *:master*)",
+      "Bash(git push origin dev*)",
+      "Bash(git push * dev*)",
+      "Bash(git push *:dev*)",
+      "Bash(git reset --hard*)",
+      "Bash(git stash*)",
+      "Bash(git checkout -- *)",
+      "Bash(git branch -D *)",
+      "Bash(git push *:*)",
+      "Bash(git push *:* *)",
+      "Bash(git push * *:*)",
+      "Bash(git push * *:* *)",
+      "Bash(gh pr merge --admin*)",
+      "Bash(gh pr merge * --admin*)",
+      "Bash(gh pr create --base master*)"
+    ]
+  }
+}
