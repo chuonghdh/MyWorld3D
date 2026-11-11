@@ -328,6 +328,19 @@
       "status": "released",
       "date": "2026-11-12",
       "brief": "harness/briefs/T-0020-scene-qa.md"
+    },
+    {
+      "task": "T-0021-ped-gait-phase-continuity",
+      "owner": "graphics-character",
+      "globs": [
+        "src/traffic/people/**",
+        "tests/people*.test.ts",
+        "docs/agents/graphics-character.md",
+        "harness/briefs/T-0021-graphics-character.md"
+      ],
+      "status": "released",
+      "date": "2026-11-12",
+      "brief": "harness/briefs/T-0021-graphics-character.md"
     }
   ]
 }

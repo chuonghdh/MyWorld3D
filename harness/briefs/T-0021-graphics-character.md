@@ -1,0 +1,14 @@
+# Brief: T-0021 (graphics-character)
+
+- **Task id:** T-0021-ped-gait-phase-continuity
+- **Owner:** graphics-character
+- **Reviewer:** reviewer (read-only subagent)
+- **Goal:** the walk-cycle angle is continuous when a walker stops, starts or changes speed. Today the shader computes `a = uTime * aGait.x + aGait.y` (`rigShaderGlsl.ts` applyRig, omega from `peopleMeshes.ts`), so any change of omega jumps the angle by `uTime * delta omega`.
+- **Design (lead's assumption, change only with a reason):** integrate the angle on the CPU inside `peopleMeshes.ts`, no change under `src/traffic/walkers/**`. Keep a per-walker `Float32Array` (indexed by the walker id / pool slot from `PedestrianRender`; check ids are stable and bounded) holding the accumulated angle, advanced by `omega * dt` (dt from the `ctx.time` delta, clamped, zero or negative on pause/rewind) and wrapped to [0, 2pi). Write that angle into `aGait.x` (so `aGait.x` changes meaning from omega to angle) and make the shader use `a = aGait.x + aGait.y`. `aGait.y` (`ped.phase`) stays a per-walker offset because chat and nod terms use it. Reset the slot when a different walker id takes it. Zero allocation per frame. Update every comment that says aGait.x is omega (peopleMeshes.ts, rigShader.ts header, rigShaderGlsl.ts). Bump the shader program cache keys (`person-rig-v3` and depth) since the GLSL changes.
+- **Files in scope:** `src/traffic/people/peopleMeshes.ts`, `src/traffic/people/rigShaderGlsl.ts`, `src/traffic/people/rigShader.ts` (cache keys, header), a new small helper file under `src/traffic/people/` if peopleMeshes.ts would pass 350 lines (it is 330 now: put the accumulator in its own file, pure and unit-testable), `tests/people.test.ts` or a new `tests/peopleGait.test.ts`, `docs/agents/graphics-character.md`, `harness/briefs/T-0021-graphics-character.md`.
+- **Files out of scope:** `src/traffic/walkers/**`, dogs (same defect may exist in `DOG_DECL`; report it, do not fix), determinism hashes, ADRs.
+- **Claims:** graphics-character entry for T-0021 in harness/state/claims.json (active).
+- **Acceptance commands:** `npx tsc --noEmit`; `npm run lint`; `npx vitest run tests/people.test.ts tests/traffic.determinism.test.ts tests/budget.test.ts tests/harness.test.ts`; `npx vite build`. Failures only. Rerun the pedestrian timing flake alone.
+- **Test:** pure accumulator test: walk -> stop -> walk -> speed change; assert the angle delta per step never exceeds `omega * dt + eps`, stays continuous across a stop (equal before and after), a slot reused by a new id resets, and a time step backwards or a huge dt does not jump. Also an allocation guard if the existing allocation test covers update().
+- **Report format:** at most 10 lines: files changed (before and after line counts), gate result (failures only), not verified.
+- Handbook: append a dated section to `docs/agents/graphics-character.md` (decision, trap that aGait.x is now an angle, dog defect finding).

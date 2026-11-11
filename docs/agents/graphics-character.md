@@ -74,3 +74,10 @@ All four person meshes have the same triangle count (376), so the handbook range
 - Frame total varies with moving actors: 2.37 M to 2.38 M in these runs; smoke caps are 260 draw calls and 3.2 M triangles.
 - Shots: adult, child, elder, teen and dog at 3, 8 and 25 m by day and night, and 3 and 8 m in rain (40 PNGs). The camera sits 0.6 rad off the walker's heading, 15 percent of the distance above the target, aimed at about 0.95 m (dog 0.35 m). Instance 0 is followed live, so each run may show a different walker, and a wall, tree or other walker can block it: in the last run `day-child-25m`, `night-teen-8m`, `night-elder-25m` and `rain-adult-8m` came out nearly flat (few colour buckets), judge them by eye or rerun.
 - Not seen or measured: look on real hardware by eye, real GPU frame time, vertex-shader cost in milliseconds.
+
+## Update 2026-11-12 (T-0021 gait phase continuity)
+- Decision: the walk-cycle angle is integrated on the CPU in `src/traffic/people/gaitPhase.ts` (`GaitPhase`, per-slot Float32Array, `begin(time)` once per frame, `step(id, omega)` per walker) and written to `aGait.x`. The shader now uses `a = aGait.x + aGait.y`. No walker-side change. Reason: `uTime * omega` jumps by `uTime * delta omega` on every stop, start or speed change.
+- Trap: `aGait.x` is now an ANGLE in [0, 2pi), no longer omega. Anything reading it as omega is wrong. `aGait.y` stays the per-walker phase offset (chat and nod terms use it). Cache keys bumped to `person-rig-v4` / `person-rig-depth-v4`.
+- Slots: `PedestrianRender.id` is assigned once per slot (1..cap, `walkers/looks.ts`), stable. Table maps `id % slots` and resets when another id takes the slot. dt clamped to 0.25 s, zero on pause or rewind.
+- Open: the dog has the same defect (`DOG_DECL` in `rigShaderGlsl.ts`: `a = uTime * aDog.x + aDog.y`, omega written in `peopleMeshes.ts`). Not fixed. Same `GaitPhase` can be reused (key by dog owner id).
+- Not seen: close-up look by eye, real-GPU behaviour.
