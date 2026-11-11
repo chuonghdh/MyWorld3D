@@ -44,6 +44,8 @@ export const trafficLife = {
   nearMaxInstances: 64,
   /** People LOD: a near person leaves the near set only beyond nearRadiusM plus this margin, metres, so the border does not flicker (traffic/people/lod.ts). */
   nearHysteresisM: 4,
+  /** Near people blink about every this many seconds (each person +/- 40 percent, offset by hash of the walker phase); a blink lasts 0.15 s (traffic/people/rigShaderFace.ts). */
+  blinkIntervalS: 4,
   /** Child walk: metres per full gait cycle (two steps), both sexes. Longer than before = slower cadence; feet keep pace with speed (traffic/people/personGeometry.ts). */
   childStrideCycleM: 1.425,
   /** Child walk: leg and arm swing amplitude multiplier, 1 = adult swing (traffic/people/personGeometry.ts). */

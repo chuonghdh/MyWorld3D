@@ -11,9 +11,6 @@ import type { BodyKind } from './personSpec';
 import type { Shape } from './personShape';
 
 const SHOE = 0x2b2a2e;
-const EYE_WHITE = 0xf4f4f0;
-const PUPIL = 0x22201f;
-const MOUTH = 0x9a4a4a;
 
 export function buildShapeNear(kind: BodyKind, sex: number): Shape {
   const d = shapeDims(kind, sex);
@@ -88,20 +85,7 @@ export function buildShapeNear(kind: BodyKind, sex: number): Shape {
   b.ellipsoid(0, headY, cz0, rx, ry, rz, 12, 8);
   for (const s of [1, -1]) b.ellipsoid(s * rx * 0.98, headY - ry * 0.2, 0, k(0.014), k(0.028), k(0.018), 6, 3); // ears
   b.box(0, headY - ry * 0.3, headY - ry * 0.02, rz * 0.92, rx * 0.2, rz * 0.14, rx * 0.12, rz * 0.1, 0, false, true); // nose
-  // Face quads sit on the head surface at their own x and y, a few millimetres proud (T-0024 replaces them).
-  const zAt = (x: number, y: number): number => cz0 + rz * Math.sqrt(Math.max(0.05, 1 - (x / rx) ** 2 - ((y - headY) / ry) ** 2)) + 0.006;
-  const face = (x0: number, x1: number, y0: number, y1: number, lift: number): void => {
-    const a = (x: number, y: number): [number, number, number] => [x, y, zAt(x, y) + lift];
-    b.quad(a(x0, y0), a(x1, y0), a(x1, y1), a(x0, y1));
-  };
-  b.set(PART.HEAD, REGION.FIXED, EYE_WHITE, torsoTop, 0);
-  for (const s of [1, -1]) face(s * rx * 0.42 - rx * 0.16, s * rx * 0.42 + rx * 0.16, headY + ry * 0.12 - ry * 0.12, headY + ry * 0.12 + ry * 0.12, 0.004);
-  b.set(PART.HEAD, REGION.FIXED, PUPIL, torsoTop, 0);
-  for (const s of [1, -1]) face(s * rx * 0.42 - rx * 0.08, s * rx * 0.42 + rx * 0.08, headY + ry * 0.12 - ry * 0.09, headY + ry * 0.12 + ry * 0.09, 0.007);
-  b.set(PART.HEAD, REGION.HAIR, 0xffffff, torsoTop, 0);
-  for (const s of [1, -1]) face(s * rx * 0.42 - rx * 0.2, s * rx * 0.42 + rx * 0.2, headY + ry * 0.32 - ry * 0.035, headY + ry * 0.32 + ry * 0.035, 0.009);
-  b.set(PART.HEAD, REGION.FIXED, MOUTH, torsoTop, 0);
-  face(-rx * 0.22, rx * 0.22, headY - ry * 0.5 - ry * 0.035, headY - ry * 0.5 + ry * 0.035, 0.004);
+  // The face (eyes, brows, nostrils, lips, moustache) is drawn in the fragment shader (rigShaderFace.ts); the nose wedge and ears stay geometry.
 
   // Hair. The cap stops above the brows; the other styles hang from it.
   const h = (v: number): number => k(v) * hk;
@@ -129,8 +113,6 @@ export function buildShapeNear(kind: BodyKind, sex: number): Shape {
   // Beard (chin and jaw) and moustache.
   b.set(PART.BEARD, REGION.HAIR, 0xffffff, torsoTop, 0);
   b.loft(0, [ring(headY - ry * 1.02, rx * 0.6, rz * 0.45, rz * 0.42), ring(headY - ry * 0.8, rx * 0.74, rz * 0.52, rz * 0.38), ring(headY - ry * 0.55, rx * 0.66, rz * 0.46, rz * 0.4)], 8, false, true);
-  b.set(PART.MOUSTACHE, REGION.HAIR, 0xffffff, torsoTop, 0);
-  face(-rx * 0.24, rx * 0.24, headY - ry * 0.36, headY - ry * 0.27, 0.012);
   b.set(PART.HAT, REGION.ACCENT, 0xffffff, torsoTop, 0);
   b.loft(0, [ring(headY + ry * 0.55, h(0.118), h(0.118), k(0.005)), ring(headY + ry * 0.55 + h(0.085), h(0.095), h(0.095), k(0.005))], 10, true);
 
@@ -150,5 +132,6 @@ export function buildShapeNear(kind: BodyKind, sex: number): Shape {
     shoulder: [shY + dy(shY), dz(shY)],
     neck: [torsoTop + dy(torsoTop), dz(torsoTop)],
     headTop: headY + ry + (stoop ? k(0.03) : 0),
+    head: { c: [0, headY + dy(torsoTop) + (stoop ? k(0.03) : 0), cz0 + dz(torsoTop) + (stoop ? k(0.05) : 0)], r: [rx, ry, rz] },
   };
 }

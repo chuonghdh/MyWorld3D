@@ -17,6 +17,8 @@ export interface Shape {
   shoulder: [number, number];
   neck: [number, number];
   headTop: number;
+  /** Head ellipsoid centre and radii in model space (stoop shift included), used by the near face shader. */
+  head: { c: [number, number, number]; r: [number, number, number] };
 }
 
 /** Builds one shape. sex is 0 for the male and 1 for the female variant; only widths change, never heights. */
@@ -165,5 +167,6 @@ export function buildShape(kind: BodyKind, sex: number): Shape {
     shoulder: [shY + dy(shY), dz(shY)],
     neck: [torsoTop + dy(torsoTop), dz(torsoTop)],
     headTop: headY + ry + (stoop ? k(0.03) : 0),
+    head: { c: [0, headY + dy(torsoTop) + (stoop ? k(0.03) : 0), k(0.01) + dz(torsoTop) + (stoop ? k(0.05) : 0)], r: [rx, ry, rz] },
   };
 }

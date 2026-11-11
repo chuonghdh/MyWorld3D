@@ -97,3 +97,10 @@ All four person meshes have the same triangle count (376), so the handbook range
 - Trap: far shape numbers moved into `personDims.ts`; the far checksum test guards that nothing shifted.
 - Cost: near minus far is 936 triangles per person. Worst case with every near mesh full (64 per group, 4 groups) is 239,616 extra triangles in the main pass and the same again in the shadow pass, about 479,000 in total on top of the T-0020 baseline of 2,377,993.
 - Not seen by eye on real hardware.
+
+## Update 2026-11-12 (T-0024 near face shader)
+- Decision: `createPersonMaterials(model, uniforms, near)`. The near variant sets `defines.PERSON_NEAR`, its own cache key `person-rig-near-v1`, and appends `rigShaderFace.ts` (vertex `setFace`, fragment `faceColour`). The far material is the original program (`person-rig-v4`, no define). Depth materials are unchanged. Near materials are in the night emissive list and in dispose.
+- Face: drawn on part 9 region SKIN from head-local q = (vPatPos - uHeadC) / uHeadR; vPatPos is the pre-rig model position, so the face follows nod and stoop. `PersonModel.head` (centre with stoop shift, radii) comes from the shapes. Painted only where q.z > 0.5 (front). 2D shapes in q.xy with soft edges (no derivatives): eye white, iris (five colours by phase hash), pupil, highlight, lid rim, brow (hair colour, tilt and thickness per person), nostrils, lips (redder for women), moustache by flag 1024. Near geometry lost the eye, pupil, brow, mouth and moustache quads (1312 -> 1296 triangles); nose wedge and ears stay.
+- Blink and gaze: period `trafficLife.blinkIntervalS` (4 s) times 0.6 to 1.4 by hash of `aGait.y`, per-person offset, 0.15 s. Gaze drift is 12 percent of eye size.
+- Trap: the moustache part (id 22) has no near geometry now; `partShows` still gates it harmlessly.
+- Seen by eye (software GL, 3 m): eyes with irises (blue, brown), brows (white on elders, black on children), elder and teen faces read well, no face on the sides or the back. Lips are subtle at 3 m.

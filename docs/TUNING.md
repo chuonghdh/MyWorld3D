@@ -82,6 +82,7 @@ Base counts are scaled by the graphics tier: factor low 0.4, medium 0.7, high 1 
 | People near radius | 30 | m | src/config/tuning/trafficLife.ts (`trafficLife.nearRadiusM`); used by src/traffic/people/peopleMeshes.ts | Graphics & Character |
 | People near max instances | 64 | per age group | src/config/tuning/trafficLife.ts (`trafficLife.nearMaxInstances`); used by src/traffic/people/peopleMeshes.ts | Graphics & Character |
 | People near hysteresis | 4 | m | src/config/tuning/trafficLife.ts (`trafficLife.nearHysteresisM`); used by src/traffic/people/peopleMeshes.ts | Graphics & Character |
+| People blink interval | 4 | s | src/config/tuning/trafficLife.ts (`trafficLife.blinkIntervalS`); used by src/traffic/people/rigShader.ts | Graphics & Character |
 | Child swing amplitude | 0.9 | multiplier (1 = adult) | src/config/tuning/trafficLife.ts (`trafficLife.childSwingAmp`); used by src/traffic/people/personGeometry.ts | Graphics & Character |
 | Child swing ease | 0.35 | 0-1 | src/config/tuning/trafficLife.ts (`trafficLife.childSwingEase`); used by src/traffic/people/personGeometry.ts | Graphics & Character |
 | Child knee bend | 1.3 | multiplier (1 = adult) | src/config/tuning/trafficLife.ts (`trafficLife.childKneeK`); used by src/traffic/people/personGeometry.ts | Graphics & Character |
