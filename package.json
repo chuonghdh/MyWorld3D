@@ -13,7 +13,8 @@
     "test": "vitest run",
     "typecheck": "tsc --noEmit",
     "bridge": "node tools/agent-bridge/server.mjs",
-    "smoke": "node tests/smoke/smoke.mjs"
+    "smoke": "node tests/smoke/smoke.mjs",
+    "smoke:closeup": "node tests/smoke/closeup.mjs"
   },
   "dependencies": {
     "@react-three/drei": "^9.122.0",
