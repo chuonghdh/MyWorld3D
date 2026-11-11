@@ -1,5 +1,5 @@
 {
-  "version": 1,
+  "version": 2,
   "taskStates": ["proposed", "assigned", "in_progress", "verifying", "done", "blocked", "cancelled"],
   "transitions": {
     "proposed": ["assigned", "cancelled"],
@@ -23,17 +23,40 @@
     "forbiddenCommands": ["git reset", "git checkout --", "git stash"],
     "steps": ["Read the diff (git status, git diff on files in scope)", "Fix forward if the change is yours and the cause is clear", "Otherwise ask the human; do not revert"]
   },
+  "autonomy": {
+    "adr": "docs/adr/0014-delegated-delivery.md",
+    "agentMay": [
+      { "id": "task_branch_create", "rule": "Cut task/T-NNNN-slug from an up-to-date dev" },
+      { "id": "task_branch_commit", "rule": "Commit on the task branch (English message, attribution line)" },
+      { "id": "task_branch_push", "rule": "Push the task branch to origin, never with force" },
+      { "id": "pr_to_dev_open", "rule": "Open a pull request from the task branch to dev" },
+      { "id": "pr_to_dev_merge", "rule": "Squash-merge the pull request to dev when every land condition holds and CI is green" },
+      { "id": "task_branch_delete", "rule": "Delete the task branch it created, after the merge" }
+    ],
+    "humanOnly": [
+      { "id": "master_pr_or_merge", "rule": "Open a pull request to master or merge to master" },
+      { "id": "direct_commit_to_dev_or_master", "rule": "Commit or push directly to dev or master" },
+      { "id": "force_push", "rule": "Force push to any branch" },
+      { "id": "foreign_branch_delete", "rule": "Delete a branch the task did not create" },
+      { "id": "dependency_change", "rule": "Add, remove or change a dependency in package.json" },
+      { "id": "adr_change", "rule": "A new ADR, or changing an accepted ADR" },
+      { "id": "claude_config_change", "rule": "Any change under .claude/ (agents, skills, hooks, permissions, settings)" },
+      { "id": "github_config_change", "rule": "Any change under .github/ (workflows, CODEOWNERS, templates)" },
+      { "id": "guard_weakening", "rule": "Weakening, skipping or allow-listing a guard test" }
+    ],
+    "landConditions": [
+      "The gate (harness/config/quality-gates.json) is green on the task branch",
+      "The independent review result is pass and is recorded in the task record; a fix pushed after the review is verified and reviewed again",
+      "Order, step 1: stage the work, then node harness/scripts/check-claims.mjs --staged exits 0 while the claims are still active",
+      "Order, step 2: set the record to done, release the claims, move the record to harness/tasks/completed/, stage those, and node harness/scripts/validate-task.mjs exits 0",
+      "Order, step 3: one commit on the task branch carries the work, the released claims and the completed record",
+      "The pull request base is dev (gh pr view --json baseRefName) and its checks are green before the merge"
+    ]
+  },
   "approvalGates": [
-    { "id": "commit", "rule": "Commit only on the human's request (ADR 0008)" },
-    { "id": "push", "rule": "Push only on the human's request" },
-    { "id": "merge_to_dev", "rule": "Merge to dev only on the human's request" },
-    { "id": "merge_to_master", "rule": "Open a pull request to master or merge to master only on the human's request" },
-    { "id": "branch_delete", "rule": "Delete a branch only on the human's request" },
-    { "id": "claude_config_change", "rule": "Any change under .claude/ (hooks, permissions, settings)" },
-    { "id": "dependency_change", "rule": "Add, remove or change a dependency in package.json" },
-    { "id": "adr_change", "rule": "A new ADR, or changing an accepted ADR" },
-    { "id": "config_default_change", "rule": "A default in src/config/tuning/ that changes shipped behaviour" },
-    { "id": "outside_owner_files", "rule": "Any file outside the owner's files (docs/agents/README.md)" }
+    { "id": "human_only", "rule": "Every autonomy.humanOnly item: approved when the request or the task record names it, otherwise ask" },
+    { "id": "config_default_change", "rule": "A default in src/config/tuning/ that changes shipped behaviour: approved when the request names it, otherwise ask" },
+    { "id": "outside_owner_files", "rule": "Any file outside the owner's files (docs/agents/README.md): approved when the request names it, otherwise ask" }
   ],
-  "approvalScope": "Per action. A yes to one commit does not cover the next."
+  "approvalScope": "A human-only item is approved when the human's request, or the task record's Spec under \"Human decisions\", names it. The approval covers that task only. Everything in autonomy.agentMay needs no approval."
 }

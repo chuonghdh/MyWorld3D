@@ -1,6 +1,6 @@
 # Brief template (delegation contract)
 
-Every specialist brief uses this shape. The brief is written before work starts and stored in the task record under `harness/tasks/active/`. The specialist reads its handbook (`docs/agents/README.md`) first.
+Every specialist brief uses this shape. The brief is written before work starts and stored under `harness/briefs/` (one per owner; the task record is in `harness/tasks/active/`). The specialist is spawned by its agent definition (`.claude/agents/`) and reads its handbook (`docs/agents/README.md`) first.
 
 ## Fields
 
@@ -20,5 +20,5 @@ Every specialist brief uses this shape. The brief is written before work starts 
 ## Rules for the specialist
 
 - Stay inside the claimed globs. A need outside them is a new claim or a question, not a silent edit.
-- Do not commit, push, or run git reset, checkout or stash unless the brief says so and the human approved it.
+- Do not commit or push: the lead lands the work (`harness/workflows/delivery.md`). Never run git reset, git checkout -- or git stash.
 - Do not weaken a guard test. Report a failing check in another owner's area; do not fix it.

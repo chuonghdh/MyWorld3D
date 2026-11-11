@@ -1,4 +1,4 @@
-# Owners for review. .claude/ is gitignored and not tracked, so it is not listed.
-# TODO: replace @OWNER with the GitHub login(s) before enabling required reviews.
-/harness/   @OWNER
-/.github/   @OWNER
+# Owners for review. Under .claude/ only agents/, skills/ and settings.json are tracked (ADR 0014).
+/harness/   @chuonghdh
+/.github/   @chuonghdh
+/.claude/   @chuonghdh

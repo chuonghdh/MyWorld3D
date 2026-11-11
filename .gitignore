@@ -2,7 +2,11 @@ node_modules/
 dist/
 .vite/
 *.log
-.claude/
+# .claude/: only agent definitions, skills and the shared settings are tracked (ADR 0014). The rest is local.
+.claude/*
+!.claude/agents/
+!.claude/skills/
+!.claude/settings.json
 
 # Run records (written by harness/scripts/verify.mjs and run-evals.mjs). Kept locally, not committed.
 harness/runs/*.json

@@ -8,12 +8,13 @@ Stack: Vite, TS, Three.js, R3F, zustand, vitest.
 - Audio: `docs/AUDIO.md`
 - Tuning index: `docs/TUNING.md`
 - Workflow (task states, checkpoints, handoff, approval gates): `harness/workflows/WORKFLOW.md`
+- Delivery (request to merged PR on `dev`, backlog, improve loop): `harness/workflows/delivery.md`
 
 ## Rules
 - Chat: VI. Code/Docs/Commits: EN.
-- Commit ONLY on user prompt. Append system attribution.
+- Git: agents land work on `dev` by task branch and PR; `master` and the other human-only items need the human (`docs/adr/0014-delegated-delivery.md`, `harness/workflows/delivery.md`). Append system attribution.
 - Fix root causes. No coplanar geometry. Keep visuals/perf high.
-- Delegate to specialists via message (no respawn).
+- Delegate to specialists: spawn by agent definition (`.claude/agents/`), follow up via message (no respawn).
 - Dependencies: feature modules never import `scene` or `ui`; `core` imports no feature module. Guarded by `tests/layers.test.ts` and `tests/harness.test.ts:56-81`. `film` is not yet in the guard (see architect review 2026-11-08).
 - Layout is deterministic: no `Math.random` in layout code (guarded for core, store, city, streets, buildings, traffic, life, environment, agentRoom). Seeds only. Visual motion uses sim time, never the wall clock.
 - Files in `src/` over 350 lines fail `tests/harness.test.ts`. `OVERSIZED` must stay empty. Tests are not covered. Split by responsibility.

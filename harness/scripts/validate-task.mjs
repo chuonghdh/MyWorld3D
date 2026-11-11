@@ -1,5 +1,6 @@
 // Checks task records: front matter and sections, same rules as tests/harness.test.ts.
 // Usage: node harness/scripts/validate-task.mjs [file ...]. Default: all records in harness/tasks/.
+// Records in backlog/ must also have priority (P1 to P3) and type (a change type from quality-gates.json).
 // Prints only failures. Exit code 1 on any failure.
 import { existsSync, readdirSync, readFileSync, statSync } from 'node:fs';
 import { basename, dirname, join } from 'node:path';
@@ -9,6 +10,9 @@ const root = join(dirname(fileURLToPath(import.meta.url)), '..', '..');
 const tasksDir = join(root, 'harness/tasks');
 const STATES = ['proposed', 'assigned', 'in_progress', 'verifying', 'done', 'blocked', 'cancelled'];
 const SECTIONS = ['Spec', 'Acceptance', 'Checkpoints', 'Handoff'];
+// Backlog records also carry priority and type, so next-task.mjs can order them (harness/workflows/delivery.md).
+const PRIORITIES = ['P1', 'P2', 'P3'];
+const TYPES = ['feature', 'bug', 'refactor', 'docs', 'config_toolchain'];
 
 function listRecords() {
   const out = [];
@@ -48,6 +52,10 @@ function check(file) {
   if (!STATES.includes(fm.status ?? '')) problems.push(`status "${fm.status}" not one of the seven states`);
   if (!/^\d{4}-\d{2}-\d{2}$/.test(fm.created ?? '')) problems.push('created must be YYYY-MM-DD');
   for (const s of SECTIONS) if (sectionOf(text, s) === null) problems.push(`missing section ${s}`);
+  if (basename(dirname(file)) === 'backlog') {
+    if (!PRIORITIES.includes(fm.priority ?? '')) problems.push(`backlog record needs priority (${PRIORITIES.join(', ')}), got "${fm.priority}"`);
+    if (!TYPES.includes(fm.type ?? '')) problems.push(`backlog record needs type (${TYPES.join(', ')}), got "${fm.type}"`);
+  }
   if (fm.status === 'done') {
     const open = (sectionOf(text, 'Acceptance') ?? '').split('\n').filter((l) => l.trim().startsWith('- [ ]'));
     for (const l of open) problems.push(`done with unchecked acceptance item: ${l.trim()}`);

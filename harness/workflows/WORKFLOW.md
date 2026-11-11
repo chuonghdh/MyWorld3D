@@ -1,6 +1,6 @@
 # Workflow
 
-Reviewed 2026-11-06. How a task moves from request to done, how work is checkpointed and handed over, and where the human must approve. Acceptance commands are in `docs/ACCEPTANCE.md`. Commit and branch rules are in `docs/adr/0008-commit-and-branch-workflow.md`.
+Reviewed 2026-11-06. How a task moves from request to done, how work is checkpointed and handed over, and where the human must approve. Acceptance commands are in `docs/ACCEPTANCE.md`. Commit, branch and merge rules are in `docs/adr/0014-delegated-delivery.md` (it supersedes the commit rule of `docs/adr/0008-commit-and-branch-workflow.md`). The steps from request to merged pull request are in `harness/workflows/delivery.md`.
 
 ## Task states
 
@@ -32,7 +32,7 @@ A checkpoint is a recorded, passing state of the gate. It is taken:
 - after a change set that passes `npm run check` (or the docs-only command in `docs/ACCEPTANCE.md`);
 - before any risky step (a large split, a dependency change, a lint rule turned on).
 
-To take one: run the gate, and write a dated line in the task record: date, the gate result, the changed files, and the commit hash if the human asked for a commit. If the human did not ask for a commit, write "uncommitted, working tree" and the list of files. Never use `git stash`. Stash hides work from the next session and from the human.
+To take one: run the gate, and write a dated line in the task record: date, the gate result, the changed files, and the commit hash once the work is committed on the task branch. Before that, write "uncommitted, working tree" and the list of files. Never use `git stash`. Stash hides work from the next session and from the human.
 
 ## Session handoff
 
@@ -44,6 +44,7 @@ When a session ends with work open, write a handoff from `harness/state/handoffs
 4. the task record in `harness/tasks/`
 5. `git status` and `git log -5` (what is in the tree now)
 6. the handbook of each owner in the task's scope
+7. `harness/workflows/delivery.md`, when the session delivers or lands work
 
 The next session does not trust chat history. Only files count.
 
@@ -59,19 +60,13 @@ The next session does not trust chat history. Only files count.
 
 ## Human approval gates
 
-The agent does not do these without a clear yes from the human in chat, given for that specific action:
+The lists are data in `harness/config/policies.json` (`autonomy`, `approvalGates`); the decision is `docs/adr/0014-delegated-delivery.md`. Do not copy them elsewhere.
 
-- commit (ADR 0008)
-- push
-- merge to `dev` or `master`, and opening a pull request to `master`
-- branch deletion
-- any change under `.claude/` (hooks, permissions, settings)
-- adding, removing or changing a dependency in `package.json`
-- a new ADR, or changing an accepted ADR
-- a config default in `src/config/tuning/` that changes shipped behaviour
-- any file outside the owner's files (`docs/agents/README.md`)
+- No approval needed (`autonomy.agentMay`): the task branch, its commits and its push, the pull request to `dev`, its merge when every land condition holds, deleting that task branch.
+- Human-only (`autonomy.humanOnly`): anything to `master`, a direct commit to `dev`, a force push, a foreign branch, dependencies, ADRs, `.claude/`, `.github/`, weakening a guard.
+- Ask unless the request names it (`approvalGates`): a config default in `src/config/tuning/` that changes shipped behaviour; any file outside the owner's files (`docs/agents/README.md`).
 
-Approval is per action. A yes to one commit does not cover the next.
+An item is approved when the human's request, or the task record's Spec under "Human decisions", names it. The approval covers that task only.
 
 ## Parallel work
 
@@ -83,7 +78,7 @@ Approval is per action. A yes to one commit does not cover the next.
 
 ## Independent review
 
-- Before a task moves to done, a reviewer who did not write the change reads the diff against the brief (`harness/templates/brief.md`).
+- Before a task moves to done, a reviewer who did not write the change reads the diff against the brief (`harness/templates/brief.md`). In the delivery workflow this is the reviewer agent (`.claude/agents/reviewer.md`).
 - The reviewer records a Review section in the task record with: reviewer, diff range, findings (severity and file:line), and result (pass or changes requested).
 - The reviewer does not edit code. Changes requested send the task back to in_progress.
 - Use the code-review skill where it fits (a diff against a branch or commit range).

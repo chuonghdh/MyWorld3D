@@ -12,6 +12,7 @@ mechanical, and make every failure loud and cheap to see.
 | Records | `docs/` (`docs/REPO_MAP.md`, `docs/TUNING.md`, `docs/AUDIO.md`, `docs/agents/`) | The system of record. Facts and decisions live here, not in chat. |
 | Guards | `tests/` (see below) | Rules that cannot be broken silently. A rule that is only in prose will drift. |
 | Feedback loop | Hook, `npm run check`, CI | Three layers, see "Enforcement" below. Only failures are printed. |
+| Delivery | `harness/workflows/delivery.md`, `harness/config/policies.json` | Request in, merged pull request to `dev` out. What the agent may do alone is data (`autonomy`). ADR 0014. |
 
 ## Enforcement
 
@@ -19,12 +20,19 @@ mechanical, and make every failure loud and cheap to see.
 |---|---|---|---|
 | Edit hook | `.claude/settings.json` (`PostToolUse`, matcher `Edit\|Write`) | After each Edit/Write of a `.ts`/`.tsx` file under `src/` or `tests/`: runs `npx tsc --noEmit` | Silent |
 | Full check | `package.json` script `check` (`tsc --noEmit && npm run lint && vitest run && vite build`) | On demand, before a commit or merge | Silent except the failing step |
-| CI | `.github/workflows/ci.yml` | Push and pull request on `dev` and `master`: `npm ci`, `npm audit --omit=dev --audit-level=high` (gating), then `npm run check` (Node 20, npm cache). Also `drift.yml`, `evals.yml`, `pr-checklist.yml` | Job log; fails on any step |
+| CI | `.github/workflows/ci.yml` | Push and pull request on `dev` and `master`: `npm ci`, `npm audit --omit=dev --audit-level=high` (gating), then `npm run check` (Node 20, npm cache). Also `drift.yml`, `evals.yml`, `pr-checklist.yml` | Job log; fails on any step. A failing drift or eval run opens a GitHub issue labelled `harness` (one open issue per title), which the improve loop picks up |
+| Git guard (enforced once the hook is applied by the human) | `harness/scripts/guard-git.mjs`, as a `PreToolUse` hook on `Bash` in `.claude/settings.json` | Before each Bash call: blocks `git commit` on `dev` or `master`; a `git push` that is not `origin task/...` (bare, `HEAD`, refspec, force); `gh pr create` without `--base dev`; `gh pr merge` with `--admin` or on a pull request whose base is not `dev`; `git switch` that discards work | Silent; exit 2 with one line on a block |
+| Permissions (enforced once applied by the human) | `.claude/settings.json` (`permissions.allow`, `permissions.deny`) | Every Bash call: the pipeline's commands run without a prompt; force push, push to `master` or `dev`, refspec pushes, `git reset --hard`, `git stash`, `git checkout --`, `git branch -D` and `gh pr merge --admin` are denied | Silent |
+| Policy | `harness/config/policies.json` (`autonomy`) | Read by the lead at Land and Escalate (`harness/workflows/delivery.md`) | None: data, guarded by `tests/delivery.test.ts` |
 
 - The hook exits 2 on a type error, so the error text goes back to the agent. Other edits (docs, CSS, JSON) do not trigger it.
 - The hook costs about 8 s per relevant edit (`tsc --noEmit`, measured on this repo). Vitest is not in the hook: the full suite is too slow for every edit; run `npm run check` or the targeted tests instead.
 - The hook runs under Git Bash on Windows, with `tsc` run in `CLAUDE_PROJECT_DIR`. Its command has no backslashes: Windows paths are normalised in JS. Backslashes in the command were lost when Node spawned Git Bash.
 - CI has been written but not yet run on GitHub. Treat its first run as unverified until it passes.
+- `.claude/agents/`, `.claude/skills/` and `.claude/settings.json` are tracked in git (ADR 0014), so hooks, agent definitions and skills reach CI and cloud sessions. The rest of `.claude/` is local. Agent definitions and skills load at session start. The skills are on demand only (`disable-model-invocation`).
+- An agent session may not edit `.claude/settings.json` (the permission classifier refuses it). The git guard hook and the permission lists are proposed by the architect and applied by the human. Until then `tests/delivery.test.ts` fails on the permissions check, and the git rules are held by policy and workflow only.
+- The guard hook command has no backslashes and runs from the project directory. Its decision is the pure function `decideGit` (unit-testable). It fails open on an unreadable payload. Its limits are listed once, under "Known gaps".
+- The permission lists match command prefixes and cannot read a pull request's base; the git guard does that part.
 
 ## Guards
 
@@ -39,7 +47,8 @@ mechanical, and make every failure loud and cheap to see.
 | File size | `tests/harness.test.ts` | 350 lines max per `.ts`/`.tsx` file under `src/`, enforced as a ratchet (`tests/` not covered) |
 | Docs point at files | `tests/harness.test.ts` | backticked paths in `CLAUDE.md` and this file exist |
 | Performance budgets | `tests/budget.test.ts` | triangle, shadow and draw-call limits on a seeded city |
-| Settings hook | `tests/harness.test.ts` | the Edit/Write hook is present in `.claude/settings.json` (skipped in CI: `.claude/` is gitignored locally) |
+| Settings hook | `tests/harness.test.ts` | the Edit/Write hook is present in `.claude/settings.json` (tracked since ADR 0014) |
+| Delegated delivery | `tests/delivery.test.ts` | agent definitions and skills exist and are well-formed; the delivery workflow has its eight sections; `autonomy` policy ids; permission allow and deny lists; backlog records (priority, type); `.gitignore` tracks the three `.claude/` paths; drift and eval workflows open an issue on failure |
 | Agent Room layers | `tests/layers.test.ts` | agentRoom layer direction |
 | Agent registry | `tests/agentRegistry.test.ts` | spawn ids are read from the spawn result; a registered subagent binds to its specialist before the delegation queue; SendMessage to a registered id routes to it |
 
@@ -76,24 +85,31 @@ To shrink a file, split it by responsibility (no behaviour change) and lower or 
 
 ## Known gaps (not yet automated)
 
-- Frame time, rebuild time and visual quality are measured by hand in connected Chrome (see `docs/agents/architect.md`).
-- Audio is checked by tests and by ear. No automated loudness check.
-- CSS size is not guarded. `src/ui/panels.css` is now a 12-line @import index over `src/ui/panels/*.css`. Keep each panel file small.
+Each actionable gap is a backlog record (`node harness/scripts/next-task.mjs`); the id is in brackets.
+
+- Frame time, rebuild time and visual quality are measured by hand in connected Chrome (see `docs/agents/architect.md`). Console errors, a blank canvas and renderer counts: [T-0010].
+- Audio is checked by tests and by ear. No automated loudness check. [T-0019]
+- CSS size is not guarded. `src/ui/panels.css` is now a 12-line @import index over `src/ui/panels/*.css`. Keep each panel file small. [T-0018]
 - Owner files: the ownership guard checks that each `src` folder appears in the owner table or REPO_MAP, not each file.
-- `src/film/**` is not in the dependency guard (`FEATURES` in `tests/harness.test.ts`). `src/film/autoPath.ts` and `autoRun.ts` import from `src/scene`. Code fix pending.
-- `Math.random` outside the determinism guard dirs: `src/scene/useTownFrame.ts`, `src/ui/HousePanel.tsx`. Decide per owner.
+- `src/film/**` is not in the dependency guard (`FEATURES` in `tests/harness.test.ts`). `src/film/autoPath.ts` and `autoRun.ts` import from `src/scene`. Code fix pending. [T-0012]
+- `Math.random` outside the determinism guard dirs: `src/scene/useTownFrame.ts` (the call in `src/ui/HousePanel.tsx` is gone, 2026-11-11). [T-0011]
+- Delivery: the first end-to-end run of the deliver skill, the issue step in `drift.yml` and `evals.yml`, and the permission lists in a fresh session are not verified yet. The git guard hook is not verified as a live hook (only by hand, with sample payloads).
+- `master` and `dev` have no GitHub branch protection. The real hold on `master` is GitHub branch protection, which the human must switch on; the local guard and deny list are a net against mistakes, not a security boundary.
+- Git guard known limits (closed list, also at the top of `harness/scripts/guard-git.mjs`). Not parsed: `bash -c`, eval, aliases, scripts, a variable as the program name (`$G push`), substitutions inside an unquoted heredoc body; `sudo -u git git ...` (only the first git or gh word of a command is read); unknown value-taking git global options; other worktrees (`git -C`, a `cd` to another worktree); local-only ref moves (`git fetch . a:dev`, `git checkout -B dev`).
+- Scheduled drift and eval runs execute from the default branch (`master`) only. Their issues report the state of `master`, not `dev`, until the release.
 
 ## Layout
 
 | Path | Role |
 |---|---|
 | `harness/README.md` | This file: guards, enforcement, known gaps |
-| `harness/config/policies.json` | Task states, transitions, retry policy, approval gates (data) |
-| `harness/scripts/check-claims.mjs`, `drift-check.mjs`, `run-evals.mjs` | Claim check, drift check, eval runner |
+| `harness/config/policies.json` | Task states, transitions, retry policy, autonomy (agent may, human-only, land conditions), approval gates (data) |
+| `harness/scripts/check-claims.mjs`, `drift-check.mjs`, `run-evals.mjs`, `next-task.mjs`, `guard-git.mjs` | Claim check, drift check, eval runner, backlog order and next task id, git guard hook |
 | `harness/briefs/`, `harness/state/claims.json` | Specialist briefs and the claim ledger |
 | `harness/config/quality-gates.json` | Gate commands in order, acceptance rules by change type (data) |
-| `harness/workflows/` | WORKFLOW.md (lifecycle), feature-development, bug-fix, release |
-| `harness/tasks/` | Task records: backlog, active, completed; TEMPLATE.md |
+| `harness/workflows/` | WORKFLOW.md (lifecycle), delivery (request to merged pull request, improve loop), feature-development, bug-fix, release |
+| `harness/tasks/` | Task records: backlog (with priority and type), active, completed; TEMPLATE.md |
+| `.claude/agents/`, `.claude/skills/` | Agent definitions (eight specialists and the reviewer) and the deliver and improve skills |
 | `harness/state/` | Handoffs (`handoffs/`) and what state means (`README.md`) |
 | `harness/scripts/` | verify.mjs (gates, failures only), collect-evidence.mjs, validate-task.mjs |
 | `harness/runs/` | Result file per verify run (not committed) |

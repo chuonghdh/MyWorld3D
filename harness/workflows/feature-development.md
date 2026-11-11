@@ -11,4 +11,4 @@ Source: `harness/workflows/WORKFLOW.md`. Gates: `harness/config/quality-gates.js
 6. Human checks from `harness/config/quality-gates.json` (visual, audio, console, perf). Record any not done as not verified.
 7. Done only when the gate is green at the recorded commit (state: done). Otherwise in_progress or blocked.
 
-Approval points: commit, push, merge, branch delete, `.claude/` changes, dependency changes, ADRs, config defaults, files outside the owner's files. Ask first; per action only.
+Landing (commit, push, pull request to `dev`, merge) and the human-only list: `harness/workflows/delivery.md` (Land, Escalate).
