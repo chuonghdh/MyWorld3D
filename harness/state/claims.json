@@ -341,6 +341,24 @@
       "status": "released",
       "date": "2026-11-12",
       "brief": "harness/briefs/T-0021-graphics-character.md"
+    },
+    {
+      "task": "T-0022-ped-lod-split",
+      "owner": "graphics-character",
+      "globs": [
+        "src/traffic/people/**",
+        "src/config/tuning/trafficLife.ts",
+        "tests/people*.test.ts",
+        "tests/tuningParity.test.ts",
+        "tests/smoke/closeupHook.mjs",
+        "docs/TUNING.md",
+        "docs/agents/graphics-character.md",
+        "harness/briefs/T-0022-graphics-character.md",
+        "tests/smoke/closeup.mjs"
+      ],
+      "status": "released",
+      "date": "2026-11-12",
+      "brief": "harness/briefs/T-0022-graphics-character.md"
     }
   ]
 }

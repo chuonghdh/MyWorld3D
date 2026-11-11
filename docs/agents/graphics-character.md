@@ -81,3 +81,10 @@ All four person meshes have the same triangle count (376), so the handbook range
 - Slots: `PedestrianRender.id` is assigned once per slot (1..cap, `walkers/looks.ts`), stable. Table maps `id % slots` and resets when another id takes the slot. dt clamped to 0.25 s, zero on pause or rewind.
 - Open: the dog has the same defect (`DOG_DECL` in `rigShaderGlsl.ts`: `a = uTime * aDog.x + aDog.y`, omega written in `peopleMeshes.ts`). Not fixed. Same `GaitPhase` can be reused (key by dog owner id).
 - Not seen: close-up look by eye, real-GPU behaviour.
+
+## Update 2026-11-12 (T-0022 near and far people meshes)
+- Decision: each age group has a far mesh (`pedestrians-<kind>`, `meshes.bodies`) and a near mesh (`pedestrians-near-<kind>`, `meshes.nearBodies`). Both use the current model and materials; they share geometry attribute objects (`peopleSets.ts shareGeometry`, no second GPU upload) and own only the instanced attributes. Routing is `lod.ts NearClassifier` (enter at `nearRadiusM`, leave at `+ nearHysteresisM`, cap `nearMaxInstances` per group, first come in list order). Per-person writing moved to `peopleSets.ts` (`writePerson`) so both sets use one code path.
+- Trap, camera lag: `update()` has no camera. The camera position is captured in `onBeforeRender` (`readCamera`), so classification uses the previous frame's camera. Until the first perspective render everything is far (determinism and unit tests rely on this). Shadow passes use orthographic cameras and are ignored.
+- Trap: consumers of `bodies` now see only the far set. Anything that must count or follow all people sums `bodies` and `nearBodies`. `tests/smoke/closeup.mjs` follows the near mesh when it has instances.
+- Knobs (trafficLife.ts, parity entries, TUNING.md rows): `nearRadiusM` 30, `nearMaxInstances` 64, `nearHysteresisM` 4.
+- Draw calls: up to +4 (near meshes with count 0 still issue a call in three only if rendered; measure with smoke).

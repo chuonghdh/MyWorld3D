@@ -38,6 +38,12 @@ export const trafficLife = {
   filmBirdMinDistanceM: 3,
   /** Film carrier bird: scale of the flyer model (life/filmBird.ts). */
   filmBirdScale: 2.6,
+  /** People LOD: a person closer than this to the camera (3D, metres) draws from the near mesh set. Close-ups are 3 to 25 m (traffic/people/lod.ts). */
+  nearRadiusM: 30,
+  /** People LOD: most near instances per age group; the rest draw from the far set (traffic/people/lod.ts). */
+  nearMaxInstances: 64,
+  /** People LOD: a near person leaves the near set only beyond nearRadiusM plus this margin, metres, so the border does not flicker (traffic/people/lod.ts). */
+  nearHysteresisM: 4,
   /** Child walk: metres per full gait cycle (two steps), both sexes. Longer than before = slower cadence; feet keep pace with speed (traffic/people/personGeometry.ts). */
   childStrideCycleM: 1.425,
   /** Child walk: leg and arm swing amplitude multiplier, 1 = adult swing (traffic/people/personGeometry.ts). */
