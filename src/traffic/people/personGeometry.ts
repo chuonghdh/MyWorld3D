@@ -14,6 +14,7 @@
 import * as THREE from 'three';
 import { trafficLife } from '../../config/tuning';
 import { buildShape } from './personShape';
+import { buildShapeNear } from './personShapeNear';
 import type { BodyKind, GaitSpec } from './personSpec';
 
 export { PART, REGION } from './personParts';
@@ -75,12 +76,15 @@ export function gaitOf(kind: BodyKind, female: number): GaitSpec {
 const SEAT_HEIGHT = 0.47;
 
 /**
- * Builds the model of one age group: the male shape, plus the morph deltas to the female shape. Both shapes come
+ * Builds the model of one age group at a detail level ('far' is the original low-poly model, 'near' the smooth one): the male shape, plus the morph deltas to the female shape. Both shapes come
  * from the same primitives in the same order, so the vertex counts match (checked here).
  */
-export function buildPerson(kind: BodyKind): PersonModel {
-  const male = buildShape(kind, 0);
-  const female = buildShape(kind, 1);
+export type PersonDetail = 'far' | 'near';
+
+export function buildPerson(kind: BodyKind, detail: PersonDetail = 'far'): PersonModel {
+  const build = detail === 'near' ? buildShapeNear : buildShape;
+  const male = build(kind, 0);
+  const female = build(kind, 1);
   const pm = male.geometry.getAttribute('position').array as Float32Array;
   const pf = female.geometry.getAttribute('position').array as Float32Array;
   if (pm.length !== pf.length) throw new Error(`people: ${kind} male and female shapes differ in vertex count`);

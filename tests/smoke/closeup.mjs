@@ -47,14 +47,26 @@ async function shoot(page, tag, [name, farMesh, chest], distance) {
   // A person near the camera draws from the near mesh (T-0022); follow that one once the camera sits next to it.
   const nearName = farMesh.replace('pedestrians-', 'pedestrians-near-');
   const nearCount = farMesh === nearName ? 0 : await page.evaluate((m) => window.__closeup.scene.getObjectByName(m)?.count ?? 0, nearName);
-  const mesh = nearCount > 0 ? nearName : farMesh;
+  let mesh = nearCount > 0 ? nearName : farMesh;
   const count = await page.evaluate((m) => window.__closeup.scene.getObjectByName(m)?.count ?? 0, mesh);
   if (count < 1) return `${tag}: no ${name} instance`;
-  await page.evaluate(([m, c, d]) => {
-    window.__closeup.placed = false;
-    window.__closeup.shot = { mesh: m, index: 0, distance: d, yaw: 0.6, lift: 0.15, chest: c };
-  }, [mesh, chest, distance]);
+  const aim = (m) =>
+    page.evaluate(([m2, c, d]) => {
+      window.__closeup.placed = false;
+      window.__closeup.shot = { mesh: m2, index: 0, distance: d, yaw: 0.6, lift: 0.15, chest: c };
+    }, [m, chest, distance]);
+  await aim(mesh);
   await waitFrames(page, 2); // the first frame may predate the shot
+  if (mesh === farMesh && farMesh !== nearName) {
+    // The LOD reads the camera one frame late: once the camera sits by the walker, it moves to the near mesh. Follow it there.
+    await waitFrames(page, 2);
+    const nearNow = await page.evaluate((m) => window.__closeup.scene.getObjectByName(m)?.count ?? 0, nearName);
+    if (nearNow > 0) {
+      mesh = nearName;
+      await aim(mesh);
+      await waitFrames(page, 3);
+    }
+  }
   const placed = await page.evaluate(() => window.__closeup.placed);
   if (!placed) return `${tag}: camera not placed`;
   const look = await analyseCanvas(page);

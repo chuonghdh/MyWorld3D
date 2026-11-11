@@ -1,11 +1,10 @@
 // One set of per-age-group person meshes (adult, child, elder, teen) with its per-instance attribute arrays.
-// peopleMeshes.ts builds two sets, near and far (distance LOD, lod.ts). They share geometry buffers and materials,
-// so there is no second GPU upload; only the instanced attributes are per set.
+// peopleMeshes.ts builds two sets, near and far (distance LOD, lod.ts). They share materials,
+// so each age group needs one material; the near set has its own, smoother geometry.
 
 import * as THREE from 'three';
 import { finish, writeInstance } from '../meshKit';
 import { PALETTE_SIZES } from './palettes';
-import type { PersonModel } from './personGeometry';
 import type { PersonMaterials } from './rigShader';
 import type { PedestrianRender } from '../pedestrians';
 
@@ -42,26 +41,15 @@ function instancedAttr(mesh: THREE.InstancedMesh, name: string, capacity: number
   return arr;
 }
 
-/** A geometry that reuses the source's attribute and index objects (shared GPU buffers) but owns its instanced attributes. */
-function shareGeometry(src: THREE.BufferGeometry): THREE.BufferGeometry {
-  const g = new THREE.BufferGeometry();
-  for (const name of Object.keys(src.attributes)) g.setAttribute(name, src.attributes[name]);
-  if (src.index) g.setIndex(src.index);
-  g.groups = src.groups.map((x) => ({ ...x }));
-  return g;
-}
-
 export function createPersonSet(
-  models: PersonModel[],
+  geometries: THREE.BufferGeometry[],
   materials: PersonMaterials[],
   kinds: string[],
   namePrefix: string,
   capacity: number,
-  shareGeometries: boolean,
 ): PersonSet {
-  const set: PersonSet = { meshes: [], counts: new Int32Array(models.length), gait: [], gait2: [], look: [], look2: [], capacity };
-  models.forEach((m, i) => {
-    const geo = shareGeometries ? shareGeometry(m.geometry) : m.geometry;
+  const set: PersonSet = { meshes: [], counts: new Int32Array(geometries.length), gait: [], gait2: [], look: [], look2: [], capacity };
+  geometries.forEach((geo, i) => {
     const mesh = new THREE.InstancedMesh(geo, materials[i].material, capacity);
     mesh.name = namePrefix + kinds[i];
     mesh.count = 0;

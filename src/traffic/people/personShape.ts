@@ -3,7 +3,7 @@
 import * as THREE from 'three';
 import { RigBuilder } from './rigBuilder';
 import { PART, REGION } from './personParts';
-import { SPECS } from './personSpec';
+import { shapeDims } from './personDims';
 import type { BodyKind } from './personSpec';
 
 const SHOE = 0x2b2a2e;
@@ -11,7 +11,7 @@ const EYE_WHITE = 0xf4f4f0;
 const PUPIL = 0x22201f;
 const MOUTH = 0x9a4a4a;
 
-interface Shape {
+export interface Shape {
   geometry: THREE.BufferGeometry;
   hip: [number, number];
   shoulder: [number, number];
@@ -21,39 +21,11 @@ interface Shape {
 
 /** Builds one shape. sex is 0 for the male and 1 for the female variant; only widths change, never heights. */
 export function buildShape(kind: BodyKind, sex: number): Shape {
-  const sp = SPECS[kind];
-  const K = sp.k;
-  const W = sp.w;
-  const k = (v: number): number => v * K;
-  const mix = (m: number, f: number): number => m + (f - m) * sex;
-  const hipY = k(0.95);
-  const kneeY = k(0.51);
-  const ankleY = k(0.08);
-  const shY = k(1.42);
-  const torsoTop = k(1.48);
-  const elbowY = k(1.14);
-  const wristY = k(0.9);
-  // Sex-dependent widths only: hips and thighs wider, shoulders narrower. Depths stay the same for both sexes,
-  // because the stoop rotates the torso and a depth change would turn into a height change.
-  const legX = k(mix(0.088, 0.096)) * W;
-  const armX = k(mix(0.235, 0.215)) * W;
-  const pelvisW = k(mix(0.3, 0.35)) * W;
-  const torsoBotW = k(mix(0.31, 0.33)) * W;
-  const shoulderW = k(mix(0.42, 0.36)) * W;
-  const torsoBotD = k(0.19);
-  const torsoTopD = k(0.23);
+  const d = shapeDims(kind, sex);
+  const { sp, W, k, hipY, kneeY, ankleY, shY, torsoTop, elbowY, wristY, legX, armX, pelvisW, torsoBotW, shoulderW, torsoBotD, torsoTopD } = d;
+  const { stoop, dy, dz, stoopM } = d;
 
   const b = new RigBuilder();
-
-  // Stoop: rotate the torso about the hip, and shift head and arms to follow without tilting them.
-  const stoop = sp.stoop;
-  const rel = (y: number): number => y - hipY;
-  const dy = (y: number): number => (stoop ? rel(y) * (Math.cos(stoop) - 1) : 0);
-  const dz = (y: number): number => (stoop ? rel(y) * Math.sin(stoop) : 0);
-  const stoopM = new THREE.Matrix4()
-    .makeTranslation(0, hipY, 0)
-    .multiply(new THREE.Matrix4().makeRotationX(stoop))
-    .multiply(new THREE.Matrix4().makeTranslation(0, -hipY, 0));
 
   // Legs.
   for (const s of [1, -1]) {
