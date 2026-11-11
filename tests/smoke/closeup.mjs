@@ -43,7 +43,11 @@ async function savePng(page, file) {
 }
 
 /** Place the camera on instance 0 of a mesh and save a PNG. Returns a result line. */
-async function shoot(page, tag, [name, mesh, chest], distance) {
+async function shoot(page, tag, [name, farMesh, chest], distance) {
+  // A person near the camera draws from the near mesh (T-0022); follow that one once the camera sits next to it.
+  const nearName = farMesh.replace('pedestrians-', 'pedestrians-near-');
+  const nearCount = farMesh === nearName ? 0 : await page.evaluate((m) => window.__closeup.scene.getObjectByName(m)?.count ?? 0, nearName);
+  const mesh = nearCount > 0 ? nearName : farMesh;
   const count = await page.evaluate((m) => window.__closeup.scene.getObjectByName(m)?.count ?? 0, mesh);
   if (count < 1) return `${tag}: no ${name} instance`;
   await page.evaluate(([m, c, d]) => {
@@ -61,7 +65,7 @@ async function shoot(page, tag, [name, mesh, chest], distance) {
 function inspect() {
   const s = window.__closeup.scene;
   const rows = {};
-  for (const n of ['pedestrians-adult', 'pedestrians-child', 'pedestrians-elder', 'pedestrians-teen', 'dogs', 'leashes', 'umbrellas']) {
+  for (const n of ['pedestrians-adult', 'pedestrians-child', 'pedestrians-elder', 'pedestrians-teen', 'pedestrians-near-adult', 'pedestrians-near-child', 'pedestrians-near-elder', 'pedestrians-near-teen', 'dogs', 'leashes', 'umbrellas']) {
     const m = s.getObjectByName(n);
     const g = m.geometry;
     const verts = g.getAttribute('position').count;

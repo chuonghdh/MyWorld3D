@@ -1,9 +1,9 @@
 // Instanced meshes for pedestrians and their dogs.
-//   - one InstancedMesh per age group (adult, child, elder, teen), about 420 triangles per person (all parts,
+//   - one far and one near InstancedMesh per age group (adult, child, elder, teen), about 420 triangles per person (all parts,
 //     including the hidden hair, garments and face; see personGeometry.ts). Each mesh serves both sexes through
 //     the morph attributes and holds every hair style, garment and face,
 //   - one InstancedMesh for dogs (about 130 triangles), one for leashes, one for umbrellas.
-// That is at most 7 draw calls for all people. The walk cycle, poses, outfits and sex are resolved in the vertex
+// Each age group has a near and a far mesh (distance LOD, lod.ts, peopleSets.ts), so at most 11 draw calls for all people. The walk cycle, poses, outfits and sex are resolved in the vertex
 // shader from per-instance attributes (see rigShader.ts and outfit.ts), so update() only writes matrices and a
 // few floats per instance and allocates nothing.
 //
@@ -22,14 +22,19 @@ import { buildDog, type DogModel } from './dogGeometry';
 import { PALETTE_SIZES, type SeasonName } from './palettes';
 import { FLAG, outfitFlags } from './outfit';
 import { GaitPhase } from './gaitPhase';
+import { NearClassifier } from './lod';
+import { createPersonSet, finishSet, resetSet, writePerson, type PersonSet, type PersonWrite } from './peopleSets';
+import { trafficLife } from '../../config/tuning';
 import { applySeasonPalette, createDogMaterials, createPeopleUniforms, createPersonMaterials, type PeopleUniforms } from './rigShader';
 
 export interface PeopleMeshes {
   group: THREE.Group;
   /** The adult mesh (kept for backwards compatibility). */
   pedestrians: THREE.InstancedMesh;
-  /** Adult, child, elder and teen meshes, indexed by BODY_*. */
+  /** Far set: adult, child, elder and teen meshes, indexed by BODY_*. People beyond the near radius (all of them until a camera has rendered). */
   bodies: THREE.InstancedMesh[];
+  /** Near set, same order: people within trafficLife.nearRadiusM of the camera (distance LOD, lod.ts). */
+  nearBodies: THREE.InstancedMesh[];
   dogs: THREE.InstancedMesh;
   leashes: THREE.InstancedMesh;
   umbrellas: THREE.InstancedMesh;
@@ -73,25 +78,18 @@ export function createPeopleMeshes(pedestrianCapacity = 512, dogCapacity = 256):
   // --- People ---
   const models: PersonModel[] = KINDS.map((k) => buildPerson(k));
   const materials = models.map((m) => createPersonMaterials(m, uniforms));
-  const gait: Float32Array[] = [];
-  const gait2: Float32Array[] = [];
-  const look: Float32Array[] = [];
-  const look2: Float32Array[] = [];
-  const bodies = models.map((m, i) => {
-    const mesh = new THREE.InstancedMesh(m.geometry, materials[i].material, pedestrianCapacity);
-    mesh.name = 'pedestrians-' + KINDS[i];
-    mesh.count = 0;
-    mesh.frustumCulled = false;
-    mesh.castShadow = true;
-    mesh.customDepthMaterial = materials[i].depth;
-    mesh.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
-    gait.push(instancedAttr(mesh, 'aGait', 4, pedestrianCapacity));
-    gait2.push(instancedAttr(mesh, 'aGait2', 4, pedestrianCapacity));
-    look.push(instancedAttr(mesh, 'aLook', 4, pedestrianCapacity));
-    look2.push(instancedAttr(mesh, 'aLook2', 4, pedestrianCapacity));
-    group.add(mesh);
-    return mesh;
-  });
+  const nearCap = Math.min(pedestrianCapacity, trafficLife.nearMaxInstances);
+  const farSet: PersonSet = createPersonSet(models, materials, KINDS, 'pedestrians-', pedestrianCapacity, false);
+  const nearSet: PersonSet = createPersonSet(models, materials, KINDS, 'pedestrians-near-', nearCap, true);
+  const bodies = farSet.meshes;
+  const nearBodies = nearSet.meshes;
+  for (const m of [...bodies, ...nearBodies]) group.add(m);
+  const lod = new NearClassifier(Math.max(pedestrianCapacity, MAX_WALKERS) + 1, trafficLife.nearRadiusM, trafficLife.nearHysteresisM);
+  // Camera position captured by readCamera. update() runs before the render, so it sees the previous frame's camera
+  // (one frame of lag: a person crosses the border one frame late, which hysteresis hides). NaN until the first render: all far.
+  let camX = Number.NaN;
+  let camY = 0;
+  let camZ = 0;
 
   // --- Dogs ---
   const dogModel = buildDog();
@@ -137,11 +135,14 @@ export function createPeopleMeshes(pedestrianCapacity = 512, dogCapacity = 256):
     if (!(camera as THREE.PerspectiveCamera).isPerspectiveCamera) return;
     const t = Math.min(1, Math.max(0, (camera.position.y - 60) / 240));
     viewBoost = 1 + 0.7 * t * t * (3 - 2 * t);
+    camX = camera.position.x;
+    camY = camera.position.y;
+    camZ = camera.position.z;
   };
-  for (const m of [...bodies, dogs]) m.onBeforeRender = readCamera;
+  for (const m of [...bodies, ...nearBodies, dogs]) m.onBeforeRender = readCamera;
 
+  const w: PersonWrite = { ped: null as unknown as PedestrianRender, scale: 1, flags: 0, female: 0, angle: 0, walking: false, amp: 0, ease: 0, kneeK: 0, armK: 0, bobK: 0 };
   const gaitPhase = new GaitPhase(Math.max(pedestrianCapacity, MAX_WALKERS) + 1);
-  const counts = new Int32Array(KINDS.length);
   let lastSeason: SeasonName | '' = '';
   const emissive = [materials.map((m) => m.material), [dogMats.material]].flat();
 
@@ -197,6 +198,7 @@ export function createPeopleMeshes(pedestrianCapacity = 512, dogCapacity = 256):
     group,
     pedestrians: bodies[BODY_ADULT],
     bodies,
+    nearBodies,
     dogs,
     leashes,
     umbrellas,
@@ -214,22 +216,19 @@ export function createPeopleMeshes(pedestrianCapacity = 512, dogCapacity = 256):
       const rain = ctx.rain ?? 0;
       const rainOn = rain > 0.05;
       const umbrellaShare = Math.min(0.92, 0.35 + rain * 0.8);
-      counts[0] = counts[1] = counts[2] = counts[3] = 0;
+      resetSet(farSet);
+      resetSet(nearSet);
+      const haveCam = !Number.isNaN(camX);
       let d = 0;
       let u = 0;
 
       for (let n = 0; n < list.length; n++) {
         const ped = list[n];
         const bi = ped.body === BODY_CHILD ? BODY_CHILD : ped.body === BODY_ELDER ? BODY_ELDER : ped.body === BODY_TEEN ? BODY_TEEN : BODY_ADULT;
-        const idx = counts[bi];
-        if (idx >= pedestrianCapacity) continue;
-        counts[bi] = idx + 1;
         const model = models[bi];
-        const mesh = bodies[bi];
         const female = ped.female ? 1 : 0;
         const spec = gaitOf(KINDS[bi], female);
         const scale = PEOPLE_READ_SCALE * viewBoost * ped.scale * spec.heightK;
-        writeInstance(mesh, idx, ped.position.x, ped.position.z, ped.heading, ped.y, scale);
 
         // One outfit per season (a pure function of the walker's traits), plus the umbrella bit in the rain.
         const r2 = ped.phase / TWO_PI;
@@ -237,29 +236,27 @@ export function createPeopleMeshes(pedestrianCapacity = 512, dogCapacity = 256):
         const umbrella = rainOn && ped.umbrellaRank < umbrellaShare;
         if (umbrella) flags |= FLAG.UMBRELLA;
 
-        const g = gait[bi];
-        const o4 = idx * 4;
         const walking = ped.pose === POSE_WALK && ped.speed > 0.02;
         // aGait.x is the accumulated walk-cycle angle (radians), not omega; the shader adds the phase offset.
-        g[o4] = gaitPhase.step(ped.id, walking ? (TWO_PI * ped.speed) / spec.cycle : 0);
-        g[o4 + 1] = ped.phase;
-        g[o4 + 2] = walking ? 0 : ped.pose === POSE_WALK ? 1 : ped.pose;
-        g[o4 + 3] = spec.amp;
-        const g2 = gait2[bi];
-        g2[o4] = spec.ease;
-        g2[o4 + 1] = spec.kneeK;
-        g2[o4 + 2] = spec.armK;
-        g2[o4 + 3] = spec.bobK;
-        const lk = look[bi];
-        lk[o4] = ped.top % PALETTE_SIZES.top;
-        lk[o4 + 1] = ped.pants % PALETTE_SIZES.pants;
-        lk[o4 + 2] = ped.hair % PALETTE_SIZES.hair;
-        lk[o4 + 3] = ped.skin % PALETTE_SIZES.skin;
-        const l2 = look2[bi];
-        l2[o4] = ped.accent % PALETTE_SIZES.accent;
-        l2[o4 + 1] = flags;
-        l2[o4 + 2] = female;
-        l2[o4 + 3] = ped.hairStyle;
+        w.ped = ped;
+        w.scale = scale;
+        w.flags = flags;
+        w.female = female;
+        w.angle = gaitPhase.step(ped.id, walking ? (TWO_PI * ped.speed) / spec.cycle : 0);
+        w.walking = walking;
+        w.amp = spec.amp;
+        w.ease = spec.ease;
+        w.kneeK = spec.kneeK;
+        w.armK = spec.armK;
+        w.bobK = spec.bobK;
+        let isNear = false;
+        if (haveCam) {
+          const dx = ped.position.x - camX;
+          const dy = ped.y + 0.95 - camY;
+          const dz = ped.position.z - camZ;
+          isNear = lod.classify(ped.id, dx * dx + dy * dy + dz * dz, nearSet.counts[bi] < nearSet.capacity);
+        }
+        if (!(isNear && writePerson(nearSet, bi, w)) && !writePerson(farSet, bi, w)) continue;
 
         if (umbrella && u < pedestrianCapacity) {
           // Held in the right hand: a little to the right and ahead, canopy above the head.
@@ -302,14 +299,8 @@ export function createPeopleMeshes(pedestrianCapacity = 512, dogCapacity = 256):
         }
       }
 
-      for (let b = 0; b < KINDS.length; b++) {
-        const mesh = bodies[b];
-        finish(mesh, counts[b]);
-        (mesh.geometry.getAttribute('aGait') as THREE.BufferAttribute).needsUpdate = true;
-        (mesh.geometry.getAttribute('aGait2') as THREE.BufferAttribute).needsUpdate = true;
-        (mesh.geometry.getAttribute('aLook') as THREE.BufferAttribute).needsUpdate = true;
-        (mesh.geometry.getAttribute('aLook2') as THREE.BufferAttribute).needsUpdate = true;
-      }
+      finishSet(farSet);
+      finishSet(nearSet);
       finish(dogs, d);
       (dogs.geometry.getAttribute('aDog') as THREE.BufferAttribute).needsUpdate = true;
       leashes.count = d;
@@ -317,7 +308,7 @@ export function createPeopleMeshes(pedestrianCapacity = 512, dogCapacity = 256):
       finish(umbrellas, u);
     },
     dispose() {
-      for (const mesh of bodies) mesh.geometry.dispose();
+      for (const mesh of [...bodies, ...nearBodies]) mesh.geometry.dispose();
       for (const m of materials) {
         m.material.dispose();
         m.depth.dispose();

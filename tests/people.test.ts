@@ -145,10 +145,11 @@ describe('people models', () => {
 });
 
 describe('people meshes', () => {
-  it('uses at most 7 instanced meshes (one per age group) and respects the 600 instance cap', () => {
+  it('uses at most 11 instanced meshes (a near and a far one per age group, plus dogs, leashes, umbrellas) and respects the 600 instance cap', () => {
     const meshes = createPeopleMeshes(512, 256);
-    expect(meshes.group.children.length).toBeLessThanOrEqual(7);
+    expect(meshes.group.children.length).toBeLessThanOrEqual(11);
     expect(meshes.bodies).toHaveLength(4);
+    expect(meshes.nearBodies).toHaveLength(4);
     expect(MAX_WALKERS + MAX_DOGS).toBeLessThanOrEqual(600);
 
     const sim = makeSim(2, 50); // far above the cap
@@ -159,7 +160,7 @@ describe('people meshes', () => {
     expect(list.length + dogs).toBeLessThanOrEqual(600);
 
     meshes.update(list, { time: 1, night: false, season: 'winter', rain: 0.5 });
-    const counted = meshes.bodies.reduce((n, m) => n + m.count, 0);
+    const counted = [...meshes.bodies, ...meshes.nearBodies].reduce((n, m) => n + m.count, 0);
     expect(counted).toBe(list.length);
     expect(meshes.dogs.count).toBe(dogs);
     expect(meshes.leashes.count).toBe(dogs);
