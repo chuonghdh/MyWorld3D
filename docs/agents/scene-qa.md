@@ -228,3 +228,10 @@ Static check only (Grep, Glob, Read, wc, git ls-files). No tests, no `npm run ch
 - Lint: eslint.config.js gives globals only to src/tests `.ts/.tsx`, so each `.mjs` carries a `/* global ... */` line.
 - Browser binary: `SMOKE_BROWSER` env var overrides the Chromium executable (the local ms-playwright cache had build 1248 while Playwright 1.65 wants 1254; no download done here). CI uses `npx playwright install chromium`.
 - Not seen: how the frame looks (luminance and colour spread only), real GPU frame time, audio.
+
+## Update 2026-11-12 (T-0020 pedestrian close-up capture and baseline)
+- `npm run smoke:closeup` (`tests/smoke/closeup.mjs`, camera hook `closeupHook.mjs`, shared `serve.mjs` also used by `smoke.mjs`). Separate script: `npm run smoke` behaviour is unchanged. Needs `dist` (`npx vite build`).
+- Camera without a src hook: the dist build has no `__r3f` (dev only), but three.js announces each WebGLRenderer and Scene to a global `__THREE_DEVTOOLS__` EventTarget if one exists. The init script defines it, keeps the scene that holds the `people` group, and wraps `renderer.render`: before each main-scene render it moves the camera next to instance 0 of a mesh (`pedestrians-adult|child|elder|teen`, `dogs`) read from `instanceMatrix`, and restores the pose after. Re-read on every render because a walker moves several metres per software-GL frame.
+- PNGs go to the OS temp dir (`myworld3d-closeup`, override `CLOSEUP_DIR`), not `harness/runs/` (only `*.json` is ignored there). Rain is set by clicking the Weather group button in the DOM. Narrow a run with `CLOSEUP_SUBJECTS` and `CLOSEUP_DISTANCES` (a full run is 40 shots at about 2 frames of 5 to 10 s each, plus the cost measurement).
+- Cost method: frame triangles and draw calls (counters.mjs, all passes) as is, with people `castShadow` off, and with the `people` group hidden. The differences are the people cost. The shot targets instance 0, so a different walker may be shown per run; building or a tree can occlude.
+- Not seen: taste on real hardware, real GPU frame time.

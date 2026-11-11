@@ -46,3 +46,31 @@ T-0020 close-up capture and perf baseline (Scene & QA), then T-0021 gait phase c
 
 ## How to verify
 `npx tsc --noEmit`, `npx vitest run tests/people.test.ts tests/budget.test.ts tests/tuningParity.test.ts` (rerun people timing alone), then `npm run check`. For looks: connected Chrome at close range, same camera before and after, draw calls and triangles from the `__r3f` handle. State plainly what was not seen by eye.
+
+## Baseline 2026-11-12 (T-0020, headless Chromium, software GL)
+Measured with `npm run smoke:closeup` on the production build: default camera, day (12:00), default settings and seed, 1280x720. Software GL, so triangle and draw call counts are exact, frame times are not measured. Shots are saved to the OS temp dir (`myworld3d-closeup`), not the repo. Method: `docs/agents/scene-qa.md`, Update 2026-11-12.
+
+| Mesh | Triangles per instance | Vertices per instance | Instances (capacity) |
+|---|---|---|---|
+| pedestrians-adult | 376 | 1128 | 240 (512) |
+| pedestrians-child | 376 | 1128 | 13 (512) |
+| pedestrians-elder | 376 | 1128 | 61 (512) |
+| pedestrians-teen | 376 | 1128 | 39 (512) |
+| dogs | 130 | 390 | 66 (256) |
+| leashes | 12 | 24 | 66 (256) |
+| umbrellas | 26 | 78 | 0 (512), clear sky |
+
+All four person meshes have the same triangle count (376), so the handbook range "350 to 480" is 376 today. Non-indexed geometry: vertices = 3 x triangles.
+
+| Frame at the default camera (all passes) | Draw calls | Triangles |
+|---|---|---|
+| As is | 184 | 2,377,993 |
+| People shadow casting off | 179 | 2,242,179 |
+| People group hidden | 173 | 2,096,955 |
+| People cost (as is minus hidden) | 11 | 281,038 (11.8 percent of the frame) |
+| People shadow pass (as is minus casting off) | 5 | 135,814 |
+
+- People main pass about 145,000 triangles (353 walkers x 376 + 66 dogs x 130 + leashes), the shadow pass about 136,000 (one shadow render of the same casters). Vertices run in the vertex shader are about 3 x triangles (no index sharing), roughly 0.84 M for people per frame, all passes.
+- Frame total varies with moving actors: 2.37 M to 2.38 M in these runs; smoke caps are 260 draw calls and 3.2 M triangles.
+- Shots: adult, child, elder, teen and dog at 3, 8 and 25 m by day and night, and 3 and 8 m in rain (40 PNGs). The camera sits 0.6 rad off the walker's heading, 15 percent of the distance above the target, aimed at about 0.95 m (dog 0.35 m). Instance 0 is followed live, so each run may show a different walker, and a wall, tree or other walker can block it: in the last run `day-child-25m`, `night-teen-8m`, `night-elder-25m` and `rain-adult-8m` came out nearly flat (few colour buckets), judge them by eye or rerun.
+- Not seen or measured: look on real hardware by eye, real GPU frame time, vertex-shader cost in milliseconds.

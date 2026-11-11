@@ -1,4 +1,4 @@
-/* global process, fetch, setTimeout, document, Event, HTMLInputElement, console */
+/* global process, console */
 // Headless smoke (T-0010). Run: npm run smoke (needs dist: npx vite build first).
 // Serves dist with vite preview, opens it in headless Chromium (software GL) and fails on:
 //   - any console.error, pageerror, failed request or HTTP 4xx/5xx for an app file;
@@ -12,17 +12,9 @@
 // clouds, sky, weather, post-processing passes) and counts a mesh once per pass. So the caps here are the measured
 // live median plus a margin (see CAPS), not the budget numbers. A bigger live number is a regression to explain.
 // Console noise ignored (software renderer only): GPU stall and swiftshader performance warnings.
-import { spawn } from 'node:child_process';
-import { existsSync } from 'node:fs';
-import { dirname, resolve } from 'node:path';
-import { fileURLToPath } from 'node:url';
-import { chromium } from 'playwright';
 import { INIT_SCRIPT, frameStats, waitFrames } from './counters.mjs';
 import { analyseCanvas } from './pixels.mjs';
-
-const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..', '..');
-const PORT = 4173;
-const URL = `http://localhost:${PORT}/`;
+import { URL, launchBrowser, setLight, startPreview, waitForServer } from './serve.mjs';
 
 // Measured median per frame, 2026-11-11, default settings, 1280x720, swiftshader: 156 to 182 draw calls, 1.87 M to 2.36 M triangles
 // (varies with moving actors and time of day). CAPS sit about 40% above.
@@ -36,40 +28,6 @@ const SAMPLE_FRAMES = 5; // software GL draws one frame in several seconds
 const failures = [];
 const fail = (msg) => failures.push(msg);
 
-function startPreview() {
-  const vite = resolve(ROOT, 'node_modules', 'vite', 'bin', 'vite.js');
-  const child = spawn(process.execPath, [vite, 'preview', '--port', String(PORT), '--strictPort'], { cwd: ROOT, stdio: ['ignore', 'pipe', 'pipe'] });
-  let log = '';
-  child.stdout.on('data', (d) => (log += d));
-  child.stderr.on('data', (d) => (log += d));
-  return { child, log: () => log };
-}
-
-async function waitForServer(preview) {
-  for (let i = 0; i < 100; i++) {
-    try {
-      const r = await fetch(URL);
-      if (r.ok) return;
-    } catch {
-      /* not up yet */
-    }
-    if (preview.child.exitCode !== null) break;
-    await new Promise((r) => setTimeout(r, 200));
-  }
-  throw new Error(`vite preview did not start:\n${preview.log()}`);
-}
-
-async function setLight(page, hour) {
-  await page.evaluate((h) => {
-    const el = document.getElementById('light');
-    if (!el) throw new Error('Light slider (#light) not found');
-    const setter = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value').set;
-    setter.call(el, String(h));
-    el.dispatchEvent(new Event('input', { bubbles: true }));
-  }, hour);
-  await waitFrames(page, 2); // the change reaches the store, then the next frame draws it
-}
-
 async function frameLook(page, label) {
   const look = await analyseCanvas(page);
   if (look.buckets < MIN_BUCKETS || look.std < MIN_STD) fail(`${label}: canvas looks blank (buckets ${look.buckets}, std ${look.std.toFixed(1)})`);
@@ -77,12 +35,11 @@ async function frameLook(page, label) {
 }
 
 async function run() {
-  if (!existsSync(resolve(ROOT, 'dist', 'index.html'))) throw new Error('dist/index.html missing: run `npx vite build` first');
   const preview = startPreview();
   let browser;
   try {
     await waitForServer(preview);
-    browser = await chromium.launch({ executablePath: process.env.SMOKE_BROWSER || undefined, args: ['--use-angle=swiftshader', '--enable-unsafe-swiftshader', '--ignore-gpu-blocklist', '--enable-webgl'] });
+    browser = await launchBrowser();
     const page = await browser.newPage({ viewport: { width: 1280, height: 720 } });
     await page.addInitScript(INIT_SCRIPT);
     page.on('console', (m) => {

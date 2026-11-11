@@ -314,6 +314,20 @@
       "status": "released",
       "date": "2026-11-11",
       "brief": "harness/briefs/T-0031-architect.md"
+    },
+    {
+      "task": "T-0020-ped-closeup-baseline",
+      "owner": "scene-qa",
+      "globs": [
+        "tests/smoke/**",
+        "package.json",
+        "docs/agents/graphics-character.md",
+        "docs/agents/scene-qa.md",
+        "harness/briefs/T-0020-scene-qa.md"
+      ],
+      "status": "released",
+      "date": "2026-11-12",
+      "brief": "harness/briefs/T-0020-scene-qa.md"
     }
   ]
 }
