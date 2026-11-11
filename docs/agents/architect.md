@@ -395,3 +395,9 @@ Enforced but missing from the docs (add to `harness/README.md` guard table): set
 - Backlog records from issues carry `source: issue-N`. No " #" in a front matter value: the readers strip text after " #" as a comment.
 - Skills carry `disable-model-invocation: true` (on demand only).
 - Open: GitHub branch protection for master and dev (human action); scheduled drift and eval runs only see master.
+
+## Update 2026-11-11 (T-0010)
+- Playwright 1.65.0 is an exact-pinned devDependency; `npm run smoke` runs `tests/smoke/smoke.mjs` (node and npm only, Windows safe). Browser: `npx playwright install chromium`.
+- CI job `smoke` sits next to `check` and `secrets` (build, then smoke). Not a verify gate: it needs a browser. Making it a required check is a human action in the repository rules.
+- Human checks dropped from quality-gates.json: console errors, blank canvas, draw calls and triangles. Kept: audio, visual taste, real-hardware frame time.
+- Open: required-check rule for `smoke`; first CI run of the job unverified.

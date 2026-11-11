@@ -20,7 +20,7 @@ mechanical, and make every failure loud and cheap to see.
 |---|---|---|---|
 | Edit hook | `.claude/settings.json` (`PostToolUse`, matcher `Edit\|Write`) | After each Edit/Write of a `.ts`/`.tsx` file under `src/` or `tests/`: runs `npx tsc --noEmit` | Silent |
 | Full check | `package.json` script `check` (`tsc --noEmit && npm run lint && vitest run && vite build`) | On demand, before a commit or merge | Silent except the failing step |
-| CI | `.github/workflows/ci.yml` | Push and pull request on `dev` and `master`: `npm ci`, `npm audit --omit=dev --audit-level=high` (gating), then `npm run check` (Node 20, npm cache). Also `drift.yml`, `evals.yml`, `pr-checklist.yml` | Job log; fails on any step. A failing drift or eval run opens a GitHub issue labelled `harness` (one open issue per title), which the improve loop picks up |
+| CI | `.github/workflows/ci.yml` | Push and pull request on `dev` and `master`: `npm ci`, `npm audit --omit=dev --audit-level=high` (gating), then `npm run check` (Node 20, npm cache). Job `smoke`: `npm run build`, then `npm run smoke` (headless Chromium: console errors, non-blank canvas day and night, renderer counts). Also `drift.yml`, `evals.yml`, `pr-checklist.yml` | Job log; fails on any step. A failing drift or eval run opens a GitHub issue labelled `harness` (one open issue per title), which the improve loop picks up |
 | Git guard (enforced once the hook is applied by the human) | `harness/scripts/guard-git.mjs`, as a `PreToolUse` hook on `Bash` in `.claude/settings.json` | Before each Bash call: blocks `git commit` on `dev` or `master`; a `git push` that is not `origin task/...` (bare, `HEAD`, refspec, force); `gh pr create` without `--base dev`; `gh pr merge` with `--admin` or on a pull request whose base is not `dev`; `git switch` that discards work | Silent; exit 2 with one line on a block |
 | Permissions (enforced once applied by the human) | `.claude/settings.json` (`permissions.allow`, `permissions.deny`) | Every Bash call: the pipeline's commands run without a prompt; force push, push to `master` or `dev`, refspec pushes, `git reset --hard`, `git stash`, `git checkout --`, `git branch -D` and `gh pr merge --admin` are denied | Silent |
 | Policy | `harness/config/policies.json` (`autonomy`) | Read by the lead at Land and Escalate (`harness/workflows/delivery.md`) | None: data, guarded by `tests/delivery.test.ts` |
@@ -87,7 +87,7 @@ To shrink a file, split it by responsibility (no behaviour change) and lower or 
 
 Each actionable gap is a backlog record (`node harness/scripts/next-task.mjs`); the id is in brackets.
 
-- Frame time, rebuild time and visual quality are measured by hand in connected Chrome (see `docs/agents/architect.md`). Console errors, a blank canvas and renderer counts: [T-0010].
+- Frame time, rebuild time and visual quality are measured by hand in connected Chrome (see `docs/agents/architect.md`). Console errors, a blank canvas and renderer counts are covered by `npm run smoke` (T-0010); frame time on real hardware stays manual.
 - Audio is checked by tests and by ear. No automated loudness check. [T-0019]
 - CSS size is not guarded. `src/ui/panels.css` is now a 12-line @import index over `src/ui/panels/*.css`. Keep each panel file small. [T-0018]
 - Owner files: the ownership guard checks that each `src` folder appears in the owner table or REPO_MAP, not each file.

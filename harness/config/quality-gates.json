@@ -34,10 +34,10 @@
         "rerun a flaky test alone: npx vitest run <file>"
       ],
       "humanChecks": [
-        "Visual: day and night, the touched view",
+        "Visual taste: day and night, the touched view",
         "Audio: the touched system",
         "Browser: no new console errors",
-        "Perf: no frame-time drop on the seeded city"
+        "Perf: frame time on real hardware"
       ]
     },
     {
@@ -68,7 +68,7 @@
         "npm run dev starts"
       ],
       "humanChecks": [
-        "Browser: app loads at the dev URL with no console errors",
+        "Browser: app loads at the dev URL",
         "Build output opens"
       ]
     }
@@ -77,7 +77,7 @@
     "A change of a tuned value needs its docs/TUNING.md row and a tests/tuningParity.test.ts entry.",
     "A new file over 350 lines fails the guard; split it, do not raise the limit.",
     "Decisions that change a rule get a new ADR under docs/adr/.",
-    "Commits, pushes and merges follow harness/config/policies.json autonomy (docs/adr/0014-delegated-delivery.md). Until T-0010 lands, human checks not done are listed as not verified and block the release to master, not the merge to dev."
+    "Commits, pushes and merges follow harness/config/policies.json autonomy (docs/adr/0014-delegated-delivery.md). Human checks not done (audio, visual taste, real-hardware frame time) are listed as not verified and block the release to master, not the merge to dev. The headless smoke (npm run smoke, CI job smoke) covers console errors, blank canvas and renderer counts; it is not a verify gate because it needs a browser."
   ],
   "printRule": "Print only failures."
 }
