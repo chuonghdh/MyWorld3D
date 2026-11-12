@@ -26,6 +26,7 @@ import { trafficLife } from '../../config/tuning';
 import { DOG_DECL, PATTERN_FRAG, PERSON_DECL } from './rigShaderGlsl';
 import { FACE_FRAG, FACE_VERT } from './rigShaderFace';
 import { RIM_CODE, SURF_FRAG, SURF_VERT } from './rigShaderSurface';
+import { HAIR_FRAG, HAIR_LIGHT } from './rigShaderHair';
 
 type Uniform<T> = { value: T };
 
@@ -85,6 +86,8 @@ export function createPersonMaterials(model: PersonModel, shared: PeopleUniforms
     uAoK: { value: trafficLife.aoStrength },
     uRimK: { value: trafficLife.rimStrength },
     uClothK: { value: trafficLife.clothDetail },
+    uHairK: { value: trafficLife.hairSheen },
+    uSkinK: { value: trafficLife.skinWarmth },
   };
   const bind = (shader: THREE.WebGLProgramParametersWithUniforms): void => {
     Object.assign(shader.uniforms, shared, typeUniforms);
@@ -100,17 +103,17 @@ export function createPersonMaterials(model: PersonModel, shared: PeopleUniforms
       .replace('#include <begin_vertex>', 'vec3 transformed = rigOk ? rigP : vec3(0.0);')
       .replace('#include <color_vertex>', '#include <color_vertex>\n#ifdef USE_COLOR\nvColor = pickColour(vColor);\n#endif\nsetPattern();\nvPatPos = position;' + (near ? '\n#ifdef PERSON_NEAR\nsetFace();\nsetSurface();\n#endif' : ''));
     shader.fragmentShader = shader.fragmentShader
-      .replace('#include <common>', '#include <common>\n' + PATTERN_FRAG + (near ? FACE_FRAG + SURF_FRAG : ''))
+      .replace('#include <common>', '#include <common>\n' + PATTERN_FRAG + (near ? FACE_FRAG + SURF_FRAG + HAIR_FRAG : ''))
       .replace(
         '#include <color_fragment>',
         '#include <color_fragment>' +
           (near ? '\n#ifdef PERSON_NEAR\ndiffuseColor.rgb = clothColour(diffuseColor.rgb, length(vViewPosition));\n#endif' : '') +
           '\nif (vPatOn > 0.5) diffuseColor.rgb = patternColour(diffuseColor.rgb, vPatPos, vPatKind);' +
-          (near ? '\n#ifdef PERSON_NEAR\nif (vFace.x > 0.5) diffuseColor.rgb = faceColour(diffuseColor.rgb);\ndiffuseColor.rgb *= 1.0 - 1.6 * uAoK * vSurf.z;\n#endif' : ''),
+          (near ? '\n#ifdef PERSON_NEAR\nif (vSurf.w > 1.5) { if (vFace.x > 0.5) diffuseColor.rgb = skinTint(diffuseColor.rgb); } else if (vSurf.w > 0.5) diffuseColor.rgb = hairColour(diffuseColor.rgb, length(vViewPosition));\nif (vFace.x > 0.5) diffuseColor.rgb = faceColour(diffuseColor.rgb);\ndiffuseColor.rgb *= 1.0 - 1.6 * uAoK * vSurf.z;\n#endif' : ''),
       )
-      .replace('#include <lights_fragment_end>', '#include <lights_fragment_end>' + (near ? RIM_CODE : ''));
+      .replace('#include <lights_fragment_end>', '#include <lights_fragment_end>' + (near ? RIM_CODE + HAIR_LIGHT : ''));
   };
-  material.customProgramCacheKey = () => (near ? 'person-rig-near-v3' : 'person-rig-v4');
+  material.customProgramCacheKey = () => (near ? 'person-rig-near-v6' : 'person-rig-v4');
 
   const depth = new THREE.MeshDepthMaterial({ depthPacking: THREE.RGBADepthPacking });
   depth.onBeforeCompile = (shader) => {

@@ -412,6 +412,24 @@
       "status": "released",
       "date": "2026-11-12",
       "brief": "harness/briefs/T-0025-graphics-character.md"
+    },
+    {
+      "task": "T-0026-ped-hair-skin-shading",
+      "owner": "graphics-character",
+      "globs": [
+        "src/traffic/people/**",
+        "src/config/tuning/trafficLife.ts",
+        "tests/people*.test.ts",
+        "tests/tuningParity.test.ts",
+        "tests/smoke/closeup.mjs",
+        "tests/smoke/closeupHook.mjs",
+        "docs/TUNING.md",
+        "docs/agents/graphics-character.md",
+        "harness/briefs/T-0026-graphics-character.md"
+      ],
+      "status": "released",
+      "date": "2026-11-12",
+      "brief": "harness/briefs/T-0026-graphics-character.md"
     }
   ]
 }

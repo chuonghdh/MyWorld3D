@@ -99,7 +99,7 @@ describe('people mesh LOD routing', () => {
       (mat.onBeforeCompile as unknown as (s: typeof shader) => void)(shader);
       return { v: shader.vertexShader, f: shader.fragmentShader };
     };
-    const ids = ['PERSON_NEAR', 'setFace', 'faceColour', 'setSurface', 'clothColour', 'vSurf', 'uAoK', 'uRimK', 'uClothK', 'RimLight', 'rimLight'];
+    const ids = ['PERSON_NEAR', 'setFace', 'faceColour', 'setSurface', 'clothColour', 'vSurf', 'uAoK', 'uRimK', 'uClothK', 'uHairK', 'uSkinK', 'hairColour', 'skinTint', 'RimLight', 'rimLight'];
     for (let i = 0; i < 4; i++) {
       const far = sources(m.bodies[i].material as THREE.Material);
       const near = sources(m.nearBodies[i].material as THREE.Material);
