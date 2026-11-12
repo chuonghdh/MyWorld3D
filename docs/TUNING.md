@@ -51,7 +51,7 @@ Columns: Parameter | Current value | Unit/range | What it controls | File:line (
 | Dog cap | 120 | dogs (max) | Hard cap on dogs with walkers | src/config/tuning/trafficWalkers.ts (`trafficWalkers.maxDogs`) | Traffic & Life |
 | Dog share among walkers | 0.22 | probability per walker | Share of walkers that get a dog | src/config/tuning/trafficLife.ts (`trafficLife.dogShare`) | Traffic & Life |
 | Pair chance | 0.2 | probability | Share of walkers that walk as a pair | src/config/tuning/trafficWalkers.ts (`trafficWalkers.pairChance`) | Traffic & Life |
-| Walker turn rate | 7 | rad/s | How fast walkers turn | src/traffic/walkers/constants.ts:83 (`TURN_RATE`, stays in code) | Traffic & Life |
+| Walker turn rate | 7 | rad/s | How fast walkers turn (simulation; the visible turn speed of the body is the separate knob `walkTurnRateRad`) | src/traffic/walkers/constants.ts:83 (`TURN_RATE`, stays in code) | Traffic & Life |
 | Crossing safety margin | 2.0 | seconds of red left after a crossing | Walkers start a crossing only with this margin | src/config/tuning/trafficWalkers.ts (`trafficWalkers.crossMarginS`) | Traffic & Life |
 | Walker give-up wait | 150 | seconds | After this wait a walker turns back | src/config/tuning/trafficWalkers.ts (`trafficWalkers.giveUpWaitS`) | Traffic & Life |
 | Walker wait distance | 0.45 | metres from the corner node | Where walkers wait before the curb | src/traffic/walkers/constants.ts:73 (`WAIT_DIST`, stays in code) | Traffic & Life |
@@ -99,6 +99,9 @@ Base counts are scaled by the graphics tier: factor low 0.4, medium 0.7, high 1 
 | Gait head stabilise | 0.6 | 0 to 1 (share of bob and twist the head cancels) | src/config/tuning/trafficLife.ts (`trafficLife.gaitHeadStabilise`); used by src/traffic/people/rigShader.ts | Graphics & Character |
 | Gait stride fit | 1 | 0 to 1 (0 = old thigh swing, 1 = fitted to the step length; the fitted thigh angle is asin(cycle / (4 L)) with L the leg length in the world, a hidden formula, see gaitMath.ts) | src/config/tuning/trafficLife.ts (`trafficLife.gaitStrideFit`); used by src/traffic/people/rigShader.ts | Graphics & Character |
 | Gait stance flat | 1 | 0 to 1 (0 = sine swing, 1 = triangle wave in stance) | src/config/tuning/trafficLife.ts (`trafficLife.gaitStanceFlat`); used by src/traffic/people/rigShader.ts | Graphics & Character |
+| Walk turn rate (render) | 3 | rad/s, meaningful 1 to 7 | src/config/tuning/trafficLife.ts (`trafficLife.walkTurnRateRad`); used by src/traffic/people/peopleMeshes.ts and bodyMotion.ts | Graphics & Character |
+| Walk gait ramp | 0.3 | s, meaningful 0 to 1 | src/config/tuning/trafficLife.ts (`trafficLife.walkRampS`); used by src/traffic/people/peopleMeshes.ts and bodyMotion.ts | Graphics & Character |
+| Walk lean into turns | 0.06 | rad at the fastest visible turn, meaningful 0 to 0.15; the head also leads the body by up to 10 degrees (hidden, not a knob) | src/config/tuning/trafficLife.ts (`trafficLife.walkLeanRad`); used by src/traffic/people/rigShader.ts | Graphics & Character |
 | Child swing amplitude | 0.9 | multiplier (1 = adult) | src/config/tuning/trafficLife.ts (`trafficLife.childSwingAmp`); used by src/traffic/people/personGeometry.ts | Graphics & Character |
 | Child swing ease | 0.35 | 0-1 | src/config/tuning/trafficLife.ts (`trafficLife.childSwingEase`); used by src/traffic/people/personGeometry.ts | Graphics & Character |
 | Child knee bend | 1.3 | multiplier (1 = adult) | src/config/tuning/trafficLife.ts (`trafficLife.childKneeK`); used by src/traffic/people/personGeometry.ts | Graphics & Character |

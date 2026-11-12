@@ -22,6 +22,7 @@ import { buildDog, type DogModel } from './dogGeometry';
 import { PALETTE_SIZES, type SeasonName } from './palettes';
 import { FLAG, outfitFlags } from './outfit';
 import { GaitPhase } from './gaitPhase';
+import { BodyMotion } from './bodyMotion';
 import { NearClassifier } from './lod';
 import { createPersonSet, finishSet, resetSet, writePerson, type PersonSet, type PersonWrite } from './peopleSets';
 import { trafficLife } from '../../config/tuning';
@@ -144,8 +145,9 @@ export function createPeopleMeshes(pedestrianCapacity = 512, dogCapacity = 256):
   };
   for (const m of [...bodies, ...nearBodies, dogs]) m.onBeforeRender = readCamera;
 
-  const w: PersonWrite = { ped: null as unknown as PedestrianRender, scale: 1, flags: 0, female: 0, angle: 0, walking: false, amp: 0, ease: 0, kneeK: 0, armK: 0 };
+  const w: PersonWrite = { ped: null as unknown as PedestrianRender, scale: 1, flags: 0, female: 0, angle: 0, walking: false, amp: 0, ease: 0, kneeK: 0, armK: 0, heading: 0, ramp: 1, turn: 0 };
   const gaitPhase = new GaitPhase(Math.max(pedestrianCapacity, MAX_WALKERS) + 1);
+  const motion = new BodyMotion(Math.max(pedestrianCapacity, MAX_WALKERS) + 1, trafficLife.walkTurnRateRad, trafficLife.walkRampS);
   let lastSeason: SeasonName | '' = '';
   const emissive = [materials.map((m) => m.material), materialsNear.map((m) => m.material), [dogMats.material]].flat();
 
@@ -210,6 +212,7 @@ export function createPeopleMeshes(pedestrianCapacity = 512, dogCapacity = 256):
     update(list, ctx) {
       uniforms.uTime.value = ctx.time;
       gaitPhase.begin(ctx.time);
+      motion.begin(ctx.time);
       if (ctx.season !== lastSeason) {
         lastSeason = ctx.season;
         applySeasonPalette(uniforms, ctx.season);
@@ -246,7 +249,13 @@ export function createPeopleMeshes(pedestrianCapacity = 512, dogCapacity = 256):
         w.flags = flags;
         w.female = female;
         w.angle = gaitPhase.step(ped.id, walking ? (TWO_PI * ped.speed) / spec.cycle : 0);
-        w.walking = walking;
+        // Smoothed render heading, turn lean signal and gait ramp (render only; the sim heading is untouched). A walker that has just stopped keeps
+        // the walking pose until its gait has faded out.
+        motion.step(ped.id, ped.heading, walking);
+        w.walking = ped.pose === POSE_WALK && (walking || motion.ramp > 0.001);
+        w.heading = motion.heading;
+        w.ramp = motion.ramp;
+        w.turn = w.walking ? motion.turnUnit : 0;
         w.amp = spec.amp;
         w.ease = spec.ease;
         w.kneeK = spec.kneeK;
@@ -262,15 +271,15 @@ export function createPeopleMeshes(pedestrianCapacity = 512, dogCapacity = 256):
 
         if (umbrella && u < pedestrianCapacity) {
           // Held in the right hand: a little to the right and ahead, canopy above the head.
-          const c = Math.cos(ped.heading);
-          const s = Math.sin(ped.heading);
+          const c = Math.cos(w.heading);
+          const s = Math.sin(w.heading);
           const ux = ped.position.x - c * 0.22 * scale + s * 0.22 * scale;
           const uz = ped.position.z + s * 0.22 * scale + c * 0.22 * scale;
           const sitDrop = ped.pose === 3 ? model.seatDrop * scale : 0;
           // Colour follows the person, not the packed slot, so it stays fixed as others open or close theirs.
           const colour = umbrellaColours[Math.floor(((ped.umbrellaRank * 9973) % 1) * umbrellaColours.length)];
           umbrellas.setColorAt(u, colour);
-          writeInstance(umbrellas, u, ux, uz, ped.heading, ped.y + (model.headTop + 0.3) * scale - sitDrop, 0.85 * Math.max(0.8, scale));
+          writeInstance(umbrellas, u, ux, uz, w.heading, ped.y + (model.headTop + 0.3) * scale - sitDrop, 0.85 * Math.max(0.8, scale));
           u++;
         }
 

@@ -111,7 +111,9 @@ bool applyRig(inout vec3 p, inout vec3 n) {
   float walk = pose < 0.5 ? 1.0 : 0.0;
   float chat = (pose > 1.5 && pose < 2.5) ? 1.0 : 0.0;
   float sit = pose > 2.5 ? 1.0 : 0.0;
-  float amp = aGait.w;
+  // Walkers carry their gait ramp as -pose (peopleSets.ts): legs and arms ease in and out at a start and a stop.
+  float rampW = pose < 0.5 ? clamp(-pose, 0.0, 1.0) : 1.0;
+  float amp = aGait.w * rampW;
   float eased = aGait2.x;
   float kneeK = aGait2.y;
   float armK = aGait2.z;
@@ -120,7 +122,7 @@ bool applyRig(inout vec3 p, inout vec3 n) {
   float stand = (pose > 0.5 && pose < 1.5) ? 1.0 : 0.0;
   float idleShiftU = stand > 0.5 ? idleShift(uTime, aGait.y) : 0.0;
   // Walk (T-0034): thigh amplitude fitted to the step length, and a bob that keeps the lowest sole point on the ground.
-  float thighAmp = walk > 0.5 ? gaitThighAmp(amp) : 0.0;
+  float thighAmp = walk > 0.5 ? gaitThighAmp(aGait.w) * rampW : 0.0;
   float bob = walk > 0.5 ? gaitBobOf(a, amp, eased, kneeK, thighAmp) : 0.0;
   bool isLeft = (part == 1 || part == 3 || part == 5 || part == 7);
   float side = isLeft ? 0.0 : 3.14159265;
@@ -173,7 +175,7 @@ bool applyRig(inout vec3 p, inout vec3 n) {
     }
     rotYZ(p, n, uNeck, nod);
   }
-  if (walk > 0.5) gaitBody(p, n, part, a, amp, bob); // pelvis yaw and sway, torso twist, head stabilisation (gaitMath.ts)
+  if (walk > 0.5) gaitBody(p, n, part, a, amp, bob, aGait2.w); // pelvis yaw and sway, torso twist, head stabilisation (gaitMath.ts)
   if (pose > 0.5) {
     // Breathing lifts the upper body (the torso fades in from the hip to the shoulder); standing also shifts it sideways.
     float up = part == 0 ? smoothstep(uHip.x, uShoulder.x, p.y) : ((part >= 1 && part <= 4) || part == 13) ? 0.0 : 1.0;

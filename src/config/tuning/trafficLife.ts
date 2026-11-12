@@ -78,6 +78,12 @@ export const trafficLife = {
   gaitStrideFit: 1,
   /** Walk: 0 keeps the sine thigh swing, 1 makes it a triangle wave (constant foot speed in stance, the second condition for a planted foot); meaningful 0 to 1 (traffic/people/gaitMath.ts). */
   gaitStanceFlat: 1,
+  /** Walk: visible turn speed of a person in rad/s (render only; the walkers keep TURN_RATE 7 in walkers/constants.ts); meaningful 1 to 7 (traffic/people/bodyMotion.ts). */
+  walkTurnRateRad: 3,
+  /** Walk: seconds the gait takes to fade in at a start and out at a stop; meaningful 0 to 1 (traffic/people/bodyMotion.ts). */
+  walkRampS: 0.3,
+  /** Walk: lean of torso and arms into a turn, radians at the fastest visible turn; meaningful 0 to 0.15 (traffic/people/gaitMath.ts). */
+  walkLeanRad: 0.06,
   /** Child walk: metres per full gait cycle (two steps), both sexes. Longer than before = slower cadence; feet keep pace with speed (traffic/people/personGeometry.ts). */
   childStrideCycleM: 1.425,
   /** Child walk: leg and arm swing amplitude multiplier, 1 = adult swing (traffic/people/personGeometry.ts). */

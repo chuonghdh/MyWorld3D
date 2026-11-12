@@ -14,6 +14,8 @@ export const GAIT_MECH = {
   /** Ankle height as a fraction of the hip height 0.95 (personDims.ts: ankle 0.08, hip 0.95). */
   ankleFrac: 0.08,
   hipFrac: 0.95,
+  /** The head leads the body into a turn by up to this many radians (10 degrees) at the fastest visible turn. */
+  headLead: (10 * Math.PI) / 180,
   /** The torso twist is full from this share of the way from the hip to the shoulder up (the arms hang from the shoulder, so the torso beside them must turn with them). */
   torsoBlend: 0.6,
 } as const;
@@ -157,6 +159,19 @@ export function gaitFootLow(x: number, leg: GaitLeg, amps: GaitAmps, flat: numbe
  */
 export const gaitBob = (a: number, leg: GaitLeg, amps: GaitAmps, flat: number): number => -Math.min(gaitFootLow(a, leg, amps, flat), gaitFootLow(a + Math.PI, leg, amps, flat));
 
+/** Gait ramp 0..1 carried by the walking pose value (aGait.z = -ramp for walkers, see peopleSets.ts); 1 for any other pose. */
+export const gaitRamp = (pose: number): number => (pose < 0.5 ? Math.min(1, Math.max(0, -pose)) : 1);
+
+/**
+ * Turn lean (T-0029). turnUnit is the smoothed turn in -1..1, positive toward +x (the left). Torso, arms and head roll about the
+ * forward axis through the hip by -leanRad * turnUnit (the top moves toward the turn), and the head yaws ahead by headLead * turnUnit.
+ * Both are exactly zero at turn 0.
+ */
+export const gaitLean = (turnUnit: number, leanRad: number): { roll: number; headYaw: number } => ({ roll: -leanRad * turnUnit, headYaw: GAIT_MECH.headLead * turnUnit });
+
+/** Rotation of the point (x, y) about the z axis through height pv (the lean), as the GLSL rotXY does it. */
+export const gaitRoll = (x: number, y: number, pv: number, th: number): [number, number] => [Math.cos(th) * x - Math.sin(th) * (y - pv), pv + Math.sin(th) * x + Math.cos(th) * (y - pv)];
+
 /** Ankle pivot height for a person whose hip is at hipY. */
 export const gaitAnkleY = (hipY: number): number => (GAIT_MECH.ankleFrac / GAIT_MECH.hipFrac) * hipY;
 
@@ -167,6 +182,7 @@ export function gaitGlsl(): string {
   return /* glsl */ `
 uniform vec4 uGait; // pelvis yaw (rad), sway (m), torso twist (rad), ankle (rad); see gaitMath.ts
 uniform float uGaitHead; // share of bob and twist the head cancels
+uniform float uLean; // walkLeanRad, see gaitLean
 uniform vec4 uStride; // stride fit, stance flatness, cycle men (m), cycle women (m); see gaitThighAmp
 float gaitProfile(float ss, float x) { return mix(ss, asin(sin(x)) * 0.63661977, uStride.y); }
 // Thigh amplitude (rad): the old 0.55 amp mixed with the fitted one, from the instance scale (leg length in the world) and the cycle length.
@@ -201,7 +217,19 @@ float gaitFootLow(float x, float amp, float eased, float kneeK, float thighAmp) 
 float gaitBobOf(float a, float amp, float eased, float kneeK, float thighAmp) {
   return -min(gaitFootLow(a, amp, eased, kneeK, thighAmp), gaitFootLow(a + 3.14159265, amp, eased, kneeK, thighAmp));
 }
-void gaitBody(inout vec3 p, inout vec3 n, int part, float a, float amp, float bob) {
+// Roll about the z (forward) axis through height pv (mirror: gaitRoll).
+void rotXY(inout vec3 p, inout vec3 n, float pv, float th) {
+  float c = cos(th);
+  float s = sin(th);
+  float y = p.y - pv;
+  float x = p.x;
+  p.x = c * x - s * y;
+  p.y = pv + s * x + c * y;
+  float nx = n.x;
+  n.x = c * nx - s * n.y;
+  n.y = s * nx + c * n.y;
+}
+void gaitBody(inout vec3 p, inout vec3 n, int part, float a, float amp, float bob, float turnU) {
   float s = sin(a);
   if (part >= 1 && part <= 4) {
     p.x -= uGait.y * amp * cos(a) * smoothstep(gaitAnkleY(), uHip.x, p.y);
@@ -214,7 +242,13 @@ void gaitBody(inout vec3 p, inout vec3 n, int part, float a, float amp, float bo
     th *= 1.0 - uGaitHead;
     p.y -= uGaitHead * bob;
   }
+  if (part == 9 || part == 10 || (part >= 14 && part <= 22) || part == 24) th += ${f(GAIT_MECH.headLead)} * turnU;
   rotHeadYaw(p, n, uNeck.y, th);
+  if (part != 13) {
+    // Lean into the turn: the torso (fading in from the hip), arms, head and carried items roll about the forward axis through the hip.
+    float lw = part == 0 ? smoothstep(uHip.x, mix(uHip.x, uShoulder.x, ${f(GAIT_MECH.torsoBlend)}), p.y) : 1.0;
+    rotXY(p, n, uHip.x, -uLean * turnU * lw);
+  }
   p.x -= uGait.y * amp * cos(a);
 }
 `;
