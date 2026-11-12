@@ -225,7 +225,7 @@ void rotXZ(inout vec3 p, inout vec3 n, float pz, float th) {
 void applyDog(inout vec3 p, inout vec3 n) {
   int part = int(aRig.x + 0.5);
   float mv = aDog.w;
-  float a = uTime * aDog.x + aDog.y;
+  float a = aDog.x + aDog.y; // aDog.x is the trot angle accumulated on the CPU (peopleMeshes.ts), aDog.y the phase offset
   if (part == 1 || part == 2) {
     float dir = part == 1 ? 1.0 : -1.0;
     rotYZ(p, n, aRig.zw, dir * 0.75 * mv * sin(a));

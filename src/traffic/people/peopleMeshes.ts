@@ -147,6 +147,8 @@ export function createPeopleMeshes(pedestrianCapacity = 512, dogCapacity = 256):
 
   const w: PersonWrite = { ped: null as unknown as PedestrianRender, scale: 1, flags: 0, female: 0, angle: 0, walking: false, amp: 0, ease: 0, kneeK: 0, armK: 0, heading: 0, ramp: 1, turn: 0 };
   const gaitPhase = new GaitPhase(Math.max(pedestrianCapacity, MAX_WALKERS) + 1);
+  // Dogs: the trot angle is accumulated per owner (a walker has at most one dog and a dog has no id of its own), aDog.x is the angle.
+  const dogPhase = new GaitPhase(Math.max(pedestrianCapacity, MAX_WALKERS) + 1);
   const motion = new BodyMotion(Math.max(pedestrianCapacity, MAX_WALKERS) + 1, trafficLife.walkTurnRateRad, trafficLife.walkRampS);
   let lastSeason: SeasonName | '' = '';
   const emissive = [materials.map((m) => m.material), materialsNear.map((m) => m.material), [dogMats.material]].flat();
@@ -213,6 +215,7 @@ export function createPeopleMeshes(pedestrianCapacity = 512, dogCapacity = 256):
       uniforms.uTime.value = ctx.time;
       gaitPhase.begin(ctx.time);
       motion.begin(ctx.time);
+      dogPhase.begin(ctx.time);
       if (ctx.season !== lastSeason) {
         lastSeason = ctx.season;
         applySeasonPalette(uniforms, ctx.season);
@@ -289,7 +292,7 @@ export function createPeopleMeshes(pedestrianCapacity = 512, dogCapacity = 256):
           const da = dogAttr;
           const o = d * 4;
           const moving = dog.speed > 0.05;
-          da[o] = moving ? (TWO_PI * dog.speed) / dogModel.cycleLength : 0;
+          da[o] = dogPhase.step(ped.id, moving ? (TWO_PI * dog.speed) / dogModel.cycleLength : 0);
           da[o + 1] = dog.phase;
           da[o + 2] = dog.coat % PALETTE_SIZES.coat;
           da[o + 3] = moving ? 1 : 0;

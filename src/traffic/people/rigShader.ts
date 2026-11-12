@@ -145,7 +145,7 @@ export function createDogMaterials(shared: PeopleUniforms): PersonMaterials {
       .replace('#include <begin_vertex>', 'vec3 transformed = rigP;')
       .replace('#include <color_vertex>', '#include <color_vertex>\n#ifdef USE_COLOR\nvColor = pickCoat(vColor);\n#endif');
   };
-  material.customProgramCacheKey = () => 'dog-rig-v1';
+  material.customProgramCacheKey = () => 'dog-rig-v2';
   const depth = new THREE.MeshDepthMaterial({ depthPacking: THREE.RGBADepthPacking });
   depth.onBeforeCompile = (shader) => {
     bind(shader);
@@ -153,6 +153,6 @@ export function createDogMaterials(shared: PeopleUniforms): PersonMaterials {
       .replace('#include <common>', '#include <common>\n' + DOG_DECL)
       .replace('#include <begin_vertex>', 'vec3 rigP = position;\nvec3 rigN = vec3(0.0, 1.0, 0.0);\napplyDog(rigP, rigN);\nvec3 transformed = rigP;');
   };
-  depth.customProgramCacheKey = () => 'dog-rig-depth-v1';
+  depth.customProgramCacheKey = () => 'dog-rig-depth-v2';
   return { material, depth };
 }
