@@ -1,12 +1,14 @@
 // Near and far person models (T-0023). Far detail must stay exactly as before T-0023; near detail is the smooth model.
 // Ranges (triangles per person, all parts including hidden hair styles, garments and beard):
-//   far  350 to 480 (today 376 for every age group), near 900 to 1400 (today 1296).
+//   far  350 to 480 (today 384 for every age group), near 900 to 1400 (today 1328).
 import { describe, expect, it } from 'vitest';
 import { PART, buildPerson, triangleCount } from '../src/traffic/people/personGeometry';
 
 const KINDS = ['adult', 'child', 'elder', 'teen'] as const;
-// Weighted position sums recorded before T-0023 changed anything (far model, male shape plus morph is in aMorph).
-const FAR_POSITION_SUM = { adult: 69673.0206, child: 44885.3455, elder: 72361.1891, teen: 60652.4458 };
+// Weighted position sums of the far model (male shape; the female shape is in aMorph). Recorded before T-0023 (376 triangles:
+// 69673.0206, 44885.3455, 72361.1891, 60652.4458) and re-recorded by decision in T-0032: the shin and forearm boxes now run
+// above the knee and elbow pivots and are closed on top, so a bent joint shows no see-through wedge (tests/peopleJoints.test.ts).
+const FAR_POSITION_SUM = { adult: 70527.2836, child: 45450.398, elder: 73187.0221, teen: 61400.13 };
 
 function weightedSum(a: Float32Array): number {
   let s = 0;
@@ -15,10 +17,10 @@ function weightedSum(a: Float32Array): number {
 }
 
 describe('person detail levels', () => {
-  it('keeps the far model identical to the pre-T-0023 one', () => {
+  it('keeps the far model at its recorded shape', () => {
     for (const kind of KINDS) {
       const g = buildPerson(kind, 'far').geometry;
-      expect(triangleCount(g)).toBe(376);
+      expect(triangleCount(g)).toBe(384);
       expect(weightedSum(g.getAttribute('position').array as Float32Array)).toBeCloseTo(FAR_POSITION_SUM[kind], 1);
     }
   });

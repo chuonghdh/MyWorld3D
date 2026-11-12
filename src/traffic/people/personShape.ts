@@ -37,7 +37,9 @@ export function buildShape(kind: BodyKind, sex: number): Shape {
     b.box(x, kneeY, hipY + k(0.03), 0, k(0.105) * W, k(0.115), k(0.14) * W, k(0.14), 0, false, false);
     const shin = left ? PART.SHIN_L : PART.SHIN_R;
     b.set(shin, REGION.SHIN, 0xffffff, kneeY, 0);
-    b.box(x, ankleY, kneeY, 0, k(0.075) * W, k(0.085), k(0.1) * W, k(0.105), 0, false, false);
+    // The shin runs 0.058 m above the knee pivot, as wide as the thigh end at the knee, and is closed on top: when the
+    // knee bends the open thigh end would otherwise show a see-through wedge (T-0032, tests/peopleJoints.test.ts).
+    b.box(x, ankleY, kneeY + k(0.058), 0, k(0.075) * W, k(0.085), k(0.1135) * W, k(0.1225), 0, false, true);
     b.set(shin, REGION.FIXED, SHOE, kneeY, 0);
     b.box(x, 0, ankleY + k(0.025), k(0.05), k(0.09) * W, k(0.24), k(0.08) * W, k(0.18), 0, false, true);
   }
@@ -64,7 +66,8 @@ export function buildShape(kind: BodyKind, sex: number): Shape {
     b.box(x, elbowY, shY + k(0.035), 0, k(0.08) * W, k(0.085), k(0.1) * W, k(0.1), 0, false, true);
     const fore = left ? PART.FORE_L : PART.FORE_R;
     b.set(fore, REGION.SLEEVE, 0xffffff, elbowY, 0);
-    b.box(x, wristY, elbowY, 0, k(0.062) * W, k(0.07), k(0.08) * W, k(0.085), 0, false, false);
+    // Same at the elbow: the forearm runs 0.045 m above the pivot, as wide as the upper arm end, closed on top.
+    b.box(x, wristY, elbowY + k(0.045), 0, k(0.062) * W, k(0.07), k(0.0868) * W, k(0.0915), 0, false, true);
     b.set(fore, REGION.SKIN, 0xffffff, elbowY, 0);
     b.box(x, wristY - k(0.075), wristY, 0, k(0.06) * W, k(0.045), k(0.065) * W, k(0.05), 0, false, true);
   }

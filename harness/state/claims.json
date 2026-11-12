@@ -430,6 +430,19 @@
       "status": "released",
       "date": "2026-11-12",
       "brief": "harness/briefs/T-0026-graphics-character.md"
+    },
+    {
+      "task": "T-0032-ped-knee-seam-gap",
+      "owner": "graphics-character",
+      "globs": [
+        "src/traffic/people/**",
+        "tests/people*.test.ts",
+        "docs/agents/graphics-character.md",
+        "harness/briefs/T-0032-graphics-character.md"
+      ],
+      "status": "released",
+      "date": "2026-11-12",
+      "brief": "harness/briefs/T-0032-graphics-character.md"
     }
   ]
 }
