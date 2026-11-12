@@ -52,6 +52,10 @@ export const trafficLife = {
   rimStrength: 0.25,
   /** Near people: strength of the woven cloth detail and fold darkening, 0 = off (traffic/people/rigShaderSurface.ts). */
   clothDetail: 0.5,
+  /** Near people: hair strand pattern and sun sheen, 0 = off, 1 = strong end of the useful range, above 1.5 clips and looks plastic (traffic/people/rigShaderHair.ts). */
+  hairSheen: 0.6,
+  /** Near people: warm skin edge, cheek and nose tint, darker ears, 0 = off, 1 = strong end of the useful range, above 1.5 looks sunburnt (traffic/people/rigShaderHair.ts). */
+  skinWarmth: 0.6,
   /** Child walk: metres per full gait cycle (two steps), both sexes. Longer than before = slower cadence; feet keep pace with speed (traffic/people/personGeometry.ts). */
   childStrideCycleM: 1.425,
   /** Child walk: leg and arm swing amplitude multiplier, 1 = adult swing (traffic/people/personGeometry.ts). */

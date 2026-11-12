@@ -84,6 +84,8 @@ const VALUES: Entry[] = [
   { id: 'people ao strength', file: CONFIG_FILE, name: 'aoStrength', value: '0.35' },
   { id: 'people rim strength', file: CONFIG_FILE, name: 'rimStrength', value: '0.25' },
   { id: 'people cloth detail', file: CONFIG_FILE, name: 'clothDetail', value: '0.5' },
+  { id: 'people hair sheen', file: CONFIG_FILE, name: 'hairSheen', value: '0.6' },
+  { id: 'people skin warmth', file: CONFIG_FILE, name: 'skinWarmth', value: '0.6' },
   { id: 'child stride cycle', file: CONFIG_FILE, name: 'childStrideCycleM', value: '1.425' },
   { id: 'child cadence wobble', file: CONFIG_FILE, name: 'childCadenceWobble', value: '0.05' },
   { id: 'child swing amp', file: CONFIG_FILE, name: 'childSwingAmp', value: '0.9' },

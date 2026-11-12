@@ -12,7 +12,7 @@
 
 export const SURF_VERT = /* glsl */ `
 #ifdef PERSON_NEAR
-varying vec4 vSurf; // x: cloth 0/1, y: fold 0..1, z: occlusion 0..1
+varying vec4 vSurf; // x: cloth 0/1, y: fold 0..1, z: occlusion 0..1, w: 1 hair, 2 skin
 void setSurface() {
   int part = int(aRig.x + 0.5);
   int r = int(aRig.y + 0.5);
@@ -43,7 +43,8 @@ void setSurface() {
   float fold = 0.0;
   if (part >= 5 && part <= 8) fold = exp(-pow((y - 1.14 * s) / (0.04 * s), 2.0));
   if (part >= 1 && part <= 4) fold = exp(-pow((y - 0.51 * s) / (0.05 * s), 2.0));
-  vSurf = vec4(cloth ? 1.0 : 0.0, fold, min(occ, 1.0), 0.0);
+  float kind = r == 2 ? 1.0 : ((r == 1 || (r == 6 && (flags & 8) != 0) || (r == 7 && (flags & 16) != 0)) ? 2.0 : 0.0);
+  vSurf = vec4(cloth ? 1.0 : 0.0, fold, min(occ, 1.0), kind);
 }
 #endif
 `;

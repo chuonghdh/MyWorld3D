@@ -86,6 +86,8 @@ Base counts are scaled by the graphics tier: factor low 0.4, medium 0.7, high 1 
 | People AO strength | 0.35 | 0-1 | src/config/tuning/trafficLife.ts (`trafficLife.aoStrength`); used by src/traffic/people/rigShader.ts | Graphics & Character |
 | People rim strength | 0.25 | 0-1 | src/config/tuning/trafficLife.ts (`trafficLife.rimStrength`); used by src/traffic/people/rigShader.ts | Graphics & Character |
 | People cloth detail | 0.5 | 0-1 | src/config/tuning/trafficLife.ts (`trafficLife.clothDetail`); used by src/traffic/people/rigShader.ts | Graphics & Character |
+| People hair sheen | 0.6 | 0 to 1.5, 1 = strong, above 1.5 clips and looks plastic | src/config/tuning/trafficLife.ts (`trafficLife.hairSheen`); used by src/traffic/people/rigShader.ts | Graphics & Character |
+| People skin warmth | 0.6 | 0 to 1.5, 1 = strong, above 1.5 looks sunburnt | src/config/tuning/trafficLife.ts (`trafficLife.skinWarmth`); used by src/traffic/people/rigShader.ts | Graphics & Character |
 | Child swing amplitude | 0.9 | multiplier (1 = adult) | src/config/tuning/trafficLife.ts (`trafficLife.childSwingAmp`); used by src/traffic/people/personGeometry.ts | Graphics & Character |
 | Child swing ease | 0.35 | 0-1 | src/config/tuning/trafficLife.ts (`trafficLife.childSwingEase`); used by src/traffic/people/personGeometry.ts | Graphics & Character |
 | Child knee bend | 1.3 | multiplier (1 = adult) | src/config/tuning/trafficLife.ts (`trafficLife.childKneeK`); used by src/traffic/people/personGeometry.ts | Graphics & Character |
