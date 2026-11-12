@@ -114,7 +114,6 @@ describe('people models', () => {
       expect(child.ease).toBe(0.35);
       expect(child.kneeK).toBe(1.3);
       expect(child.armK).toBe(0.8);
-      expect(child.bobK).toBe(1.6);
     }
     for (const kind of ['adult', 'teen', 'elder'] as const) {
       for (const female of [0, 1] as const) {
@@ -122,7 +121,6 @@ describe('people models', () => {
         expect(g.ease).toBe(0);
         expect(g.kneeK).toBe(1);
         expect(g.armK).toBe(1);
-        expect(g.bobK).toBe(1);
       }
     }
     expect(gaitOf('adult', 0).cycle).toBe(1.5);

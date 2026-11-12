@@ -480,6 +480,23 @@
       "status": "released",
       "date": "2026-11-12",
       "brief": "harness/briefs/T-0028-graphics-character.md"
+    },
+    {
+      "task": "T-0034-ped-stride-foot-plant",
+      "owner": "graphics-character",
+      "globs": [
+        "src/traffic/people/**",
+        "src/config/tuning/trafficLife.ts",
+        "tests/people*.test.ts",
+        "tests/tuningParity.test.ts",
+        "docs/TUNING.md",
+        "docs/agents/graphics-character.md",
+        "harness/briefs/T-0034-graphics-character.md",
+        "docs/agents/traffic-life.md"
+      ],
+      "status": "released",
+      "date": "2026-11-12",
+      "brief": "harness/briefs/T-0034-graphics-character.md"
     }
   ]
 }

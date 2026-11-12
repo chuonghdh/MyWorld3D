@@ -144,7 +144,7 @@ export function createPeopleMeshes(pedestrianCapacity = 512, dogCapacity = 256):
   };
   for (const m of [...bodies, ...nearBodies, dogs]) m.onBeforeRender = readCamera;
 
-  const w: PersonWrite = { ped: null as unknown as PedestrianRender, scale: 1, flags: 0, female: 0, angle: 0, walking: false, amp: 0, ease: 0, kneeK: 0, armK: 0, bobK: 0 };
+  const w: PersonWrite = { ped: null as unknown as PedestrianRender, scale: 1, flags: 0, female: 0, angle: 0, walking: false, amp: 0, ease: 0, kneeK: 0, armK: 0 };
   const gaitPhase = new GaitPhase(Math.max(pedestrianCapacity, MAX_WALKERS) + 1);
   let lastSeason: SeasonName | '' = '';
   const emissive = [materials.map((m) => m.material), materialsNear.map((m) => m.material), [dogMats.material]].flat();
@@ -251,7 +251,6 @@ export function createPeopleMeshes(pedestrianCapacity = 512, dogCapacity = 256):
         w.ease = spec.ease;
         w.kneeK = spec.kneeK;
         w.armK = spec.armK;
-        w.bobK = spec.bobK;
         let isNear = false;
         if (haveCam) {
           const dx = ped.position.x - camX;

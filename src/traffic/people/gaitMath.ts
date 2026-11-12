@@ -9,8 +9,8 @@
 // person's left, +z forward. A positive thigh angle swings the foot forward; a positive ankle angle lifts the toe.
 
 export const GAIT_MECH = {
-  /** Plantar flexion at toe-off relative to the toe-up angle at heel strike (about 20 degrees against 12). */
-  plantRatio: 1.667,
+  /** Plantar flexion at toe-off relative to the toe-up angle at heel strike. 0.41 makes the ankle height equal for a leading heel and a trailing toe (ankle 0.08, heel -0.07, toe +0.17: 0.08 + 0.07 phiH = 0.08 + 0.17 phiT), so both feet reach the ground at double support; the 20 degrees of T-0028 would need a bent knee. */
+  plantRatio: 0.41,
   /** Ankle height as a fraction of the hip height 0.95 (personDims.ts: ankle 0.08, hip 0.95). */
   ankleFrac: 0.08,
   hipFrac: 0.95,
@@ -73,7 +73,89 @@ export const gaitTorsoWeight = (y: number, hipY: number, shoulderY: number): num
 /** Unit ankle curve from the eased leg swing ss (+1 leg forward at heel strike, -1 leg back at toe-off): toe up, then plantar flexion. */
 export const gaitAnkleUnit = (ss: number): number => (ss > 0 ? ss : -GAIT_MECH.plantRatio * ss * ss);
 
+/** Knee flexion of the leg with phase x (rad). */
+export const gaitKnee = (x: number, amp: number, kneeK: number): number => amp * 0.85 * kneeK * Math.max(0, Math.cos(x));
+
+/** Absolute foot pitch target (rad, toe up positive) from the thigh profile: toe up at heel strike, plantar flexion at toe-off, 0 at mid-stance. */
 export const gaitAnkle = (ss: number, amp: number, amps: GaitAmps): number => amps.ankleDeg * RAD * amp * gaitAnkleUnit(ss);
+
+/** Share of the knee flexion the ankle takes back in swing, so the toe clears the ground. */
+export const GAIT_KNEE_COMP = 0.8;
+
+/** Largest ankle rotation relative to the shin (rad, about 29 degrees): the shoe upper covers the shin end only that far. */
+export const GAIT_ANKLE_LIMIT = 0.5;
+
+/**
+ * Ankle rotation relative to the shin (rad). The foot is turned back by the thigh angle (and part of the knee flexion), so its
+ * pitch in the world is the target curve above: flat in mid-stance, heel first at heel strike, toe last at toe-off. Without
+ * this the foot is tilted by the whole leg angle (23 degrees or more) and the trailing toe digs in below the ground.
+ */
+export const gaitAnkleRel = (pr: number, amp: number, amps: GaitAmps, thighAng: number, knee: number): number =>
+  Math.min(GAIT_ANKLE_LIMIT, Math.max(-GAIT_ANKLE_LIMIT, gaitAnkle(pr, amp, amps) - thighAng + GAIT_KNEE_COMP * knee));
+
+/** Stride fit (T-0034): `fit` mixes the old thigh swing amplitude (0.55 amp) with the one that makes the backward foot sweep over stance, 2 L sin(theta), equal to the step length cycle / 2; `flat` blends the sine swing with a triangle wave so the stance foot moves backward at a constant speed. */
+export interface GaitStride {
+  fit: number;
+  flat: number;
+}
+
+/** Triangle wave of x with the sine's phase and range: asin(sin x) * 2 / pi. */
+export const gaitTri = (x: number): number => (Math.asin(Math.sin(x)) * 2) / Math.PI;
+
+/** Thigh swing profile in [-1, 1]: the (eased) sine swing ss against the triangle wave of the same phase x. */
+export const gaitProfile = (ss: number, x: number, flat: number): number => ss + (gaitTri(x) - ss) * flat;
+
+/**
+ * Thigh amplitude in radians. ampOld is the person's swing amplitude (aGait.w), cycle the metres per gait cycle (men or women),
+ * hipModel the model hip height and scale the instance scale (so hipModel * scale is the leg length in the world).
+ */
+export const gaitThighAmp = (ampOld: number, cycle: number, hipModel: number, scale: number, stride: GaitStride): number => {
+  const old = ampOld * 0.55;
+  const fitted = Math.asin(Math.min(0.99, cycle / (4 * hipModel * scale)));
+  return old + (fitted - old) * stride.fit;
+};
+
+/** Sole points (y, z in model units at hip height 0.95): heel and toe of the shoe, relative to the leg's scale k = hipModel / 0.95. */
+export const GAIT_FOOT = { heelZ: -0.07, toeZ: 0.17 } as const;
+
+/** Everything the grounded bob needs for one person (model units). */
+export interface GaitLeg {
+  amp: number;
+  ease: number;
+  kneeK: number;
+  hipModel: number;
+  thighAmp: number;
+}
+
+const rotYZ = (y: number, z: number, pivY: number, th: number): [number, number] => {
+  const dy = y - pivY;
+  return [pivY + Math.cos(th) * dy + Math.sin(th) * z, -Math.sin(th) * dy + Math.cos(th) * z];
+};
+
+/** Height (y) of the lowest sole point of the leg with phase x (left leg x = a, right leg x = a + pi), through ankle, knee and hip as applyRig turns them. */
+export function gaitFootLow(x: number, leg: GaitLeg, amps: GaitAmps, flat: number): number {
+  const k = leg.hipModel / GAIT_MECH.hipFrac;
+  const sa = Math.sin(x);
+  const pr = gaitProfile(sa + leg.ease * 0.5 * (sa - sa * sa * sa), x, flat);
+  const knee = gaitKnee(x, leg.amp, leg.kneeK);
+  const ankleAng = gaitAnkleRel(pr, leg.amp, amps, leg.thighAmp * pr, knee);
+  let low = Infinity;
+  for (const z of [GAIT_FOOT.heelZ * k, GAIT_FOOT.toeZ * k]) {
+    let p = rotYZ(0, z, gaitAnkleY(leg.hipModel), ankleAng);
+    p = rotYZ(p[0], p[1], 0.51 * k, -knee);
+    p = rotYZ(p[0], p[1], leg.hipModel, leg.thighAmp * pr);
+    low = Math.min(low, p[0]);
+  }
+  return low;
+}
+
+/**
+ * Vertical body offset (model units): the body is moved so that the lower of the two feet touches the ground (y = 0): in
+ * mid-stance that is the flat stance foot, around double support the foot that reaches farthest down. Highest at mid-stance
+ * (leg vertical), lowest at double support, and neither foot is ever below the ground. A stance foot can float a few cm at the
+ * end of stance (children up to about 25 mm) when the leading foot reaches farther down than the trailing one.
+ */
+export const gaitBob = (a: number, leg: GaitLeg, amps: GaitAmps, flat: number): number => -Math.min(gaitFootLow(a, leg, amps, flat), gaitFootLow(a + Math.PI, leg, amps, flat));
 
 /** Ankle pivot height for a person whose hip is at hipY. */
 export const gaitAnkleY = (hipY: number): number => (GAIT_MECH.ankleFrac / GAIT_MECH.hipFrac) * hipY;
@@ -85,8 +167,40 @@ export function gaitGlsl(): string {
   return /* glsl */ `
 uniform vec4 uGait; // pelvis yaw (rad), sway (m), torso twist (rad), ankle (rad); see gaitMath.ts
 uniform float uGaitHead; // share of bob and twist the head cancels
+uniform vec4 uStride; // stride fit, stance flatness, cycle men (m), cycle women (m); see gaitThighAmp
+float gaitProfile(float ss, float x) { return mix(ss, asin(sin(x)) * 0.63661977, uStride.y); }
+// Thigh amplitude (rad): the old 0.55 amp mixed with the fitted one, from the instance scale (leg length in the world) and the cycle length.
+float gaitThighAmp(float amp) {
+  float cycle = mix(uStride.z, uStride.w, aLook2.z);
+  float fitted = asin(min(0.99, cycle / (4.0 * uHip.x * length(instanceMatrix[0].xyz))));
+  return mix(amp * 0.55, fitted, uStride.x);
+}
 float gaitAnkleUnit(float ss) { return ss > 0.0 ? ss : -${f(GAIT_MECH.plantRatio)} * ss * ss; }
+float gaitKnee(float x, float amp, float kneeK) { return amp * 0.85 * kneeK * max(0.0, cos(x)); }
+float gaitAnkleRel(float pr, float amp, float thighAng, float knee) { return clamp(uGait.w * amp * gaitAnkleUnit(pr) - thighAng + ${f(GAIT_KNEE_COMP)} * knee, -${f(GAIT_ANKLE_LIMIT)}, ${f(GAIT_ANKLE_LIMIT)}); }
 float gaitAnkleY() { return ${f(GAIT_MECH.ankleFrac / GAIT_MECH.hipFrac)} * uHip.x; }
+// Lowest sole point (y) of the leg with phase x through ankle, knee and hip, as applyRig turns them (mirror: gaitFootLow).
+float gaitFootLow(float x, float amp, float eased, float kneeK, float thighAmp) {
+  float k = uHip.x / ${f(GAIT_MECH.hipFrac)};
+  float sa = sin(x);
+  float pr = gaitProfile(sa + eased * 0.5 * (sa - sa * sa * sa), x);
+  float knee = gaitKnee(x, amp, kneeK);
+  float ankle = gaitAnkleRel(pr, amp, thighAmp * pr, knee);
+  float low = 1e9;
+  for (int i = 0; i < 2; i++) {
+    vec3 q = vec3(0.0, 0.0, (i == 0 ? ${f(GAIT_FOOT.heelZ)} : ${f(GAIT_FOOT.toeZ)}) * k);
+    vec3 nn = vec3(0.0);
+    rotYZ(q, nn, vec2(gaitAnkleY(), 0.0), ankle);
+    rotYZ(q, nn, vec2(0.51 * k, 0.0), -knee);
+    rotYZ(q, nn, vec2(uHip.x, 0.0), thighAmp * pr);
+    low = min(low, q.y);
+  }
+  return low;
+}
+// The body is lowered so that the lower of the two feet touches the ground (mirror: gaitBob).
+float gaitBobOf(float a, float amp, float eased, float kneeK, float thighAmp) {
+  return -min(gaitFootLow(a, amp, eased, kneeK, thighAmp), gaitFootLow(a + 3.14159265, amp, eased, kneeK, thighAmp));
+}
 void gaitBody(inout vec3 p, inout vec3 n, int part, float a, float amp, float bob) {
   float s = sin(a);
   if (part >= 1 && part <= 4) {

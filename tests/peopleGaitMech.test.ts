@@ -3,7 +3,7 @@
 // term), the ankle ring covered at the largest flexion, and the GLSL built from the same constants.
 import { describe, expect, it } from 'vitest';
 import { trafficLife } from '../src/config/tuning';
-import { GAIT_MECH, gaitAnkle, gaitAnkleUnit, gaitAnkleY, gaitBody, gaitGlsl, gaitLegSway, gaitTorsoWeight, type GaitAmps } from '../src/traffic/people/gaitMath';
+import { GAIT_FOOT, GAIT_MECH, gaitAnkle, gaitAnkleRel, gaitAnkleUnit, gaitAnkleY, gaitBob, gaitBody, gaitKnee, gaitGlsl, gaitLegSway, gaitProfile, gaitThighAmp, gaitTorsoWeight, type GaitAmps, type GaitLeg } from '../src/traffic/people/gaitMath';
 import { PART, buildPerson, gaitOf, type BodyKind } from '../src/traffic/people/personGeometry';
 import { PERSON_DECL } from '../src/traffic/people/rigShaderGlsl';
 
@@ -14,7 +14,6 @@ const AMPS: GaitAmps = {
   ankleDeg: trafficLife.gaitAnkleDeg,
   headStabilise: trafficLife.gaitHeadStabilise,
 };
-const NONE: GaitAmps = { ...AMPS, ankleDeg: 0 };
 const KINDS: BodyKind[] = ['adult', 'child', 'elder', 'teen'];
 const TWO_PI = Math.PI * 2;
 
@@ -61,57 +60,132 @@ describe('gait mechanics mirror', () => {
   });
 });
 
+const STRIDE = { fit: trafficLife.gaitStrideFit, flat: trafficLife.gaitStanceFlat };
+const OLD_STRIDE = { fit: 0, flat: 0 };
+const WALK_SPEED = 1.3;
+
 /**
- * Foot chain of the left leg of an adult man through ankle, knee and hip, as in applyRig, at 1.3 m/s. The metric is in
- * the WORLD frame: ground speed of the lowest sole point = body speed + its speed relative to the pelvis, averaged over
- * the stance half cycle (cos a < 0: the leg moves backward, the knee is straight). 0 would be a perfectly planted foot;
- * the signed value is negative when the foot slips backward. Returns |ground speed| / walking speed.
+ * The walking chain of the left leg as applyRig builds it (ankle, knee, hip, grounded bob), in world metres at 1.3 m/s.
+ * Slip is in the WORLD frame: ground speed of the lowest sole point = body speed + its speed relative to the pelvis, averaged
+ * over the stance half cycle (cos a < 0), divided by the walking speed; 0 is a perfectly planted foot, negative signed values
+ * mean the foot slides backward. Also returns the lowest height of the swing foot and of the stance foot above the ground.
  */
-function stanceSlide(amps: GaitAmps): number {
-  const spec = gaitOf('adult', 0);
-  const hipY = 0.95;
-  const kneeY = 0.51;
+function walkChain(kind: BodyKind, sex: number, amps: GaitAmps, stride: { fit: number; flat: number }) {
+  const spec = gaitOf(kind, sex);
+  const hipY = buildPerson(kind).hip[0];
+  const k = hipY / 0.95;
+  const kneeY = 0.51 * k;
   const ankleY = gaitAnkleY(hipY);
-  const omega = (TWO_PI * 1.3) / spec.cycle;
-  const v = (omega * spec.cycle) / TWO_PI;
+  const scale = 1.1 * spec.heightK; // PEOPLE_READ_SCALE times the sex height factor; the person scale jitter is 1 on average
+  const omega = (TWO_PI * WALK_SPEED) / spec.cycle;
+  const thighAmp = gaitThighAmp(spec.amp, spec.cycle, hipY, scale, stride);
+  const leg: GaitLeg = { amp: spec.amp, ease: spec.ease, kneeK: spec.kneeK, hipModel: hipY, thighAmp };
   const rot = (p: [number, number], pivY: number, th: number): [number, number] => {
     const y = p[0] - pivY;
     return [pivY + Math.cos(th) * y + Math.sin(th) * p[1], -Math.sin(th) * y + Math.cos(th) * p[1]];
   };
   const point = (a: number, base: [number, number]): [number, number] => {
     const sa = Math.sin(a);
-    const ss = sa + spec.ease * 0.5 * (sa - sa * sa * sa);
-    const thigh = spec.amp * 0.55 * ss;
-    const knee = spec.amp * 0.85 * spec.kneeK * Math.max(0, Math.cos(a));
-    let p = rot(base, ankleY, gaitAnkle(ss, spec.amp, amps));
+    const pr = gaitProfile(sa + spec.ease * 0.5 * (sa - sa ** 3), a, stride.flat);
+    const knee = gaitKnee(a, spec.amp, spec.kneeK);
+    let p = rot(base, ankleY, gaitAnkleRel(pr, spec.amp, amps, thighAmp * pr, knee));
     p = rot(p, kneeY, -knee);
-    return rot(p, hipY, thigh);
+    p = rot(p, hipY, thighAmp * pr);
+    return [(p[0] + gaitBob(a, leg, amps, stride.flat)) * scale, p[1] * scale];
   };
-  const heel: [number, number] = [0, -0.065];
-  const toe: [number, number] = [0, 0.165];
+  const heel: [number, number] = [0, GAIT_FOOT.heelZ * k];
+  const toe: [number, number] = [0, GAIT_FOOT.toeZ * k];
   const dt = 0.002;
-  let sum = 0;
+  let abs = 0;
+  let signed = 0;
   let n = 0;
+  let swingMin = Infinity;
+  let swingMax = 0;
+  let stanceMin = Infinity;
+  let stanceMax = 0;
   for (let t = 0; t < TWO_PI / omega; t += dt) {
     const a = omega * t;
-    if (Math.cos(a) >= 0) continue;
     const now = [point(a, heel), point(a, toe)];
     const nxt = [point(a + omega * dt, heel), point(a + omega * dt, toe)];
     const i = now[0][0] <= now[1][0] ? 0 : 1;
-    sum += Math.abs(v + (nxt[i][1] - now[i][1]) / dt);
-    n++;
+    if (Math.cos(a) < 0) {
+      const g = WALK_SPEED + (nxt[i][1] - now[i][1]) / dt;
+      abs += Math.abs(g);
+      signed += g;
+      n++;
+      stanceMin = Math.min(stanceMin, now[i][0]);
+      stanceMax = Math.max(stanceMax, now[i][0]);
+    } else {
+      swingMin = Math.min(swingMin, now[i][0]);
+      swingMax = Math.max(swingMax, now[i][0]);
+    }
   }
-  return sum / n / v;
+  return { slip: abs / n / WALK_SPEED, signed: signed / n / WALK_SPEED, swingMin, swingMax, stanceMin, stanceMax };
 }
 
-describe('planted foot', () => {
-  it('slides no more than about 10 percent more with the ankle term than without it', () => {
-    const without = stanceSlide(NONE);
-    const withAnkle = stanceSlide(AMPS);
-    // Measured 2026-11-12 (adult): 0.687 without, 0.753 with the ankle term (+9.6 percent: the toe-off roll moves the contact
-    // point forward). The slip itself comes from the thigh swing, not from the ankle (see the handbook, T-0028).
-    expect(without).toBeLessThan(0.8);
-    expect(withAnkle / without).toBeLessThanOrEqual(1.12);
+describe('planted foot (T-0034)', () => {
+  it('keeps the mean world slip of the stance foot under 0.15 of the walking speed for every age group and sex', () => {
+    for (const kind of KINDS) {
+      for (const sex of [0, 1]) {
+        const now = walkChain(kind, sex, AMPS, STRIDE);
+        // Before T-0034 (old thigh swing, sine profile) the same chain slipped 0.5 to 1.1.
+        expect(now.slip, `${kind} sex ${sex}`).toBeLessThan(0.15);
+      }
+    }
+  });
+
+  it('measures the old thigh swing as clearly worse (so the test can fail)', () => {
+    for (const kind of KINDS) expect(walkChain(kind, 0, AMPS, OLD_STRIDE).slip).toBeGreaterThan(0.3);
+  });
+
+  it('keeps the ankle roll from costing more than 12 percent of slip against a stiff ankle', () => {
+    for (const kind of KINDS) {
+      const stiff = walkChain(kind, 0, { ...AMPS, ankleDeg: 0 }, STRIDE).slip;
+      expect(walkChain(kind, 0, AMPS, STRIDE).slip).toBeLessThanOrEqual(stiff * 1.12);
+    }
+  });
+
+  it('never puts a foot more than 5 mm below the ground, and keeps the stance foot within 30 mm of it', () => {
+    for (const kind of KINDS) {
+      for (const sex of [0, 1]) {
+        const w = walkChain(kind, sex, AMPS, STRIDE);
+        // The lowest point of the swing foot reaches the ground (heel strike, toe-off) but does not go through it.
+        expect(w.swingMin, `${kind} ${sex} swing`).toBeGreaterThan(-0.005);
+        expect(w.stanceMin, `${kind} ${sex} stance`).toBeGreaterThan(-0.005);
+        // The stance foot may float a little at the end of stance (documented in the handbook, T-0034).
+        expect(w.stanceMax, `${kind} ${sex} float`).toBeLessThan(0.03);
+      }
+    }
+  });
+
+  it('lifts the swing foot clear of the ground in mid-swing', () => {
+    for (const kind of KINDS) {
+      for (const sex of [0, 1]) expect(walkChain(kind, sex, AMPS, STRIDE).swingMax, `${kind} ${sex}`).toBeGreaterThan(0.04);
+    }
+  });
+
+  it('puts the body highest at mid-stance and lowest at double support', () => {
+    for (const kind of KINDS) {
+      const spec = gaitOf(kind, 0);
+      const hipY = buildPerson(kind).hip[0];
+      const leg: GaitLeg = { amp: spec.amp, ease: spec.ease, kneeK: spec.kneeK, hipModel: hipY, thighAmp: gaitThighAmp(spec.amp, spec.cycle, hipY, 1.1 * spec.heightK, STRIDE) };
+      const bob = (a: number): number => gaitBob(a, leg, AMPS, STRIDE.flat);
+      let hi = -Infinity;
+      let lo = Infinity;
+      let aHi = 0;
+      let aLo = 0;
+      for (let a = 0; a < Math.PI; a += 0.01) {
+        const b = bob(a);
+        if (b > hi) { hi = b; aHi = a; }
+        if (b < lo) { lo = b; aLo = a; }
+      }
+      // Mid-stance of a leg is at a = 0 or pi (the legs together), double support at a = pi / 2. The heel-to-toe roll of the foot
+      // moves the extremes a little (adult: highest 0.19 rad before pi, lowest 0.3 rad after pi / 2), so the limit is 0.35 rad
+      // (20 degrees), against the old bob that peaked at a = pi / 2, a quarter cycle (1.57 rad) away.
+      expect(Math.min(Math.abs(aHi), Math.abs(aHi - Math.PI))).toBeLessThan(0.35);
+      expect(Math.abs(aLo - Math.PI / 2)).toBeLessThan(0.35);
+      expect(hi - lo).toBeGreaterThan(0.003);
+    }
   });
 });
 
@@ -158,8 +232,20 @@ describe('ankle joint coverage', () => {
         const cx = rim.reduce((s, q) => s + q[0], 0) / rim.length;
         const ankleY = gaitAnkleY(model.hip[0]);
         const spec = gaitOf(kind, 0);
-        const maxAngle = ((AMPS.ankleDeg * Math.PI) / 180) * spec.amp * GAIT_MECH.plantRatio;
-        for (const th of [-maxAngle, -maxAngle / 2, maxAngle / 3, maxAngle * 0.6]) {
+        // The real ankle range: the walking ankle angle relative to the shin, over a whole cycle (T-0034: the foot is turned back
+        // by the leg angles), for both sexes' strides at the largest amplitude of the age group.
+        let lo = 0;
+        let hi = 0;
+        const hipM = model.hip[0];
+        const thighAmp = gaitThighAmp(spec.amp, spec.cycle, hipM, 1.1 * spec.heightK, STRIDE);
+        for (let a = 0; a < TWO_PI; a += 0.02) {
+          const sa = Math.sin(a);
+          const pr = gaitProfile(sa + spec.ease * 0.5 * (sa - sa ** 3), a, STRIDE.flat);
+          const ang = gaitAnkleRel(pr, spec.amp, AMPS, thighAmp * pr, gaitKnee(a, spec.amp, spec.kneeK));
+          lo = Math.min(lo, ang);
+          hi = Math.max(hi, ang);
+        }
+        for (const th of [lo, lo / 2, hi / 3, hi * 0.6, hi]) {
           for (const r of rim) {
             // The foot turns by th about the ankle; in the foot's frame the rim turns by -th.
             const dy = r[1] - ankleY;
