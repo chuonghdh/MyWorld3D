@@ -2,6 +2,7 @@
 // their insertion order are part of the shader output and must not change.
 
 import { PALETTE_SIZES } from './palettes';
+import { IDLE, idleGlsl } from './idleMath';
 
 const ROT = /* glsl */ `
 void rotYZ(inout vec3 p, inout vec3 n, vec2 pv, float th) {
@@ -31,12 +32,26 @@ uniform vec2 uHip;
 uniform vec2 uShoulder;
 uniform vec2 uNeck;
 uniform float uSeatDrop;
+uniform vec4 uIdle; // breath (m), weight shift (m), glance (rad), arm drift (rad); see idleMath.ts
 uniform vec3 uSkinC[${PALETTE_SIZES.skin}];
 uniform vec3 uHairC[${PALETTE_SIZES.hair}];
 uniform vec3 uTopC[${PALETTE_SIZES.top}];
 uniform vec3 uPantsC[${PALETTE_SIZES.pants}];
 uniform vec3 uAccC[${PALETTE_SIZES.accent}];
 ${ROT}
+// Yaw of the head about the vertical axis through the neck (x = 0, z = pz).
+void rotHeadYaw(inout vec3 p, inout vec3 n, float pz, float th) {
+  float c = cos(th);
+  float s = sin(th);
+  float z = p.z - pz;
+  float x = p.x;
+  p.x = c * x + s * z;
+  p.z = pz - s * x + c * z;
+  float nx = n.x;
+  n.x = c * nx + s * n.z;
+  n.z = -s * nx + c * n.z;
+}
+${idleGlsl()}
 // Patterned tops: the vertex side passes the model position and the pattern kind (0 none, 1 dots, 2 hearts,
 // 3 horizontal stripes, 4 vertical stripes) for torso and sleeves that are not coated or bare; the fragment side
 // paints the pattern in the cream colour from patternColour(). No extra draw calls or textures.
@@ -100,6 +115,9 @@ bool applyRig(inout vec3 p, inout vec3 n) {
   float armK = aGait2.z;
   float bobK = aGait2.w;
   float a = aGait.x + aGait.y;
+  // Idle micro-animation (idleMath.ts): pose 0 walks and gets nothing; 1 stands (all terms); 2 chats and 3 sits (breathing).
+  float stand = (pose > 0.5 && pose < 1.5) ? 1.0 : 0.0;
+  float idleShiftU = stand > 0.5 ? idleShift(uTime, aGait.y) : 0.0;
   float bob = walk * amp * 0.026 * bobK * abs(sin(a));
   bool isLeft = (part == 1 || part == 3 || part == 5 || part == 7);
   float side = isLeft ? 0.0 : 3.14159265;
@@ -108,9 +126,11 @@ bool applyRig(inout vec3 p, inout vec3 n) {
   // Eased swing: s + e*0.5*(s - s^3) keeps the peaks and dwells longer at the turnaround. e = 0 is the plain sine.
   float ss = sa + eased * 0.5 * (sa - sa * sa * sa);
   if (part >= 1 && part <= 4) {
-    float thigh = walk * amp * 0.55 * ss + sit * 1.45;
+    // Relaxed leg while standing: the thigh swings forward and the knee flexes ${IDLE.kneePerThigh} times as much, so the foot stays planted.
+    float idleThigh = ${IDLE.relaxRadPerM.toFixed(1)} * uIdle.y * max(0.0, isLeft ? -idleShiftU : idleShiftU);
+    float thigh = walk * amp * 0.55 * ss + sit * 1.45 + idleThigh;
     if (part >= 3) {
-      float knee = walk * amp * 0.85 * kneeK * max(0.0, ca) + sit * 1.45;
+      float knee = walk * amp * 0.85 * kneeK * max(0.0, ca) + sit * 1.45 + ${IDLE.kneePerThigh.toFixed(1)} * idleThigh;
       rotYZ(p, n, aRig.zw, -knee);
     }
     rotYZ(p, n, uHip, thigh);
@@ -131,11 +151,25 @@ bool applyRig(inout vec3 p, inout vec3 n) {
       swing = 0.95;
       elbow = 0.75;
     }
+    if (stand > 0.5) {
+      swing += uIdle.w * idleArm(uTime, aGait.y, isRight ? 1.0 : 0.0);
+      if ((isRight ? 1.0 : 0.0) == idleFidgetSide(aGait.y)) elbow += ${IDLE.fidgetElbowRad} * idleFidget(uTime, aGait.y);
+    }
     if (part >= 7) rotYZ(p, n, aRig.zw, elbow);
     rotYZ(p, n, uShoulder, swing);
   } else if (part == 9 || part == 10 || (part >= 14 && part <= 22) || part == 24) {
     float nod = chat * 0.07 * sin(uTime * 2.2 + aGait.y) + walk * amp * 0.03 * sin(a * 2.0);
+    if (stand > 0.5) {
+      rotHeadYaw(p, n, uNeck.y, uIdle.z * idleYaw(uTime, aGait.y));
+      nod += uIdle.z * ${IDLE.pitchShare} * idlePitch(uTime, aGait.y);
+    }
     rotYZ(p, n, uNeck, nod);
+  }
+  if (pose > 0.5) {
+    // Breathing lifts the upper body (the torso fades in from the hip to the shoulder); standing also shifts it sideways.
+    float up = part == 0 ? smoothstep(uHip.x, uShoulder.x, p.y) : ((part >= 1 && part <= 4) || part == 13) ? 0.0 : 1.0;
+    p.y += uIdle.x * idleBreath(uTime, aGait.y) * up;
+    if (stand > 0.5 && !(part >= 1 && part <= 4)) p.x += uIdle.y * idleShiftU;
   }
   p.y += bob - sit * uSeatDrop;
   return true;

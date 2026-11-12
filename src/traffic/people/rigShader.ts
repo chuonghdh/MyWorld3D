@@ -9,7 +9,7 @@
 // Per-vertex morph attributes aMorph and aMorphN move a male shape towards the female shape by the sex value.
 // partShows() hides the parts a person does not wear (hair styles, garments, facial hair), so one mesh per age
 // group serves every look. Time is one shared uniform, so animation costs no CPU. A matching depth material
-// keeps shadows animated.
+// keeps shadows animated. Idle micro-animation (idleMath.ts) runs in applyRig for far, near and depth alike.
 
 import * as THREE from 'three';
 import {
@@ -80,6 +80,7 @@ export function createPersonMaterials(model: PersonModel, shared: PeopleUniforms
     uShoulder: { value: new THREE.Vector2(model.shoulder[0], model.shoulder[1]) },
     uNeck: { value: new THREE.Vector2(model.neck[0], model.neck[1]) },
     uSeatDrop: { value: model.seatDrop },
+    uIdle: { value: new THREE.Vector4(trafficLife.idleBreathMm / 1000, trafficLife.idleShiftMm / 1000, (trafficLife.idleGlanceDeg * Math.PI) / 180, trafficLife.idleArmRad) },
     uHeadC: { value: new THREE.Vector3(...model.head.c) },
     uHeadR: { value: new THREE.Vector3(...model.head.r) },
     uBlinkS: { value: trafficLife.blinkIntervalS },
@@ -113,7 +114,7 @@ export function createPersonMaterials(model: PersonModel, shared: PeopleUniforms
       )
       .replace('#include <lights_fragment_end>', '#include <lights_fragment_end>' + (near ? RIM_CODE + HAIR_LIGHT : ''));
   };
-  material.customProgramCacheKey = () => (near ? 'person-rig-near-v6' : 'person-rig-v4');
+  material.customProgramCacheKey = () => (near ? 'person-rig-near-v7' : 'person-rig-v5');
 
   const depth = new THREE.MeshDepthMaterial({ depthPacking: THREE.RGBADepthPacking });
   depth.onBeforeCompile = (shader) => {
@@ -122,7 +123,7 @@ export function createPersonMaterials(model: PersonModel, shared: PeopleUniforms
       .replace('#include <common>', '#include <common>\n' + PERSON_DECL)
       .replace('#include <begin_vertex>', 'vec3 rigP = position;\nvec3 rigN = vec3(0.0, 1.0, 0.0);\nbool rigOk = applyRig(rigP, rigN);\nvec3 transformed = rigOk ? rigP : vec3(0.0);');
   };
-  depth.customProgramCacheKey = () => 'person-rig-depth-v4';
+  depth.customProgramCacheKey = () => 'person-rig-depth-v5';
   return { material, depth };
 }
 
