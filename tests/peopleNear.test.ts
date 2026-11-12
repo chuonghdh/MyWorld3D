@@ -3,6 +3,7 @@
 //   far  350 to 480 (today 384 for every age group), near 900 to 1400 (today 1344).
 import { describe, expect, it } from 'vitest';
 import { PART, buildPerson, triangleCount } from '../src/traffic/people/personGeometry';
+import { SKIN_COLORS } from '../src/traffic/people/palettes';
 
 const KINDS = ['adult', 'child', 'elder', 'teen'] as const;
 // Weighted position sums of the far model (male shape; the female shape is in aMorph). Recorded before T-0023 (376 triangles:
@@ -86,6 +87,23 @@ describe('person detail levels', () => {
       n.computeBoundingBox();
       expect(n.boundingBox!.min.y).toBeGreaterThanOrEqual(f.boundingBox!.min.y - 0.01);
       expect(n.boundingBox!.max.y).toBeLessThanOrEqual(f.boundingBox!.max.y + 0.05);
+    }
+  });
+});
+
+describe('skin palette luminance order', () => {
+  const rgb = (hex: string) => [1, 3, 5].map((i) => parseInt(hex.slice(i, i + 2), 16) / 255);
+  const lum = (c: number[]) => 0.3 * c[0] + 0.59 * c[1] + 0.11 * c[2];
+  // Mirror of the warm grazing-edge colour in rigShaderHair.ts (HAIR_LIGHT): each channel goes through a monotonic function.
+  const warm = (c: number[]) => {
+    const e = [0.9, 1.35, 1.8];
+    return c.map((x, i) => Math.min(Math.pow(x, e[i]) * 1.25, x * 1.6 + 0.02));
+  };
+  it('keeps the order of luminance, raw and after the warm edge', () => {
+    const raw = SKIN_COLORS.map((h) => rgb(h));
+    for (let i = 1; i < raw.length; i++) {
+      expect(lum(raw[i])).toBeLessThan(lum(raw[i - 1]));
+      expect(lum(warm(raw[i]))).toBeLessThan(lum(warm(raw[i - 1])));
     }
   });
 });

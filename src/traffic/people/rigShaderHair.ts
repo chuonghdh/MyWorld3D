@@ -1,14 +1,14 @@
 // GLSL for hair and skin shading of the NEAR person material (T-0026), compiled only under `#define PERSON_NEAR`.
 // vSurf.w (set in setSurface, rigShaderSurface.ts) marks the surface: 1 hair (region HAIR), 2 skin (region SKIN, bare
 // shins and short sleeves).
-//   - Hair strands: stretched hash noise (fine across, coarse along model y), +/- 12 percent luminance, faded by
+//   - Hair strands: stretched hash noise (fine across, coarse along model y), +/- 19 percent luminance at hairSheen 1 (0.38 * 0.5), faded by
 //     view distance. A Kajiya-Kay-like specular band from the sun direction, the view vector and an upright tangent,
 //     tinted by the hair colour and stronger for light hair; coloured by the sun colour (already scaled by its
 //     intensity), so it follows the light level at night.
 //   - Skin: a warm, more saturated grazing edge (cheap subsurface look) for every skin surface; on the head also a
 //     cheek and nose tint and darker ears and neck crease, from the head-local coordinates of the face code. The tint
-//     runs BEFORE faceColour(), so eyes, brows and lips stay crisp. The edge term is clamped so palette skin
-//     luminance order is kept (a darker skin never ends up brighter than a lighter one).
+//     runs BEFORE faceColour(), so eyes, brows and lips stay crisp. The edge term is monotonic in each colour channel, so palette skin
+//     luminance order is kept by construction (a darker skin never ends up brighter than a lighter one); nothing is clamped.
 // Strengths: uHairK (hairSheen) and uSkinK (skinWarmth); 1 is the strong end of the useful range.
 
 export const HAIR_FRAG = /* glsl */ `

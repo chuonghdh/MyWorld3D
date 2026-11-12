@@ -2,22 +2,23 @@
 Created 2026-11-11 (T-0031). Seeded from the pedestrian close-up research; nothing here was re-measured in a browser.
 
 ## Owns
-The rendering of people and their dogs: `src/traffic/people/**` (geometry, rig, vertex and fragment shaders, materials, instancing, LOD). Tests that cover only this code (the people mesh and rig tests in `tests/people.test.ts`) are run by this specialist, but the file belongs to Traffic & Life until it is split.
+The rendering of people and their dogs: `src/traffic/people/**` (geometry, rig, vertex and fragment shaders, materials, instancing, LOD, per-walker render motion). Tests that cover only this code are run by this specialist: `tests/people*.test.ts` (`people`, `peopleGait`, `peopleGaitMech`, `peopleIdle`, `peopleJoints`, `peopleLod`, `peopleNear`, `peopleTurn`). `tests/people.test.ts` still holds some walker timing tests and belongs to Traffic & Life until it is split.
 
-Not owned: walker behaviour and simulation (`src/traffic/walkers/**`, `src/traffic/pedestrians.ts`), vehicles, `src/life/**`. Those stay with Traffic & Life (docs/agents/traffic-life.md). The border is the per-instance data the walkers write: speed, phase, pose, amplitude.
+Not owned: walker behaviour and simulation (`src/traffic/walkers/**`, `src/traffic/pedestrians.ts`), vehicles, `src/life/**`. Those stay with Traffic & Life (docs/agents/traffic-life.md). The border is the per-instance data the walkers write: speed, phase, pose, amplitude. The render layer reads the sim heading and never changes it.
 
 ## Key files
-- `src/traffic/people/rigShaderGlsl.ts`: the procedural rig. Legs, arms, torso sway and head nod are computed in the vertex shader from per-instance gait data. Flat shaded.
-- `src/traffic/people/rigShader.ts`: materials, uniforms (`uTime`), `customProgramCacheKey` (`person-rig-v3`, depth `person-rig-depth-v3`). Bump the suffix on every GLSL change.
-- `src/traffic/people/peopleMeshes.ts`: instanced meshes and per-instance attributes (`aGait`, `aGait2`, dog attributes), write and `needsUpdate` per frame.
-- `src/traffic/people/personGeometry.ts`, `personShape.ts`, `personParts.ts`, `personSpec.ts`, `rigBuilder.ts`, `outfit.ts`, `palettes.ts`: body parts, regions, specs per age group, outfits.
-- `src/traffic/people/dogGeometry.ts`: dog model (about 130 triangles).
+All under `src/traffic/people/` (list from the directory, 2026-11-12):
+- Meshes and routing: `peopleMeshes.ts` (far and near set per age group, dogs, leashes, umbrellas; per-frame writes), `peopleSets.ts` (one set of per-age-group meshes and its attribute arrays, `writePerson`), `lod.ts` (near or far classifier with hysteresis).
+- Geometry: `personGeometry.ts` (one geometry per age group, sex by morph, `buildPerson(kind, detail)`), `personShape.ts` (far, 384 triangles), `personShapeNear.ts` (smooth near, 1344 triangles), `personDims.ts` (shared joint heights and widths), `personParts.ts` (part ids, regions), `personSpec.ts` (gait and build specs), `rigBuilder.ts` (flat-shaded builder with `loft`), `dogGeometry.ts` (about 130 triangles), `outfit.ts`, `palettes.ts`.
+- Shaders: `rigShader.ts` (materials, uniforms, cache keys: far `person-rig-v8`, near `person-rig-near-v10`, depth `person-rig-depth-v8`, dog `dog-rig-v2`, `dog-rig-depth-v2`; bump the suffix on every GLSL change), `rigShaderGlsl.ts` (`applyRig` and dog rig), `rigShaderFace.ts`, `rigShaderSurface.ts`, `rigShaderHair.ts` (near only, under `PERSON_NEAR`).
+- Motion, single sources of formulas with a GLSL twin (SYNC RULE: change both): `gaitMath.ts`, `idleMath.ts`. CPU state per walker slot (`id % slots`): `gaitPhase.ts` (walk and dog trot angle), `bodyMotion.ts` (render heading, turn rate, gait ramp).
 
-## Current state (research, 2026-11-11)
-- 4 instanced person meshes (adult, child, elder, teen) plus dogs, leashes, umbrellas. One draw call each.
-- 350 to 480 triangles per person, hidden parts included (no LOD: a person at 200 m costs the same as one at 5 m).
-- Shading is flat; faces are quads on the head. Several face quads sit nearly coplanar with the head (z-fight risk close up).
-- Gait: `a = uTime * omega + phase` in the vertex shader. The phase is per instance and static, so changing omega changes `a` for the whole elapsed time and the legs pop. Idle is frozen (no breathing, no weight shift).
+## Current state (2026-11-12, after T-0020 to T-0034)
+- Per age group two instanced meshes (far 384 triangles, near 1344 triangles per person, same for every age group) plus dogs (about 130), leashes (12), umbrellas (26). Up to 11 draw calls for all people. Routing by camera distance: `nearRadiusM` 30, `nearMaxInstances` 64 per group, `nearHysteresisM` 4.
+- Near material: procedural face with blink and gaze, AO, cloth weave, rim light, hair strands and sheen, skin tint. Far material is the old program plus the shared rig.
+- Motion: walk angle integrated on the CPU (no pops), stride fitted to speed (planted stance foot, grounded bob), pelvis and torso mechanics, ankle roll, head stabilisation, smoothed turns with body lean, gait ramp on starts and stops, idle micro-animation for standing, chatting and seated people, dog trot angle on the CPU.
+- Joints: knee and elbow have no see-through wedge (T-0032).
+- Draw calls and frame cost with near people close to the camera, and real GPU time, were never measured (see Final state).
 
 ## Conventions
 - Per-instance gait fields are written by Traffic & Life (`walkers/resolve.ts`, `peopleMeshes.ts`). A new field needs a place in `peopleMeshes.ts` (create, write, `needsUpdate`) and a matching change on the walker side, agreed through the lead.
@@ -41,11 +42,41 @@ Not owned: walker behaviour and simulation (`src/traffic/walkers/**`, `src/traff
 - Rejected: skinned meshes and skeletons (per-instance bone matrices cost far more than the vertex-shader rig for a crowd).
 - Chosen: keep the procedural vertex rig, add distance LOD (near and far meshes), push face, hair, ambient occlusion and rim light into the fragment shader for the near mesh only.
 
-## Open items (backlog, order)
-T-0020 close-up capture and perf baseline (Scene & QA), then T-0021 gait phase continuity, T-0022 near and far split, T-0023 near model detail, T-0024 near face shader, T-0025 surface shading, T-0026 hair and skin, T-0027 idle micro-animation, T-0028 gait mechanics, T-0029 turn, start and stop smoothing, T-0030 integration and final perf comparison (Scene & QA). Records are in `harness/tasks/backlog/`; list with `node harness/scripts/next-task.mjs`.
+## Open items (2026-11-12)
+- Not done, no owner yet: hip and shoulder joint coverage test (knee, elbow and ankle are covered; upper-arm top is closed and the thigh top sits inside the pelvis).
+- Far torso is one box with corner vertices only, so the arm-to-torso clearance test covers near only.
+- The stance foot can float a few cm at the end of stance for children (about 25 mm, T-0034).
+- Near face: `zAt` in the near shape is leftover from the quad face; remove if the quads are ever gone for good. Moustache part 22 has no near geometry (harmless).
+- Joint ray test counts only non-shoe triangles of the lower limb as cover (T-0030).
+- Real-GPU frame time and draw calls with near people at 3 m, and everything under "Not verified by eye" below, are owed to the human.
 
 ## How to verify
-`npx tsc --noEmit`, `npx vitest run tests/people.test.ts tests/budget.test.ts tests/tuningParity.test.ts` (rerun people timing alone), then `npm run check`. For looks: connected Chrome at close range, same camera before and after, draw calls and triangles from the `__r3f` handle. State plainly what was not seen by eye.
+`npx tsc --noEmit`, `npm run lint`, `npx vitest run tests/people*.test.ts tests/budget.test.ts tests/tuningParity.test.ts tests/harness.test.ts` (one vitest process at a time; rerun pedestrian timing alone), `npx vite build`, then `npm run check`. Numbers: `npm run smoke:closeup` (production build, software GL: counts exact, times not). Looks: connected Chrome at close range, same camera before and after. State plainly what was not seen by eye.
+
+## Final state 2026-11-12 (T-0030)
+Numbers come only from the dated sections of this file; nothing was re-measured for this table (the human dropped the sweep and perf run in favour of checking by eye).
+
+| Metric | T-0020 baseline | Now |
+|---|---|---|
+| Triangles per person, far (distance beyond 30 m) | 376 | 384 (T-0032 joint seams) |
+| Triangles per person, near (within 30 m, max 64 per age group) | none (one model) | 1344 |
+| Person meshes | 4 (one per age group) | 8 (far and near per age group) |
+| Draw calls at the default camera | 184 | not measured (up to +4 near meshes; most people are far there) |
+| Draw calls with near people at 3 m | not measured | not measured |
+| Triangles at the default camera | 2,377,993 | not measured (about +8 per far person, 353 walkers: about +2,800; near people add 960 each) |
+| Worst-case extra triangles, every near mesh full (256 people) | 0 | about 246,000 main pass and the same in the shadow pass (960 x 256 each) |
+| Planted-foot slip (mean abs ground speed / walking speed, stance) | adult 0.75, child 0.48, elder 0.68, teen 0.97 (T-0028 shader, before T-0034) | adult 0.047, child 0.063, elder 0.053, teen 0.040 (target 0.15) |
+| Triangle budget | smoke caps 260 draw calls and 3.2 M triangles | unchanged caps; the near worst case above fits only if the camera frames few people |
+| Real GPU frame time | not measured | not measured |
+
+The slip row has no T-0020 value (the metric was introduced in T-0028); the left column holds the oldest number recorded, from before the stride fit. The worst-case row uses the T-0023 figure of 936 extra triangles scaled to the final 960 (1344 - 384).
+
+### Not verified by eye (owed to the human)
+- Motion over time: gait, lean in turns, idle (breathing, weight shift, glances), turns, starts and stops. Single frames only were seen.
+- Real GPU look and frame time, vertex-shader cost in milliseconds, draw calls with near people at 3 m.
+- Close-up taste per age group (children, teens, adults, elders, both sexes), hair strands at 3 m, skin tones including the warm edge on dark skin.
+- Night and rain: rim and sheen follow the light level, but glow, wet look and umbrellas were not judged.
+- Hip and shoulder swing, dog trot look.
 
 ## Baseline 2026-11-12 (T-0020, headless Chromium, software GL)
 Measured with `npm run smoke:closeup` on the production build: default camera, day (12:00), default settings and seed, 1280x720. Software GL, so triangle and draw call counts are exact, frame times are not measured. Shots are saved to the OS temp dir (`myworld3d-closeup`), not the repo. Method: `docs/agents/scene-qa.md`, Update 2026-11-12.
