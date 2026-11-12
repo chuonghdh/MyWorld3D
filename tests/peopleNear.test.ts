@@ -1,6 +1,6 @@
 // Near and far person models (T-0023). Far detail must stay exactly as before T-0023; near detail is the smooth model.
 // Ranges (triangles per person, all parts including hidden hair styles, garments and beard):
-//   far  350 to 480 (today 376 for every age group), near 900 to 1400 (today 1312).
+//   far  350 to 480 (today 376 for every age group), near 900 to 1400 (today 1296).
 import { describe, expect, it } from 'vitest';
 import { PART, buildPerson, triangleCount } from '../src/traffic/people/personGeometry';
 
@@ -56,7 +56,8 @@ describe('person detail levels', () => {
     for (const kind of KINDS) {
       const far = pivots(kind, 'far');
       const near = pivots(kind, 'near');
-      for (const [part] of far) expect(near.has(part)).toBe(true);
+      // The moustache is drawn by the near face shader (T-0024), so its part has no near geometry.
+      for (const [part] of far) if (part !== PART.MOUSTACHE) expect(near.has(part)).toBe(true);
       expect(near.has(PART.HEAD)).toBe(true);
     }
   });

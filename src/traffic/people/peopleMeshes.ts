@@ -77,12 +77,13 @@ export function createPeopleMeshes(pedestrianCapacity = 512, dogCapacity = 256):
 
   // --- People ---
   const models: PersonModel[] = KINDS.map((k) => buildPerson(k));
-  // Near models have the same pivots as the far ones (personDims.ts), so one material per age group serves both sets.
+  // Near models have the same pivots as the far ones (personDims.ts); the near material adds the shader face (T-0024).
   const modelsNear: PersonModel[] = KINDS.map((k) => buildPerson(k, 'near'));
   const materials = models.map((m) => createPersonMaterials(m, uniforms));
+  const materialsNear = modelsNear.map((m) => createPersonMaterials(m, uniforms, true));
   const nearCap = Math.min(pedestrianCapacity, trafficLife.nearMaxInstances);
   const farSet: PersonSet = createPersonSet(models.map((m) => m.geometry), materials, KINDS, 'pedestrians-', pedestrianCapacity);
-  const nearSet: PersonSet = createPersonSet(modelsNear.map((m) => m.geometry), materials, KINDS, 'pedestrians-near-', nearCap);
+  const nearSet: PersonSet = createPersonSet(modelsNear.map((m) => m.geometry), materialsNear, KINDS, 'pedestrians-near-', nearCap);
   const bodies = farSet.meshes;
   const nearBodies = nearSet.meshes;
   for (const m of [...bodies, ...nearBodies]) group.add(m);
@@ -146,7 +147,7 @@ export function createPeopleMeshes(pedestrianCapacity = 512, dogCapacity = 256):
   const w: PersonWrite = { ped: null as unknown as PedestrianRender, scale: 1, flags: 0, female: 0, angle: 0, walking: false, amp: 0, ease: 0, kneeK: 0, armK: 0, bobK: 0 };
   const gaitPhase = new GaitPhase(Math.max(pedestrianCapacity, MAX_WALKERS) + 1);
   let lastSeason: SeasonName | '' = '';
-  const emissive = [materials.map((m) => m.material), [dogMats.material]].flat();
+  const emissive = [materials.map((m) => m.material), materialsNear.map((m) => m.material), [dogMats.material]].flat();
 
   const setNight = (on: boolean): void => {
     // A faint cool floor so tops and trousers never fall to black under the night lighting.
@@ -311,7 +312,7 @@ export function createPeopleMeshes(pedestrianCapacity = 512, dogCapacity = 256):
     },
     dispose() {
       for (const mesh of [...bodies, ...nearBodies]) mesh.geometry.dispose();
-      for (const m of materials) {
+      for (const m of [...materials, ...materialsNear]) {
         m.material.dispose();
         m.depth.dispose();
       }

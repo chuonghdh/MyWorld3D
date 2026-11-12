@@ -22,7 +22,9 @@ import {
   type SeasonName,
 } from './palettes';
 import type { PersonModel } from './personGeometry';
+import { trafficLife } from '../../config/tuning';
 import { DOG_DECL, PATTERN_FRAG, PERSON_DECL } from './rigShaderGlsl';
+import { FACE_FRAG, FACE_VERT } from './rigShaderFace';
 
 type Uniform<T> = { value: T };
 
@@ -69,30 +71,39 @@ export interface PersonMaterials {
   depth: THREE.MeshDepthMaterial;
 }
 
-export function createPersonMaterials(model: PersonModel, shared: PeopleUniforms): PersonMaterials {
+/** `near` builds the variant with the fragment-shader face (`#define PERSON_NEAR`, own program); the far one is the original. */
+export function createPersonMaterials(model: PersonModel, shared: PeopleUniforms, near = false): PersonMaterials {
   const typeUniforms = {
     uHip: { value: new THREE.Vector2(model.hip[0], model.hip[1]) },
     uShoulder: { value: new THREE.Vector2(model.shoulder[0], model.shoulder[1]) },
     uNeck: { value: new THREE.Vector2(model.neck[0], model.neck[1]) },
     uSeatDrop: { value: model.seatDrop },
+    uHeadC: { value: new THREE.Vector3(...model.head.c) },
+    uHeadR: { value: new THREE.Vector3(...model.head.r) },
+    uBlinkS: { value: trafficLife.blinkIntervalS },
   };
   const bind = (shader: THREE.WebGLProgramParametersWithUniforms): void => {
     Object.assign(shader.uniforms, shared, typeUniforms);
   };
 
   const material = new THREE.MeshLambertMaterial({ vertexColors: true });
+  if (near) material.defines = { PERSON_NEAR: '' };
   material.onBeforeCompile = (shader) => {
     bind(shader);
     shader.vertexShader = shader.vertexShader
-      .replace('#include <common>', '#include <common>\n' + PERSON_DECL)
+      .replace('#include <common>', '#include <common>\n' + PERSON_DECL + (near ? FACE_VERT : ''))
       .replace('#include <beginnormal_vertex>', '#include <beginnormal_vertex>\nvec3 rigP = position;\nbool rigOk = applyRig(rigP, objectNormal);')
       .replace('#include <begin_vertex>', 'vec3 transformed = rigOk ? rigP : vec3(0.0);')
-      .replace('#include <color_vertex>', '#include <color_vertex>\n#ifdef USE_COLOR\nvColor = pickColour(vColor);\n#endif\nsetPattern();\nvPatPos = position;');
+      .replace('#include <color_vertex>', '#include <color_vertex>\n#ifdef USE_COLOR\nvColor = pickColour(vColor);\n#endif\nsetPattern();\nvPatPos = position;' + (near ? '\n#ifdef PERSON_NEAR\nsetFace();\n#endif' : ''));
     shader.fragmentShader = shader.fragmentShader
-      .replace('#include <common>', '#include <common>\n' + PATTERN_FRAG)
-      .replace('#include <color_fragment>', '#include <color_fragment>\nif (vPatOn > 0.5) diffuseColor.rgb = patternColour(diffuseColor.rgb, vPatPos, vPatKind);');
+      .replace('#include <common>', '#include <common>\n' + PATTERN_FRAG + (near ? FACE_FRAG : ''))
+      .replace(
+        '#include <color_fragment>',
+        '#include <color_fragment>\nif (vPatOn > 0.5) diffuseColor.rgb = patternColour(diffuseColor.rgb, vPatPos, vPatKind);' +
+          (near ? '\n#ifdef PERSON_NEAR\nif (vFace.x > 0.5) diffuseColor.rgb = faceColour(diffuseColor.rgb);\n#endif' : ''),
+      );
   };
-  material.customProgramCacheKey = () => 'person-rig-v4';
+  material.customProgramCacheKey = () => (near ? 'person-rig-near-v1' : 'person-rig-v4');
 
   const depth = new THREE.MeshDepthMaterial({ depthPacking: THREE.RGBADepthPacking });
   depth.onBeforeCompile = (shader) => {

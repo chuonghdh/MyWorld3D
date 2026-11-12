@@ -80,6 +80,7 @@ const VALUES: Entry[] = [
   { id: 'people near radius', file: CONFIG_FILE, name: 'nearRadiusM', value: '30' },
   { id: 'people near max instances', file: CONFIG_FILE, name: 'nearMaxInstances', value: '64' },
   { id: 'people near hysteresis', file: CONFIG_FILE, name: 'nearHysteresisM', value: '4' },
+  { id: 'people blink interval', file: CONFIG_FILE, name: 'blinkIntervalS', value: '4' },
   { id: 'child stride cycle', file: CONFIG_FILE, name: 'childStrideCycleM', value: '1.425' },
   { id: 'child cadence wobble', file: CONFIG_FILE, name: 'childCadenceWobble', value: '0.05' },
   { id: 'child swing amp', file: CONFIG_FILE, name: 'childSwingAmp', value: '0.9' },

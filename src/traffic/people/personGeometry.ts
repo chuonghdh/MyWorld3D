@@ -31,6 +31,8 @@ export interface PersonModel {
   seatDrop: number;
   /** Height of the top of the head (standing, without hat), used to place umbrellas. */
   headTop: number;
+  /** Head ellipsoid centre and radii (model space, stoop included), for the near face shader. */
+  head: { c: [number, number, number]; r: [number, number, number] };
 }
 
 /** Adult defaults: plain sine swing, no extra knee, arm or bob (neutral multipliers). */
@@ -107,6 +109,7 @@ export function buildPerson(kind: BodyKind, detail: PersonDetail = 'far'): Perso
     neck: male.neck,
     seatDrop,
     headTop: male.headTop,
+    head: male.head,
   };
 }
 

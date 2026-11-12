@@ -77,11 +77,14 @@ describe('people mesh LOD routing', () => {
     m.dispose();
   });
 
-  it('shares materials and has its own, denser geometry for the near meshes', () => {
+  it('has its own, denser geometry and its own face material for the near meshes', () => {
     const m = createPeopleMeshes(16, 4);
     for (let i = 0; i < 4; i++) {
       expect(m.nearBodies[i].geometry.getAttribute('position').count).toBeGreaterThan(m.bodies[i].geometry.getAttribute('position').count);
-      expect(m.nearBodies[i].material).toBe(m.bodies[i].material);
+      const nm = m.nearBodies[i].material as THREE.MeshLambertMaterial;
+      expect(nm).not.toBe(m.bodies[i].material);
+      expect(nm.defines).toHaveProperty('PERSON_NEAR');
+      expect((m.bodies[i].material as THREE.MeshLambertMaterial).defines ?? {}).not.toHaveProperty('PERSON_NEAR');
     }
     m.dispose();
   });
