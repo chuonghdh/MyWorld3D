@@ -92,6 +92,11 @@ Base counts are scaled by the graphics tier: factor low 0.4, medium 0.7, high 1 
 | Idle weight shift | 6 | mm, meaningful 0 to 10 | src/config/tuning/trafficLife.ts (`trafficLife.idleShiftMm`); used by src/traffic/people/rigShader.ts | Graphics & Character |
 | Idle head glance | 8 | degrees, meaningful 0 to 15 | src/config/tuning/trafficLife.ts (`trafficLife.idleGlanceDeg`); used by src/traffic/people/rigShader.ts | Graphics & Character |
 | Idle arm drift | 0.03 | radians, meaningful 0 to 0.1 | src/config/tuning/trafficLife.ts (`trafficLife.idleArmRad`); used by src/traffic/people/rigShader.ts | Graphics & Character |
+| Gait pelvis yaw | 3 | degrees, meaningful 0 to 6; times the person's swing amplitude (elder 0.66, adult 1, teen 1.1) | src/config/tuning/trafficLife.ts (`trafficLife.gaitPelvisYawDeg`); used by src/traffic/people/rigShader.ts | Graphics & Character |
+| Gait pelvis sway | 8 | mm, meaningful 0 to 15; times the swing amplitude | src/config/tuning/trafficLife.ts (`trafficLife.gaitPelvisSwayMm`); used by src/traffic/people/rigShader.ts | Graphics & Character |
+| Gait torso twist | 4 | degrees, meaningful 0 to 8; times the swing amplitude | src/config/tuning/trafficLife.ts (`trafficLife.gaitTorsoTwistDeg`); used by src/traffic/people/rigShader.ts | Graphics & Character |
+| Gait ankle | 12 | degrees toe-up at heel strike, meaningful 0 to 15; plantar flexion at toe-off is 1.667 times this (hidden gain, see gaitMath.ts); times the swing amplitude | src/config/tuning/trafficLife.ts (`trafficLife.gaitAnkleDeg`); used by src/traffic/people/rigShader.ts | Graphics & Character |
+| Gait head stabilise | 0.6 | 0 to 1 (share of bob and twist the head cancels) | src/config/tuning/trafficLife.ts (`trafficLife.gaitHeadStabilise`); used by src/traffic/people/rigShader.ts | Graphics & Character |
 | Child swing amplitude | 0.9 | multiplier (1 = adult) | src/config/tuning/trafficLife.ts (`trafficLife.childSwingAmp`); used by src/traffic/people/personGeometry.ts | Graphics & Character |
 | Child swing ease | 0.35 | 0-1 | src/config/tuning/trafficLife.ts (`trafficLife.childSwingEase`); used by src/traffic/people/personGeometry.ts | Graphics & Character |
 | Child knee bend | 1.3 | multiplier (1 = adult) | src/config/tuning/trafficLife.ts (`trafficLife.childKneeK`); used by src/traffic/people/personGeometry.ts | Graphics & Character |

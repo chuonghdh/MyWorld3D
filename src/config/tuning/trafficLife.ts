@@ -64,6 +64,16 @@ export const trafficLife = {
   idleGlanceDeg: 8,
   /** Idle people: arm drift in radians around the rest pose; meaningful 0 to 0.1 (traffic/people/idleMath.ts). */
   idleArmRad: 0.03,
+  /** Walk: pelvis yaw at step rate in degrees (about 3 at an adult swing, scaled by the person's swing amplitude); meaningful 0 to 6 (traffic/people/gaitMath.ts). */
+  gaitPelvisYawDeg: 3,
+  /** Walk: sideways pelvis sway over the stance leg in mm (scaled by swing amplitude); meaningful 0 to 15 (traffic/people/gaitMath.ts). */
+  gaitPelvisSwayMm: 8,
+  /** Walk: torso counter-twist against the pelvis in degrees (scaled by swing amplitude); meaningful 0 to 8 (traffic/people/gaitMath.ts). */
+  gaitTorsoTwistDeg: 4,
+  /** Walk: ankle toe-up angle at heel strike in degrees; plantar flexion at toe-off is 1.667 times this; scaled by swing amplitude; meaningful 0 to 15 (traffic/people/gaitMath.ts). */
+  gaitAnkleDeg: 12,
+  /** Walk: share of the vertical bob and of the torso twist the head cancels, 0 to 1 (traffic/people/gaitMath.ts). */
+  gaitHeadStabilise: 0.6,
   /** Child walk: metres per full gait cycle (two steps), both sexes. Longer than before = slower cadence; feet keep pace with speed (traffic/people/personGeometry.ts). */
   childStrideCycleM: 1.425,
   /** Child walk: leg and arm swing amplitude multiplier, 1 = adult swing (traffic/people/personGeometry.ts). */

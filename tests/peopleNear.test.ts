@@ -1,6 +1,6 @@
 // Near and far person models (T-0023). Far detail must stay exactly as before T-0023; near detail is the smooth model.
 // Ranges (triangles per person, all parts including hidden hair styles, garments and beard):
-//   far  350 to 480 (today 384 for every age group), near 900 to 1400 (today 1328).
+//   far  350 to 480 (today 384 for every age group), near 900 to 1400 (today 1344).
 import { describe, expect, it } from 'vitest';
 import { PART, buildPerson, triangleCount } from '../src/traffic/people/personGeometry';
 

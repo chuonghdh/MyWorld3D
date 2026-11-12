@@ -3,6 +3,7 @@
 
 import { PALETTE_SIZES } from './palettes';
 import { IDLE, idleGlsl } from './idleMath';
+import { gaitGlsl } from './gaitMath';
 
 const ROT = /* glsl */ `
 void rotYZ(inout vec3 p, inout vec3 n, vec2 pv, float th) {
@@ -52,6 +53,7 @@ void rotHeadYaw(inout vec3 p, inout vec3 n, float pz, float th) {
   n.z = -s * nx + c * n.z;
 }
 ${idleGlsl()}
+${gaitGlsl()}
 // Patterned tops: the vertex side passes the model position and the pattern kind (0 none, 1 dots, 2 hearts,
 // 3 horizontal stripes, 4 vertical stripes) for torso and sleeves that are not coated or bare; the fragment side
 // paints the pattern in the cream colour from patternColour(). No extra draw calls or textures.
@@ -131,6 +133,8 @@ bool applyRig(inout vec3 p, inout vec3 n) {
     float thigh = walk * amp * 0.55 * ss + sit * 1.45 + idleThigh;
     if (part >= 3) {
       float knee = walk * amp * 0.85 * kneeK * max(0.0, ca) + sit * 1.45 + ${IDLE.kneePerThigh.toFixed(1)} * idleThigh;
+      // Ankle (T-0028): only the shoe vertices (region FIXED) roll about the ankle: toe up at heel strike, plantar flexion at toe-off.
+      if (walk > 0.5 && aRig.y < 0.5) rotYZ(p, n, vec2(gaitAnkleY(), 0.0), uGait.w * amp * gaitAnkleUnit(ss));
       rotYZ(p, n, aRig.zw, -knee);
     }
     rotYZ(p, n, uHip, thigh);
@@ -165,6 +169,7 @@ bool applyRig(inout vec3 p, inout vec3 n) {
     }
     rotYZ(p, n, uNeck, nod);
   }
+  if (walk > 0.5) gaitBody(p, n, part, a, amp, bob); // pelvis yaw and sway, torso twist, head stabilisation (gaitMath.ts)
   if (pose > 0.5) {
     // Breathing lifts the upper body (the torso fades in from the hip to the shoulder); standing also shifts it sideways.
     float up = part == 0 ? smoothstep(uHip.x, uShoulder.x, p.y) : ((part >= 1 && part <= 4) || part == 13) ? 0.0 : 1.0;

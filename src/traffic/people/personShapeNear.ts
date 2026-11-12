@@ -34,7 +34,7 @@ export function buildShapeNear(kind: BodyKind, sex: number): Shape {
     b.set(shin, REGION.FIXED, SHOE, kneeY, 0);
     b.box(x, 0, k(0.03), k(0.05), k(0.088) * W, k(0.23), k(0.084) * W, k(0.22), 0, true, true); // sole
     b.box(x, 0, k(0.045), -k(0.04), k(0.07) * W, k(0.07), k(0.066) * W, k(0.066), 0, false, true); // heel
-    b.loft(x, [ring(k(0.02), k(0.043) * W, k(0.1), k(0.05)), ring(ankleY + k(0.03), k(0.04) * W, k(0.06), k(0.02))], 8); // upper
+    b.loft(x, [ring(k(0.02), k(0.05) * W, k(0.1), k(0.05)), ring(ankleY + k(0.03), k(0.048) * W, k(0.072), k(0.016))], 8, true); // upper, capped (wide enough to cover the shin end when the ankle rolls, T-0028)
     b.ellipsoid(x, k(0.03), k(0.115), k(0.04) * W, k(0.03), k(0.06), 8, 4); // toe cap
   }
 

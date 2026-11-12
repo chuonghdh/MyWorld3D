@@ -81,6 +81,8 @@ export function createPersonMaterials(model: PersonModel, shared: PeopleUniforms
     uNeck: { value: new THREE.Vector2(model.neck[0], model.neck[1]) },
     uSeatDrop: { value: model.seatDrop },
     uIdle: { value: new THREE.Vector4(trafficLife.idleBreathMm / 1000, trafficLife.idleShiftMm / 1000, (trafficLife.idleGlanceDeg * Math.PI) / 180, trafficLife.idleArmRad) },
+    uGait: { value: new THREE.Vector4((trafficLife.gaitPelvisYawDeg * Math.PI) / 180, trafficLife.gaitPelvisSwayMm / 1000, (trafficLife.gaitTorsoTwistDeg * Math.PI) / 180, (trafficLife.gaitAnkleDeg * Math.PI) / 180) },
+    uGaitHead: { value: trafficLife.gaitHeadStabilise },
     uHeadC: { value: new THREE.Vector3(...model.head.c) },
     uHeadR: { value: new THREE.Vector3(...model.head.r) },
     uBlinkS: { value: trafficLife.blinkIntervalS },
@@ -114,7 +116,7 @@ export function createPersonMaterials(model: PersonModel, shared: PeopleUniforms
       )
       .replace('#include <lights_fragment_end>', '#include <lights_fragment_end>' + (near ? RIM_CODE + HAIR_LIGHT : ''));
   };
-  material.customProgramCacheKey = () => (near ? 'person-rig-near-v7' : 'person-rig-v5');
+  material.customProgramCacheKey = () => (near ? 'person-rig-near-v8' : 'person-rig-v6');
 
   const depth = new THREE.MeshDepthMaterial({ depthPacking: THREE.RGBADepthPacking });
   depth.onBeforeCompile = (shader) => {
@@ -123,7 +125,7 @@ export function createPersonMaterials(model: PersonModel, shared: PeopleUniforms
       .replace('#include <common>', '#include <common>\n' + PERSON_DECL)
       .replace('#include <begin_vertex>', 'vec3 rigP = position;\nvec3 rigN = vec3(0.0, 1.0, 0.0);\nbool rigOk = applyRig(rigP, rigN);\nvec3 transformed = rigOk ? rigP : vec3(0.0);');
   };
-  depth.customProgramCacheKey = () => 'person-rig-depth-v5';
+  depth.customProgramCacheKey = () => 'person-rig-depth-v6';
   return { material, depth };
 }
 
