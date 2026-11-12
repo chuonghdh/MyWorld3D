@@ -119,6 +119,62 @@ async function sweep(page, label, lines) {
   for (const subject of SUBJECTS) for (const d of DISTANCES) lines.push(await shoot(page, `${label}-${subject[0]}-${d}m`, subject, d));
 }
 
+/**
+ * Idle motion check (T-0027, CLOSEUP_IDLE=1): follow a standing person (aGait.z 1; chat 2 or sit 3 if none stands) at 3 m.
+ * The person is keyed by its ground position (idle people do not move; the list order does), the camera stays on it,
+ * and a PNG is saved each time the sim time (uTime) has advanced CLOSEUP_IDLE_STEP seconds (default 3).
+ */
+async function idleSequence(page) {
+  const step = Number(process.env.CLOSEUP_IDLE_STEP || 0);
+  const lock = async () => {
+    const pick = await page.evaluate(() => {
+      const s = window.__closeup.scene;
+      for (const want of [1, 2, 3]) {
+        for (const pre of ['pedestrians-', 'pedestrians-near-']) {
+          for (const k of ['adult', 'elder', 'teen', 'child']) {
+            const m = s.getObjectByName(pre + k);
+            const g = m?.geometry.getAttribute('aGait').array;
+            const e = m?.instanceMatrix.array;
+            for (let i = 0; m && i < m.count; i++) if (g[i * 4 + 2] === want) return { want, kind: k, x: e[i * 16 + 12], z: e[i * 16 + 14] };
+          }
+        }
+      }
+      return null;
+    });
+    if (!pick) return null;
+    await page.evaluate((p) => {
+      window.__closeup.placed = false;
+      window.__closeup.shot = { mesh: 'pedestrians-' + p.kind, index: 0, stick: [p.x, p.z], distance: 3, yaw: 0.6, lift: 0.15, chest: 0.95 };
+    }, pick);
+    await waitFrames(page, 4); // the LOD moves the person to the near mesh one frame late
+    return pick;
+  };
+  const out = [];
+  let pick = await lock();
+  if (!pick) return ['idle: no idle person found'];
+  out.push(`idle: following a ${pick.kind} with aGait.z ${pick.want} at (${pick.x.toFixed(1)}, ${pick.z.toFixed(1)})`);
+  let last = -1e9;
+  for (let n = 1; n <= 4; n++) {
+    for (let guard = 0; guard < 400; guard++) {
+      const t = await page.evaluate(() => window.__closeup.simTime());
+      if (t - last >= step) break;
+      await waitFrames(page, 1);
+    }
+    let info = await page.evaluate(() => ({ t: window.__closeup.simTime(), placed: window.__closeup.placed, mesh: window.__closeup.shot.mesh }));
+    if (!info.placed) {
+      // The person left (it started walking): lock on another idle person.
+      pick = await lock();
+      if (!pick) return [...out, 'idle: lost the person and found none'];
+      out.push(`idle: re-locked on a ${pick.kind} with aGait.z ${pick.want} at (${pick.x.toFixed(1)}, ${pick.z.toFixed(1)})`);
+      info = await page.evaluate(() => ({ t: window.__closeup.simTime(), placed: window.__closeup.placed, mesh: window.__closeup.shot.mesh }));
+    }
+    last = info.t;
+    await savePng(page, join(OUT, `idle-${n}.png`));
+    out.push(`idle-${n}.png: sim time ${info.t.toFixed(1)} s, ${info.mesh}, placed ${info.placed}`);
+  }
+  return out;
+}
+
 async function run() {
   mkdirSync(OUT, { recursive: true });
   const preview = startPreview();
@@ -139,6 +195,10 @@ async function run() {
 
     await setLight(page, 12);
     await waitFrames(page, 3);
+    if (process.env.CLOSEUP_IDLE) {
+      for (const l of await idleSequence(page)) console.log(`  ${l}`);
+      return;
+    }
     const rows = await page.evaluate(inspect);
     const cost = await costs(page);
     const lines = [];

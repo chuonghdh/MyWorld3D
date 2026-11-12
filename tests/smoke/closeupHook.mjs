@@ -16,7 +16,35 @@ export const CLOSEUP_HOOK = `(() => {
     if (scene.getObjectByName && scene.getObjectByName('people')) { st.scene = scene; return true; }
     return false;
   };
+  // shot.stick = [x, z] re-selects, on every render, the idle person (aGait.z 1 standing, 2 chatting, 3 sitting) nearest to that
+  // ground position in any people mesh: idle people do not move, but the list order changes (T-0027).
+  const KINDS = ['adult', 'child', 'elder', 'teen'];
+  const stickTo = (shot) => {
+    let best = null;
+    let bestD = 2.25;
+    for (const pre of ['pedestrians-', 'pedestrians-near-']) {
+      for (const k of KINDS) {
+        const m = st.scene.getObjectByName(pre + k);
+        if (!m) continue;
+        const g = m.geometry.getAttribute('aGait').array;
+        const e = m.instanceMatrix.array;
+        for (let i = 0; i < m.count; i++) {
+          if (g[i * 4 + 2] < 0.5) continue;
+          const d = (e[i * 16 + 12] - shot.stick[0]) ** 2 + (e[i * 16 + 14] - shot.stick[1]) ** 2;
+          if (d < bestD) { bestD = d; best = { mesh: m.name, index: i }; }
+        }
+      }
+    }
+    if (best) { shot.mesh = best.mesh; shot.index = best.index; }
+    return best !== null;
+  };
+  st.simTime = () => {
+    const m = st.scene && st.scene.getObjectByName('pedestrians-adult');
+    const u = m && st.renderer.properties.get(m.material).uniforms;
+    return u && u.uTime ? u.uTime.value : -1;
+  };
   const place = (cam, shot) => {
+    if (shot.stick && !stickTo(shot)) return false;
     const mesh = st.scene.getObjectByName(shot.mesh);
     if (!mesh || mesh.count <= shot.index) return false;
     const e = mesh.instanceMatrix.array;

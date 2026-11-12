@@ -56,6 +56,14 @@ export const trafficLife = {
   hairSheen: 0.6,
   /** Near people: warm skin edge, cheek and nose tint, darker ears, 0 = off, 1 = strong end of the useful range, above 1.5 looks sunburnt (traffic/people/rigShaderHair.ts). */
   skinWarmth: 0.6,
+  /** Idle people: breathing lift of the upper body in mm; meaningful 0 to 8 (traffic/people/idleMath.ts). */
+  idleBreathMm: 4,
+  /** Idle people: sideways weight shift of a standing person in mm (the relaxed leg follows); meaningful 0 to 10 (traffic/people/idleMath.ts). */
+  idleShiftMm: 6,
+  /** Idle people: head glance amplitude in degrees; meaningful 0 to 15 (traffic/people/idleMath.ts). */
+  idleGlanceDeg: 8,
+  /** Idle people: arm drift in radians around the rest pose; meaningful 0 to 0.1 (traffic/people/idleMath.ts). */
+  idleArmRad: 0.03,
   /** Child walk: metres per full gait cycle (two steps), both sexes. Longer than before = slower cadence; feet keep pace with speed (traffic/people/personGeometry.ts). */
   childStrideCycleM: 1.425,
   /** Child walk: leg and arm swing amplitude multiplier, 1 = adult swing (traffic/people/personGeometry.ts). */
