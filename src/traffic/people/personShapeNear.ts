@@ -29,7 +29,8 @@ export function buildShapeNear(kind: BodyKind, sex: number): Shape {
     b.loft(x, [ring(kneeY, k(0.054) * W, k(0.056)), ring(mid(kneeY, thTop), k(0.062) * W, k(0.065)), ring(thTop, k(0.066) * W, k(0.07))], 8);
     const shin = left ? PART.SHIN_L : PART.SHIN_R;
     b.set(shin, REGION.SHIN, 0xffffff, kneeY, 0);
-    b.loft(x, [ring(ankleY, k(0.036) * W, k(0.04)), ring(mid(ankleY, kneeY, 0.45), k(0.043) * W, k(0.046)), ring(kneeY + k(0.02), k(0.049) * W, k(0.052))], 8);
+    // The shin runs 0.065 m above the knee pivot at least as wide as the thigh end and is capped: a bent knee must not open a wedge (T-0032).
+    b.loft(x, [ring(ankleY, k(0.036) * W, k(0.04)), ring(kneeY, k(0.0555) * W, k(0.0575)), ring(kneeY + k(0.065), k(0.0555) * W, k(0.0575))], 8, true);
     b.set(shin, REGION.FIXED, SHOE, kneeY, 0);
     b.box(x, 0, k(0.03), k(0.05), k(0.088) * W, k(0.23), k(0.084) * W, k(0.22), 0, true, true); // sole
     b.box(x, 0, k(0.045), -k(0.04), k(0.07) * W, k(0.07), k(0.066) * W, k(0.066), 0, false, true); // heel
@@ -65,7 +66,8 @@ export function buildShapeNear(kind: BodyKind, sex: number): Shape {
     b.loft(x, [ring(elbowY, k(0.036) * W, k(0.038)), ring(mid(elbowY, top), k(0.041) * W, k(0.043)), ring(top, k(0.046) * W, k(0.048)), ring(top + k(0.016), k(0.03) * W, k(0.032))], 8, true);
     const fore = left ? PART.FORE_L : PART.FORE_R;
     b.set(fore, REGION.SLEEVE, 0xffffff, elbowY, 0);
-    b.loft(x, [ring(wristY, k(0.031) * W, k(0.034)), ring(mid(elbowY, wristY), k(0.033) * W, k(0.036)), ring(elbowY + k(0.02), k(0.033) * W, k(0.036))], 8);
+    // Same at the elbow: the forearm runs 0.045 m above the pivot at least as wide as the upper arm end and is capped.
+    b.loft(x, [ring(wristY, k(0.031) * W, k(0.034)), ring(elbowY, k(0.0365) * W, k(0.0385)), ring(elbowY + k(0.045), k(0.0372) * W, k(0.0392))], 8, true);
     b.set(fore, REGION.SKIN, 0xffffff, elbowY, 0);
     b.box(x, wristY - k(0.045), wristY + k(0.012), 0, k(0.058) * W, k(0.044), k(0.052) * W, k(0.04), 0, false, true); // palm
     b.box(x, wristY - k(0.085), wristY - k(0.04), k(0.004), k(0.054) * W, k(0.036), k(0.056) * W, k(0.042), 0, true, false); // fingers
