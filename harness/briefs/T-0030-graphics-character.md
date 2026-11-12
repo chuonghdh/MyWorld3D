@@ -1,0 +1,17 @@
+# Brief: T-0030 (graphics-character): handbook consolidation and stale comment cleanup
+
+- **Task id:** T-0030-ped-integration-final
+- **Owner:** graphics-character
+- **Reviewer:** reviewer (read-only subagent)
+- **Goal:** the people code and its handbook describe what is true after T-0020 to T-0034. No behaviour change. The scene-qa sweep and fresh perf measurements were dropped on the human's decision (they check by eye), so every number in the table comes from the existing dated sections, not from new runs.
+- **What to do:**
+  1. `docs/agents/graphics-character.md`: add a consolidated "Final state" section (dated 2026-11-12) with a before/after table (T-0020 baseline vs now) built ONLY from numbers already in the baseline and update sections (triangles per person near and far, draw calls, triangles at the default camera, slip metric, tris budget). Where a "now" number was never measured (draw calls or frame cost with near people at 3 m, real GPU frame time), write "not measured". Fix the Owns, Key files, Current state, Open items and How to verify sections so they match the final code (files list from the directory; no stale counts). Add a "Not verified by eye" list owed to the human: motion over time (gait, lean, idle, turns, stops), real GPU look and frame time, close-up taste per age group, night and rain. Keep the dated update sections; do not rewrite history.
+  2. Fix stale header comments in `src/traffic/people/**` (read each file's header against the code): known ones are `peopleMeshes.ts` ("about 420 triangles" is wrong; near is about 1344, far 384) and `rigShaderHair.ts` (says +-12%, code gives about 19%; says "clamped" where order is kept by monotonicity). Look for other stale numbers or names in headers (grep for "420", removed knobs, old file names).
+  3. Small reviewer notes left earlier (comments, tests, docs only; no shader or geometry change): add a skin luminance order test (palette skin tones keep their order of luminance) in an existing people test file; extend the T-0032 joint test angles so chat pose reaches 1.25 rad (they stop at 0.9) and make the ray test reject shoe triangles being counted as cover if that is a one-line change, otherwise record it as an open item; in `docs/TUNING.md` add the gain notes for `aoStrength` and `rimStrength` (effective strength about 1.6x and 3x in the shader).
+  4. Do not change any knob value, shader output or geometry. The pedestrian render hash in `tests/traffic.determinism.test.ts` must not change.
+- **Files in scope:** `docs/agents/graphics-character.md`, `docs/REPO_MAP.md` (already updated, check only), `docs/TUNING.md`, `src/traffic/people/**` (comments only), `src/config/tuning/trafficLife.ts` (comments only), `tests/peopleJoints.test.ts`, `tests/peopleGait.test.ts`, `tests/peopleNear.test.ts`.
+- **Files out of scope:** everything else; `tests/smoke/**`; guard tests; behaviour.
+- **Claims:** graphics-character entry for T-0030 in `harness/state/claims.json` (active).
+- **Acceptance commands:** `npx tsc --noEmit`; `npm run lint`; `npx vitest run tests/people*.test.ts tests/tuningParity.test.ts tests/harness.test.ts` (one vitest at a time, never concurrent); `npx vite build`. Failures only.
+- **Report format:** at most 8 lines: files changed (path, lines before and after), gate result (failures only), what you left as an open item and why, not verified.
+- Do not commit or push. Never run git reset, git checkout -- or git stash.

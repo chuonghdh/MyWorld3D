@@ -529,6 +529,24 @@
       "status": "released",
       "date": "2026-11-12",
       "brief": "harness/briefs/T-0033-graphics-character.md"
+    },
+    {
+      "task": "T-0030-ped-integration-final",
+      "owner": "graphics-character",
+      "globs": [
+        "docs/agents/graphics-character.md",
+        "docs/REPO_MAP.md",
+        "docs/TUNING.md",
+        "src/traffic/people/**",
+        "src/config/tuning/trafficLife.ts",
+        "tests/peopleJoints.test.ts",
+        "tests/peopleGait.test.ts",
+        "tests/peopleNear.test.ts",
+        "harness/briefs/T-0030-graphics-character.md"
+      ],
+      "status": "released",
+      "date": "2026-11-12",
+      "brief": "harness/briefs/T-0030-graphics-character.md"
     }
   ]
 }

@@ -1,5 +1,5 @@
 // Instanced meshes for pedestrians and their dogs.
-//   - one far and one near InstancedMesh per age group (adult, child, elder, teen), about 420 triangles per person (all parts,
+//   - one far and one near InstancedMesh per age group (adult, child, elder, teen), 1344 triangles per near person and 384 per far person (all parts,
 //     including the hidden hair, garments and face; see personGeometry.ts). Each mesh serves both sexes through
 //     the morph attributes and holds every hair style, garment and face,
 //   - one InstancedMesh for dogs (about 130 triangles), one for leashes, one for umbrellas.

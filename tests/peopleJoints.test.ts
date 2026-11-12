@@ -5,7 +5,7 @@
 // least as far from the pivot, along the same direction, as the rim point does. A closing element on the lower limb
 // (a knee or elbow ball) passes; open tubes do not.
 import { describe, expect, it } from 'vitest';
-import { PART, buildPerson, type BodyKind } from '../src/traffic/people/personGeometry';
+import { PART, REGION, buildPerson, type BodyKind } from '../src/traffic/people/personGeometry';
 
 type V = [number, number, number];
 /** Slack in metres: 2 mm, far below what shows (the model is 1.8 m tall). */
@@ -18,18 +18,19 @@ interface Joint {
   lower: number;
   angles: number[];
 }
-// Knee: sitting is 1.45 rad, the walking swing up to about 1.2. Elbow: umbrella 0.75, chat 0.9, sitting 0.6.
+// Knee: sitting is 1.45 rad, the walking swing up to about 1.2. Elbow: umbrella 0.75, chat 1.25 (the test used to stop at 0.9), sitting 0.6.
 const JOINTS: Joint[] = [
   { name: 'left knee', upper: PART.THIGH_L, lower: PART.SHIN_L, angles: [0.3, 0.6, 0.9, 1.2, 1.45] },
   { name: 'right knee', upper: PART.THIGH_R, lower: PART.SHIN_R, angles: [0.3, 0.6, 0.9, 1.2, 1.45] },
-  { name: 'left elbow', upper: PART.ARM_L, lower: PART.FORE_L, angles: [0.3, 0.6, 0.9] },
-  { name: 'right elbow', upper: PART.ARM_R, lower: PART.FORE_R, angles: [0.3, 0.6, 0.9] },
+  { name: 'left elbow', upper: PART.ARM_L, lower: PART.FORE_L, angles: [0.3, 0.6, 0.9, 1.25] },
+  { name: 'right elbow', upper: PART.ARM_R, lower: PART.FORE_R, angles: [0.3, 0.6, 0.9, 1.25] },
 ];
 
-function partVertices(pos: Float32Array, rig: Float32Array, morph: Float32Array, sex: number, part: number): V[] {
+function partVertices(pos: Float32Array, rig: Float32Array, morph: Float32Array, sex: number, part: number, skipShoes = false): V[] {
   const out: V[] = [];
   for (let v = 0; v < rig.length / 4; v++) {
     if (Math.round(rig[v * 4]) !== part) continue;
+    if (skipShoes && Math.round(rig[v * 4 + 1]) === REGION.FIXED) continue; // shoes are region FIXED: they are not cover for the joint
     out.push([pos[v * 3] + morph[v * 3] * sex, pos[v * 3 + 1] + morph[v * 3 + 1] * sex, pos[v * 3 + 2] + morph[v * 3 + 2] * sex]);
   }
   return out;
@@ -69,7 +70,7 @@ describe('joint coverage at the largest bend', () => {
         for (const sex of [0, 1]) {
           for (const j of JOINTS) {
             const upper = partVertices(pos, rig, morph, sex, j.upper);
-            const lower = partVertices(pos, rig, morph, sex, j.lower);
+            const lower = partVertices(pos, rig, morph, sex, j.lower, true);
             const minY = Math.min(...upper.map((v) => v[1]));
             const rim = upper.filter((v) => Math.abs(v[1] - minY) < 1e-5);
             // The pivot is stored on the lower limb's vertices (aRig.zw), including any stoop shift.
