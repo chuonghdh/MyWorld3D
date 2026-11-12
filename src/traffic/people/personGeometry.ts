@@ -31,15 +31,17 @@ export interface PersonModel {
   seatDrop: number;
   /** Height of the top of the head (standing, without hat), used to place umbrellas. */
   headTop: number;
+  /** Metres per gait cycle of the men and the women of this age group (GAIT), for the stride fit in the shader. */
+  cycle: [number, number];
   /** Head ellipsoid centre and radii (model space, stoop included), for the near face shader. */
   head: { c: [number, number, number]; r: [number, number, number] };
 }
 
-/** Adult defaults: plain sine swing, no extra knee, arm or bob (neutral multipliers). */
-const PLAIN: Pick<GaitSpec, 'ease' | 'kneeK' | 'armK' | 'bobK'> = { ease: 0, kneeK: 1, armK: 1, bobK: 1 };
+/** Adult defaults: plain sine swing, no extra knee or arm (neutral multipliers). */
+const PLAIN: Pick<GaitSpec, 'ease' | 'kneeK' | 'armK'> = { ease: 0, kneeK: 1, armK: 1 };
 
 /** Gait per age group: [male, female]. Women take slightly shorter steps; elders take short, slow steps.
- *  Children use the eased, knee-bending, bobbing gait from `trafficLife` (designer knobs). */
+ *  Children use the eased, knee-bending gait from `trafficLife` (designer knobs). */
 const GAIT: Record<BodyKind, [GaitSpec, GaitSpec]> = {
   adult: [
     { cycle: 1.5, amp: 1, heightK: 1, ...PLAIN },
@@ -67,7 +69,6 @@ function childGait(heightK: number): GaitSpec {
     ease: trafficLife.childSwingEase,
     kneeK: trafficLife.childKneeK,
     armK: trafficLife.childArmK,
-    bobK: trafficLife.childBobK,
   };
 }
 
@@ -110,6 +111,7 @@ export function buildPerson(kind: BodyKind, detail: PersonDetail = 'far'): Perso
     seatDrop,
     headTop: male.headTop,
     head: male.head,
+    cycle: [gaitOf(kind, 0).cycle, gaitOf(kind, 1).cycle],
   };
 }
 

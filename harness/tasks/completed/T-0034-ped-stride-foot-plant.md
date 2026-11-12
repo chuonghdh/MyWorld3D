@@ -1,9 +1,9 @@
 ---
 id: T-0034-ped-stride-foot-plant
 title: Match stride to speed so stance feet stop sliding
-status: proposed
+status: done
 owner: graphics-character
-branch: dev
+branch: task/T-0034-ped-stride-foot-plant
 created: 2026-11-12
 priority: P1
 type: bug
@@ -23,17 +23,23 @@ source: request
 
 ## Acceptance
 
-- [ ] Mean |world slip| over stance below 0.15 x walking speed for adult, child, elder and teen (pure TS metric test, measured at 1.3 m/s)
-- [ ] No limb self-intersection at the new swing; `tests/peopleJoints.test.ts` and `tests/peopleGaitMech.test.ts` pass
-- [ ] `npm run check`; `node harness/scripts/verify.mjs` green; `npm run smoke` green
-- [ ] Knobs only in `src/config/tuning/` with a parity entry and a `docs/TUNING.md` row; every `src/` file stays under 350 lines; no guard weakened
-- [ ] Not verified, named: walking motion by eye over time on real hardware
+- [x] Mean |world slip| over stance below 0.15 x walking speed for adult, child, elder and teen (pure TS metric test, measured at 1.3 m/s)
+- [x] No limb self-intersection at the new swing; `tests/peopleJoints.test.ts` and `tests/peopleGaitMech.test.ts` pass
+- [x] `npm run check`; `node harness/scripts/verify.mjs` green; `npm run smoke` green
+- [x] Knobs only in `src/config/tuning/` with a parity entry and a `docs/TUNING.md` row; every `src/` file stays under 350 lines; no guard weakened
+- [x] Not verified, named: walking motion by eye over time on real hardware
 
 ## Checkpoints
 
-- 2026-11-12: recorded as proposed from the T-0028 finding. No work started.
+- 2026-11-12: graphics-character done after one review round; verify.mjs exit 0, smoke ok (184 draw calls, 2.33M tris). Mean world slip over stance (pure TS metric, 1.3 m/s): adult 0.75 -> 0.047, child 0.48 -> 0.063, elder 0.68 -> 0.053, teen 0.97 -> 0.040. Bob now lowers the body to put the lower foot on the ground (highest at midstance). Dead knob childBobK removed. Stance foot can float up to about 25 mm (child). Strides shorter for adult, teen, elder; longer for the child. Not seen: walking motion over time.
 
 ## Handoff
 
 - Next step: deliver right after T-0028 (before T-0029): it is the biggest realism gap left in the walk.
 - Open questions: none.
+
+## Review
+
+- Reviewer: reviewer (read-only subagent), diff range: working tree against 1c465cf, then the fix diffs.
+- Findings fixed: dead knob `bobK`/`childBobK` removed everywhere, stale TUNING ankle row and config comment (1.667 -> 0.41), debug console.info removed, clearance tests strengthened (stance float below 30 mm, swing clearance above 4 cm). Accepted: child bob about 85 mm after scale (about 7 percent of height, visible, to be eyeballed on hardware); aGait2.w reserved (written 0); one-line edit in docs/agents/traffic-life.md added to the claim by the lead.
+- Result: pass

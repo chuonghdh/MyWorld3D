@@ -188,7 +188,7 @@ Plan only, no source edits. Auto film mode: a carrier bird flies high over the t
 
 ## Update 2026-11-06 (traffic-life): child walk gait
 - Child walk made calmer. Cycle 0.8 to 0.95 m (slower cadence; speed unchanged, so feet keep pace), swing 1.25 to 0.9 of adult size, eased swing (`eased` in `rigShader.ts`: dwell at the turnaround, peaks kept), knee bend x1.3, arm counter-swing x0.8, step-rate body bob x1.6.
-- Knobs: `trafficLife.childStrideCycleM`, `childSwingAmp`, `childSwingEase`, `childKneeK`, `childArmK`, `childBobK` (config, parity, `docs/TUNING.md`). Adults, teens and elders keep their values (ease 0, multipliers 1 via new per-instance attribute `aGait2`).
+- Knobs: `trafficLife.childStrideCycleM`, `childSwingAmp`, `childSwingEase`, `childKneeK`, `childArmK`, (`childBobK` was removed in T-0034) (config, parity, `docs/TUNING.md`). Adults, teens and elders keep their values (ease 0, multipliers 1 via new per-instance attribute `aGait2`).
 - Trap: `aGait2` is a new per-instance attribute; any new gait field needs a place in `peopleMeshes.ts` (create, write, needsUpdate).
 - Open: child stride rate still wobbles +-25 percent (`walkers/resolve.ts`); this may still read as jittery. Not checked by eye.
 

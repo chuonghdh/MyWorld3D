@@ -30,7 +30,6 @@ export interface PersonWrite {
   ease: number;
   kneeK: number;
   armK: number;
-  bobK: number;
 }
 
 function instancedAttr(mesh: THREE.InstancedMesh, name: string, capacity: number): Float32Array {
@@ -83,7 +82,7 @@ export function writePerson(set: PersonSet, bi: number, w: PersonWrite): boolean
   g2[o4] = w.ease;
   g2[o4 + 1] = w.kneeK;
   g2[o4 + 2] = w.armK;
-  g2[o4 + 3] = w.bobK;
+  g2[o4 + 3] = 0; // reserved
   const lk = set.look[bi];
   lk[o4] = ped.top % PALETTE_SIZES.top;
   lk[o4 + 1] = ped.pants % PALETTE_SIZES.pants;

@@ -17,8 +17,6 @@ export interface GaitSpec {
   kneeK: number;
   /** Arm counter-swing multiplier. */
   armK: number;
-  /** Body bob multiplier at step rate. */
-  bobK: number;
 }
 
 export interface Spec {

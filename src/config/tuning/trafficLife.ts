@@ -70,10 +70,14 @@ export const trafficLife = {
   gaitPelvisSwayMm: 8,
   /** Walk: torso counter-twist against the pelvis in degrees (scaled by swing amplitude); meaningful 0 to 8 (traffic/people/gaitMath.ts). */
   gaitTorsoTwistDeg: 4,
-  /** Walk: ankle toe-up angle at heel strike in degrees; plantar flexion at toe-off is 1.667 times this; scaled by swing amplitude; meaningful 0 to 15 (traffic/people/gaitMath.ts). */
+  /** Walk: ankle toe-up angle at heel strike in degrees; plantar flexion at toe-off is 0.41 times this; scaled by swing amplitude; meaningful 0 to 15 (traffic/people/gaitMath.ts). */
   gaitAnkleDeg: 12,
   /** Walk: share of the vertical bob and of the torso twist the head cancels, 0 to 1 (traffic/people/gaitMath.ts). */
   gaitHeadStabilise: 0.6,
+  /** Walk: 0 keeps the old thigh swing amplitude (0.55 times the person's swing), 1 fits it so the backward foot sweep over stance equals the step length (cycle / 2), which plants the stance foot; meaningful 0 to 1 (traffic/people/gaitMath.ts). */
+  gaitStrideFit: 1,
+  /** Walk: 0 keeps the sine thigh swing, 1 makes it a triangle wave (constant foot speed in stance, the second condition for a planted foot); meaningful 0 to 1 (traffic/people/gaitMath.ts). */
+  gaitStanceFlat: 1,
   /** Child walk: metres per full gait cycle (two steps), both sexes. Longer than before = slower cadence; feet keep pace with speed (traffic/people/personGeometry.ts). */
   childStrideCycleM: 1.425,
   /** Child walk: leg and arm swing amplitude multiplier, 1 = adult swing (traffic/people/personGeometry.ts). */
@@ -84,8 +88,6 @@ export const trafficLife = {
   childKneeK: 1.3,
   /** Child walk: arm counter-swing multiplier, 1 = adult (traffic/people/rigShader.ts). */
   childArmK: 0.8,
-  /** Child walk: hip and body bob multiplier at step rate, 1 = adult (traffic/people/rigShader.ts). */
-  childBobK: 1.6,
   /** Child walk: gait-rate wobble as a fraction of speed (0.05 = plus or minus 5 percent), render only (traffic/walkers/resolve.ts). */
   childCadenceWobble: 0.05,
   /** Metres ahead of the junction centre where a vehicle picks its manoeuvre (traffic/vehicles/constants.ts). */

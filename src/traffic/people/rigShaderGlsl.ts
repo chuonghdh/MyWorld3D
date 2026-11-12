@@ -115,26 +115,30 @@ bool applyRig(inout vec3 p, inout vec3 n) {
   float eased = aGait2.x;
   float kneeK = aGait2.y;
   float armK = aGait2.z;
-  float bobK = aGait2.w;
   float a = aGait.x + aGait.y;
   // Idle micro-animation (idleMath.ts): pose 0 walks and gets nothing; 1 stands (all terms); 2 chats and 3 sits (breathing).
   float stand = (pose > 0.5 && pose < 1.5) ? 1.0 : 0.0;
   float idleShiftU = stand > 0.5 ? idleShift(uTime, aGait.y) : 0.0;
-  float bob = walk * amp * 0.026 * bobK * abs(sin(a));
+  // Walk (T-0034): thigh amplitude fitted to the step length, and a bob that keeps the lowest sole point on the ground.
+  float thighAmp = walk > 0.5 ? gaitThighAmp(amp) : 0.0;
+  float bob = walk > 0.5 ? gaitBobOf(a, amp, eased, kneeK, thighAmp) : 0.0;
   bool isLeft = (part == 1 || part == 3 || part == 5 || part == 7);
   float side = isLeft ? 0.0 : 3.14159265;
   float sa = sin(a + side);
   float ca = cos(a + side);
   // Eased swing: s + e*0.5*(s - s^3) keeps the peaks and dwells longer at the turnaround. e = 0 is the plain sine.
   float ss = sa + eased * 0.5 * (sa - sa * sa * sa);
+  float pr = gaitProfile(ss, a + side); // thigh swing profile: the sine blended with a triangle wave in stance (gaitMath.ts)
   if (part >= 1 && part <= 4) {
     // Relaxed leg while standing: the thigh swings forward and the knee flexes ${IDLE.kneePerThigh} times as much, so the foot stays planted.
     float idleThigh = ${IDLE.relaxRadPerM.toFixed(1)} * uIdle.y * max(0.0, isLeft ? -idleShiftU : idleShiftU);
-    float thigh = walk * amp * 0.55 * ss + sit * 1.45 + idleThigh;
+    float thighW = walk * thighAmp * pr;
+    float thigh = thighW + sit * 1.45 + idleThigh;
     if (part >= 3) {
-      float knee = walk * amp * 0.85 * kneeK * max(0.0, ca) + sit * 1.45 + ${IDLE.kneePerThigh.toFixed(1)} * idleThigh;
-      // Ankle (T-0028): only the shoe vertices (region FIXED) roll about the ankle: toe up at heel strike, plantar flexion at toe-off.
-      if (walk > 0.5 && aRig.y < 0.5) rotYZ(p, n, vec2(gaitAnkleY(), 0.0), uGait.w * amp * gaitAnkleUnit(ss));
+      float kneeW = walk * gaitKnee(a + side, amp, kneeK);
+      float knee = kneeW + sit * 1.45 + ${IDLE.kneePerThigh.toFixed(1)} * idleThigh;
+      // Ankle (T-0028, T-0034): only the shoe vertices (region FIXED) roll about the ankle; the foot is turned back by the leg angles so its pitch in the world is the heel-strike, flat, toe-off curve.
+      if (walk > 0.5 && aRig.y < 0.5) rotYZ(p, n, vec2(gaitAnkleY(), 0.0), gaitAnkleRel(pr, amp, thighW, kneeW));
       rotYZ(p, n, aRig.zw, -knee);
     }
     rotYZ(p, n, uHip, thigh);
