@@ -516,6 +516,19 @@
       "status": "released",
       "date": "2026-11-12",
       "brief": "harness/briefs/T-0029-graphics-character.md"
+    },
+    {
+      "task": "T-0033-dog-gait-phase",
+      "owner": "graphics-character",
+      "globs": [
+        "src/traffic/people/**",
+        "tests/people*.test.ts",
+        "docs/agents/graphics-character.md",
+        "harness/briefs/T-0033-graphics-character.md"
+      ],
+      "status": "released",
+      "date": "2026-11-12",
+      "brief": "harness/briefs/T-0033-graphics-character.md"
     }
   ]
 }

@@ -167,3 +167,6 @@ All four person meshes have the same triangle count (376), so the handbook range
 - The T-0034 planted-foot metric is the steady state: during a start or stop the ramp lowers the amplitude briefly.
 - Cache keys: far `person-rig-v8`, near `person-rig-near-v10`, depth `person-rig-depth-v8`. Cost, rough: walking vertices +about 25 ALU (one roll rotation, one extra yaw term).
 - Tests: `tests/peopleTurn.test.ts` (convergence in delta / rate for turns up to pi without overshoot, shortest way across +-pi, slot reuse, dt clamp and pause, ramp monotone in walkRampS, lean mirror and GLSL sync). Allocation freedom is by construction (typed arrays, `step` returns nothing).
+
+## Update 2026-11-12 (T-0033 dog trot angle)
+- Same defect and fix as T-0021: `aDog.x` is now the trot angle accumulated on the CPU (a second `GaitPhase` in `peopleMeshes.ts`, keyed by the owner's `ped.id`: a `DogRender` has no id and a walker has at most one dog), and `DOG_DECL` uses `a = aDog.x + aDog.y`. Trap: `aDog.x` is an ANGLE now, no longer omega. Tail wag and nod already used `uTime` only and are unchanged. Dog cache keys `dog-rig-v2` and `dog-rig-depth-v2`. Test in `tests/peopleGait.test.ts` steps a dog through trot, stop, trot and speed changes through the real mesh update and checks the angle step is at most omega * dt. Look by eye not checked.
