@@ -88,4 +88,28 @@ describe('people mesh LOD routing', () => {
     }
     m.dispose();
   });
+  it('keeps the near face, surface and rim code out of the far material', () => {
+    const m = createPeopleMeshes(16, 4);
+    const sources = (mat: THREE.Material): { v: string; f: string } => {
+      const shader = {
+        uniforms: {} as Record<string, unknown>,
+        vertexShader: ['#include <common>', '#include <beginnormal_vertex>', '#include <begin_vertex>', '#include <color_vertex>'].join(' '),
+        fragmentShader: ['#include <common>', '#include <color_fragment>', '#include <lights_fragment_end>'].join(' '),
+      };
+      (mat.onBeforeCompile as unknown as (s: typeof shader) => void)(shader);
+      return { v: shader.vertexShader, f: shader.fragmentShader };
+    };
+    const ids = ['PERSON_NEAR', 'setFace', 'faceColour', 'setSurface', 'clothColour', 'vSurf', 'uAoK', 'uRimK', 'uClothK', 'RimLight', 'rimLight'];
+    for (let i = 0; i < 4; i++) {
+      const far = sources(m.bodies[i].material as THREE.Material);
+      const near = sources(m.nearBodies[i].material as THREE.Material);
+      for (const id of ids) {
+        expect(far.v.includes(id) || far.f.includes(id)).toBe(false);
+      }
+      expect(near.v).toContain('setSurface');
+      expect(near.f).toContain('clothColour');
+      expect(near.f).toContain('rimLight');
+    }
+    m.dispose();
+  });
 });
