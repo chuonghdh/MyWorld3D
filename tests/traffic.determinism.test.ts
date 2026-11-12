@@ -132,7 +132,10 @@ const EXPECTED_VEHICLES = 'b0d22ec1';
 // Re-captured 2026-11-06 for the child gait change (commit d47180a): child stride cycle, swing ease, knee, arm and bob
 // multipliers and the 5 percent gait wobble (config trafficLife.child*). Checked: with those child knobs reset to the
 // previous values the hash is still a8684131, so adults, teens, elders, dogs and umbrellas are unchanged.
-const EXPECTED_PEDESTRIANS = '63333cfb';
+// Re-captured 2026-11-12 (T-0029): the render heading of people is smoothed by trafficLife.walkTurnRateRad, and this hash covers
+// meshes.bodies instance matrices, which carry the heading. Previous: '63333cfb'. Checked: with walkTurnRateRad set to 1000
+// (render heading equal to the sim heading) the previous hash is reproduced, so the simulation and everything else are unchanged.
+const EXPECTED_PEDESTRIANS = '3ea1075e';
 // Previous: 'a8684131', re-captured when walker density followed the shared 11:00/19:00 traffic curve (trafficDensity.ts)
 
 describe('traffic determinism (baseline captured before allocation clean-up)', () => {

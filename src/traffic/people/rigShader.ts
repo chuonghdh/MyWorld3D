@@ -2,7 +2,7 @@
 //   - applyRig() swings legs, knees, arms and elbows by part id, bobs the body, seats people, gestures when
 //     chatting and hides the hat, scarf and bag a person does not wear,
 //   - pickColour() resolves the per-instance clothing colours from palette uniform arrays.
-// Per-instance attributes: aGait (walk-cycle angle accumulated on the CPU, phase offset, pose, amplitude), aGait2 (swing ease, knee and arm multipliers, w reserved;
+// Per-instance attributes: aGait (walk-cycle angle accumulated on the CPU, phase offset, pose, amplitude), aGait2 (swing ease, knee and arm multipliers, w the signed turn rate in -1..1;
 // adults 0, 1, 1, 1), aLook (top, pants, hair, skin),
 // aLook2 (accent, flag bits, sex 0 man or 1 woman, hair style). Flag bits (see outfit.ts): 1 hat, 2 scarf, 4 bag,
 // 8 bare shins, 16 short sleeves, 32 umbrella, 256 coat, 512 beard, 1024 moustache, then pattern bits.
@@ -83,6 +83,7 @@ export function createPersonMaterials(model: PersonModel, shared: PeopleUniforms
     uIdle: { value: new THREE.Vector4(trafficLife.idleBreathMm / 1000, trafficLife.idleShiftMm / 1000, (trafficLife.idleGlanceDeg * Math.PI) / 180, trafficLife.idleArmRad) },
     uGait: { value: new THREE.Vector4((trafficLife.gaitPelvisYawDeg * Math.PI) / 180, trafficLife.gaitPelvisSwayMm / 1000, (trafficLife.gaitTorsoTwistDeg * Math.PI) / 180, (trafficLife.gaitAnkleDeg * Math.PI) / 180) },
     uGaitHead: { value: trafficLife.gaitHeadStabilise },
+    uLean: { value: trafficLife.walkLeanRad },
     uStride: { value: new THREE.Vector4(trafficLife.gaitStrideFit, trafficLife.gaitStanceFlat, model.cycle[0], model.cycle[1]) },
     uHeadC: { value: new THREE.Vector3(...model.head.c) },
     uHeadR: { value: new THREE.Vector3(...model.head.r) },
@@ -117,7 +118,7 @@ export function createPersonMaterials(model: PersonModel, shared: PeopleUniforms
       )
       .replace('#include <lights_fragment_end>', '#include <lights_fragment_end>' + (near ? RIM_CODE + HAIR_LIGHT : ''));
   };
-  material.customProgramCacheKey = () => (near ? 'person-rig-near-v9' : 'person-rig-v7');
+  material.customProgramCacheKey = () => (near ? 'person-rig-near-v10' : 'person-rig-v8');
 
   const depth = new THREE.MeshDepthMaterial({ depthPacking: THREE.RGBADepthPacking });
   depth.onBeforeCompile = (shader) => {
@@ -126,7 +127,7 @@ export function createPersonMaterials(model: PersonModel, shared: PeopleUniforms
       .replace('#include <common>', '#include <common>\n' + PERSON_DECL)
       .replace('#include <begin_vertex>', 'vec3 rigP = position;\nvec3 rigN = vec3(0.0, 1.0, 0.0);\nbool rigOk = applyRig(rigP, rigN);\nvec3 transformed = rigOk ? rigP : vec3(0.0);');
   };
-  depth.customProgramCacheKey = () => 'person-rig-depth-v7';
+  depth.customProgramCacheKey = () => 'person-rig-depth-v8';
   return { material, depth };
 }
 

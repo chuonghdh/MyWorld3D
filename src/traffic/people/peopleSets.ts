@@ -25,6 +25,10 @@ export interface PersonWrite {
   flags: number;
   female: number;
   angle: number;
+  /** Render heading (smoothed, bodyMotion.ts), the gait ramp 0..1 and the turn in -1..1 (aGait2.w). */
+  heading: number;
+  ramp: number;
+  turn: number;
   walking: boolean;
   amp: number;
   ease: number;
@@ -71,18 +75,19 @@ export function writePerson(set: PersonSet, bi: number, w: PersonWrite): boolean
   if (idx >= set.capacity) return false;
   set.counts[bi] = idx + 1;
   const ped = w.ped;
-  writeInstance(set.meshes[bi], idx, ped.position.x, ped.position.z, ped.heading, ped.y, w.scale);
+  writeInstance(set.meshes[bi], idx, ped.position.x, ped.position.z, w.heading, ped.y, w.scale);
   const g = set.gait[bi];
   const o4 = idx * 4;
   g[o4] = w.angle;
   g[o4 + 1] = ped.phase;
-  g[o4 + 2] = w.walking ? 0 : ped.pose === 0 ? 1 : ped.pose;
+  // Walking people carry their gait ramp as -ramp (the shader reads pose < 0.5 as walking, -pose as the ramp); others their pose.
+  g[o4 + 2] = w.walking ? -w.ramp : ped.pose === 0 ? 1 : ped.pose;
   g[o4 + 3] = w.amp;
   const g2 = set.gait2[bi];
   g2[o4] = w.ease;
   g2[o4 + 1] = w.kneeK;
   g2[o4 + 2] = w.armK;
-  g2[o4 + 3] = 0; // reserved
+  g2[o4 + 3] = w.turn;
   const lk = set.look[bi];
   lk[o4] = ped.top % PALETTE_SIZES.top;
   lk[o4 + 1] = ped.pants % PALETTE_SIZES.pants;
