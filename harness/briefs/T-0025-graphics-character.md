@@ -1,0 +1,21 @@
+# Brief: T-0025 (graphics-character)
+
+- **Task id:** T-0025-ped-surface-shading
+- **Owner:** graphics-character
+- **Reviewer:** reviewer (read-only subagent)
+- **Goal:** near people look less flat: fake ambient occlusion, a soft rim light and procedural cloth detail, all in the NEAR material variant (`PERSON_NEAR`, created in T-0024: `rigShader.ts`, `rigShaderFace.ts`). The far material must compile to the same program as today (key `person-rig-v4`, no near code).
+- **Design (lead's, change with a reason):**
+  - AO: pass a per-vertex occlusion term from the vertex shader (varying) computed from part id and model height: darker under the chin and neck base, armpit and inner upper arm, crotch and inner thighs, tops of shoes, under hair and hat brims, torso bottom against the coat flare. Pure function of `aRig.x`, `position`, no extra attribute. Multiply the diffuse colour (and ideally only the ambient part, but a diffuse multiply is acceptable). Strength knob `aoStrength`.
+  - Rim: a soft view-dependent edge light using the view vector and the sun/sky colour already in three's lighting uniforms (directional light colour; check what `MeshLambertMaterial` exposes, e.g. `directionalLights[0].color` under `#if NUM_DIR_LIGHTS > 0`, or the `uSkyColor` style uniforms the project already uses). Night: scale with the existing light level so it does not glow (look at how `setNight` and emissive work in peopleMeshes.ts). Knob `rimStrength`.
+  - Cloth: a procedural woven pattern (hash noise on model position, two orthogonal fine stripes) modulating the top, trousers and accent colours only (regions TOP, PANTS, ACCENT, SLEEVE, SHIN-as-pants), faded with distance to the camera (cheap `length(vViewPosition)` fade, the near set is under 30 m) and fold darkening around elbow and knee pivots (use the model-space y near `uShoulder`/`uHip`/knee height; keep it subtle). Skin, hair and face untouched. Knob `clothDetail` (0 disables).
+  - Existing pattern code (dots, hearts, stripes in `PATTERN_FRAG`) must keep working and stay on top of the cloth.
+  - Every new term guarded by `#ifdef PERSON_NEAR`; far program unchanged; check by a test that the far material fragment and vertex sources contain none of the new identifiers (as `peopleLod.test.ts` already does for `PERSON_NEAR`).
+  - New knobs in `src/config/tuning/trafficLife.ts` with doc lines, parity entries in `tests/tuningParity.test.ts`, rows in `docs/TUNING.md`. Shader constants stay local. Pick defaults that are visibly there but subtle (aoStrength about 0.35, rimStrength about 0.25, clothDetail about 0.5), tune by eye.
+  - Cost: near-only, bounded by 256 near instances. State the added instruction count roughly in the handbook (no GPU timing is available).
+- **Verify by eye:** `npm run smoke:closeup` day 3 m and 8 m for adult, child, elder, teen, plus night 3 m and rain 3 m; VIEW the PNGs; describe AO, rim and cloth, and whether anything looks dirty, noisy, shimmering or glowing at night. Iterate up to 3 times.
+- **Files in scope:** `src/traffic/people/**`, `src/config/tuning/trafficLife.ts`, `tests/people.test.ts`, `tests/peopleLod.test.ts`, `tests/peopleNear.test.ts`, `tests/tuningParity.test.ts`, `tests/smoke/closeup.mjs`, `tests/smoke/closeupHook.mjs`, `docs/TUNING.md`, `docs/agents/graphics-character.md`, `harness/briefs/T-0025-graphics-character.md`.
+- **Files out of scope:** hair and skin shading (T-0026), the face, scene lights, walkers, far geometry and far material.
+- **Claims:** graphics-character entry for T-0025 in harness/state/claims.json (active).
+- **Acceptance commands:** `npx tsc --noEmit`; `npm run lint`; `npx vitest run tests/people.test.ts tests/peopleGait.test.ts tests/peopleLod.test.ts tests/peopleNear.test.ts tests/tuningParity.test.ts tests/traffic.determinism.test.ts tests/budget.test.ts tests/harness.test.ts`; `npx vite build`; `npm run smoke` (no console error); `npm run smoke:closeup` shots. Failures only.
+- **Report format:** at most 12 lines: files changed (line counts), gate result (failures only), what you saw by eye, not verified.
+- Handbook: append a dated section.

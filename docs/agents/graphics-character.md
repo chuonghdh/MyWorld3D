@@ -104,3 +104,13 @@ All four person meshes have the same triangle count (376), so the handbook range
 - Blink and gaze: period `trafficLife.blinkIntervalS` (4 s) times 0.6 to 1.4 by hash of `aGait.y`, per-person offset, 0.15 s. Gaze drift is 12 percent of eye size.
 - Trap: the moustache part (id 22) has no near geometry now; `partShows` still gates it harmlessly.
 - Seen by eye (software GL, 3 m): eyes with irises (blue, brown), brows (white on elders, black on children), elder and teen faces read well, no face on the sides or the back. Lips are subtle at 3 m.
+
+## Update 2026-11-12 (T-0025 near surface shading)
+- Decision: near material only (`PERSON_NEAR`, key `person-rig-near-v3`, far stays `person-rig-v4`; a test checks the far sources hold none of the new identifiers). New file `rigShaderSurface.ts`:
+  - AO: `setSurface()` in the vertex shader makes `vSurf.z` from part id, region and model height (s = hip height / 0.95): chin and neck base, hair and hat undersides, crotch, inner thighs, inner upper arm, shoe tops and soles, torso bottom against the coat flare. Diffuse is multiplied by `1 - 1.6 * aoStrength * occ`.
+  - Cloth: weave (two sine stripes, pitch about 6 mm) plus coarse hash on regions TOP, PANTS, ACCENT, shin and sleeve unless bare; faded between 4 and 14 m; fold darkening at the elbow (1.14 s) and knee (0.51 s) heights. It runs before `patternColour`, so dots, hearts and stripes stay on top. Scaled by `clothDetail`.
+  - Rim: `pow(1 - n.v, 2.5) * 3` added to `reflectedLight.indirectDiffuse`, coloured by `hemisphereLights[0].skyColor` and `directionalLights[0].color` (both pre-multiplied by intensity, so it follows the day and night light level). Scaled by `rimStrength`.
+- Knobs (trafficLife.ts, parity, TUNING.md): `aoStrength` 0.35, `rimStrength` 0.25, `clothDetail` 0.5. First pass at the brief's gains was invisible, so the shader gains were raised (weave 0.2 and 0.16, rim x3, AO x1.6); the knobs keep the brief's defaults.
+- Trap: `vViewPosition` is not declared where `#include <common>` sits in the fragment shader, so helpers take the distance as an argument and the call site in main passes `length(vViewPosition)`.
+- Cost, rough: vertex +about 60 ALU per near vertex (3,888 vertices per person); fragment +about 40 ALU (sin x2, hash, pow, light colour reads) for near pixels only. At most 256 near instances. No GPU timing available.
+- Seen by eye (software GL): weave reads as fine fabric at 3 m and fades by 14 m, AO and elbow or knee folds are subtle, rim is hard to see in overcast and rain, night shows no glow.

@@ -46,6 +46,12 @@ export const trafficLife = {
   nearHysteresisM: 4,
   /** Near people blink about every this many seconds (each person +/- 40 percent, offset by hash of the walker phase); a blink lasts 0.15 s (traffic/people/rigShaderFace.ts). */
   blinkIntervalS: 4,
+  /** Near people: strength of the fake ambient occlusion, 0 = off, 1 = full darkening in creases (traffic/people/rigShaderSurface.ts). */
+  aoStrength: 0.35,
+  /** Near people: strength of the soft rim light, 0 = off (traffic/people/rigShaderSurface.ts). */
+  rimStrength: 0.25,
+  /** Near people: strength of the woven cloth detail and fold darkening, 0 = off (traffic/people/rigShaderSurface.ts). */
+  clothDetail: 0.5,
   /** Child walk: metres per full gait cycle (two steps), both sexes. Longer than before = slower cadence; feet keep pace with speed (traffic/people/personGeometry.ts). */
   childStrideCycleM: 1.425,
   /** Child walk: leg and arm swing amplitude multiplier, 1 = adult swing (traffic/people/personGeometry.ts). */
